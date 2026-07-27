@@ -1,7 +1,10 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { Search, Plus, Bell, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Search, Plus, Bell, User as UserIcon, LogOut } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import type { User } from '@supabase/supabase-js';
 
 const routeTitles: Record<string, string> = {
   '/': 'Dashboard',
@@ -12,6 +15,31 @@ const routeTitles: Record<string, string> = {
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
+  const [user, setUser] = useState<User | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+
+  useEffect(() => {
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    }
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
+
   const title = routeTitles[pathname] || 'SubSync';
 
   return (
@@ -54,9 +82,40 @@ export default function Header() {
           <Bell className="w-4 h-4" />
         </button>
 
-        {/* User Avatar Placeholder */}
-        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold ring-2 ring-zinc-800">
-          <User className="w-4 h-4" />
+        {/* User Profile Menu */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowMenu(!showMenu)}
+            className="flex items-center gap-2 text-left cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center text-white text-xs font-semibold ring-2 ring-zinc-800 group-hover:ring-indigo-500 transition-all">
+              <UserIcon className="w-4 h-4" />
+            </div>
+          </button>
+
+          {/* Dropdown Menu */}
+          {showMenu && (
+            <div className="absolute right-0 mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-2xl p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-3 py-2 border-b border-zinc-800/80 mb-1">
+                <p className="text-xs font-semibold text-white truncate">
+                  {user?.user_metadata?.full_name || 'SubSync User'}
+                </p>
+                <p className="text-[11px] text-zinc-500 truncate">
+                  {user?.email || 'user@example.com'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -1,7 +1,21 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isAuthPage = pathname === '/login';
+
+  if (isAuthPage) {
+    return (
+      <div className="min-h-screen bg-black text-zinc-100 antialiased font-sans flex items-center justify-center p-4">
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-black text-zinc-100 antialiased font-sans">
       {/* Sidebar */}
