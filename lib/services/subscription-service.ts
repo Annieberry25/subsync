@@ -65,3 +65,27 @@ export async function deleteSubscription(id: string): Promise<{ error: Error | n
   if (error) return { error: new Error(error.message) };
   return { error: null };
 }
+
+export async function bulkCreateSubscriptions(
+  items: Omit<SubscriptionInsert, 'user_id'>[]
+): Promise<{ count: number; error: Error | null }> {
+  if (!items || items.length === 0) return { count: 0, error: null };
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { count: 0, error: new Error('User is not authenticated.') };
+  }
+
+  const recordsToInsert = items.map((item) => ({
+    ...item,
+    user_id: user.id,
+  }));
+
+  const { data, error } = await supabase.from('subscriptions').insert(recordsToInsert).select();
+
+  if (error) return { count: 0, error: new Error(error.message) };
+  return { count: data?.length || 0, error: null };
+}

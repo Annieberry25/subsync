@@ -1,4 +1,3 @@
-'use me';
 'use client';
 
 import Link from 'next/link';
@@ -9,38 +8,55 @@ import {
   Download, 
   Settings, 
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from 'lucide-react';
 
-const navItems = [
+export const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard },
   { name: 'Export & Analytics', href: '/export', icon: Download },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
 
-  return (
-    <aside className="w-64 bg-zinc-900 border-r border-zinc-800 flex flex-col justify-between h-screen sticky top-0 text-zinc-300">
+  const content = (
+    <div className="flex flex-col justify-between h-full">
       <div>
-        {/* Brand Logo */}
-        <div className="p-6 border-b border-zinc-800/60 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-              <Zap className="w-5 h-5 fill-current" />
+        {/* Brand Logo & Mobile Close */}
+        <div className="p-6 border-b border-zinc-800/40 flex items-center justify-between">
+          <Link href="/" onClick={onMobileClose} className="flex items-center gap-3 group">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+              <Zap className="w-5 h-5 fill-current text-white" />
             </div>
             <div>
-              <span className="font-bold text-lg text-white tracking-tight">SubSync</span>
-              <span className="block text-[10px] text-zinc-500 font-medium tracking-wider uppercase">Manager</span>
+              <span className="font-black text-lg subsync-heading tracking-tight">SubSync</span>
+              <span className="block text-[10px] subsync-muted font-bold tracking-widest uppercase">Manager</span>
             </div>
           </Link>
+
+          {onMobileClose && (
+            <button
+              type="button"
+              onClick={onMobileClose}
+              aria-label="Close navigation menu"
+              className="md:hidden p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Navigation Items */}
-        <nav className="p-4 space-y-1.5">
-          <div className="px-3 pb-2 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+        <nav className="p-4 space-y-1.5" aria-label="Main Navigation">
+          <div className="px-3 pb-2 text-[11px] font-extrabold subsync-muted uppercase tracking-widest">
             Menu
           </div>
           {navItems.map((item) => {
@@ -51,13 +67,14 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                onClick={onMobileClose}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all ${
                   isActive
-                    ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/20 shadow-sm'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                    ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/25 shadow-sm'
+                    : 'subsync-subtitle hover:subsync-heading hover:bg-zinc-800/40'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-zinc-500'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'subsync-muted'}`} />
                 <span>{item.name}</span>
               </Link>
             );
@@ -65,17 +82,40 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Connection & User Footer */}
-      <div className="p-4 border-t border-zinc-800/60 space-y-3">
-        {/* Supabase RLS Status Badge */}
-        <div className="px-3 py-2.5 rounded-xl bg-zinc-800/40 border border-zinc-800 flex items-center gap-2.5 text-xs text-zinc-400">
+      {/* Connection & Status Footer */}
+      <div className="p-4 border-t border-zinc-800/40 space-y-3">
+        <div className="px-3 py-2.5 rounded-2xl bg-zinc-800/30 border border-zinc-800/60 flex items-center gap-2.5 text-xs subsync-subtitle">
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <div className="truncate">
-            <span className="text-zinc-200 font-medium block">Supabase Connected</span>
-            <span className="text-[10px] text-zinc-500">RLS Active</span>
+            <span className="subsync-heading font-semibold block">Supabase Connected</span>
+            <span className="text-[10px] subsync-muted">RLS Active</span>
           </div>
         </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="w-64 glass-sidebar hidden md:flex flex-col h-screen sticky top-0 shrink-0 z-20">
+        {content}
+      </aside>
+
+      {/* Mobile Drawer Overlay */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 md:hidden animate-in fade-in duration-150"
+          onClick={onMobileClose}
+        >
+          <aside
+            onClick={(e) => e.stopPropagation()}
+            className="w-72 glass-sidebar h-full shadow-2xl animate-in slide-in-from-left duration-200"
+          >
+            {content}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

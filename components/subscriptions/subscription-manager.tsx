@@ -20,26 +20,34 @@ import {
 import SubscriptionCard from './subscription-card';
 import SubscriptionModal from './subscription-modal';
 import SubscriptionFilters from './subscription-filters';
+import ConfirmDialog from '@/components/ui/confirm-dialog';
+import { MetricCardSkeleton, SubscriptionCardSkeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/lib/hooks/use-toast';
+import { PersonalizedHeader } from '@/components/dashboard/personalized-header';
+import { UpcomingRenewalsSpotlight } from '@/components/subscriptions/upcoming-renewals-spotlight';
 
 import { 
-  Plus, 
   CreditCard, 
   DollarSign, 
   Calendar, 
   TrendingUp, 
-  Loader2, 
   AlertCircle,
-  RefreshCw
+  XCircle
 } from 'lucide-react';
 
 export default function SubscriptionManager() {
+  const { toast } = useToast();
+
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Modal State
+  // Modal & Confirm State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
+
+  const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,17 +56,21 @@ export default function SubscriptionManager() {
   const [sortBy, setSortBy] = useState('next_billing_asc');
 
   // Load subscriptions from Supabase
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (showToast = false) => {
     setLoading(true);
     setError(null);
     const { data, error: err } = await fetchSubscriptions();
     if (err) {
       setError(err.message);
+      toast.error(err.message, 'Failed to fetch subscriptions');
     } else if (data) {
       setSubscriptions(data);
+      if (showToast) {
+        toast.info('Subscription data synchronized with Supabase.', 'Data Refreshed');
+      }
     }
     setLoading(false);
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     loadData();
@@ -76,14 +88,28 @@ export default function SubscriptionManager() {
     await loadData();
   };
 
-  // Handle Delete
-  const handleDelete = async (id: string) => {
-    const { error: err } = await deleteSubscription(id);
+  // Handle Delete Confirmation
+  const handleConfirmDelete = async () => {
+    if (!deletingSubscription) return;
+    setDeleteLoading(true);
+
+    const { error: err } = await deleteSubscription(deletingSubscription.id);
+    setDeleteLoading(false);
+
     if (err) {
-      setError(err.message);
+      toast.error(err.message, 'Deletion Failed');
     } else {
+      toast.success(`Removed "${deletingSubscription.name}" from your subscriptions.`, 'Subscription Deleted');
+      setDeletingSubscription(null);
       await loadData();
     }
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('All');
+    setSelectedStatus('All');
+    setSortBy('next_billing_asc');
   };
 
   // Filter and Sort subscriptions
@@ -119,91 +145,102 @@ export default function SubscriptionManager() {
   const activeCount = useMemo(() => getActiveCount(subscriptions), [subscriptions]);
   const upcomingCount = useMemo(() => getUpcomingRenewalsCount(subscriptions), [subscriptions]);
 
+  const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All' || selectedStatus !== 'All';
+
   return (
-    <div className="space-y-8">
-      {/* Top Action & Metrics Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-white tracking-tight">Subscriptions Dashboard</h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            Track expenses, upcoming renewal dates, and optimize your recurring subscriptions.
-          </p>
+    <div className="space-y-10 bg-ambient-grid min-h-[85vh]">
+      {/* 1. HERO PANEL (Centerpiece Header) */}
+      <PersonalizedHeader
+        onRefresh={() => loadData(true)}
+        onAddSubscription={() => {
+          setEditingSubscription(null);
+          setIsModalOpen(true);
+        }}
+        loading={loading}
+      />
+
+      {/* 2. STATISTICS SUMMARY CARDS */}
+      {loading && subscriptions.length === 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={loadData}
-            title="Refresh subscriptions"
-            className="w-9 h-9 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center border border-zinc-700/50 transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setEditingSubscription(null);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 transition-all active:scale-95 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Subscription</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Metric Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Monthly Spend */}
-        <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400">Monthly Spend</span>
-            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Monthly Spend */}
+          <div className="glass-panel p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-indigo-500 hover:scale-[1.01] transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Monthly Spend</span>
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+                <DollarSign className="w-5 h-5" />
+              </div>
             </div>
-          </div>
-          <span className="text-2xl font-black text-white block">{formatCurrency(monthlySpend)}</span>
-          <span className="text-[11px] text-zinc-500 block">Normalized monthly total</span>
-        </div>
-
-        {/* Annual Spend */}
-        <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400">Annual Projection</span>
-            <div className="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-env-heading tracking-tight">{formatCurrency(monthlySpend)}</span>
+              <span className="text-[11px] text-indigo-400 font-semibold">/ month</span>
             </div>
+            <span className="text-[11px] text-env-muted block">Normalized recurring monthly total</span>
           </div>
-          <span className="text-2xl font-black text-white block">{formatCurrency(annualSpend)}</span>
-          <span className="text-[11px] text-zinc-500 block">Projected yearly total</span>
-        </div>
 
-        {/* Active Subscriptions */}
-        <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400">Active Subscriptions</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-              <CreditCard className="w-4 h-4" />
+          {/* Annual Spend */}
+          <div className="glass-panel p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-purple-500 hover:scale-[1.01] transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Annual Projection</span>
+              <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
+                <TrendingUp className="w-5 h-5" />
+              </div>
             </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-env-heading tracking-tight">{formatCurrency(annualSpend)}</span>
+              <span className="text-[11px] text-purple-400 font-semibold">/ year</span>
+            </div>
+            <span className="text-[11px] text-env-muted block">Projected yearly total expenditure</span>
           </div>
-          <span className="text-2xl font-black text-white block">{activeCount}</span>
-          <span className="text-[11px] text-emerald-400 font-medium block">Active & Trial plans</span>
-        </div>
 
-        {/* Upcoming Renewals */}
-        <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400">Due in 30 Days</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-              <Calendar className="w-4 h-4" />
+          {/* Active Subscriptions */}
+          <div className="glass-panel p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-emerald-500 hover:scale-[1.01] transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Active Plans</span>
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                <CreditCard className="w-5 h-5" />
+              </div>
             </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-env-heading tracking-tight">{activeCount}</span>
+              <span className="text-[11px] text-emerald-400 font-semibold">Tracked</span>
+            </div>
+            <span className="text-[11px] text-emerald-400 font-semibold block">Active & Trial subscriptions</span>
           </div>
-          <span className="text-2xl font-black text-white block">{upcomingCount}</span>
-          <span className="text-[11px] text-amber-400 font-medium block">Upcoming billing dates</span>
+
+          {/* Upcoming Renewals */}
+          <div className="glass-panel p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-amber-500 hover:scale-[1.01] transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Due in 30 Days</span>
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20">
+                <Calendar className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-env-heading tracking-tight">{upcomingCount}</span>
+              <span className="text-[11px] text-amber-400 font-semibold">Pending</span>
+            </div>
+            <span className="text-[11px] text-amber-400 font-semibold block">Upcoming billing renewal dates</span>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* 3. UPCOMING RENEWALS SPOTLIGHT BANNER */}
+      {!loading && (
+        <UpcomingRenewalsSpotlight
+          subscriptions={subscriptions}
+          onEdit={(sub) => {
+            setEditingSubscription(sub);
+            setIsModalOpen(true);
+          }}
+        />
+      )}
 
       {/* Error Banner */}
       {error && (
@@ -213,7 +250,7 @@ export default function SubscriptionManager() {
         </div>
       )}
 
-      {/* Filter Bar */}
+      {/* 4. SEARCH AND FILTERS BAR */}
       <SubscriptionFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -225,14 +262,15 @@ export default function SubscriptionManager() {
         onSortChange={setSortBy}
       />
 
-      {/* Subscriptions Grid */}
-      {loading ? (
-        <div className="p-16 rounded-3xl bg-zinc-900/40 border border-zinc-800/60 text-center flex flex-col items-center justify-center space-y-3">
-          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-          <span className="text-xs font-medium text-zinc-400">Loading subscriptions from Supabase...</span>
+      {/* 5. SUBSCRIPTIONS GRID / SKELETONS / EMPTY STATES */}
+      {loading && subscriptions.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <SubscriptionCardSkeleton />
+          <SubscriptionCardSkeleton />
+          <SubscriptionCardSkeleton />
         </div>
       ) : filteredSubscriptions.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSubscriptions.map((sub) => (
             <SubscriptionCard
               key={sub.id}
@@ -241,35 +279,48 @@ export default function SubscriptionManager() {
                 setEditingSubscription(item);
                 setIsModalOpen(true);
               }}
-              onDelete={handleDelete}
+              onDeleteRequest={(item) => setDeletingSubscription(item)}
             />
           ))}
         </div>
       ) : (
-        <div className="p-16 rounded-3xl bg-zinc-900/40 border border-zinc-800/60 text-center flex flex-col items-center justify-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-zinc-800/80 flex items-center justify-center text-zinc-500">
-            <CreditCard className="w-6 h-6" />
+        <div className="glass-panel p-16 rounded-3xl text-center flex flex-col items-center justify-center space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-xl">
+            {hasActiveFilters ? <XCircle className="w-8 h-8 text-amber-400" /> : <CreditCard className="w-8 h-8 text-indigo-400" />}
           </div>
           <div className="max-w-xs space-y-1">
-            <h3 className="text-sm font-bold text-white">No subscriptions found</h3>
-            <p className="text-xs text-zinc-500">
-              {searchQuery || selectedCategory !== 'All' || selectedStatus !== 'All'
-                ? 'Try adjusting your search or category filters.'
-                : 'Click "Add Subscription" above to create your first subscription record.'}
+            <h3 className="text-base font-bold text-env-heading">
+              {hasActiveFilters ? 'No matching subscriptions' : 'No subscriptions added yet'}
+            </h3>
+            <p className="text-xs text-env-body">
+              {hasActiveFilters
+                ? 'No subscriptions match your current search terms or filter criteria.'
+                : 'Track your recurring Netflix, Spotify, or software subscriptions in one place.'}
             </p>
           </div>
-          {!searchQuery && selectedCategory === 'All' && selectedStatus === 'All' && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingSubscription(null);
-                setIsModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
-            >
-              Add First Subscription
-            </button>
-          )}
+
+          <div className="flex items-center gap-3 pt-2">
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="px-5 py-2.5 rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover text-env-heading text-xs font-semibold border border-env-main transition-all cursor-pointer"
+              >
+                Clear All Filters
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingSubscription(null);
+                  setIsModalOpen(true);
+                }}
+                className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+              >
+                Add Your First Subscription
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -282,6 +333,18 @@ export default function SubscriptionManager() {
         }}
         onSave={handleSave}
         initialData={editingSubscription}
+      />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={!!deletingSubscription}
+        onClose={() => setDeletingSubscription(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleteLoading}
+        title={`Delete "${deletingSubscription?.name}"?`}
+        description="Are you sure you want to delete this subscription? This action cannot be undone and will update your expense analytics."
+        confirmText="Delete Subscription"
+        variant="danger"
       />
     </div>
   );
