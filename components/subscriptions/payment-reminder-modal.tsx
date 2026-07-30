@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Bell, Check } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -8,26 +8,28 @@ import { useToast } from '@/lib/hooks/use-toast';
 interface PaymentReminderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave?: (data: { timing: string; method: string; note?: string }) => void;
+  onSave: (reminder: { timing: string; customDate?: string; method: string; note?: string }) => void;
   subscriptionName: string;
   nextBillingDate?: string;
 }
 
-type TimingOption = '7_days' | '3_days' | '1_day' | 'custom';
-type MethodOption = 'push' | 'email' | 'both';
+type TimingOption = '1_day' | '3_days' | '7_days' | 'custom';
+type MethodOption = 'email' | 'push' | 'both';
 
 const timingChoices: { id: TimingOption; label: string }[] = [
-  { id: '7_days', label: '7 days before renewal' },
-  { id: '3_days', label: '3 days before renewal' },
-  { id: '1_day', label: '1 day before renewal' },
-  { id: 'custom', label: 'Custom date' },
+  { id: '1_day', label: '1 Day Before' },
+  { id: '3_days', label: '3 Days Before' },
+  { id: '7_days', label: '7 Days Before' },
+  { id: 'custom', label: 'Custom Date' },
 ];
 
 const methodChoices: { id: MethodOption; label: string }[] = [
-  { id: 'push', label: 'Push Notification' },
-  { id: 'email', label: 'Email' },
-  { id: 'both', label: 'Both' },
+  { id: 'email', label: 'Email Only' },
+  { id: 'push', label: 'In-App Toast' },
+  { id: 'both', label: 'Email + Toast' },
 ];
+
+const emptySubscribe = () => () => {};
 
 export default function PaymentReminderModal({
   isOpen,
@@ -37,26 +39,29 @@ export default function PaymentReminderModal({
 }: PaymentReminderModalProps) {
   const { toast } = useToast();
 
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [timing, setTiming] = useState<TimingOption>('3_days');
   const [customDate, setCustomDate] = useState('');
   const [method, setMethod] = useState<MethodOption>('both');
   const [note, setNote] = useState('');
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  if (isOpen && !prevIsOpen) {
+    setPrevIsOpen(true);
+    setTiming('3_days');
+    setMethod('both');
+    setNote('');
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 3);
+    setCustomDate(defaultDate.toISOString().split('T')[0]);
+  } else if (!isOpen && prevIsOpen) {
+    setPrevIsOpen(false);
+  }
 
-  // Reset form state & handle body overflow scroll locking
+  // Handle body overflow scroll locking
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      setTiming('3_days');
-      setMethod('both');
-      setNote('');
-      const defaultDate = new Date();
-      defaultDate.setDate(defaultDate.getDate() + 3);
-      setCustomDate(defaultDate.toISOString().split('T')[0]);
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -96,7 +101,7 @@ export default function PaymentReminderModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-[480px] glass-panel rounded-t-3xl sm:rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 max-h-[90vh] flex flex-col overflow-y-auto animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 border border-env-subtle"
+        className="w-full sm:max-w-[480px] glass-panel rounded-t-3xl sm:rounded-3xl p-5 sm:p-7 shadow-2xl space-y-5 max-h-[90vh] flex flex-col overflow-y-auto animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 border border-env-subtle"
       >
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-env-main pb-4 shrink-0">
@@ -105,10 +110,10 @@ export default function PaymentReminderModal({
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h2 id="reminder-modal-title" className="text-lg font-black text-env-heading tracking-tight">
+              <h2 id="reminder-modal-title" className="text-base sm:text-lg font-black text-env-heading tracking-tight">
                 Payment Reminder
               </h2>
-              <p className="text-xs text-env-body mt-0.5">
+              <p className="text-xs text-env-body mt-0.5 leading-relaxed">
                 Stay ahead of your next renewal by choosing when you&apos;d like to be reminded to prepare for this payment.
               </p>
             </div>
@@ -117,7 +122,7 @@ export default function PaymentReminderModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-8 h-8 rounded-xl bg-env-button-sec hover:bg-env-badge text-env-muted hover:text-env-heading flex items-center justify-center transition-colors cursor-pointer border border-env-subtle shrink-0"
+            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-xl bg-env-button-sec hover:bg-env-badge text-env-muted hover:text-env-heading flex items-center justify-center transition-colors cursor-pointer border border-env-subtle shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -136,14 +141,14 @@ export default function PaymentReminderModal({
                     key={choice.id}
                     type="button"
                     onClick={() => setTiming(choice.id)}
-                    className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border transition-all text-left cursor-pointer ${
+                    className={`px-3.5 py-3 min-h-[44px] rounded-2xl text-xs font-semibold flex items-center justify-between border transition-all text-left cursor-pointer ${
                       isSelected
                         ? 'bg-env-status-active-bg text-env-status-active border-env-status-active-border shadow-sm'
                         : 'bg-env-badge/50 text-env-body border-env-subtle hover:bg-env-badge'
                     }`}
                   >
                     <span>{choice.label}</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-env-status-active shrink-0" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-env-status-active shrink-0 ml-2" />}
                   </button>
                 );
               })}
@@ -156,7 +161,7 @@ export default function PaymentReminderModal({
                   type="date"
                   value={customDate}
                   onChange={(e) => setCustomDate(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-env-subtle bg-env-input text-env-heading focus:outline-none focus:border-indigo-500"
+                  className="w-full h-11 px-3.5 py-2 text-xs rounded-2xl border border-env-subtle bg-env-input text-env-heading focus:outline-none focus:border-indigo-500"
                 />
               </div>
             )}
@@ -173,13 +178,13 @@ export default function PaymentReminderModal({
                     key={choice.id}
                     type="button"
                     onClick={() => setMethod(choice.id)}
-                    className={`px-3 py-2.5 rounded-xl text-xs font-semibold flex flex-col items-center justify-center gap-1 border transition-all cursor-pointer ${
+                    className={`px-2.5 sm:px-3 py-3 min-h-[44px] rounded-2xl text-[11px] sm:text-xs font-semibold flex items-center justify-center text-center border transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-indigo-600/15 text-indigo-400 border-indigo-500/40 shadow-sm'
                         : 'bg-env-badge/50 text-env-body border-env-subtle hover:bg-env-badge'
                     }`}
                   >
-                    <span>{choice.label}</span>
+                    <span className="truncate">{choice.label}</span>
                   </button>
                 );
               })}
@@ -196,22 +201,22 @@ export default function PaymentReminderModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Transfer money to my subscription account before renewal."
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-env-subtle bg-env-input text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 resize-none"
+              className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-env-subtle bg-env-input text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 resize-none"
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-env-main">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-env-main">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-env-body hover:bg-env-badge border border-env-subtle transition-colors cursor-pointer"
+              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-2xl text-xs font-semibold text-env-body hover:bg-env-badge border border-env-subtle transition-colors cursor-pointer flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all cursor-pointer flex items-center justify-center"
             >
               Save Reminder
             </button>

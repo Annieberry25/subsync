@@ -42,61 +42,64 @@ export default function SubscriptionFilters({
   onSortChange,
 }: SubscriptionFiltersProps) {
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {/* Top Filter & Search Controls */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 glass-panel px-4 py-2.5 sm:py-3 rounded-2xl shadow-sm border border-env-subtle/80 bg-env-card/40">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 glass-panel p-3.5 sm:p-4 rounded-3xl shadow-sm border border-env-subtle/80 bg-env-card/40">
         {/* Search Input */}
         <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-env-muted" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-env-muted pointer-events-none" />
           <input
             type="text"
             placeholder="Search subscriptions by name, plan tier, or notes..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 py-1.5 text-xs rounded-xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full h-10 pl-10 pr-3.5 py-2 text-xs rounded-2xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
           />
         </div>
 
-        {/* Filter Groups with Outer Labels and Intentional Minimum Width Glass SelectTriggers */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Filter Groups with Outer Labels and Responsive Custom SelectTriggers */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-center gap-3 w-full lg:w-auto">
           {/* Status: [ All              ▼ ] */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-env-body shrink-0">
               <Filter className="w-3.5 h-3.5 text-env-muted" />
               <span>Status:</span>
             </div>
             
-            {/* Custom Glass SelectTrigger Pill (min-w-[105px]) */}
-            <CustomSelect
-              options={statusOptions}
-              value={selectedStatus}
-              onChange={onStatusChange}
-              ariaLabel="Filter subscriptions by status"
-              minWidth="min-w-[105px]"
-            />
+            <div className="flex-1 sm:flex-initial">
+              <CustomSelect
+                options={statusOptions}
+                value={selectedStatus}
+                onChange={onStatusChange}
+                ariaLabel="Filter subscriptions by status"
+                minWidth="w-full sm:min-w-[120px]"
+              />
+            </div>
           </div>
 
           {/* Sort: [ Next Billing (Soonest) ▼ ] */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-env-body shrink-0">
               <ArrowUpDown className="w-3.5 h-3.5 text-env-muted" />
               <span>Sort:</span>
             </div>
 
-            {/* Custom Glass SelectTrigger Pill (min-w-[210px]) */}
-            <CustomSelect
-              options={sortOptions}
-              value={sortBy}
-              onChange={onSortChange}
-              ariaLabel="Sort subscriptions"
-              minWidth="min-w-[210px]"
-            />
+            <div className="flex-1 sm:flex-initial">
+              <CustomSelect
+                options={sortOptions}
+                value={sortBy}
+                onChange={onSortChange}
+                ariaLabel="Sort subscriptions"
+                minWidth="w-full sm:min-w-[210px]"
+                alignRight={true}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Category Quick Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+      {/* Category Quick Filter Pills (Edge-to-Edge Bleed Scroll on Mobile) */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat;
           return (
@@ -104,9 +107,9 @@ export default function SubscriptionFilters({
               key={cat}
               type="button"
               onClick={() => onCategoryChange(cat)}
-              className={`px-3.5 py-1 rounded-xl text-xs font-bold whitespace-nowrap min-h-[30px] transition-all cursor-pointer ${
+              className={`px-4 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap min-h-[36px] transition-all cursor-pointer flex items-center justify-center ${
                 isActive
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/10 border border-indigo-500/30'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20 border border-indigo-500/30'
                   : 'glass-panel text-env-body hover:text-env-heading hover:bg-env-button-sec-hover'
               }`}
             >

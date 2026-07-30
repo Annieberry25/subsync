@@ -88,7 +88,7 @@ export default function ConfirmDialog({
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center ${currentVariant.iconBg}`}>
+            <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${currentVariant.iconBg}`}>
               <Icon className="w-5 h-5" />
             </div>
             <div>
@@ -102,7 +102,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1 rounded-xl text-env-muted hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer"
+            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-2xl text-env-muted hover:text-env-heading hover:bg-env-button-sec transition-colors flex items-center justify-center cursor-pointer border border-env-subtle shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -112,12 +112,12 @@ export default function ConfirmDialog({
           {description}
         </p>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer"
+            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-2xl text-xs font-semibold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer flex items-center justify-center"
           >
             {cancelText}
           </button>
@@ -130,7 +130,7 @@ export default function ConfirmDialog({
               onClose();
             }}
             disabled={loading}
-            className={`px-5 py-2.5 rounded-2xl text-white text-xs font-bold flex items-center gap-2 shadow-lg transition-all focus:outline-none focus:ring-2 cursor-pointer ${currentVariant.btnBg}`}
+            className={`w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-2xl text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all focus:outline-none focus:ring-2 cursor-pointer ${currentVariant.btnBg}`}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             <span>{confirmText}</span>

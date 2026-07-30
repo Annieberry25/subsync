@@ -51,19 +51,15 @@ export default function SubscriptionManager() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [reminderSubscription, setReminderSubscription] = useState<SubscriptionRow | null>(null);
-  const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>({});
-
-  // Load saved reminders from localStorage
-  useEffect(() => {
+  const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>(() => {
+    if (typeof window === 'undefined') return {};
     try {
       const saved = localStorage.getItem('subsync_reminders');
-      if (saved) {
-        setReminders(JSON.parse(saved));
-      }
+      return saved ? JSON.parse(saved) : {};
     } catch {
-      // Ignore localStorage errors
+      return {};
     }
-  }, []);
+  });
 
   const handleSaveReminder = (subId: string, data: { timing: string; method: string; note?: string }) => {
     const updated = {
@@ -76,18 +72,14 @@ export default function SubscriptionManager() {
     } catch {
       // Ignore localStorage errors
     }
+    toast.success(`Payment reminder configured for subscription.`, 'Reminder Set');
   };
 
   const handleDismissReminder = (sub: SubscriptionRow) => {
-    const existing = reminders[sub.id];
+    const existing = reminders[sub.id] || { timing: '7_days', method: 'both' };
     const updated = {
       ...reminders,
-      [sub.id]: {
-        timing: existing?.timing || '3_days',
-        method: existing?.method || 'both',
-        note: existing?.note,
-        dismissed: true,
-      },
+      [sub.id]: { ...existing, dismissed: true },
     };
     setReminders(updated);
     try {
@@ -98,20 +90,18 @@ export default function SubscriptionManager() {
     toast.info(`Dismissed payment reminder for ${sub.name}.`, 'Reminder Dismissed');
   };
 
-  // Filter State
+  // Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [sortBy, setSortBy] = useState('next_billing_asc');
 
-  // Load subscriptions from Supabase
+  // Fetch Subscriptions Data
   const loadData = useCallback(async (showToast = false) => {
     setLoading(true);
-    setError(null);
     const { data, error: err } = await fetchSubscriptions();
     if (err) {
-      setError(err.message);
-      toast.error(err.message, 'Failed to fetch subscriptions');
+      setError(err.message || 'Failed to load subscriptions.');
     } else if (data) {
       setSubscriptions(data);
       if (showToast) {
@@ -122,8 +112,20 @@ export default function SubscriptionManager() {
   }, [toast]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let active = true;
+    fetchSubscriptions().then(({ data, error: err }) => {
+      if (!active) return;
+      if (err) {
+        setError(err.message || 'Failed to load subscriptions.');
+      } else if (data) {
+        setSubscriptions(data);
+      }
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Handle Save (Create / Update)
   const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
@@ -197,7 +199,7 @@ export default function SubscriptionManager() {
   const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All' || selectedStatus !== 'All';
 
   return (
-    <div className="space-y-6 bg-ambient-grid min-h-[85vh] pb-72">
+    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-32 sm:pb-48">
       {/* 1. HERO PANEL (Centerpiece Header) */}
       <PersonalizedHeader
         onRefresh={() => loadData(true)}
@@ -210,16 +212,16 @@ export default function SubscriptionManager() {
 
       {/* 2. STATISTICS SUMMARY CARDS */}
       {loading && subscriptions.length === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {/* Monthly Spend */}
-          <div className="glass-panel group relative overflow-hidden p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-indigo-500 hover:scale-[1.01] transition-all">
+          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-indigo-500 hover:scale-[1.01] transition-all">
             <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-indigo-500/15 blur-2xl pointer-events-none" />
             <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold text-env-body tracking-wider uppercase">Monthly Spend</span>
@@ -227,15 +229,15 @@ export default function SubscriptionManager() {
                 <DollarSign className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2 relative z-10">
-              <span className="text-3xl font-black text-env-heading tracking-tight">{formatCurrency(monthlySpend)}</span>
-              <span className="text-[11px] text-indigo-400 font-semibold">/ month</span>
+            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
+              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">{formatCurrency(monthlySpend)}</span>
+              <span className="text-[11px] text-indigo-400 font-semibold shrink-0">/ month</span>
             </div>
-            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10">Normalized recurring monthly total</span>
+            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10 truncate">Normalized recurring monthly total</span>
           </div>
 
           {/* Annual Spend */}
-          <div className="glass-panel group relative overflow-hidden p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-purple-500 hover:scale-[1.01] transition-all">
+          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-purple-500 hover:scale-[1.01] transition-all">
             <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-purple-500/15 blur-2xl pointer-events-none" />
             <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold text-env-body tracking-wider uppercase">Annual Projection</span>
@@ -243,15 +245,15 @@ export default function SubscriptionManager() {
                 <TrendingUp className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2 relative z-10">
-              <span className="text-3xl font-black text-env-heading tracking-tight">{formatCurrency(annualSpend)}</span>
-              <span className="text-[11px] text-purple-400 font-semibold">/ year</span>
+            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
+              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">{formatCurrency(annualSpend)}</span>
+              <span className="text-[11px] text-purple-400 font-semibold shrink-0">/ year</span>
             </div>
-            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10">Projected yearly total expenditure</span>
+            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10 truncate">Projected yearly total expenditure</span>
           </div>
 
           {/* Active Subscriptions */}
-          <div className="glass-panel group relative overflow-hidden p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-active hover:scale-[1.01] transition-all">
+          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-active hover:scale-[1.01] transition-all">
             <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-env-status-active-bg blur-2xl pointer-events-none" />
             <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold text-env-body tracking-wider uppercase">Active Plans</span>
@@ -259,15 +261,15 @@ export default function SubscriptionManager() {
                 <CreditCard className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2 relative z-10">
-              <span className="text-3xl font-black text-env-heading tracking-tight">{activeCount}</span>
-              <span className="text-[11px] text-env-status-active font-semibold">Tracked</span>
+            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
+              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">{activeCount}</span>
+              <span className="text-[11px] text-env-status-active font-semibold shrink-0">Tracked</span>
             </div>
-            <span className="text-[11px] text-env-status-active opacity-80 font-semibold block mt-1.5 relative z-10">Active & Trial subscriptions</span>
+            <span className="text-[11px] text-env-status-active opacity-80 font-semibold block mt-1.5 relative z-10 truncate">Active & Trial subscriptions</span>
           </div>
 
           {/* Upcoming Renewals */}
-          <div className="glass-panel group relative overflow-hidden p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-warning hover:scale-[1.01] transition-all">
+          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-warning hover:scale-[1.01] transition-all">
             <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-env-status-warning-bg blur-2xl pointer-events-none" />
             <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold text-env-body tracking-wider uppercase">Due in 30 Days</span>
@@ -275,11 +277,11 @@ export default function SubscriptionManager() {
                 <Calendar className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2 relative z-10">
-              <span className="text-3xl font-black text-env-heading tracking-tight">{upcomingCount}</span>
-              <span className="text-[11px] text-env-status-warning font-semibold">Pending</span>
+            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
+              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">{upcomingCount}</span>
+              <span className="text-[11px] text-env-status-warning font-semibold shrink-0">Pending</span>
             </div>
-            <span className="text-[11px] text-env-status-warning opacity-80 font-semibold block mt-1.5 relative z-10">Upcoming billing renewal dates</span>
+            <span className="text-[11px] text-env-status-warning opacity-80 font-semibold block mt-1.5 relative z-10 truncate">Upcoming billing renewal dates</span>
           </div>
         </div>
       )}

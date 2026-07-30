@@ -26,7 +26,7 @@ export function ToastContainer() {
     <div 
       aria-live="polite"
       aria-atomic="true"
-      className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full px-4 pointer-events-none"
+      className="fixed bottom-4 sm:bottom-5 left-4 right-4 sm:left-auto sm:right-5 z-50 flex flex-col gap-2.5 max-w-sm sm:w-full mx-auto sm:mx-0 pointer-events-none"
     >
       {toasts.map((toast) => {
         const IconComponent = icons[toast.type];
@@ -35,7 +35,7 @@ export function ToastContainer() {
           <div
             key={toast.id}
             role="alert"
-            className={`pointer-events-auto glass-panel flex items-start gap-3 p-3.5 rounded-2xl border shadow-2xl transition-all animate-in slide-in-from-bottom-5 fade-in duration-200 ${styles[toast.type]}`}
+            className={`pointer-events-auto glass-panel flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl border shadow-2xl transition-all animate-in slide-in-from-bottom-5 fade-in duration-200 ${styles[toast.type]}`}
           >
             <IconComponent className="w-5 h-5 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
@@ -48,7 +48,7 @@ export function ToastContainer() {
               type="button"
               onClick={() => removeToast(toast.id)}
               aria-label="Close notification"
-              className="text-env-muted hover:text-env-heading transition-colors p-0.5 rounded-lg hover:bg-env-button-sec shrink-0 cursor-pointer"
+              className="text-env-muted hover:text-env-heading transition-colors p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl hover:bg-env-button-sec shrink-0 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

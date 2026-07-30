@@ -15,6 +15,7 @@ interface CustomSelectProps {
   ariaLabel?: string;
   className?: string;
   minWidth?: string;
+  alignRight?: boolean;
 }
 
 export function CustomSelect({
@@ -24,6 +25,7 @@ export function CustomSelect({
   ariaLabel = 'Select option',
   className = '',
   minWidth = 'min-w-[110px]',
+  alignRight = false,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,7 +54,7 @@ export function CustomSelect({
   };
 
   return (
-    <div ref={containerRef} className="relative inline-block text-left">
+    <div ref={containerRef} className={`relative inline-block text-left ${minWidth.includes('w-full') ? 'w-full' : ''}`}>
       {/* Custom SelectTrigger Pill with Intentional Minimum Width & Generous Spacing */}
       <button
         type="button"
@@ -60,7 +62,7 @@ export function CustomSelect({
         onKeyDown={handleKeyDown}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
-        className={`flex items-center justify-between gap-3.5 px-4.5 py-2.5 min-h-[40px] rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover border border-env-main text-xs font-extrabold text-env-heading transition-all shadow-sm cursor-pointer group ${minWidth} ${className}`}
+        className={`flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover border border-env-main text-xs font-extrabold text-env-heading transition-all shadow-sm cursor-pointer group ${minWidth} ${className}`}
       >
         <span className="truncate capitalize tracking-wide pr-1">{selectedOption.label}</span>
         <ChevronDown
@@ -72,7 +74,11 @@ export function CustomSelect({
 
       {/* Custom Glass Dropdown Popup */}
       {isOpen && (
-        <div className="absolute left-0 mt-2 min-w-full w-max max-w-[260px] glass-panel p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 border border-env-main">
+        <div
+          className={`absolute ${
+            alignRight ? 'right-0' : 'left-0'
+          } mt-2 min-w-full w-max max-w-[280px] glass-panel bg-env-card/95 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 border border-env-main`}
+        >
           <div className="py-1 space-y-0.5 max-h-60 overflow-y-auto no-scrollbar">
             {options.map((opt) => {
               const isSelected = opt.value === value;
@@ -84,7 +90,7 @@ export function CustomSelect({
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer capitalize ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 min-h-[40px] rounded-xl text-xs font-semibold transition-all text-left cursor-pointer capitalize ${
                     isSelected
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                       : 'text-env-body hover:text-env-heading hover:bg-env-button-sec'

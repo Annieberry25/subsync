@@ -339,6 +339,15 @@ input::placeholder, textarea::placeholder {
   background: var(--env-text-muted);
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Intermittent & Premium Gentle Shake Keyframes for Due Reminders */
 @keyframes gentle-shake-intermittent {
   0%, 25%, 100% { transform: rotate(0deg); }

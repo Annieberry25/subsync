@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, Loader2, AlertCircle } from 'lucide-react';
 import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -38,7 +38,12 @@ export default function SubscriptionModal({
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; price?: string; date?: string }>({});
 
-  useEffect(() => {
+  const [prevInitialData, setPrevInitialData] = useState(initialData);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  if (isOpen !== prevIsOpen || initialData !== prevInitialData) {
+    setPrevIsOpen(isOpen);
+    setPrevInitialData(initialData);
     if (initialData) {
       setName(initialData.name);
       setPrice(initialData.price.toString());
@@ -65,7 +70,7 @@ export default function SubscriptionModal({
       setNotes('');
     }
     setFieldErrors({});
-  }, [initialData, isOpen]);
+  }
 
   if (!isOpen) return null;
 
@@ -142,27 +147,27 @@ export default function SubscriptionModal({
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[560px] glass-panel rounded-3xl p-8 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
+        className="w-full max-w-[560px] glass-panel rounded-3xl p-5 sm:p-7 md:p-8 shadow-2xl space-y-5 sm:space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-env-main pb-5 shrink-0">
-          <h2 id="modal-title" className="text-xl font-black text-env-heading tracking-tight">
+        <div className="flex items-center justify-between border-b border-env-main pb-4 sm:pb-5 shrink-0">
+          <h2 id="modal-title" className="text-lg sm:text-xl font-black text-env-heading tracking-tight">
             {initialData ? 'Edit Subscription' : 'Add New Subscription'}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-9 h-9 rounded-2xl bg-env-button-sec hover:bg-env-badge flex items-center justify-center text-env-muted hover:text-env-heading transition-colors cursor-pointer border border-env-subtle"
+            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-2xl bg-env-button-sec hover:bg-env-badge flex items-center justify-center text-env-muted hover:text-env-heading transition-colors cursor-pointer border border-env-subtle"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto pr-1 flex-1">
+        <form onSubmit={handleSubmit} className="space-y-4.5 sm:space-y-5 overflow-y-auto pr-1 flex-1 no-scrollbar">
           {/* Name */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-xs font-bold text-env-body block">Subscription Name *</label>
             <input
               type="text"
@@ -185,8 +190,8 @@ export default function SubscriptionModal({
           </div>
 
           {/* Price & Currency & Billing Cycle */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
               <label className="text-xs font-bold text-env-body block">Price *</label>
               <input
                 type="number"
@@ -206,7 +211,7 @@ export default function SubscriptionModal({
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-xs font-bold text-env-body block">Currency</label>
               <select
                 value={currency}
@@ -220,7 +225,7 @@ export default function SubscriptionModal({
               </select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-xs font-bold text-env-body block">Cycle *</label>
               <select
                 value={billingCycle}
@@ -235,8 +240,8 @@ export default function SubscriptionModal({
           </div>
 
           {/* Category & Status */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+            <div className="space-y-1.5">
               <label className="text-xs font-bold text-env-body block">Category *</label>
               <select
                 value={category}
@@ -249,7 +254,7 @@ export default function SubscriptionModal({
               </select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-xs font-bold text-env-body block">Status *</label>
               <select
                 value={status}
@@ -264,21 +269,21 @@ export default function SubscriptionModal({
           </div>
 
           {/* Next Billing Date & Quick Presets */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-env-body block">Next Billing Date *</label>
               <div className="flex items-center gap-2 text-[11px]">
                 <button
                   type="button"
                   onClick={() => setQuickDate(1)}
-                  className="px-3 py-1 rounded-xl bg-env-button-sec hover:bg-env-badge text-env-body hover:text-env-heading transition-colors cursor-pointer border border-env-subtle font-semibold"
+                  className="px-3 py-1 min-h-[32px] rounded-xl bg-env-button-sec hover:bg-env-badge text-env-body hover:text-env-heading transition-colors cursor-pointer border border-env-subtle font-semibold"
                 >
                   +1 Month
                 </button>
                 <button
                   type="button"
                   onClick={() => setQuickDate(12)}
-                  className="px-3 py-1 rounded-xl bg-env-button-sec hover:bg-env-badge text-env-body hover:text-env-heading transition-colors cursor-pointer border border-env-subtle font-semibold"
+                  className="px-3 py-1 min-h-[32px] rounded-xl bg-env-button-sec hover:bg-env-badge text-env-body hover:text-env-heading transition-colors cursor-pointer border border-env-subtle font-semibold"
                 >
                   +1 Year
                 </button>
@@ -296,8 +301,8 @@ export default function SubscriptionModal({
           </div>
 
           {/* Payment Method & Provider URL */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+            <div className="space-y-1.5">
               <label className="text-xs font-bold text-env-body block">Payment Method</label>
               <input
                 type="text"
@@ -308,7 +313,7 @@ export default function SubscriptionModal({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-xs font-bold text-env-body block">Provider URL</label>
               <input
                 type="url"
@@ -321,7 +326,7 @@ export default function SubscriptionModal({
           </div>
 
           {/* Notes */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-xs font-bold text-env-body block">Notes (Optional)</label>
             <textarea
               rows={2}
@@ -333,18 +338,18 @@ export default function SubscriptionModal({
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-env-main shrink-0">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-4 border-t border-env-main shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-3 rounded-2xl min-h-[44px] text-xs font-bold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer"
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl min-h-[44px] text-xs font-bold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 rounded-2xl min-h-[44px] bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl min-h-[44px] bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>

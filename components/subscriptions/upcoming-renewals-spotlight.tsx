@@ -48,7 +48,7 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
   }
 
   return (
-    <div className="glass-panel px-5 py-4 rounded-2xl border border-env-status-warning-border bg-env-status-warning-bg space-y-3 shadow-sm">
+    <div className="glass-panel px-4 sm:px-6 py-4.5 rounded-3xl border border-env-status-warning-border bg-env-status-warning-bg space-y-3.5 shadow-sm">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-env-main pb-3">
         <div className="flex items-center gap-3">
@@ -56,7 +56,7 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
             <AlertTriangle className="w-4 h-4 animate-pulse" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-sm font-black text-env-heading tracking-tight">Upcoming Renewals Spotlight</h3>
               {urgentRenewals.length > 0 && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-env-status-danger-bg text-env-status-danger border border-env-status-danger-border animate-pulse">
@@ -75,21 +75,21 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
         </div>
       </div>
 
-      {/* Horizontal Scroll / Cards Grid */}
+      {/* Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {upcomingList.slice(0, 3).map(({ sub, diffDays }) => (
           <div
             key={sub.id}
             onClick={() => onEdit(sub)}
-            className="p-3.5 rounded-2xl bg-[var(--env-spotlight-card-bg)] hover:bg-[var(--env-spotlight-card-hover)] border border-[var(--env-spotlight-card-border)] transition-all flex items-center justify-between cursor-pointer group shadow-md"
+            className="p-3.5 sm:p-4 rounded-2xl bg-[var(--env-spotlight-card-bg)] hover:bg-[var(--env-spotlight-card-hover)] border border-[var(--env-spotlight-card-border)] transition-all flex items-center justify-between gap-3 cursor-pointer group shadow-md"
           >
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <ServiceIcon name={sub.name} category={sub.category} className="w-9 h-9 shrink-0" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <span className="text-xs font-bold text-env-heading block truncate group-hover:text-env-accent transition-colors">
                   {sub.name}
                 </span>
-                <span className="text-[11px] text-env-body block font-medium">
+                <span className="text-[11px] text-env-body block font-medium truncate">
                   {formatCurrency(Number(sub.price), sub.currency)} / {sub.billing_cycle}
                 </span>
               </div>

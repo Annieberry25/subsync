@@ -70,7 +70,19 @@ export default function ExportPage() {
   };
 
   useEffect(() => {
-    loadData();
+    let active = true;
+    fetchSubscriptions().then(({ data, error: err }) => {
+      if (!active) return;
+      if (err) {
+        setError(err.message);
+      } else if (data) {
+        setSubscriptions(data);
+      }
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, format: 'csv' | 'json') => {
@@ -135,7 +147,7 @@ export default function ExportPage() {
   const topCategory = breakdown.length > 0 ? breakdown[0] : null;
 
   return (
-    <div className="space-y-8 bg-ambient-grid min-h-[85vh]">
+    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-24 sm:pb-32">
       {/* Hidden File Inputs */}
       <input
         type="file"
@@ -168,9 +180,9 @@ export default function ExportPage() {
       )}
 
       {/* Export & Import Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
         {/* CSV Operations Card */}
-        <div className="glass-card p-6 rounded-3xl space-y-4 shadow-xl">
+        <div className="glass-card p-5 sm:p-6 rounded-3xl space-y-4 shadow-xl">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
               <FileSpreadsheet className="w-5 h-5" />
@@ -181,12 +193,12 @@ export default function ExportPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <button
               type="button"
               onClick={handleExportCSV}
               disabled={loading || subscriptions.length === 0}
-              className="w-full py-2.5 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+              className="w-full py-3 px-4 min-h-[44px] rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>Export CSV</span>
@@ -196,7 +208,7 @@ export default function ExportPage() {
               type="button"
               onClick={() => csvInputRef.current?.click()}
               disabled={importing}
-              className="w-full py-2.5 px-3 rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover text-env-heading border border-env-main text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full py-3 px-4 min-h-[44px] rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover text-env-heading border border-env-main text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <Upload className="w-4 h-4 text-emerald-400" />
               <span>Restore CSV</span>
@@ -205,7 +217,7 @@ export default function ExportPage() {
         </div>
 
         {/* JSON Operations Card */}
-        <div className="glass-card p-6 rounded-3xl space-y-4 shadow-xl">
+        <div className="glass-card p-5 sm:p-6 rounded-3xl space-y-4 shadow-xl">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
               <FileCode className="w-5 h-5" />
@@ -216,12 +228,12 @@ export default function ExportPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <button
               type="button"
               onClick={handleExportJSON}
               disabled={loading || subscriptions.length === 0}
-              className="w-full py-2.5 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+              className="w-full py-3 px-4 min-h-[44px] rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>Export JSON</span>
@@ -231,7 +243,7 @@ export default function ExportPage() {
               type="button"
               onClick={() => jsonInputRef.current?.click()}
               disabled={importing}
-              className="w-full py-2.5 px-3 rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover text-env-heading border border-env-main text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="w-full py-3 px-4 min-h-[44px] rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover text-env-heading border border-env-main text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <Upload className="w-4 h-4 text-indigo-400" />
               <span>Restore JSON</span>
@@ -242,16 +254,16 @@ export default function ExportPage() {
 
       {/* Restore File Preview & Confirmation Section */}
       {(pendingImports.length > 0 || importErrors.length > 0) && (
-        <div className="glass-panel p-6 rounded-3xl space-y-4 shadow-xl animate-in fade-in duration-150 border-indigo-500/30">
-          <div className="flex items-center justify-between border-b border-env-main pb-3">
+        <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-4 shadow-xl animate-in fade-in duration-150 border-indigo-500/30">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-env-main pb-3">
             <div className="flex items-center gap-2.5">
-              <FileCheck className="w-5 h-5 text-indigo-400" />
-              <h3 className="text-sm font-bold text-env-heading">
+              <FileCheck className="w-5 h-5 text-indigo-400 shrink-0" />
+              <h3 className="text-sm font-bold text-env-heading truncate">
                 Backup Restore Preview: <span className="text-indigo-400 font-mono">{importedFileName}</span>
               </h3>
             </div>
             {pendingImports.length > 0 && (
-              <span className="text-xs px-3 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+              <span className="text-xs px-3 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30 shrink-0 self-start sm:self-auto">
                 {pendingImports.length} Valid Record(s) Ready
               </span>
             )}
@@ -271,23 +283,23 @@ export default function ExportPage() {
           {pendingImports.length > 0 && (
             <div className="space-y-3">
               <div className="max-h-48 overflow-y-auto rounded-2xl border border-env-main bg-env-badge p-3.5 space-y-2">
-                <div className="grid grid-cols-4 text-[11px] font-semibold text-env-muted pb-1 border-b border-env-main">
+                <div className="grid grid-cols-2 sm:grid-cols-4 text-[11px] font-semibold text-env-muted pb-1 border-b border-env-main gap-2">
                   <span>Name</span>
                   <span>Price</span>
-                  <span>Category</span>
-                  <span>Billing Cycle</span>
+                  <span className="hidden sm:inline">Category</span>
+                  <span className="hidden sm:inline">Billing Cycle</span>
                 </div>
                 {pendingImports.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-4 text-xs text-env-body py-1 border-b border-env-subtle last:border-0">
+                  <div key={idx} className="grid grid-cols-2 sm:grid-cols-4 text-xs text-env-body py-1 border-b border-env-subtle last:border-0 gap-2">
                     <span className="font-medium text-env-heading truncate">{item.name}</span>
                     <span>{formatCurrency(item.price, item.currency)}</span>
-                    <span className="text-env-muted">{item.category}</span>
-                    <span className="capitalize text-env-muted">{item.billing_cycle}</span>
+                    <span className="text-env-muted hidden sm:inline">{item.category}</span>
+                    <span className="capitalize text-env-muted hidden sm:inline">{item.billing_cycle}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -295,7 +307,7 @@ export default function ExportPage() {
                     setImportedFileName(null);
                     setImportErrors([]);
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors"
+                  className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-2xl text-xs font-semibold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors flex items-center justify-center"
                 >
                   Cancel
                 </button>
@@ -304,7 +316,7 @@ export default function ExportPage() {
                   type="button"
                   onClick={() => setShowConfirmRestore(true)}
                   disabled={importing}
-                  className="px-5 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
                 >
                   <span>Confirm Restore ({pendingImports.length} Subscriptions)</span>
                 </button>
@@ -315,7 +327,7 @@ export default function ExportPage() {
       )}
 
       {/* Analytical Insights Highlights */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <div className="glass-panel p-5 rounded-3xl space-y-1.5 border-l-4 border-l-purple-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-env-body uppercase block">Top Category Spend</span>
@@ -327,7 +339,7 @@ export default function ExportPage() {
               {topCategory ? `(${topCategory.percentage.toFixed(0)}%)` : ''}
             </span>
           </div>
-          <span className="text-[11px] text-env-muted block">
+          <span className="text-[11px] text-env-muted block truncate">
             {topCategory ? `${formatCurrency(topCategory.monthlySpend)}/mo across ${topCategory.count} items` : 'No active subscriptions'}
           </span>
         </div>
@@ -338,16 +350,16 @@ export default function ExportPage() {
             <TrendingUp className="w-4 h-4 text-indigo-400" />
           </div>
           <span className="text-xl font-black text-env-heading">{formatCurrency(avgCost)}</span>
-          <span className="text-[11px] text-env-muted block">Per active subscription item</span>
+          <span className="text-[11px] text-env-muted block truncate">Per active subscription item</span>
         </div>
 
-        <div className="glass-panel p-5 rounded-3xl space-y-1.5 border-l-4 border-l-emerald-500">
+        <div className="glass-panel p-5 rounded-3xl space-y-1.5 border-l-4 border-l-emerald-500 sm:col-span-2 md:col-span-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-env-body uppercase block">Categories Active</span>
             <Layers className="w-4 h-4 text-emerald-400" />
           </div>
           <span className="text-xl font-black text-env-heading">{breakdown.length}</span>
-          <span className="text-[11px] text-env-muted block">Distinct categories tracked</span>
+          <span className="text-[11px] text-env-muted block truncate">Distinct categories tracked</span>
         </div>
       </div>
 
@@ -355,13 +367,13 @@ export default function ExportPage() {
       {loading ? (
         <AnalyticsChartSkeleton />
       ) : (
-        <div className="glass-panel p-6 rounded-3xl space-y-6 shadow-xl">
-          <div className="flex items-center justify-between">
+        <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-6 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <PieChart className="w-5 h-5 text-indigo-400" />
+              <PieChart className="w-5 h-5 text-indigo-400 shrink-0" />
               <h3 className="text-base font-bold text-env-heading">Monthly Expense Distribution by Category</h3>
             </div>
-            <span className="text-xs text-env-body font-bold bg-env-badge px-3 py-1 rounded-xl border border-env-main">
+            <span className="text-xs text-env-body font-bold bg-env-badge px-3 py-1 rounded-xl border border-env-main shrink-0 self-start sm:self-auto">
               Total: {formatCurrency(totalMonthly)}/mo
             </span>
           </div>
@@ -381,20 +393,20 @@ export default function ExportPage() {
               </div>
 
               {/* Detailed Category Items */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 pt-2">
                 {breakdown.map((item) => {
                   const dotColor = categoryBadgeDot[item.category] || categoryBadgeDot.Other;
 
                   return (
-                    <div key={item.category} className="p-4 rounded-2xl bg-env-button-sec border border-env-main flex items-center justify-between hover:border-env-border-hover transition-colors">
+                    <div key={item.category} className="p-3.5 sm:p-4 rounded-2xl bg-env-button-sec border border-env-main flex items-center justify-between hover:border-env-border-hover transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className={`w-3.5 h-3.5 rounded-full ${dotColor} shadow-md`} />
+                        <div className={`w-3.5 h-3.5 rounded-full ${dotColor} shadow-md shrink-0`} />
                         <div>
                           <span className="text-xs font-bold text-env-heading block">{item.category}</span>
                           <span className="text-[11px] text-env-muted block">{item.count} subscription{item.count > 1 ? 's' : ''}</span>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <span className="text-xs font-bold text-env-heading block">{formatCurrency(item.monthlySpend)}/mo</span>
                         <span className="text-[11px] text-indigo-400 font-bold block">{item.percentage.toFixed(1)}%</span>
                       </div>

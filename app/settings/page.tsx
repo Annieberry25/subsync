@@ -61,7 +61,7 @@ export default function SettingsPage() {
     id: Theme;
     name: string;
     description: string;
-    icon: any;
+    icon: React.ComponentType<{ className?: string }>;
     previewBg: string;
     previewCard: string;
     previewText: string;
@@ -100,7 +100,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="space-y-8 max-w-4xl bg-ambient-grid min-h-[85vh]">
+    <div className="space-y-6 sm:space-y-8 max-w-4xl bg-ambient-grid min-h-[85vh] pb-24 sm:pb-32">
       <div>
         <h2 className="text-2xl md:text-3xl font-black text-env-heading tracking-tight">Settings</h2>
         <p className="text-xs text-env-body mt-1">
@@ -109,10 +109,10 @@ export default function SettingsPage() {
       </div>
 
       {/* Environmental Theme Selector Card System */}
-      <div className="glass-panel p-6 rounded-3xl space-y-6 shadow-xl">
-        <div className="flex items-center justify-between border-b border-env-main pb-4">
+      <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-env-main pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
               <Sun className="w-5 h-5" />
             </div>
             <div>
@@ -121,12 +121,12 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <span className="text-xs font-bold px-3 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">
+          <span className="text-xs font-bold px-3 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider shrink-0 self-start sm:self-auto">
             3 Cohesive Environments
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {themeOptions.map((opt) => {
             const isSelected = theme === opt.id;
             const Icon = opt.icon;
@@ -172,9 +172,9 @@ export default function SettingsPage() {
       </div>
 
       {/* User Profile Settings Card */}
-      <div className="glass-panel p-6 rounded-3xl space-y-6 shadow-xl">
+      <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-6 shadow-xl">
         <div className="flex items-center gap-3 border-b border-env-main pb-4">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
             <UserIcon className="w-5 h-5" />
           </div>
           <div>
@@ -197,7 +197,7 @@ export default function SettingsPage() {
                   type="email"
                   disabled
                   value={user?.email || ''}
-                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border text-env-muted bg-env-badge cursor-not-allowed"
+                  className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-muted bg-env-badge cursor-not-allowed"
                 />
                 <span className="text-[10px] text-env-muted">Managed via Supabase Auth</span>
               </div>
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Your Name"
-                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
             </div>
@@ -218,9 +218,9 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
               >
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 <span>Save Profile Changes</span>
               </button>
             </div>
@@ -229,9 +229,9 @@ export default function SettingsPage() {
       </div>
 
       {/* Regional & Currency Preferences Card */}
-      <div className="glass-panel p-6 rounded-3xl space-y-4 shadow-xl">
+      <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-4 shadow-xl">
         <div className="flex items-center gap-3 border-b border-env-main pb-4">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
             <DollarSign className="w-5 h-5" />
           </div>
           <div>
@@ -248,7 +248,7 @@ export default function SettingsPage() {
               setCurrency(e.target.value);
               toast.info(`Default currency set to ${e.target.value}.`, 'Preference Updated');
             }}
-            className="w-full px-3.5 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors"
           >
             <option value="USD" className="bg-env-card text-env-heading">USD ($) - US Dollar</option>
             <option value="EUR" className="bg-env-card text-env-heading">EUR (€) - Euro</option>
@@ -259,9 +259,9 @@ export default function SettingsPage() {
       </div>
 
       {/* Security & RLS Status Card */}
-      <div className="glass-panel p-6 rounded-3xl space-y-4 shadow-xl">
+      <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-4 shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>

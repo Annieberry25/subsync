@@ -47,7 +47,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               type="button"
               onClick={onMobileClose}
               aria-label="Close navigation menu"
-              className="md:hidden p-1.5 rounded-xl text-env-muted hover:text-env-heading hover:bg-env-button-sec transition-colors"
+              className="md:hidden w-11 h-11 rounded-2xl text-env-muted hover:text-env-heading hover:bg-env-button-sec transition-colors flex items-center justify-center cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -55,7 +55,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         </div>
 
         {/* Navigation Items */}
-        <nav className="p-4 space-y-1.5" aria-label="Main Navigation">
+        <nav className="p-4 space-y-2" aria-label="Main Navigation">
           <div className="px-3 pb-2 text-[11px] font-extrabold subsync-muted uppercase tracking-widest">
             Menu
           </div>
@@ -68,7 +68,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 key={item.href}
                 href={item.href}
                 onClick={onMobileClose}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+                className={`flex items-center gap-3 px-3.5 py-3 min-h-[44px] rounded-2xl text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/25 shadow-sm'
                     : 'subsync-subtitle hover:subsync-heading hover:bg-env-button-sec'
@@ -84,7 +84,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
       {/* Connection & Status Footer */}
       <div className="p-4 border-t border-env-main space-y-3">
-        <div className="px-3 py-2.5 rounded-2xl bg-env-badge border border-env-main flex items-center gap-2.5 text-xs subsync-subtitle">
+        <div className="px-3.5 py-3 rounded-2xl bg-env-badge border border-env-main flex items-center gap-2.5 text-xs subsync-subtitle">
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <div className="truncate">
             <span className="subsync-heading font-semibold block">Supabase Connected</span>
@@ -110,7 +110,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         >
           <aside
             onClick={(e) => e.stopPropagation()}
-            className="w-72 glass-sidebar h-full shadow-2xl animate-in slide-in-from-left duration-200"
+            className="w-[280px] max-w-[80vw] glass-sidebar h-full shadow-2xl animate-in slide-in-from-left duration-200"
           >
             {content}
           </aside>
