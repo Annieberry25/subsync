@@ -35,6 +35,29 @@
     --env-hero-shadow: 0 24px 60px -12px rgba(99, 102, 241, 0.25), 0 0 40px -5px rgba(139, 92, 246, 0.2);
     --env-shadow-card: 0 20px 50px -10px rgba(0, 0, 0, 0.85), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
     --env-card-hover-transform: translateY(-4px) scale(1.005);
+
+    /* Semantic Status Tokens - Midnight (High Contrast Luminous Dark Mode) */
+    --env-status-active: #34d399;
+    --env-status-active-bg: rgba(52, 211, 153, 0.18);
+    --env-status-active-border: rgba(52, 211, 153, 0.4);
+
+    --env-status-warning: #f59e0b;
+    --env-status-warning-bg: rgba(245, 158, 11, 0.14);
+    --env-status-warning-border: rgba(245, 158, 11, 0.35);
+
+    --env-status-danger: #f87171;
+    --env-status-danger-bg: rgba(248, 113, 113, 0.2);
+    --env-status-danger-border: rgba(248, 113, 113, 0.45);
+
+    --env-status-info: #c084fc;
+    --env-status-info-bg: rgba(192, 132, 252, 0.18);
+    --env-status-info-border: rgba(192, 132, 252, 0.4);
+
+    --env-status-neutral: #94a3b8;
+
+    --env-spotlight-card-bg: rgba(28, 22, 16, 0.7);
+    --env-spotlight-card-hover: rgba(42, 32, 22, 0.85);
+    --env-spotlight-card-border: rgba(245, 158, 11, 0.25);
   }
 
   /* ==========================================
@@ -67,10 +90,33 @@
     --env-text-accent-secondary: #a855f7;
 
     --env-blur-intensity: 16px;
-    --env-accent-glow: rgba(147, 51, 234, 0.2);
-    --env-hero-shadow: 0 20px 50px -12px rgba(147, 51, 234, 0.15), 0 0 35px -5px rgba(168, 85, 247, 0.1);
+    --env-accent-glow: rgba(147, 51, 234, 0.17);
+    --env-hero-shadow: 0 20px 50px -12px rgba(147, 51, 234, 0.13), 0 0 35px -5px rgba(168, 85, 247, 0.08);
     --env-shadow-card: 0 16px 40px -12px rgba(130, 110, 85, 0.12), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
     --env-card-hover-transform: translateY(-2px);
+
+    /* Semantic Status Tokens - Ivory (Clean & Readable Frosted Linen) */
+    --env-status-active: #047857;
+    --env-status-active-bg: rgba(5, 150, 105, 0.12);
+    --env-status-active-border: rgba(5, 150, 105, 0.28);
+
+    --env-status-warning: #b45309;
+    --env-status-warning-bg: rgba(217, 119, 6, 0.12);
+    --env-status-warning-border: rgba(217, 119, 6, 0.28);
+
+    --env-status-danger: #be123c;
+    --env-status-danger-bg: rgba(225, 29, 72, 0.12);
+    --env-status-danger-border: rgba(225, 29, 72, 0.28);
+
+    --env-status-info: #6d28d9;
+    --env-status-info-bg: rgba(124, 58, 237, 0.12);
+    --env-status-info-border: rgba(124, 58, 237, 0.28);
+
+    --env-status-neutral: #78716c;
+
+    --env-spotlight-card-bg: var(--env-bg-button-sec);
+    --env-spotlight-card-hover: var(--env-bg-badge);
+    --env-spotlight-card-border: var(--env-border-main);
   }
 
   /* ==========================================
@@ -103,10 +149,33 @@
     --env-text-accent-secondary: #ea580c;
 
     --env-blur-intensity: 10px;
-    --env-accent-glow: rgba(194, 65, 12, 0.25);
-    --env-hero-shadow: 0 20px 50px -12px rgba(194, 65, 12, 0.18), 0 0 35px -5px rgba(234, 88, 12, 0.12);
+    --env-accent-glow: rgba(194, 65, 12, 0.20);
+    --env-hero-shadow: 0 20px 50px -12px rgba(194, 65, 12, 0.14), 0 0 35px -5px rgba(234, 88, 12, 0.09);
     --env-shadow-card: 0 14px 35px -8px rgba(90, 65, 35, 0.2), inset 0 2px 0 0 rgba(255, 245, 225, 0.4);
     --env-card-hover-transform: translateY(-3px);
+
+    /* Semantic Status Tokens - Sand (Warm Earthy Tones with Clear Urgency) */
+    --env-status-active: #065f46;
+    --env-status-active-bg: rgba(4, 120, 87, 0.16);
+    --env-status-active-border: rgba(4, 120, 87, 0.32);
+
+    --env-status-warning: #9a3412;
+    --env-status-warning-bg: rgba(194, 65, 12, 0.16);
+    --env-status-warning-border: rgba(194, 65, 12, 0.32);
+
+    --env-status-danger: #991b1b;
+    --env-status-danger-bg: rgba(185, 28, 28, 0.16);
+    --env-status-danger-border: rgba(185, 28, 28, 0.32);
+
+    --env-status-info: #7e22ce;
+    --env-status-info-bg: rgba(147, 51, 234, 0.16);
+    --env-status-info-border: rgba(147, 51, 234, 0.32);
+
+    --env-status-neutral: #57534e;
+
+    --env-spotlight-card-bg: var(--env-bg-button-sec);
+    --env-spotlight-card-hover: var(--env-bg-badge);
+    --env-spotlight-card-border: var(--env-border-main);
   }
 
   body {
@@ -116,6 +185,16 @@
     transition: background-color 0.35s ease, color 0.35s ease;
     min-height: 100vh;
   }
+}
+
+/* ==========================================
+   ATOMIC THEME SWITCHING (PREVENTS CASCADING TRANSITION LAG)
+   ========================================== */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
 }
 
 /* ==========================================
@@ -259,3 +338,51 @@ input::placeholder, textarea::placeholder {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--env-text-muted);
 }
+
+/* Intermittent & Premium Gentle Shake Keyframes for Due Reminders */
+@keyframes gentle-shake-intermittent {
+  0%, 25%, 100% { transform: rotate(0deg); }
+  4% { transform: rotate(-12deg); }
+  8% { transform: rotate(12deg); }
+  12% { transform: rotate(-8deg); }
+  16% { transform: rotate(8deg); }
+  20% { transform: rotate(-4deg); }
+}
+
+/* 1 day remaining: brief shake followed by a pause (every 4s) */
+.animate-reminder-shake-1day {
+  animation: gentle-shake-intermittent 4s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+
+/* Due today (diffDays === 0): slightly more frequent brief shake (every 2.2s) */
+.animate-reminder-shake-today {
+  animation: gentle-shake-intermittent 2.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+}
+
+/* ==========================================
+   Semantic Status Color Utilities
+   ========================================== */
+.text-env-status-active { color: var(--env-status-active); }
+.bg-env-status-active { background-color: var(--env-status-active); }
+.bg-env-status-active-bg { background-color: var(--env-status-active-bg); }
+.border-env-status-active-border { border-color: var(--env-status-active-border); }
+.border-l-env-status-active { border-left-color: var(--env-status-active); }
+
+.text-env-status-warning { color: var(--env-status-warning); }
+.bg-env-status-warning { background-color: var(--env-status-warning); }
+.bg-env-status-warning-bg { background-color: var(--env-status-warning-bg); }
+.border-env-status-warning-border { border-color: var(--env-status-warning-border); }
+.border-l-env-status-warning { border-left-color: var(--env-status-warning); }
+
+.text-env-status-danger { color: var(--env-status-danger); }
+.bg-env-status-danger { background-color: var(--env-status-danger); }
+.bg-env-status-danger-bg { background-color: var(--env-status-danger-bg); }
+.border-env-status-danger-border { border-color: var(--env-status-danger-border); }
+
+.text-env-status-info { color: var(--env-status-info); }
+.bg-env-status-info { background-color: var(--env-status-info); }
+.bg-env-status-info-bg { background-color: var(--env-status-info-bg); }
+.border-env-status-info-border { border-color: var(--env-status-info-border); }
+
+.bg-env-status-neutral { background-color: var(--env-status-neutral); }
+.text-env-status-neutral { color: var(--env-status-neutral); }

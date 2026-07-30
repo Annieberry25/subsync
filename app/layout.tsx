@@ -28,7 +28,14 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full bg-black text-zinc-100">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('subsync-theme');var r=document.documentElement;if(s==='ivory'){r.classList.remove('dark');r.classList.add('light','theme-ivory');}else if(s==='sand'){r.classList.remove('dark');r.classList.add('light','theme-sand');}else{r.classList.add('dark');}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="min-h-full bg-env-main text-env-body">
         <AppShell>{children}</AppShell>
       </body>
     </html>

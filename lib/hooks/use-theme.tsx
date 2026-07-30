@@ -13,32 +13,45 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('subsync-theme') as Theme | null;
+      if (saved === 'dark' || saved === 'ivory' || saved === 'sand') {
+        return saved;
+      }
+    }
+    return 'dark';
+  });
 
   const applyTheme = useCallback((newTheme: Theme) => {
     const root = document.documentElement;
-    root.classList.remove('dark', 'light', 'theme-ivory', 'theme-sand');
 
-    if (newTheme === 'dark') {
-      root.classList.add('dark');
-    } else if (newTheme === 'ivory') {
-      root.classList.add('light', 'theme-ivory');
-    } else if (newTheme === 'sand') {
-      root.classList.add('light', 'theme-sand');
-    }
+    // Temporarily add .theme-switching to disable color/background/border/shadow transitions during the swap
+    root.classList.add('theme-switching');
+
+    const isDark = newTheme === 'dark';
+    const isIvory = newTheme === 'ivory';
+    const isSand = newTheme === 'sand';
+
+    root.classList.toggle('dark', isDark);
+    root.classList.toggle('light', !isDark);
+    root.classList.toggle('theme-ivory', isIvory);
+    root.classList.toggle('theme-sand', isSand);
+
+    // Force browser reflow to apply new theme colors instantaneously in 1 frame
+    void root.offsetHeight;
+
+    // Remove .theme-switching on next animation frame to preserve normal hover/interaction animations
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        root.classList.remove('theme-switching');
+      });
+    });
   }, []);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('subsync-theme') as Theme | null;
-    if (savedTheme && (savedTheme === 'dark' || savedTheme === 'ivory' || savedTheme === 'sand')) {
-      setThemeState(savedTheme);
-      applyTheme(savedTheme);
-    } else {
-      // Default to dark Midnight theme
-      setThemeState('dark');
-      applyTheme('dark');
-    }
-  }, [applyTheme]);
+    applyTheme(theme);
+  }, [theme, applyTheme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

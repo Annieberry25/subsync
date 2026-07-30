@@ -102,7 +102,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1 rounded-xl text-env-muted hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -117,7 +117,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer"
           >
             {cancelText}
           </button>

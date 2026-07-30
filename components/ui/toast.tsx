@@ -48,7 +48,7 @@ export function ToastContainer() {
               type="button"
               onClick={() => removeToast(toast.id)}
               aria-label="Close notification"
-              className="text-zinc-400 hover:subsync-heading transition-colors p-0.5 rounded-lg hover:bg-zinc-800/40 shrink-0 cursor-pointer"
+              className="text-env-muted hover:text-env-heading transition-colors p-0.5 rounded-lg hover:bg-env-button-sec shrink-0 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

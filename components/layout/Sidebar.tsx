@@ -47,7 +47,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               type="button"
               onClick={onMobileClose}
               aria-label="Close navigation menu"
-              className="md:hidden p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/50 transition-colors"
+              className="md:hidden p-1.5 rounded-xl text-env-muted hover:text-env-heading hover:bg-env-button-sec transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -71,7 +71,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/25 shadow-sm'
-                    : 'subsync-subtitle hover:subsync-heading hover:bg-zinc-800/40'
+                    : 'subsync-subtitle hover:subsync-heading hover:bg-env-button-sec'
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'subsync-muted'}`} />
@@ -83,8 +83,8 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
       </div>
 
       {/* Connection & Status Footer */}
-      <div className="p-4 border-t border-zinc-800/40 space-y-3">
-        <div className="px-3 py-2.5 rounded-2xl bg-zinc-800/30 border border-zinc-800/60 flex items-center gap-2.5 text-xs subsync-subtitle">
+      <div className="p-4 border-t border-env-main space-y-3">
+        <div className="px-3 py-2.5 rounded-2xl bg-env-badge border border-env-main flex items-center gap-2.5 text-xs subsync-subtitle">
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <div className="truncate">
             <span className="subsync-heading font-semibold block">Supabase Connected</span>

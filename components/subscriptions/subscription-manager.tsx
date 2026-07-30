@@ -20,6 +20,7 @@ import {
 import SubscriptionCard from './subscription-card';
 import SubscriptionModal from './subscription-modal';
 import SubscriptionFilters from './subscription-filters';
+import PaymentReminderModal from './payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { MetricCardSkeleton, SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -48,6 +49,54 @@ export default function SubscriptionManager() {
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [reminderSubscription, setReminderSubscription] = useState<SubscriptionRow | null>(null);
+  const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>({});
+
+  // Load saved reminders from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('subsync_reminders');
+      if (saved) {
+        setReminders(JSON.parse(saved));
+      }
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, []);
+
+  const handleSaveReminder = (subId: string, data: { timing: string; method: string; note?: string }) => {
+    const updated = {
+      ...reminders,
+      [subId]: { ...data, dismissed: false },
+    };
+    setReminders(updated);
+    try {
+      localStorage.setItem('subsync_reminders', JSON.stringify(updated));
+    } catch {
+      // Ignore localStorage errors
+    }
+  };
+
+  const handleDismissReminder = (sub: SubscriptionRow) => {
+    const existing = reminders[sub.id];
+    const updated = {
+      ...reminders,
+      [sub.id]: {
+        timing: existing?.timing || '3_days',
+        method: existing?.method || 'both',
+        note: existing?.note,
+        dismissed: true,
+      },
+    };
+    setReminders(updated);
+    try {
+      localStorage.setItem('subsync_reminders', JSON.stringify(updated));
+    } catch {
+      // Ignore localStorage errors
+    }
+    toast.info(`Dismissed payment reminder for ${sub.name}.`, 'Reminder Dismissed');
+  };
 
   // Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,7 +197,7 @@ export default function SubscriptionManager() {
   const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All' || selectedStatus !== 'All';
 
   return (
-    <div className="space-y-10 bg-ambient-grid min-h-[85vh]">
+    <div className="space-y-6 bg-ambient-grid min-h-[85vh] pb-72">
       {/* 1. HERO PANEL (Centerpiece Header) */}
       <PersonalizedHeader
         onRefresh={() => loadData(true)}
@@ -170,63 +219,67 @@ export default function SubscriptionManager() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Monthly Spend */}
-          <div className="glass-panel p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-indigo-500 hover:scale-[1.01] transition-all">
-            <div className="flex items-center justify-between">
+          <div className="glass-panel group relative overflow-hidden p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-indigo-500 hover:scale-[1.01] transition-all">
+            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-indigo-500/15 blur-2xl pointer-events-none" />
+            <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold text-env-body tracking-wider uppercase">Monthly Spend</span>
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center border border-indigo-500/30 shadow-lg shadow-indigo-500/25">
                 <DollarSign className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 relative z-10">
               <span className="text-3xl font-black text-env-heading tracking-tight">{formatCurrency(monthlySpend)}</span>
               <span className="text-[11px] text-indigo-400 font-semibold">/ month</span>
             </div>
-            <span className="text-[11px] text-env-muted block">Normalized recurring monthly total</span>
+            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10">Normalized recurring monthly total</span>
           </div>
 
           {/* Annual Spend */}
-          <div className="glass-panel p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-purple-500 hover:scale-[1.01] transition-all">
-            <div className="flex items-center justify-between">
+          <div className="glass-panel group relative overflow-hidden p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-purple-500 hover:scale-[1.01] transition-all">
+            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-purple-500/15 blur-2xl pointer-events-none" />
+            <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold text-env-body tracking-wider uppercase">Annual Projection</span>
-              <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
+              <div className="w-11 h-11 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center border border-purple-500/30 shadow-lg shadow-purple-500/25">
                 <TrendingUp className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 relative z-10">
               <span className="text-3xl font-black text-env-heading tracking-tight">{formatCurrency(annualSpend)}</span>
               <span className="text-[11px] text-purple-400 font-semibold">/ year</span>
             </div>
-            <span className="text-[11px] text-env-muted block">Projected yearly total expenditure</span>
+            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10">Projected yearly total expenditure</span>
           </div>
 
           {/* Active Subscriptions */}
-          <div className="glass-panel p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-emerald-500 hover:scale-[1.01] transition-all">
-            <div className="flex items-center justify-between">
+          <div className="glass-panel group relative overflow-hidden p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-active hover:scale-[1.01] transition-all">
+            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-env-status-active-bg blur-2xl pointer-events-none" />
+            <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold text-env-body tracking-wider uppercase">Active Plans</span>
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+              <div className="w-11 h-11 rounded-2xl bg-env-status-active-bg text-env-status-active flex items-center justify-center border border-env-status-active-border shadow-lg">
                 <CreditCard className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 relative z-10">
               <span className="text-3xl font-black text-env-heading tracking-tight">{activeCount}</span>
-              <span className="text-[11px] text-emerald-400 font-semibold">Tracked</span>
+              <span className="text-[11px] text-env-status-active font-semibold">Tracked</span>
             </div>
-            <span className="text-[11px] text-emerald-400 font-semibold block">Active & Trial subscriptions</span>
+            <span className="text-[11px] text-env-status-active opacity-80 font-semibold block mt-1.5 relative z-10">Active & Trial subscriptions</span>
           </div>
 
           {/* Upcoming Renewals */}
-          <div className="glass-panel p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-amber-500 hover:scale-[1.01] transition-all">
-            <div className="flex items-center justify-between">
+          <div className="glass-panel group relative overflow-hidden p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-warning hover:scale-[1.01] transition-all">
+            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-env-status-warning-bg blur-2xl pointer-events-none" />
+            <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold text-env-body tracking-wider uppercase">Due in 30 Days</span>
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20">
+              <div className="w-11 h-11 rounded-2xl bg-env-status-warning-bg text-env-status-warning flex items-center justify-center border border-env-status-warning-border shadow-lg">
                 <Calendar className="w-5 h-5" />
               </div>
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 relative z-10">
               <span className="text-3xl font-black text-env-heading tracking-tight">{upcomingCount}</span>
-              <span className="text-[11px] text-amber-400 font-semibold">Pending</span>
+              <span className="text-[11px] text-env-status-warning font-semibold">Pending</span>
             </div>
-            <span className="text-[11px] text-amber-400 font-semibold block">Upcoming billing renewal dates</span>
+            <span className="text-[11px] text-env-status-warning opacity-80 font-semibold block mt-1.5 relative z-10">Upcoming billing renewal dates</span>
           </div>
         </div>
       )}
@@ -280,6 +333,9 @@ export default function SubscriptionManager() {
                 setIsModalOpen(true);
               }}
               onDeleteRequest={(item) => setDeletingSubscription(item)}
+              onPaymentReminderRequest={(item) => setReminderSubscription(item)}
+              reminderInfo={reminders[sub.id] || null}
+              onDismissReminder={handleDismissReminder}
             />
           ))}
         </div>
@@ -345,6 +401,19 @@ export default function SubscriptionManager() {
         description="Are you sure you want to delete this subscription? This action cannot be undone and will update your expense analytics."
         confirmText="Delete Subscription"
         variant="danger"
+      />
+
+      {/* Payment Reminder Modal (Single Source of Truth) */}
+      <PaymentReminderModal
+        isOpen={!!reminderSubscription}
+        onClose={() => setReminderSubscription(null)}
+        onSave={(data) => {
+          if (reminderSubscription) {
+            handleSaveReminder(reminderSubscription.id, data);
+          }
+        }}
+        subscriptionName={reminderSubscription?.name || ''}
+        nextBillingDate={reminderSubscription?.next_billing_date}
       />
     </div>
   );
