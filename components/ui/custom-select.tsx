@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
 export interface SelectOption {
@@ -18,6 +19,8 @@ interface CustomSelectProps {
   alignRight?: boolean;
 }
 
+const emptySubscribe = () => () => {};
+
 export function CustomSelect({
   options,
   value,
@@ -29,19 +32,62 @@ export function CustomSelect({
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; minWidth: number }>({ top: 0, left: 0, minWidth: 0 });
 
   const selectedOption = options.find((opt) => opt.value === value) || options[0];
+
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const dropdownWidth = Math.max(rect.width, 210);
+
+    let leftPos = rect.left;
+    if (alignRight) {
+      leftPos = rect.right - dropdownWidth;
+    }
+    // Clamp inside viewport
+    leftPos = Math.max(12, Math.min(window.innerWidth - dropdownWidth - 12, leftPos));
+
+    setMenuPos({
+      top: rect.bottom + 6,
+      left: leftPos,
+      minWidth: dropdownWidth,
+    });
+  }, [alignRight]);
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, true);
+    }
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen, updatePosition]);
 
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+      const target = event.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target)
+      ) {
+        const targetEl = target as Element;
+        if (!targetEl.closest('[data-custom-select-popover]')) {
+          setIsOpen(false);
+        }
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isOpen]);
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -53,31 +99,17 @@ export function CustomSelect({
     }
   };
 
-  return (
-    <div ref={containerRef} className={`relative inline-block text-left ${minWidth.includes('w-full') ? 'w-full' : ''}`}>
-      {/* Custom SelectTrigger Pill with Intentional Minimum Width & Generous Spacing */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        onKeyDown={handleKeyDown}
-        aria-label={ariaLabel}
-        aria-expanded={isOpen}
-        className={`flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-2xl bg-env-input hover:bg-env-button-sec-hover border border-env-main text-xs font-extrabold text-env-heading transition-all shadow-sm cursor-pointer group ${minWidth} ${className}`}
-      >
-        <span className="truncate capitalize tracking-wide pr-1">{selectedOption.label}</span>
-        <ChevronDown
-          className={`w-3.5 h-3.5 text-env-muted group-hover:text-env-heading transition-transform duration-200 shrink-0 ${
-            isOpen ? 'rotate-180 text-env-accent' : ''
-          }`}
-        />
-      </button>
-
-      {/* Custom Glass Dropdown Popup */}
-      {isOpen && (
+  const portalMenu = isOpen && mounted
+    ? createPortal(
         <div
-          className={`absolute ${
-            alignRight ? 'right-0' : 'left-0'
-          } mt-2 min-w-full w-max max-w-[280px] glass-panel bg-[var(--env-bg-sidebar)] backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 border border-env-main`}
+          data-custom-select-popover="true"
+          style={{
+            position: 'fixed',
+            top: `${menuPos.top}px`,
+            left: `${menuPos.left}px`,
+            minWidth: `${menuPos.minWidth}px`,
+          }}
+          className="glass-popover p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 border border-env-main max-w-[280px]"
         >
           <div className="py-1 space-y-0.5 max-h-60 overflow-y-auto no-scrollbar">
             {options.map((opt) => {
@@ -102,8 +134,32 @@ export function CustomSelect({
               );
             })}
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div ref={containerRef} className={`relative inline-block text-left ${minWidth.includes('w-full') ? 'w-full' : ''}`}>
+      {/* Custom SelectTrigger Pill */}
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        onKeyDown={handleKeyDown}
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        className={`flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-2xl bg-env-input hover:bg-env-button-sec-hover border border-env-main text-xs font-extrabold text-env-heading transition-all shadow-sm cursor-pointer group ${minWidth} ${className}`}
+      >
+        <span className="truncate capitalize tracking-wide pr-1">{selectedOption.label}</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-env-muted group-hover:text-env-heading transition-transform duration-200 shrink-0 ${
+            isOpen ? 'rotate-180 text-env-accent' : ''
+          }`}
+        />
+      </button>
+
+      {portalMenu}
     </div>
   );
 }

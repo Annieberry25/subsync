@@ -58,6 +58,8 @@
     --env-spotlight-card-bg: rgba(28, 22, 16, 0.7);
     --env-spotlight-card-hover: rgba(42, 32, 22, 0.85);
     --env-spotlight-card-border: rgba(245, 158, 11, 0.25);
+
+    --env-bg-popover: rgba(20, 20, 32, 0.98);
   }
 
   /* ==========================================
@@ -117,6 +119,8 @@
     --env-spotlight-card-bg: var(--env-bg-button-sec);
     --env-spotlight-card-hover: var(--env-bg-badge);
     --env-spotlight-card-border: var(--env-border-main);
+
+    --env-bg-popover: rgba(248, 244, 236, 0.97);
   }
 
   /* ==========================================
@@ -176,6 +180,8 @@
     --env-spotlight-card-bg: var(--env-bg-button-sec);
     --env-spotlight-card-hover: var(--env-bg-badge);
     --env-spotlight-card-border: var(--env-border-main);
+
+    --env-bg-popover: rgba(238, 226, 204, 0.97);
   }
 
   body {
@@ -258,6 +264,15 @@
   border: var(--env-border-width) solid var(--env-border-main);
   border-radius: var(--env-card-radius);
   box-shadow: var(--env-shadow-card);
+}
+
+.glass-popover {
+  background: var(--env-bg-popover);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: var(--env-border-width) solid var(--env-border-main);
+  border-radius: calc(var(--env-card-radius) - 0.25rem);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.65), 0 0 25px -5px rgba(0, 0, 0, 0.3);
 }
 
 .glass-header {
