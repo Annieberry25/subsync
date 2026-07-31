@@ -99,7 +99,7 @@ export default function SubscriptionFilters({
       </div>
 
       {/* Category Quick Filter Pills Row */}
-      <div className="pt-3 border-t border-env-main/30 flex items-center gap-2 overflow-x-auto no-scrollbar w-full">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pt-0.5">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat;
           return (
@@ -110,7 +110,7 @@ export default function SubscriptionFilters({
               className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap min-h-[38px] transition-all cursor-pointer flex items-center justify-center ${
                 isActive
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20 border border-indigo-500/30'
-                  : 'bg-env-button-sec hover:bg-env-button-sec-hover text-env-body hover:text-env-heading border border-env-subtle/60'
+                  : 'bg-env-button-sec hover:bg-env-button-sec-hover text-env-body hover:text-env-heading border border-env-subtle/30'
               }`}
             >
               {cat}
