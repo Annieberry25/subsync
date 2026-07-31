@@ -62,7 +62,7 @@ export function CustomSelect({
         onKeyDown={handleKeyDown}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
-        className={`flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover border border-env-main text-xs font-extrabold text-env-heading transition-all shadow-sm cursor-pointer group ${minWidth} ${className}`}
+        className={`flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-2xl bg-env-input hover:bg-env-button-sec-hover border border-env-main text-xs font-extrabold text-env-heading transition-all shadow-sm cursor-pointer group ${minWidth} ${className}`}
       >
         <span className="truncate capitalize tracking-wide pr-1">{selectedOption.label}</span>
         <ChevronDown
@@ -77,7 +77,7 @@ export function CustomSelect({
         <div
           className={`absolute ${
             alignRight ? 'right-0' : 'left-0'
-          } mt-2 min-w-full w-max max-w-[280px] glass-panel bg-env-card/95 backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 border border-env-main`}
+          } mt-2 min-w-full w-max max-w-[280px] glass-panel bg-[var(--env-bg-sidebar)] backdrop-blur-2xl p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 border border-env-main`}
         >
           <div className="py-1 space-y-0.5 max-h-60 overflow-y-auto no-scrollbar">
             {options.map((opt) => {

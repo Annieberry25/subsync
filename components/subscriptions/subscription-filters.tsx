@@ -98,8 +98,8 @@ export default function SubscriptionFilters({
         </div>
       </div>
 
-      {/* Category Quick Filter Pills (Edge-to-Edge Bleed Scroll on Mobile) */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+      {/* Category Quick Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar w-full">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat;
           return (
