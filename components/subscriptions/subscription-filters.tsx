@@ -110,7 +110,7 @@ export default function SubscriptionFilters({
               className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap min-h-[38px] transition-all cursor-pointer flex items-center justify-center ${
                 isActive
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20 border border-indigo-500/30'
-                  : 'bg-env-button-sec hover:bg-env-button-sec-hover text-env-body hover:text-env-heading border border-env-subtle/30'
+                  : 'bg-env-button-sec hover:bg-env-button-sec-hover text-env-body hover:text-env-heading border border-transparent hover:border-env-subtle/40'
               }`}
             >
               {cat}

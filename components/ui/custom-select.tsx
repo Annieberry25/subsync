@@ -69,6 +69,13 @@ export function CustomSelect({
     };
   }, [isOpen, updatePosition]);
 
+  const handleToggle = () => {
+    if (!isOpen) {
+      updatePosition();
+    }
+    setIsOpen((prev) => !prev);
+  };
+
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -93,7 +100,7 @@ export function CustomSelect({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      setIsOpen(!isOpen);
+      handleToggle();
     } else if (e.key === 'Escape') {
       setIsOpen(false);
     }
@@ -109,7 +116,7 @@ export function CustomSelect({
             left: `${menuPos.left}px`,
             minWidth: `${menuPos.minWidth}px`,
           }}
-          className="glass-popover p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 border border-env-main max-w-[280px]"
+          className="glass-popover p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 max-w-[280px]"
         >
           <div className="py-1 space-y-0.5 max-h-60 overflow-y-auto no-scrollbar">
             {options.map((opt) => {
@@ -145,7 +152,7 @@ export function CustomSelect({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         onKeyDown={handleKeyDown}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
