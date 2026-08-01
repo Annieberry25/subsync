@@ -58,37 +58,16 @@ export function CustomSelect({
   }, [alignRight]);
 
   useEffect(() => {
-    if (!isOpen) return;
-
-    function handleScroll(e: Event) {
-      const target = e.target as Element | null;
-      // Allow scrolling inside the dropdown options container
-      if (target && target.closest && target.closest('[data-custom-select-popover]')) {
-        return;
-      }
-      setIsOpen(false);
+    if (isOpen) {
+      updatePosition();
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, true);
     }
-
-    function handleResize() {
-      setIsOpen(false);
-    }
-
-    function handleGlobalKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setIsOpen(false);
-      }
-    }
-
-    window.addEventListener('scroll', handleScroll, true);
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('keydown', handleGlobalKeyDown);
-
     return () => {
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [isOpen]);
+  }, [isOpen, updatePosition]);
 
   const handleToggle = () => {
     if (!isOpen) {
