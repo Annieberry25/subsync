@@ -58,15 +58,41 @@ export function CustomSelect({
   }, [alignRight]);
 
   useEffect(() => {
-    if (isOpen) {
-      window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', updatePosition, true);
+    if (!isOpen) return;
+
+    // Find actual scroll container (e.g. <main className="overflow-y-auto"> or nearest scrollable ancestor)
+    let scrollParent: HTMLElement | Window = window;
+    let current = buttonRef.current?.parentElement;
+    while (current) {
+      const overflowY = window.getComputedStyle(current).overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        scrollParent = current;
+        break;
+      }
+      current = current.parentElement;
     }
+
+    const initialScroll = scrollParent === window ? window.scrollY : (scrollParent as HTMLElement).scrollTop;
+
+    function handleScroll(e: Event) {
+      const target = e.target as Element | null;
+      // 1. Allow scrolling inside the dropdown options list
+      if (target && target.closest && target.closest('[data-custom-select-popover]')) {
+        return;
+      }
+      // 2. Measure actual scroll displacement on the scroll container
+      const currentScroll = scrollParent === window ? window.scrollY : (scrollParent as HTMLElement).scrollTop;
+      if (Math.abs(currentScroll - initialScroll) > 4) {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, true);
+
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('scroll', handleScroll, true);
     };
-  }, [isOpen, updatePosition]);
+  }, [isOpen]);
 
   const handleToggle = () => {
     if (!isOpen) {
