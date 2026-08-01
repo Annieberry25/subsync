@@ -58,16 +58,37 @@ export function CustomSelect({
   }, [alignRight]);
 
   useEffect(() => {
-    if (isOpen) {
-      updatePosition();
-      window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', updatePosition, true);
+    if (!isOpen) return;
+
+    function handleScroll(e: Event) {
+      const target = e.target as Element | null;
+      // Allow scrolling inside the dropdown options container
+      if (target && target.closest && target.closest('[data-custom-select-popover]')) {
+        return;
+      }
+      setIsOpen(false);
     }
+
+    function handleResize() {
+      setIsOpen(false);
+    }
+
+    function handleGlobalKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('keydown', handleGlobalKeyDown);
+
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [isOpen, updatePosition]);
+  }, [isOpen]);
 
   const handleToggle = () => {
     if (!isOpen) {
@@ -96,7 +117,7 @@ export function CustomSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Keyboard navigation
+  // Keyboard navigation on trigger button
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
