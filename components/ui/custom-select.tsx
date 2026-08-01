@@ -60,19 +60,8 @@ export function CustomSelect({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Find actual scroll container (e.g. <main className="overflow-y-auto"> or nearest scrollable ancestor)
-    let scrollParent: HTMLElement | Window = window;
-    let current = buttonRef.current?.parentElement;
-    while (current) {
-      const overflowY = window.getComputedStyle(current).overflowY;
-      if (overflowY === 'auto' || overflowY === 'scroll') {
-        scrollParent = current;
-        break;
-      }
-      current = current.parentElement;
-    }
-
-    const initialScroll = scrollParent === window ? window.scrollY : (scrollParent as HTMLElement).scrollTop;
+    const initialWindowY = window.scrollY;
+    const initialWindowX = window.scrollX;
 
     function handleScroll(e: Event) {
       const target = e.target as Element | null;
@@ -80,17 +69,29 @@ export function CustomSelect({
       if (target && target.closest && target.closest('[data-custom-select-popover]')) {
         return;
       }
-      // 2. Measure actual scroll displacement on the scroll container
-      const currentScroll = scrollParent === window ? window.scrollY : (scrollParent as HTMLElement).scrollTop;
-      if (Math.abs(currentScroll - initialScroll) > 4) {
+
+      // 2. Measure actual scroll displacement on the window / document
+      const dy = Math.abs(window.scrollY - initialWindowY);
+      const dx = Math.abs(window.scrollX - initialWindowX);
+
+      // 3. Also check if a non-popover scrollable element moved
+      const isScrollableElement = target && target !== (document as unknown) && target !== (window as unknown) && 'scrollTop' in target;
+
+      if (dy > 4 || dx > 4 || isScrollableElement) {
         setIsOpen(false);
       }
     }
 
+    function handleResize() {
+      setIsOpen(false);
+    }
+
     window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
     };
   }, [isOpen]);
 

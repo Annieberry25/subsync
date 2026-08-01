@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useSyncExternalStore } from 'react';
+import { useState, useRef, useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
@@ -66,16 +66,6 @@ export default function SubscriptionCard({
   const hasReminder = Boolean((reminderInfo && !reminderInfo.dismissed) || (diffDays <= 7 && subscription.status === 'active'));
   const isReminderDue = diffDays <= 7;
 
-  const updateMenuPosition = useCallback(() => {
-    if (!buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    const safeRight = Math.max(16, Math.min(window.innerWidth - 208, window.innerWidth - rect.right));
-    setMenuPos({
-      top: rect.bottom + 6,
-      right: safeRight,
-    });
-  }, []);
-
   const handleToggleMenu = async () => {
     if (menuOpen) {
       setMenuOpen(false);
@@ -126,8 +116,25 @@ export default function SubscriptionCard({
   useEffect(() => {
     if (!menuOpen) return;
 
-    const handleScrollOrResize = () => {
-      updateMenuPosition();
+    const initialWindowY = window.scrollY;
+    const initialWindowX = window.scrollX;
+
+    const handleScroll = (event: Event) => {
+      const target = event.target as Element | null;
+      if (menuRef.current && target && menuRef.current.contains(target as Node)) {
+        return;
+      }
+      const dy = Math.abs(window.scrollY - initialWindowY);
+      const dx = Math.abs(window.scrollX - initialWindowX);
+      const isScrollableElement = target && target !== (document as unknown) && target !== (window as unknown) && 'scrollTop' in target;
+
+      if (dy > 4 || dx > 4 || isScrollableElement) {
+        setMenuOpen(false);
+      }
+    };
+
+    const handleResize = () => {
+      setMenuOpen(false);
     };
 
     const handleClickOutside = (event: MouseEvent) => {
@@ -147,18 +154,18 @@ export default function SubscriptionCard({
       }
     };
 
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [menuOpen, updateMenuPosition]);
+  }, [menuOpen]);
 
   const handleEdit = () => {
     setMenuOpen(false);
