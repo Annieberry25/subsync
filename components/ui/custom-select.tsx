@@ -59,7 +59,6 @@ export function CustomSelect({
 
   useEffect(() => {
     if (isOpen) {
-      updatePosition();
       window.addEventListener('resize', updatePosition);
       window.addEventListener('scroll', updatePosition, true);
     }
@@ -116,7 +115,9 @@ export function CustomSelect({
             left: `${menuPos.left}px`,
             minWidth: `${menuPos.minWidth}px`,
           }}
-          className="glass-popover p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 max-w-[280px]"
+          className={`glass-popover p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 max-w-[280px] ${
+            alignRight ? 'origin-top-right' : 'origin-top-left'
+          }`}
         >
           <div className="py-1 space-y-0.5 max-h-60 overflow-y-auto no-scrollbar">
             {options.map((opt) => {
