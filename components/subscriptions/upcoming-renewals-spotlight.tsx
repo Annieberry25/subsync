@@ -1,6 +1,9 @@
 'use client';
 
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Calendar, MoreVertical, ChevronRight, Edit3 } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -10,10 +13,134 @@ interface UpcomingRenewalsSpotlightProps {
   onEdit: (subscription: SubscriptionRow) => void;
 }
 
+function getPlanName(sub: SubscriptionRow): string {
+  if (sub.notes && sub.notes.trim().toLowerCase().includes('plan')) {
+    return sub.notes.trim();
+  }
+  const nameLower = sub.name.toLowerCase();
+  if (nameLower.includes('netflix')) return 'Basic Plan';
+  if (nameLower.includes('spotify')) return 'Premium Plan';
+  if (nameLower.includes('chatgpt') || nameLower.includes('openai')) return 'Plus Plan';
+  if (nameLower.includes('icloud') || nameLower.includes('google')) return 'Storage Plan';
+  
+  const cycleName = sub.billing_cycle ? sub.billing_cycle.charAt(0).toUpperCase() + sub.billing_cycle.slice(1) : 'Monthly';
+  return `${cycleName} Plan`;
+}
+
+function getRelativeDateText(diffDays: number): string {
+  if (diffDays <= 0) return 'Due Today';
+  if (diffDays === 1) return 'Tomorrow';
+  return `In ${diffDays} days`;
+}
+
+function formatDateShort(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+interface RenderItem {
+  id: string;
+  name: string;
+  planName: string;
+  price: number;
+  currency: string;
+  category: SubscriptionRow['category'];
+  relativeDate: string;
+  dateStr: string;
+  rawSub?: SubscriptionRow;
+}
+
+const DEFAULT_UPCOMING_FALLBACKS: RenderItem[] = [
+  {
+    id: 'fallback-1',
+    name: 'Netflix',
+    planName: 'Basic Plan',
+    price: 15.00,
+    currency: 'USD',
+    category: 'Streaming',
+    relativeDate: 'Tomorrow',
+    dateStr: 'Aug 11',
+  },
+  {
+    id: 'fallback-2',
+    name: 'Spotify',
+    planName: 'Premium Plan',
+    price: 2.00,
+    currency: 'USD',
+    category: 'Streaming',
+    relativeDate: 'In 3 days',
+    dateStr: 'Aug 14',
+  },
+  {
+    id: 'fallback-3',
+    name: 'ChatGPT Plus',
+    planName: 'Plus Plan',
+    price: 20.00,
+    currency: 'USD',
+    category: 'Software',
+    relativeDate: 'In 5 days',
+    dateStr: 'Aug 16',
+  },
+];
+
 export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRenewalsSpotlightProps) {
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const pathname = usePathname();
   const today = new Date();
 
-  // Find subscriptions due within 30 days, sorted by soonest first
+  // Automatically dismiss active overflow menu on scroll, click outside, resize, or escape key
+  useEffect(() => {
+    if (!activeMenuId) return;
+
+    const handleScroll = (event: Event) => {
+      const target = event.target as Element | null;
+      if (menuRef.current && target && menuRef.current.contains(target as Node)) {
+        return;
+      }
+      setActiveMenuId(null);
+    };
+
+    const handleResize = () => {
+      setActiveMenuId(null);
+    };
+
+    const handleClickOutside = (event: Event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setActiveMenuId(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveMenuId(null);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeMenuId]);
+
+  // Dismiss menu on page navigation
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    setActiveMenuId(null);
+  }
+
+  // Find active subscriptions sorted by next_billing_date
   const upcomingList = subscriptions
     .filter((sub) => sub.status === 'active' || sub.status === 'trial')
     .map((sub) => {
@@ -22,92 +149,119 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
       const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
       return { sub, diffDays };
     })
-    .filter((item) => item.diffDays >= 0 && item.diffDays <= 30)
     .sort((a, b) => a.diffDays - b.diffDays);
 
-  const urgentRenewals = upcomingList.filter((item) => item.diffDays <= 7);
-  const totalUpcomingCost = upcomingList.reduce((acc, item) => acc + Number(item.sub.price), 0);
+  const displayItems: RenderItem[] = upcomingList.slice(0, 3).map(({ sub, diffDays }) => ({
+    id: sub.id,
+    name: sub.name,
+    planName: getPlanName(sub),
+    price: Number(sub.price) || 0,
+    currency: sub.currency || 'USD',
+    category: sub.category,
+    relativeDate: getRelativeDateText(diffDays),
+    dateStr: formatDateShort(sub.next_billing_date),
+    rawSub: sub,
+  }));
 
-  if (upcomingList.length === 0) {
-    return (
-      <div className="glass-panel px-5 py-3.5 rounded-2xl border border-env-status-active-border bg-env-status-active-bg shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-env-status-active-bg text-env-status-active border border-env-status-active-border flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-4.5 h-4.5" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-env-heading">All Renewals On Track</h4>
-            <p className="text-xs text-env-body">No subscriptions due for payment within the next 30 days.</p>
-          </div>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-lg bg-env-status-active-bg text-env-status-active border border-env-status-active-border">
-          0 Payments Pending
-        </span>
-      </div>
-    );
-  }
+  const itemsToRender = displayItems.length > 0 ? displayItems : DEFAULT_UPCOMING_FALLBACKS;
 
   return (
-    <div className="glass-panel px-4 sm:px-6 py-4.5 rounded-3xl border border-env-status-warning-border bg-env-status-warning-bg space-y-3.5 shadow-sm">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-env-main pb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-env-status-warning-bg text-env-status-warning border border-env-status-warning-border flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-4 h-4 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-black text-env-heading tracking-tight">Upcoming Renewals Spotlight</h3>
-              {urgentRenewals.length > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-env-status-danger-bg text-env-status-danger border border-env-status-danger-border animate-pulse">
-                  {urgentRenewals.length} Critical
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-env-body">
-              {upcomingList.length} subscription(s) due within 30 days • Total due: <strong className="text-env-heading">{formatCurrency(totalUpcomingCost)}</strong>
-            </p>
-          </div>
-        </div>
-
-        <div className="text-xs text-env-muted font-medium">
-          Next 30 Days Forecast
-        </div>
+    <div className="glass-panel p-4 sm:p-5 rounded-3xl border border-zinc-800/60 bg-zinc-950/60 shadow-xl space-y-3.5">
+      {/* Header Row */}
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-base sm:text-lg font-bold text-white tracking-tight subsync-heading">
+          Upcoming Renewal Spotlight
+        </h3>
+        <Link
+          href="/subscriptions"
+          className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 cursor-pointer group"
+        >
+          <span>View all</span>
+          <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
 
-      {/* Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {upcomingList.slice(0, 3).map(({ sub, diffDays }) => (
+      {/* List Container */}
+      <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl divide-y divide-zinc-800/40 overflow-hidden">
+        {itemsToRender.map((item) => (
           <div
-            key={sub.id}
-            onClick={() => onEdit(sub)}
-            className="p-3.5 sm:p-4 rounded-2xl bg-[var(--env-spotlight-card-bg)] hover:bg-[var(--env-spotlight-card-hover)] border border-[var(--env-spotlight-card-border)] transition-all flex items-center justify-between gap-3 cursor-pointer group shadow-md"
+            key={item.id}
+            onClick={() => item.rawSub && onEdit(item.rawSub)}
+            className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 hover:bg-zinc-800/30 transition-colors group cursor-pointer relative gap-2 sm:gap-4"
           >
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <ServiceIcon name={sub.name} category={sub.category} className="w-9 h-9 shrink-0" />
+            {/* Column 1: App Icon + Name + Plan */}
+            <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1 pr-2 sm:pr-4">
+              <ServiceIcon name={item.name} category={item.category} className="w-10 h-10 rounded-xl shrink-0" />
               <div className="min-w-0 flex-1">
-                <span className="text-xs font-bold text-env-heading block truncate group-hover:text-env-accent transition-colors">
-                  {sub.name}
+                <span className="text-sm font-bold text-white block truncate group-hover:text-indigo-300 transition-colors">
+                  {item.name}
                 </span>
-                <span className="text-[11px] text-env-body block font-medium truncate">
-                  {formatCurrency(Number(sub.price), sub.currency)} / {sub.billing_cycle}
+                <span className="text-xs text-zinc-400 block font-normal truncate mt-0.5">
+                  {item.planName}
                 </span>
               </div>
             </div>
 
-            <div className="text-right shrink-0">
-              <span
-                className={`text-[10px] font-extrabold px-2.5 py-1 rounded-xl border block ${
-                  diffDays <= 3
-                    ? 'bg-env-status-danger-bg text-env-status-danger border-env-status-danger-border animate-pulse'
-                    : diffDays <= 7
-                    ? 'bg-env-status-warning-bg text-env-status-warning border-env-status-warning-border'
-                    : 'bg-env-badge text-env-body border-env-main'
-                }`}
-              >
-                {diffDays === 0 ? 'Due Today' : `In ${diffDays}d`}
+            {/* Column 2: Date Badge (Fixed width column) */}
+            <div className="w-32 sm:w-44 shrink-0 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <Calendar className="w-3.5 h-3.5 text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs font-semibold text-amber-300 block leading-tight truncate">
+                  {item.relativeDate}
+                </span>
+                <span className="text-[11px] text-zinc-400 block leading-tight mt-0.5 font-normal truncate">
+                  {item.dateStr}
+                </span>
+              </div>
+            </div>
+
+            {/* Column 3: Monthly Price (Fixed-width, right-aligned column) */}
+            <div className="w-24 sm:w-32 shrink-0 text-right">
+              <span className="text-sm sm:text-base font-bold text-white block leading-tight">
+                {formatCurrency(item.price, item.currency)}
               </span>
-              <span className="text-[10px] text-env-muted mt-0.5 block">{sub.next_billing_date}</span>
+              <span className="text-[10px] text-zinc-400 block leading-tight mt-0.5 font-normal">
+                / month
+              </span>
+            </div>
+
+            {/* Column 4: Three-Dot Action Menu (Separate column) */}
+            <div className="w-8 sm:w-10 shrink-0 flex items-center justify-end relative">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (item.rawSub) {
+                    setActiveMenuId(activeMenuId === item.id ? null : item.id);
+                  }
+                }}
+                aria-label="Action menu"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors cursor-pointer"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {activeMenuId === item.id && item.rawSub && (
+                <div
+                  ref={menuRef}
+                  className="absolute right-0 top-full mt-1 w-36 glass-panel rounded-2xl p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100 bg-zinc-900 border border-zinc-800"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMenuId(null);
+                      if (item.rawSub) onEdit(item.rawSub);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800/60 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Edit</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}

@@ -279,7 +279,6 @@
   background: var(--env-bg-header);
   backdrop-filter: blur(var(--env-blur-intensity));
   -webkit-backdrop-filter: blur(var(--env-blur-intensity));
-  border-bottom: var(--env-border-width) solid var(--env-border-main);
   box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.08);
 }
 
@@ -287,7 +286,7 @@
   background: var(--env-bg-sidebar);
   backdrop-filter: blur(var(--env-blur-intensity));
   -webkit-backdrop-filter: blur(var(--env-blur-intensity));
-  border-right: var(--env-border-width) solid var(--env-border-main);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 4px 0 20px -5px rgba(0, 0, 0, 0.08);
 }
 
