@@ -1,30 +1,22 @@
-'use client';
-
-import { useState } from 'react';
 import { calculateCategoryBreakdown } from '@/lib/utils/analytics-utils';
 import { calculateMonthlySpend, formatCurrency } from '@/lib/utils/metrics-utils';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { PieChart, Tag, ChevronRight } from 'lucide-react';
+import { PieChart, Tag } from 'lucide-react';
 
 interface CategoryBreakdownCardProps {
   subscriptions: SubscriptionRow[];
 }
 
-const categoryColors: Record<string, { stroke: string; dot: string; text: string }> = {
-  Streaming: { stroke: '#a855f7', dot: 'bg-purple-500', text: 'text-purple-400' },
-  Software: { stroke: '#6366f1', dot: 'bg-indigo-500', text: 'text-indigo-400' },
-  Utilities: { stroke: '#f59e0b', dot: 'bg-amber-500', text: 'text-amber-400' },
-  Fitness: { stroke: '#10b981', dot: 'bg-emerald-500', text: 'text-emerald-400' },
-  Finance: { stroke: '#14b8a6', dot: 'bg-teal-500', text: 'text-teal-400' },
-  Education: { stroke: '#3b82f6', dot: 'bg-blue-500', text: 'text-blue-400' },
-  Gaming: { stroke: '#f43f5e', dot: 'bg-rose-500', text: 'text-rose-400' },
-  Other: { stroke: '#71717a', dot: 'bg-zinc-500', text: 'text-zinc-400' },
-};
+// SubSync Design System v2.0: Monochromatic Palette
+const chartColorPalette = [
+  { stroke: '#4F46E5', dot: 'bg-[#4F46E5]' }, // Primary Accent
+  { stroke: '#A1AAB8', dot: 'bg-[#A1AAB8]' }, // Secondary Text
+  { stroke: '#6F7787', dot: 'bg-[#6F7787]' }, // Muted Neutral
+];
 
 export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardProps) {
   const breakdown = calculateCategoryBreakdown(subscriptions);
   const totalMonthlySpend = calculateMonthlySpend(subscriptions);
-  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
   // SVG Donut Chart Calculation
   const radius = 68;
@@ -36,34 +28,23 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
   let accumulatedPercentage = 0;
 
   return (
-    <div className="glass-panel p-5 sm:p-7 rounded-3xl space-y-6 shadow-xl border border-env-subtle/80 relative overflow-hidden">
+    <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center border border-indigo-500/30 shadow-md">
-            <PieChart className="w-5 h-5" />
-          </div>
+          <PieChart className="w-5 h-5 text-[#6F7787]" />
           <div>
-            <h3 className="text-base font-bold text-env-heading tracking-tight">Spending by Category</h3>
-            <p className="text-xs text-env-muted">Normalized monthly allocation across active plans</p>
+            <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">Spending by Category</h2>
+            <p className="text-[15px] text-[#A1AAB8] font-normal leading-[22px]">Monthly expense allocation by category</p>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => {}}
-          className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 transition-all cursor-pointer"
-        >
-          View report
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
       </div>
 
       {breakdown.length === 0 ? (
-        <div className="p-8 text-center rounded-2xl bg-env-badge/50 border border-env-main space-y-2">
-          <Tag className="w-8 h-8 text-env-muted mx-auto" />
-          <p className="text-xs font-bold text-env-heading">No active category spending</p>
-          <p className="text-[11px] text-env-muted">Add active subscriptions to view category distribution.</p>
+        <div className="p-8 text-center rounded-2xl bg-[#1D222B] border border-[#2B313D] space-y-2">
+          <Tag className="w-8 h-8 text-[#6F7787] mx-auto" />
+          <p className="text-base font-semibold text-white">No active category spending</p>
+          <p className="text-[15px] text-[#A1AAB8]">Add active subscriptions to view category distribution.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
@@ -76,22 +57,19 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
                   cx="90"
                   cy="90"
                   r={radius}
-                  stroke="currentColor"
+                  stroke="#2B313D"
                   strokeWidth="18"
                   fill="none"
-                  className="text-env-badge/60"
                 />
 
                 {/* Donut Arcs */}
-                {breakdown.map((item) => {
-                  const categoryStyle = categoryColors[item.category] || categoryColors.Other;
+                {breakdown.map((item, idx) => {
+                  const categoryStyle = chartColorPalette[idx % chartColorPalette.length];
                   const itemFraction = item.percentage / 100;
                   const strokeDash = itemFraction * availableCircumference;
                   const strokeOffset = -(accumulatedPercentage / 100) * availableCircumference - (accumulatedPercentage > 0 ? (gapAngle * accumulatedPercentage) : 0);
                   
                   accumulatedPercentage += item.percentage;
-
-                  const isHovered = hoveredCategory === item.category;
 
                   return (
                     <circle
@@ -100,14 +78,11 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
                       cy="90"
                       r={radius}
                       stroke={categoryStyle.stroke}
-                      strokeWidth={isHovered ? 22 : 18}
+                      strokeWidth={18}
                       strokeDasharray={`${strokeDash} ${circumference}`}
                       strokeDashoffset={strokeOffset}
                       strokeLinecap="round"
                       fill="none"
-                      className="transition-all duration-300 cursor-pointer"
-                      onMouseEnter={() => setHoveredCategory(item.category)}
-                      onMouseLeave={() => setHoveredCategory(null)}
                     >
                       <title>{`${item.category}: ${formatCurrency(item.monthlySpend)} (${item.percentage.toFixed(1)}%)`}</title>
                     </circle>
@@ -117,13 +92,13 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
 
               {/* Center Content */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-2">
-                <span className="text-[11px] font-bold text-env-muted tracking-wider uppercase block">
+                <span className="text-[13px] font-medium text-[#6F7787] uppercase tracking-wider block">
                   Total Monthly
                 </span>
-                <span className="text-xl sm:text-2xl font-black text-env-heading tracking-tight block">
+                <span className="text-2xl font-bold text-white tracking-tight block">
                   {formatCurrency(totalMonthlySpend)}
                 </span>
-                <span className="text-[10px] text-env-muted block font-medium">
+                <span className="text-[13px] text-[#6F7787] block">
                   {breakdown.length} {breakdown.length === 1 ? 'category' : 'categories'}
                 </span>
               </div>
@@ -132,28 +107,21 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
 
           {/* Breakdown List on Right */}
           <div className="md:col-span-7 space-y-2.5">
-            {breakdown.map((item) => {
-              const categoryStyle = categoryColors[item.category] || categoryColors.Other;
-              const isHovered = hoveredCategory === item.category;
+            {breakdown.map((item, idx) => {
+              const categoryStyle = chartColorPalette[idx % chartColorPalette.length];
 
               return (
                 <div
                   key={item.category}
-                  onMouseEnter={() => setHoveredCategory(item.category)}
-                  onMouseLeave={() => setHoveredCategory(null)}
-                  className={`p-3.5 rounded-2xl border flex items-center justify-between gap-4 transition-all duration-200 ${
-                    isHovered
-                      ? 'bg-env-button-sec border-env-border-hover shadow-md scale-[1.01]'
-                      : 'bg-env-button-sec/60 hover:bg-env-button-sec border-env-subtle'
-                  }`}
+                  className="p-3.5 rounded-2xl border border-[#2B313D] bg-[#1D222B] flex items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className={`w-3 h-3 rounded-full ${categoryStyle.dot} shrink-0 shadow-sm`}
+                      className={`w-3 h-3 rounded-full ${categoryStyle.dot} shrink-0`}
                     />
                     <div className="min-w-0 truncate">
-                      <span className="text-xs font-bold text-env-heading block truncate">{item.category}</span>
-                      <span className="text-[11px] text-env-muted block truncate">
+                      <span className="text-base font-semibold text-white block truncate">{item.category}</span>
+                      <span className="text-[15px] text-[#A1AAB8] block truncate">
                         {item.count} {item.count === 1 ? 'plan' : 'plans'}
                       </span>
                     </div>
@@ -161,14 +129,14 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
 
                   <div className="text-right shrink-0 flex items-center gap-4">
                     <div>
-                      <span className="text-xs font-bold text-env-heading block">
+                      <span className="text-base font-semibold text-white block">
                         {formatCurrency(item.monthlySpend)}
                       </span>
-                      <span className="text-[10px] text-env-muted block">
+                      <span className="text-[13px] text-[#6F7787] block">
                         / mo
                       </span>
                     </div>
-                    <span className={`text-xs font-black ${categoryStyle.text} bg-env-badge px-2.5 py-1 rounded-lg border border-env-main min-w-[50px] text-center`}>
+                    <span className="text-xs font-medium text-white bg-[#2B313D] px-2.5 py-1 rounded-lg min-w-[50px] text-center">
                       {item.percentage.toFixed(1)}%
                     </span>
                   </div>
@@ -181,4 +149,3 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
     </div>
   );
 }
-

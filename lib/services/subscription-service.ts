@@ -5,6 +5,12 @@ export type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row
 export type SubscriptionInsert = Database['public']['Tables']['subscriptions']['Insert'];
 export type SubscriptionUpdate = Database['public']['Tables']['subscriptions']['Update'];
 
+let cachedSubscriptions: SubscriptionRow[] | null = null;
+
+export function getCachedSubscriptions(): SubscriptionRow[] | null {
+  return cachedSubscriptions;
+}
+
 export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | null; error: Error | null }> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -12,8 +18,11 @@ export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | 
     .select('*')
     .order('next_billing_date', { ascending: true });
 
-  if (error) return { data: null, error: new Error(error.message) };
-  return { data, error: null };
+  if (error) return { data: cachedSubscriptions, error: new Error(error.message) };
+  if (data) {
+    cachedSubscriptions = data;
+  }
+  return { data: data || cachedSubscriptions, error: null };
 }
 
 export async function createSubscription(

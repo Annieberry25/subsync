@@ -139,7 +139,7 @@ export default function SubscriptionModal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-in fade-in duration-200"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -147,28 +147,28 @@ export default function SubscriptionModal({
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[560px] glass-panel rounded-3xl p-5 sm:p-7 md:p-8 shadow-2xl space-y-5 sm:space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col"
+        className="w-full max-w-[560px] bg-[#171A21] border border-[#2B313D] rounded-[20px] p-6 sm:p-8 space-y-6 max-h-[90vh] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-env-main pb-4 sm:pb-5 shrink-0">
-          <h2 id="modal-title" className="text-lg sm:text-xl font-black text-env-heading tracking-tight">
+        <div className="flex items-center justify-between border-b border-[#2B313D] pb-4 shrink-0">
+          <h2 id="modal-title" className="text-[28px] font-bold text-white tracking-tight leading-[36px]">
             {initialData ? 'Edit Subscription' : 'Add New Subscription'}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-2xl bg-env-button-sec hover:bg-env-badge flex items-center justify-center text-env-muted hover:text-env-heading transition-colors cursor-pointer border border-env-subtle"
+            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] flex items-center justify-center text-[#6F7787] hover:text-white transition-colors cursor-pointer border border-[#2B313D]"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4.5 sm:space-y-5 overflow-y-auto pr-1 flex-1 no-scrollbar">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1 no-scrollbar">
           {/* Name */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-env-body block">Subscription Name *</label>
+            <label className="text-[13px] font-medium text-[#6F7787] block">Subscription Name *</label>
             <input
               type="text"
               placeholder="e.g. Netflix, Spotify, GitHub Pro"
@@ -177,12 +177,12 @@ export default function SubscriptionModal({
                 setName(e.target.value);
                 if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
               }}
-              className={`w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none transition-colors ${
-                fieldErrors.name ? 'border-rose-500/80 focus:border-rose-500' : 'border-env-main focus:border-indigo-500'
+              className={`w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border text-white placeholder-[#6F7787] focus:outline-none transition-colors ${
+                fieldErrors.name ? 'border-[#EF4444] focus:border-[#EF4444]' : 'border-[#2B313D] focus:border-[#4F46E5]'
               }`}
             />
             {fieldErrors.name && (
-              <span className="text-[11px] text-rose-400 font-medium flex items-center gap-1">
+              <span className="text-[11px] text-[#EF4444] font-medium flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
                 {fieldErrors.name}
               </span>
@@ -192,7 +192,7 @@ export default function SubscriptionModal({
           {/* Price & Currency & Billing Cycle */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-env-body block">Price *</label>
+              <label className="text-[13px] font-medium text-[#6F7787] block">Price *</label>
               <input
                 type="number"
                 step="0.01"
@@ -202,67 +202,67 @@ export default function SubscriptionModal({
                   setPrice(e.target.value);
                   if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: undefined }));
                 }}
-                className={`w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none transition-colors ${
-                  fieldErrors.price ? 'border-rose-500/80 focus:border-rose-500' : 'border-env-main focus:border-indigo-500'
+                className={`w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border text-white placeholder-[#6F7787] focus:outline-none transition-colors ${
+                  fieldErrors.price ? 'border-[#EF4444] focus:border-[#EF4444]' : 'border-[#2B313D] focus:border-[#4F46E5]'
                 }`}
               />
               {fieldErrors.price && (
-                <span className="text-[10px] text-rose-400 font-medium">{fieldErrors.price}</span>
+                <span className="text-[10px] text-[#EF4444] font-medium">{fieldErrors.price}</span>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-env-body block">Currency</label>
+              <label className="text-[13px] font-medium text-[#6F7787] block">Currency</label>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full h-11 px-3.5 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full h-11 px-3.5 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors"
               >
-                <option value="USD" className="bg-env-card text-env-heading">USD ($)</option>
-                <option value="EUR" className="bg-env-card text-env-heading">EUR (€)</option>
-                <option value="GBP" className="bg-env-card text-env-heading">GBP (£)</option>
-                <option value="CAD" className="bg-env-card text-env-heading">CAD ($)</option>
+                <option value="USD" className="bg-[#1D222B] text-white">USD ($)</option>
+                <option value="EUR" className="bg-[#1D222B] text-white">EUR (€)</option>
+                <option value="GBP" className="bg-[#1D222B] text-white">GBP (£)</option>
+                <option value="CAD" className="bg-[#1D222B] text-white">CAD ($)</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-env-body block">Cycle *</label>
+              <label className="text-[13px] font-medium text-[#6F7787] block">Cycle *</label>
               <select
                 value={billingCycle}
                 onChange={(e) => setBillingCycle(e.target.value as typeof billingCycles[number])}
-                className="w-full h-11 px-3.5 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors capitalize"
+                className="w-full h-11 px-3.5 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors capitalize"
               >
                 {billingCycles.map((c) => (
-                  <option key={c} value={c} className="bg-env-card text-env-heading capitalize">{c}</option>
+                  <option key={c} value={c} className="bg-[#1D222B] text-white capitalize">{c}</option>
                 ))}
               </select>
             </div>
           </div>
 
           {/* Category & Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-env-body block">Category *</label>
+              <label className="text-[13px] font-medium text-[#6F7787] block">Category *</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as typeof categories[number])}
-                className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors"
               >
                 {categories.map((cat) => (
-                  <option key={cat} value={cat} className="bg-env-card text-env-heading">{cat}</option>
+                  <option key={cat} value={cat} className="bg-[#1D222B] text-white">{cat}</option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-env-body block">Status *</label>
+              <label className="text-[13px] font-medium text-[#6F7787] block">Status *</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as typeof statuses[number])}
-                className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors capitalize"
+                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors capitalize"
               >
                 {statuses.map((s) => (
-                  <option key={s} value={s} className="bg-env-card text-env-heading capitalize">{s}</option>
+                  <option key={s} value={s} className="bg-[#1D222B] text-white capitalize">{s}</option>
                 ))}
               </select>
             </div>
@@ -271,19 +271,19 @@ export default function SubscriptionModal({
           {/* Next Billing Date & Quick Presets */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-env-body block">Next Billing Date *</label>
+              <label className="text-[13px] font-medium text-[#6F7787] block">Next Billing Date *</label>
               <div className="flex items-center gap-2 text-[11px]">
                 <button
                   type="button"
                   onClick={() => setQuickDate(1)}
-                  className="px-3 py-1 min-h-[32px] rounded-xl bg-env-button-sec hover:bg-env-badge text-env-body hover:text-env-heading transition-colors cursor-pointer border border-env-subtle font-semibold"
+                  className="px-3 py-1 min-h-[32px] rounded-lg bg-[#1D222B] hover:bg-[#2B313D] text-[#A1AAB8] hover:text-white transition-colors cursor-pointer border border-[#2B313D]"
                 >
                   +1 Month
                 </button>
                 <button
                   type="button"
                   onClick={() => setQuickDate(12)}
-                  className="px-3 py-1 min-h-[32px] rounded-xl bg-env-button-sec hover:bg-env-badge text-env-body hover:text-env-heading transition-colors cursor-pointer border border-env-subtle font-semibold"
+                  className="px-3 py-1 min-h-[32px] rounded-lg bg-[#1D222B] hover:bg-[#2B313D] text-[#A1AAB8] hover:text-white transition-colors cursor-pointer border border-[#2B313D]"
                 >
                   +1 Year
                 </button>
@@ -293,63 +293,63 @@ export default function SubscriptionModal({
               type="date"
               value={nextBillingDate}
               onChange={(e) => setNextBillingDate(e.target.value)}
-              className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors"
             />
             {fieldErrors.date && (
-              <span className="text-[10px] text-rose-400 font-medium">{fieldErrors.date}</span>
+              <span className="text-[10px] text-[#EF4444] font-medium">{fieldErrors.date}</span>
             )}
           </div>
 
           {/* Payment Method & Provider URL */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-env-body block">Payment Method</label>
+              <label className="text-[13px] font-medium text-[#6F7787] block">Payment Method</label>
               <input
                 type="text"
                 placeholder="e.g. Visa ending 4242"
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-env-body block">Provider URL</label>
+              <label className="text-[13px] font-medium text-[#6F7787] block">Provider URL</label>
               <input
                 type="url"
                 placeholder="https://netflix.com"
                 value={providerUrl}
                 onChange={(e) => setProviderUrl(e.target.value)}
-                className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
               />
             </div>
           </div>
 
           {/* Notes */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-env-body block">Notes (Optional)</label>
+            <label className="text-[13px] font-medium text-[#6F7787] block">Notes (Optional)</label>
             <textarea
               rows={2}
               placeholder="Additional renewal notes or plan tier details..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-4 py-3 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+              className="w-full px-4 py-3 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors resize-none"
             />
           </div>
 
           {/* Form Actions */}
-          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-4 border-t border-env-main shrink-0">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4 border-t border-[#2B313D] shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-5 py-3 rounded-2xl min-h-[44px] text-xs font-bold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-5 py-3 rounded-xl min-h-[44px] text-xs font-semibold text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] transition-colors cursor-pointer flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="w-full sm:w-auto px-6 py-3 rounded-2xl min-h-[44px] bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl min-h-[44px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>

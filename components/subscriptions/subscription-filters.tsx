@@ -42,27 +42,27 @@ export default function SubscriptionFilters({
   onSortChange,
 }: SubscriptionFiltersProps) {
   return (
-    <div className="glass-panel p-4 sm:p-5 rounded-3xl space-y-4 shadow-sm border border-env-subtle/80 bg-env-card/40">
+    <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4">
       {/* Top Search & Filter Controls */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
         {/* Search Input */}
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-env-muted pointer-events-none" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787] pointer-events-none" />
           <input
             type="text"
             placeholder="Search subscriptions by name, plan tier, or notes..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-11 pl-10 pr-3.5 py-2.5 text-xs rounded-2xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full h-11 pl-10 pr-3.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
           />
         </div>
 
-        {/* Filter Groups with Outer Labels and Responsive Custom SelectTriggers */}
+        {/* Filter Groups */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-center gap-3 w-full lg:w-auto">
-          {/* Status: [ All              ▼ ] */}
+          {/* Status Select */}
           <div className="flex items-center gap-2.5 flex-1 sm:flex-initial">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-env-body w-14 shrink-0">
-              <Filter className="w-3.5 h-3.5 text-env-muted shrink-0" />
+            <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#6F7787] w-14 shrink-0">
+              <Filter className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
               <span>Status:</span>
             </div>
             
@@ -77,10 +77,10 @@ export default function SubscriptionFilters({
             </div>
           </div>
 
-          {/* Sort: [ Next Billing (Soonest) ▼ ] */}
+          {/* Sort Select */}
           <div className="flex items-center gap-2.5 flex-1 sm:flex-initial">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-env-body w-14 shrink-0">
-              <ArrowUpDown className="w-3.5 h-3.5 text-env-muted shrink-0" />
+            <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#6F7787] w-14 shrink-0">
+              <ArrowUpDown className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
               <span>Sort:</span>
             </div>
 
@@ -98,8 +98,8 @@ export default function SubscriptionFilters({
         </div>
       </div>
 
-      {/* Category Quick Filter Pills Row */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pt-0.5">
+      {/* Category Pills Row (Selected tab strictly uses Primary Accent #4F46E5) */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pt-1">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat;
           return (
@@ -107,10 +107,10 @@ export default function SubscriptionFilters({
               key={cat}
               type="button"
               onClick={() => onCategoryChange(cat)}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap min-h-[38px] transition-all cursor-pointer flex items-center justify-center ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap min-h-[38px] transition-colors cursor-pointer flex items-center justify-center ${
                 isActive
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20 border border-indigo-500/30'
-                  : 'bg-env-button-sec hover:bg-env-button-sec-hover text-env-body hover:text-env-heading border border-transparent hover:border-env-subtle/40'
+                  ? 'bg-[#4F46E5] text-white font-semibold'
+                  : 'bg-[#1D222B] hover:bg-[#2B313D] text-[#A1AAB8] hover:text-white border border-[#2B313D]'
               }`}
             >
               {cat}

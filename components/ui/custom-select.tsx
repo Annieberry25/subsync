@@ -47,7 +47,6 @@ export function CustomSelect({
     if (alignRight) {
       leftPos = rect.right - dropdownWidth;
     }
-    // Clamp inside viewport
     leftPos = Math.max(12, Math.min(window.innerWidth - dropdownWidth - 12, leftPos));
 
     setMenuPos({
@@ -65,16 +64,13 @@ export function CustomSelect({
 
     function handleScroll(e: Event) {
       const target = e.target as Element | null;
-      // 1. Allow scrolling inside the dropdown options list
       if (target && target.closest && target.closest('[data-custom-select-popover]')) {
         return;
       }
 
-      // 2. Measure actual scroll displacement on the window / document
       const dy = Math.abs(window.scrollY - initialWindowY);
       const dx = Math.abs(window.scrollX - initialWindowX);
 
-      // 3. Also check if a non-popover scrollable element moved
       const isScrollableElement = target && target !== (document as unknown) && target !== (window as unknown) && 'scrollTop' in target;
 
       if (dy > 4 || dx > 4 || isScrollableElement) {
@@ -102,7 +98,6 @@ export function CustomSelect({
     setIsOpen((prev) => !prev);
   };
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
@@ -122,7 +117,6 @@ export function CustomSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Keyboard navigation on trigger button
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -142,7 +136,7 @@ export function CustomSelect({
             left: `${menuPos.left}px`,
             minWidth: `${menuPos.minWidth}px`,
           }}
-          className={`glass-popover p-1.5 rounded-2xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 max-w-[280px] ${
+          className={`p-1.5 rounded-2xl bg-[#1D222B] border border-[#2B313D] z-50 animate-in fade-in duration-100 max-w-[280px] ${
             alignRight ? 'origin-top-right' : 'origin-top-left'
           }`}
         >
@@ -157,10 +151,10 @@ export function CustomSelect({
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 min-h-[40px] rounded-xl text-xs font-semibold transition-all text-left cursor-pointer capitalize ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 min-h-[40px] rounded-xl text-xs font-medium transition-colors text-left cursor-pointer capitalize ${
                     isSelected
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                      : 'text-env-body hover:text-env-heading hover:bg-env-button-sec'
+                      ? 'bg-[#4F46E5] text-white font-semibold'
+                      : 'text-[#A1AAB8] hover:text-white hover:bg-[#2B313D]'
                   }`}
                 >
                   <span className="truncate">{opt.label}</span>
@@ -176,7 +170,6 @@ export function CustomSelect({
 
   return (
     <div ref={containerRef} className={`relative inline-block text-left ${minWidth.includes('w-full') ? 'w-full' : ''}`}>
-      {/* Custom SelectTrigger Pill */}
       <button
         ref={buttonRef}
         type="button"
@@ -184,12 +177,12 @@ export function CustomSelect({
         onKeyDown={handleKeyDown}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
-        className={`flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-2xl bg-env-input hover:bg-env-button-sec-hover border border-env-main text-xs font-extrabold text-env-heading transition-all shadow-sm cursor-pointer group ${minWidth} ${className}`}
+        className={`flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] border border-[#2B313D] text-xs font-medium text-white transition-colors cursor-pointer group ${minWidth} ${className}`}
       >
         <span className="truncate capitalize tracking-wide pr-1">{selectedOption.label}</span>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-env-muted group-hover:text-env-heading transition-transform duration-200 shrink-0 ${
-            isOpen ? 'rotate-180 text-env-accent' : ''
+          className={`w-3.5 h-3.5 text-[#6F7787] group-hover:text-white transition-transform duration-200 shrink-0 ${
+            isOpen ? 'rotate-180 text-[#4F46E5]' : ''
           }`}
         />
       </button>

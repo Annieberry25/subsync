@@ -72,6 +72,23 @@ export function getMostExpensiveSubscription(subscriptions: SubscriptionRow[]): 
   }, activeSubs[0]);
 }
 
+export function getMostExpensiveSubscriptions(subscriptions: SubscriptionRow[]): SubscriptionRow[] {
+  const activeSubs = subscriptions.filter((sub) => sub.status === 'active' || sub.status === 'trial');
+  if (activeSubs.length === 0) return [];
+  
+  let maxPrice = -1;
+  activeSubs.forEach((sub) => {
+    const price = getNormalizedMonthlyPrice(sub);
+    if (price > maxPrice) {
+      maxPrice = price;
+    }
+  });
+
+  if (maxPrice <= 0) return [];
+
+  return activeSubs.filter((sub) => Math.abs(getNormalizedMonthlyPrice(sub) - maxPrice) < 0.001);
+}
+
 export function formatCurrency(amount: number, currency = 'USD'): string {
   try {
     return new Intl.NumberFormat('en-US', {

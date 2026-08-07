@@ -1,8 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Menu, Moon, Sun, Feather, Bell } from 'lucide-react';
-import { useTheme } from '@/lib/hooks/use-theme';
+import { Menu, Bell } from 'lucide-react';
 
 const routeTitles: Record<string, string> = {
   '/subscriptions': 'Subscriptions',
@@ -12,28 +11,34 @@ const routeTitles: Record<string, string> = {
 
 interface HeaderProps {
   onMobileMenuToggle?: () => void;
+  hasUnreadNotifications?: boolean;
 }
 
-export default function Header({ onMobileMenuToggle }: HeaderProps) {
+export default function Header({ onMobileMenuToggle, hasUnreadNotifications = false }: HeaderProps) {
   const pathname = usePathname();
-  const { theme, cycleTheme } = useTheme();
-
   const title = routeTitles[pathname];
 
-  const themeIcon = {
-    dark: <Moon className="w-5 h-5 text-indigo-400 transition-colors" />,
-    ivory: <Sun className="w-5 h-5 text-amber-500 transition-colors" />,
-    sand: <Feather className="w-5 h-5 text-amber-700 transition-colors" />,
-  }[theme];
-
-  const themeLabel = {
-    dark: 'Midnight',
-    ivory: 'Ivory',
-    sand: 'Sand',
-  }[theme];
+  if (!title && !hasUnreadNotifications) {
+    return (
+      <header className="md:hidden glass-header h-14 sticky top-0 z-30 px-4 flex items-center justify-between bg-[#101215]">
+        <div className="flex items-center gap-3">
+          {onMobileMenuToggle && (
+            <button
+              type="button"
+              onClick={onMobileMenuToggle}
+              aria-label="Open navigation menu"
+              className="w-10 h-10 rounded-xl text-[#A1AAB8] hover:text-white hover:bg-[#171A21] transition-colors flex items-center justify-center cursor-pointer"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      </header>
+    );
+  }
 
   return (
-    <header className="glass-header h-16 sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between">
+    <header className="glass-header h-16 sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between bg-[#101215]">
       {/* Left: Mobile Menu & Route Title */}
       <div className="flex items-center gap-3">
         {onMobileMenuToggle && (
@@ -41,41 +46,29 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
             type="button"
             onClick={onMobileMenuToggle}
             aria-label="Open navigation menu"
-            className="md:hidden w-11 h-11 rounded-2xl text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors flex items-center justify-center cursor-pointer"
+            className="md:hidden w-11 h-11 rounded-xl text-[#A1AAB8] hover:text-white hover:bg-[#171A21] transition-colors flex items-center justify-center cursor-pointer"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
         {title && (
-          <h1 className="text-lg md:text-xl font-black text-env-heading tracking-tight">{title}</h1>
+          <h1 className="text-[28px] font-bold text-white tracking-tight leading-none">{title}</h1>
         )}
       </div>
 
-      {/* Right: Standalone Compact Header Action Group */}
-      <div className="flex items-center gap-4 sm:gap-5">
-        {/* Standalone Themed Theme Icon Button */}
-        <button
-          type="button"
-          onClick={cycleTheme}
-          aria-label={`Current theme: ${themeLabel}. Click to switch theme.`}
-          title={`Theme: ${themeLabel}. Click to cycle between Midnight, Ivory, and Sand.`}
-          className="p-2 transition-transform hover:scale-110 cursor-pointer rounded-xl flex items-center justify-center"
-        >
-          {themeIcon}
-        </button>
-
-        {/* Standalone Notification Bell Button (Reuses Shared Pending/Warning Color Token) */}
-        <button
-          type="button"
-          aria-label="Notifications"
-          title="Notifications (3 unread)"
-          className="relative p-2 text-env-status-warning hover:opacity-80 transition-all cursor-pointer rounded-xl flex items-center justify-center"
-        >
-          <Bell className="w-5 h-5 transition-colors" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-env-status-warning text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
-            3
-          </span>
-        </button>
+      {/* Right: Functional Notification Icon (Only displayed if unread notifications exist) */}
+      <div className="flex items-center gap-4">
+        {hasUnreadNotifications && (
+          <button
+            type="button"
+            aria-label="Notifications"
+            title="Notifications (Unread items)"
+            className="relative p-2 text-[#A1AAB8] hover:text-white transition-colors cursor-pointer rounded-xl flex items-center justify-center min-h-[44px] min-w-[44px]"
+          >
+            <Bell className="w-5 h-5 text-[#A1AAB8]" />
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#F59E0B]" />
+          </button>
+        )}
       </div>
     </header>
   );

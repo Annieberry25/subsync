@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   fetchSubscriptions,
+  getCachedSubscriptions,
   createSubscription,
   updateSubscription,
   deleteSubscription,
@@ -37,11 +38,40 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
+function renderFormattedCurrency(amount: number, currency = 'USD') {
+  const formatted = formatCurrency(amount, currency);
+  if (formatted.startsWith('$')) {
+    return (
+      <span className="inline-flex items-baseline">
+        <span
+          style={{ fontSize: '24px', fontWeight: 600, color: '#FFFFFF' }}
+          className="mr-0.5 select-none"
+        >
+          $
+        </span>
+        <span
+          style={{ fontSize: '30px', fontWeight: 600, lineHeight: '34px', letterSpacing: '-0.02em', color: '#FFFFFF' }}
+        >
+          {formatted.slice(1)}
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span
+      style={{ fontSize: '30px', fontWeight: 600, lineHeight: '34px', letterSpacing: '-0.02em', color: '#FFFFFF' }}
+    >
+      {formatted}
+    </span>
+  );
+}
+
 export default function DashboardV2() {
   const { toast } = useToast();
 
-  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCache = getCachedSubscriptions();
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initialCache || []);
+  const [loading, setLoading] = useState(!initialCache);
   const [error, setError] = useState<string | null>(null);
 
   // Modal & Dialog states
@@ -80,7 +110,7 @@ export default function DashboardV2() {
     let active = true;
     fetchSubscriptions().then(({ data, error: err }) => {
       if (!active) return;
-      if (err) {
+      if (err && subscriptions.length === 0) {
         setError(err.message || 'Failed to load subscriptions.');
       } else if (data) {
         setSubscriptions(data);
@@ -90,7 +120,7 @@ export default function DashboardV2() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [subscriptions.length]);
 
   const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
     if (id) {
@@ -141,113 +171,147 @@ export default function DashboardV2() {
   const activeCount = useMemo(() => getActiveCount(subscriptions), [subscriptions]);
   const potentialSavings = useMemo(() => calculatePotentialSavings(subscriptions), [subscriptions]);
 
+  const overdueCount = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return subscriptions.filter((sub) => {
+      if (sub.status === 'canceled') return false;
+      const nextBilling = new Date(sub.next_billing_date);
+      return nextBilling < now;
+    }).length;
+  }, [subscriptions]);
+
+  const renewalSemantic = useMemo(() => {
+    if (overdueCount > 0) {
+      return {
+        iconColor: 'text-[#EF4444]',
+        textColor: 'text-[#EF4444]',
+        label: overdueCount === 1 ? 'Overdue subscription' : 'Overdue subscriptions',
+      };
+    }
+    if (renewingThisWeek > 0) {
+      return {
+        iconColor: 'text-[#F59E0B]',
+        textColor: 'text-[#F59E0B]',
+        label: renewingThisWeek === 1 ? 'Subscription due' : 'Subscriptions due',
+      };
+    }
+    return {
+      iconColor: 'text-[#6F7787]',
+      textColor: 'text-[#A1AAB8]',
+      label: 'Subscriptions due',
+    };
+  }, [overdueCount, renewingThisWeek]);
+
   return (
-    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-32 sm:pb-48">
-      {/* 1. HERO SECTION */}
-      <PersonalizedHeader
-        onRefresh={() => loadData(true)}
-        loading={loading}
-        renewingThisWeekCount={renewingThisWeek}
-      />
+    <div className="animate-page-transition pt-0 space-y-5 bg-ambient-grid min-h-[85vh] pb-32 sm:pb-48">
+      {/* 1. HEADER SECTION */}
+      <div className="mb-4">
+        <PersonalizedHeader
+          renewingThisWeekCount={renewingThisWeek}
+        />
+      </div>
 
       {/* ERROR BANNER */}
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3 text-rose-400 text-xs">
+        <div className="p-4 rounded-2xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-3 text-[#EF4444] text-xs">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* 2. FOUR STATISTICS CARDS */}
+      {/* 2. KPI METRICS (Sits directly on dashboard background) */}
       {loading && subscriptions.length === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Card 1: Monthly Spend */}
-          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-indigo-500 hover:scale-[1.01] transition-all">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-indigo-500/15 blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Monthly Spend</span>
-              <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center border border-indigo-500/30 shadow-lg shadow-indigo-500/25">
-                <DollarSign className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
-              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">
-                {formatCurrency(monthlySpend)}
+          <div className="px-5 py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[104px]">
+            <div className="flex items-baseline justify-between">
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', lineHeight: '20px' }}>
+                Monthly Spend
               </span>
-              <span className="text-[11px] text-indigo-400 font-semibold shrink-0">/ month</span>
+              <DollarSign className="w-4 h-4 text-[#6F7787] translate-y-[1px]" />
             </div>
-            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10 truncate">
-              Normalized recurring total
-            </span>
+            <div className="mt-2">
+              <div>
+                {renderFormattedCurrency(monthlySpend)}
+              </div>
+              <span
+                style={{ fontSize: '15px', fontWeight: 400, lineHeight: '22px', color: '#A1AAB8' }}
+                className="block mt-2"
+              >
+                Normalized monthly expense
+              </span>
+            </div>
           </div>
 
           {/* Card 2: Renewing This Week */}
-          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-amber-500 hover:scale-[1.01] transition-all">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-amber-500/15 blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Renewing This Week</span>
-              <div className="w-11 h-11 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30 shadow-lg shadow-amber-500/25">
-                <Calendar className="w-5 h-5" />
-              </div>
+          <div className="px-5 py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[104px]">
+            <div className="flex items-baseline justify-between">
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', lineHeight: '20px' }}>
+                Renewing This Week
+              </span>
+              <Calendar className={`w-4 h-4 ${renewalSemantic.iconColor} translate-y-[1px]`} />
             </div>
-            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
-              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">
+            <div className="mt-2">
+              <div style={{ fontSize: '30px', fontWeight: 600, lineHeight: '34px', letterSpacing: '-0.02em', color: '#FFFFFF' }}>
                 {renewingThisWeek}
-              </span>
-              <span className="text-[11px] text-amber-400 font-semibold shrink-0">
-                {renewingThisWeek === 1 ? 'Subscription' : 'Subscriptions'}
+              </div>
+              <span
+                style={{ fontSize: '15px', fontWeight: 400, lineHeight: '22px' }}
+                className={`block mt-2 ${renewalSemantic.textColor}`}
+              >
+                {renewalSemantic.label}
               </span>
             </div>
-            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10 truncate">
-              Due within next 7 days
-            </span>
           </div>
 
           {/* Card 3: Active Plans */}
-          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-active hover:scale-[1.01] transition-all">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-env-status-active-bg blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Active Plans</span>
-              <div className="w-11 h-11 rounded-2xl bg-env-status-active-bg text-env-status-active flex items-center justify-center border border-env-status-active-border shadow-lg">
-                <CreditCard className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
-              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">
-                {activeCount}
+          <div className="px-5 py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[104px]">
+            <div className="flex items-baseline justify-between">
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', lineHeight: '20px' }}>
+                Active Plans
               </span>
-              <span className="text-[11px] text-env-status-active font-semibold shrink-0">Tracked</span>
+              <CreditCard className="w-4 h-4 text-[#22C55E] translate-y-[1px]" />
             </div>
-            <span className="text-[11px] text-env-status-active opacity-80 font-semibold block mt-1.5 relative z-10 truncate">
-              Active & Trial subscriptions
-            </span>
+            <div className="mt-2">
+              <div style={{ fontSize: '30px', fontWeight: 600, lineHeight: '34px', letterSpacing: '-0.02em', color: '#FFFFFF' }}>
+                {activeCount}
+              </div>
+              <span
+                style={{ fontSize: '15px', fontWeight: 400, lineHeight: '22px', color: '#22C55E' }}
+                className="block mt-2"
+              >
+                Active & trial subscriptions
+              </span>
+            </div>
           </div>
 
           {/* Card 4: Potential Savings */}
-          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-purple-500 hover:scale-[1.01] transition-all">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-purple-500/15 blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between gap-3 relative z-10">
-              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Potential Savings</span>
-              <div className="w-11 h-11 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center border border-purple-500/30 shadow-lg shadow-purple-500/25 -mr-1">
-                <Wallet className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
-              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">
-                {formatCurrency(potentialSavings)}
+          <div className="px-5 py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[104px]">
+            <div className="flex items-baseline justify-between">
+              <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', lineHeight: '20px' }}>
+                Potential Savings
               </span>
-              <span className="text-[11px] text-purple-400 font-semibold shrink-0">/ month</span>
+              <Wallet className="w-4 h-4 text-[#A1AAB8] translate-y-[1px]" />
             </div>
-            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10 truncate">
-              Paused plans & active trials
-            </span>
+            <div className="mt-2">
+              <div>
+                {renderFormattedCurrency(potentialSavings)}
+              </div>
+              <span
+                style={{ fontSize: '15px', fontWeight: 400, lineHeight: '22px', color: '#A1AAB8' }}
+                className="block mt-2"
+              >
+                From paused/trial plans
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -256,10 +320,6 @@ export default function DashboardV2() {
       {!loading && (
         <UpcomingRenewalsSpotlight
           subscriptions={subscriptions}
-          onEdit={(sub) => {
-            setEditingSubscription(sub);
-            setIsModalOpen(true);
-          }}
         />
       )}
 
@@ -270,10 +330,6 @@ export default function DashboardV2() {
       {!loading && (
         <MostExpensivePlanCard
           subscriptions={subscriptions}
-          onEdit={(sub) => {
-            setEditingSubscription(sub);
-            setIsModalOpen(true);
-          }}
         />
       )}
 

@@ -1,6 +1,12 @@
 'use client';
 
-import { getMostExpensiveSubscription, getNormalizedMonthlyPrice, calculateMonthlySpend, formatCurrency } from '@/lib/utils/metrics-utils';
+import Link from 'next/link';
+import {
+  getMostExpensiveSubscriptions,
+  getNormalizedMonthlyPrice,
+  calculateMonthlySpend,
+  formatCurrency,
+} from '@/lib/utils/metrics-utils';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { Crown, ExternalLink, CreditCard, Calendar, Settings2 } from 'lucide-react';
@@ -10,118 +16,194 @@ interface MostExpensivePlanCardProps {
   onEdit?: (subscription: SubscriptionRow) => void;
 }
 
-export function MostExpensivePlanCard({ subscriptions, onEdit }: MostExpensivePlanCardProps) {
-  const topSubscription = getMostExpensiveSubscription(subscriptions);
+export function MostExpensivePlanCard({ subscriptions }: MostExpensivePlanCardProps) {
+  const topSubscriptions = getMostExpensiveSubscriptions(subscriptions);
   const totalMonthly = calculateMonthlySpend(subscriptions);
 
-  if (!topSubscription) {
+  if (topSubscriptions.length === 0) {
     return (
-      <div className="glass-panel p-4 sm:p-4.5 rounded-3xl space-y-2 text-center relative overflow-hidden border border-indigo-500/20">
-        <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/25 mx-auto shadow-sm">
-          <Crown className="w-4 h-4" />
+      <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-2 text-center">
+        <Crown className="w-5 h-5 text-[#6F7787] mx-auto" />
+        <h3 className="text-[18px] font-semibold text-white">Most Expensive Plan</h3>
+        <p className="text-[15px] text-[#A1AAB8]">No active subscriptions found to determine your highest expense.</p>
+      </div>
+    );
+  }
+
+  const isMultiple = topSubscriptions.length > 1;
+  const title = isMultiple ? 'Most Expensive Plans' : 'Most Expensive Plan';
+
+  const firstSub = topSubscriptions[0];
+  const maxMonthlyPrice = getNormalizedMonthlyPrice(firstSub);
+  const totalTopMonthly = maxMonthlyPrice * topSubscriptions.length;
+  const percentage = totalMonthly > 0 ? (totalTopMonthly / totalMonthly) * 100 : 0;
+
+  if (isMultiple) {
+    return (
+      <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4">
+        {/* Top Header Badge */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Crown className="w-5 h-5 text-[#6F7787]" />
+            <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">{title}</h2>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium px-2.5 py-1 rounded-xl bg-[#1D222B] border border-[#2B313D] text-[#A1AAB8]">
+              {topSubscriptions.length} plans tied at {formatCurrency(maxMonthlyPrice)}/mo ({percentage.toFixed(0)}% of spend)
+            </span>
+            <Link
+              href="/subscriptions?sort=price_desc"
+              className="px-4 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 min-h-[38px]"
+            >
+              <Settings2 className="w-4 h-4" />
+              <span>Manage Plans</span>
+            </Link>
+          </div>
         </div>
-        <div className="space-y-0.5">
-          <h3 className="text-sm font-bold text-env-heading">Most Expensive Plan</h3>
-          <p className="text-[11px] text-env-muted max-w-xs mx-auto">No active subscriptions found to determine your highest expense.</p>
+
+        {/* List of tied top subscriptions */}
+        <div className="space-y-2.5 pt-1">
+          {topSubscriptions.map((sub) => {
+            const monthlyPrice = getNormalizedMonthlyPrice(sub);
+            const formattedPrice = formatCurrency(Number(sub.price), sub.currency);
+
+            return (
+              <div
+                key={sub.id}
+                className="flex items-center justify-between px-5 py-3.5 bg-[#1D222B] border border-white/[0.04] rounded-2xl gap-4"
+              >
+                {/* Logo + Title + Category */}
+                <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                  <div className="w-10 h-10 rounded-xl bg-[#171A21] border border-[#2B313D] p-2 flex items-center justify-center shrink-0">
+                    <ServiceIcon name={sub.name} category={sub.category} className="w-full h-full object-contain" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-semibold text-white truncate">{sub.name}</span>
+                      {sub.provider_url && (
+                        <a
+                          href={sub.provider_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#6F7787] hover:text-white transition-colors"
+                          title="Visit provider website"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    <span className="text-[14px] text-[#A1AAB8] block truncate mt-0.5">
+                      {sub.category} • Renews {sub.next_billing_date}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Price + Link */}
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className="text-right">
+                    <span className="text-lg font-bold text-white block">{formattedPrice}</span>
+                    <span className="text-xs text-[#A1AAB8] block">
+                      / {sub.billing_cycle} ({formatCurrency(monthlyPrice)}/mo)
+                    </span>
+                  </div>
+                  <Link
+                    href={`/subscriptions?highlight=${sub.id}`}
+                    className="p-2 rounded-xl bg-[#171A21] hover:bg-[#2B313D] text-[#A1AAB8] hover:text-white border border-[#2B313D] transition-colors"
+                    title={`Locate ${sub.name} on Subscriptions page`}
+                  >
+                    <Settings2 className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   }
 
-  const monthlyPrice = getNormalizedMonthlyPrice(topSubscription);
-  const percentage = totalMonthly > 0 ? (monthlyPrice / totalMonthly) * 100 : 0;
+  // Single Top Subscription Layout
+  const topSubscription = firstSub;
+  const monthlyPrice = maxMonthlyPrice;
   const formattedPrice = formatCurrency(Number(topSubscription.price), topSubscription.currency);
 
   return (
-    <div className="glass-panel p-4 sm:p-5 rounded-3xl shadow-xl border border-indigo-500/20 relative overflow-hidden bg-gradient-to-b from-indigo-500/5 via-purple-500/5 to-amber-500/5 transition-colors">
-      {/* Soft ambient background glow blending orange with purple */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
-      <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
-
+    <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4">
       {/* Top Header Badge */}
-      <div className="flex items-center justify-between relative z-10 mb-2.5">
-        <div className="flex items-center gap-1.5">
-          <div className="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/25 shadow-sm">
-            <Crown className="w-3 h-3" />
-          </div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400/90">Most Expensive Plan</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Crown className="w-5 h-5 text-[#6F7787]" />
+          <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">{title}</h2>
         </div>
 
-        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-xs">
+        <span className="text-xs font-medium px-2.5 py-1 rounded-xl bg-[#1D222B] border border-[#2B313D] text-[#A1AAB8]">
           {percentage.toFixed(0)}% of monthly spend
         </span>
       </div>
 
-      {/* Centered Main Content Area */}
-      <div className="flex flex-col items-center text-center space-y-2 relative z-10 py-0.5">
-        {/* Service Logo Centered (Tuned ~12% smaller) */}
-        <div className="relative group">
-          <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-env-button-sec/90 border border-indigo-500/25 p-2.5 shadow-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+      {/* Main Content Area */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-2">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#1D222B] border border-[#2B313D] p-2.5 flex items-center justify-center shrink-0">
             <ServiceIcon name={topSubscription.name} category={topSubscription.category} className="w-full h-full object-contain" />
           </div>
-          <div className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-md border border-black/20">
-            <Crown className="w-2.5 h-2.5 fill-black" />
-          </div>
-        </div>
 
-        {/* Plan Name & Provider Link */}
-        <div className="space-y-0.5">
-          <div className="flex items-center justify-center gap-1.5">
-            <h4 className="text-lg sm:text-xl font-extrabold text-env-heading tracking-tight">{topSubscription.name}</h4>
-            {topSubscription.provider_url && (
-              <a
-                href={topSubscription.provider_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-env-muted hover:text-amber-400 transition-colors p-0.5"
-                title="Visit provider website"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            )}
-          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-[18px] font-semibold text-white leading-[24px]">{topSubscription.name}</h3>
+              {topSubscription.provider_url && (
+                <a
+                  href={topSubscription.provider_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#6F7787] hover:text-white transition-colors"
+                  title="Visit provider website"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              )}
+            </div>
 
-          {/* Badges / Metadata */}
-          <div className="flex items-center justify-center gap-2 flex-wrap pt-0.5 text-xs">
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold text-[10px]">
-              {topSubscription.category}
-            </span>
-            <span className="flex items-center gap-1 text-[11px] text-env-muted font-medium">
-              <Calendar className="w-3 h-3 text-amber-400/80" />
-              Renews {topSubscription.next_billing_date}
-            </span>
-            {topSubscription.payment_method && (
-              <span className="flex items-center gap-1 text-[11px] text-env-muted font-medium">
-                <CreditCard className="w-3 h-3 text-amber-400/80" />
-                {topSubscription.payment_method}
+            <div className="flex items-center gap-3 text-[15px] text-[#A1AAB8]">
+              <span>{topSubscription.category}</span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-[#6F7787]" />
+                Renews {topSubscription.next_billing_date}
               </span>
-            )}
+              {topSubscription.payment_method && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <CreditCard className="w-3.5 h-3.5 text-[#6F7787]" />
+                    {topSubscription.payment_method}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Monthly Cost Centered */}
-        <div className="py-0.5 space-y-0">
-          <span className="text-xl sm:text-2xl font-black text-env-heading tracking-tight block">
-            {formattedPrice}
-          </span>
-          <span className="text-[11px] text-amber-400/90 font-semibold block">
-            / {topSubscription.billing_cycle} ({formatCurrency(monthlyPrice)}/mo)
-          </span>
-        </div>
+        <div className="flex items-center gap-4 self-end sm:self-auto">
+          <div className="text-right">
+            <span className="text-2xl font-bold text-white tracking-tight block">
+              {formattedPrice}
+            </span>
+            <span className="text-[15px] text-[#A1AAB8] block">
+              / {topSubscription.billing_cycle} ({formatCurrency(monthlyPrice)}/mo)
+            </span>
+          </div>
 
-        {/* CTA Button Centered (Compact & comfortable touch target) */}
-        {onEdit && (
-          <button
-            type="button"
-            onClick={() => onEdit(topSubscription)}
-            className="mt-0.5 px-4.5 py-1.5 rounded-xl bg-amber-500/90 hover:bg-amber-400 text-black text-xs font-bold shadow-md shadow-amber-500/15 transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 flex items-center gap-1.5"
+          <Link
+            href={`/subscriptions?highlight=${topSubscription.id}`}
+            className="px-4 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-medium transition-colors cursor-pointer flex items-center gap-2 min-h-[44px]"
           >
-            <Settings2 className="w-3.5 h-3.5" />
-            Manage Plan
-          </button>
-        )}
+            <Settings2 className="w-4 h-4" />
+            <span>Manage Plan</span>
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
-

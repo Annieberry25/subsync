@@ -62,19 +62,16 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="glass-panel w-full max-w-md rounded-3xl p-8 shadow-2xl space-y-6 relative overflow-hidden">
-      <div className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="w-full max-w-md rounded-[20px] p-8 bg-[#171A21] border border-[#2B313D] space-y-6">
       {/* Auth Mode Toggle Tabs */}
-      <div className="flex bg-env-button-sec p-1 rounded-2xl border border-env-main">
+      <div className="flex bg-[#1D222B] p-1 rounded-xl border border-[#2B313D]">
         <button
           type="button"
           onClick={() => { setMode('signin'); setError(null); setSuccess(null); }}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
             mode === 'signin'
-              ? 'bg-indigo-600 text-white shadow-md'
-              : 'text-env-body hover:text-env-heading'
+              ? 'bg-[#4F46E5] text-white'
+              : 'text-[#A1AAB8] hover:text-white'
           }`}
         >
           Sign In
@@ -82,10 +79,10 @@ export default function AuthForm() {
         <button
           type="button"
           onClick={() => { setMode('signup'); setError(null); setSuccess(null); }}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
             mode === 'signup'
-              ? 'bg-indigo-600 text-white shadow-md'
-              : 'text-env-body hover:text-env-heading'
+              ? 'bg-[#4F46E5] text-white'
+              : 'text-[#A1AAB8] hover:text-white'
           }`}
         >
           Create Account
@@ -94,10 +91,10 @@ export default function AuthForm() {
 
       {/* Header text */}
       <div className="text-center">
-        <h2 className="text-2xl font-black text-env-heading tracking-tight">
+        <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">
           {mode === 'signin' ? 'Welcome back to SubSync' : 'Create your SubSync account'}
         </h2>
-        <p className="text-xs text-env-body mt-1">
+        <p className="text-[15px] text-[#A1AAB8] mt-1 leading-[22px]">
           {mode === 'signin'
             ? 'Enter your credentials to access your subscription dashboard.'
             : 'Start tracking and optimizing your recurring subscriptions today.'}
@@ -106,14 +103,14 @@ export default function AuthForm() {
 
       {/* Alerts */}
       {error && (
-        <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-2.5 text-rose-400 text-xs">
+        <div className="p-3.5 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-2.5 text-[#EF4444] text-xs">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-emerald-400 text-xs">
+        <div className="p-3.5 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center gap-2.5 text-[#22C55E] text-xs">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{success}</span>
         </div>
@@ -123,40 +120,40 @@ export default function AuthForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === 'signup' && (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-env-body block">Full Name</label>
+            <label className="text-[13px] font-medium text-[#6F7787] block">Full Name</label>
             <div className="relative">
-              <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-env-muted" />
+              <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787]" />
               <input
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full pl-10 pr-4 py-2.5 text-xs rounded-2xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
               />
             </div>
           </div>
         )}
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-env-body block">Email Address</label>
+          <label className="text-[13px] font-medium text-[#6F7787] block">Email Address</label>
           <div className="relative">
-            <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-env-muted" />
+            <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787]" />
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-2xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-env-body block">Password</label>
+          <label className="text-[13px] font-medium text-[#6F7787] block">Password</label>
           <div className="relative">
-            <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-env-muted" />
+            <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787]" />
             <input
               type="password"
               required
@@ -164,7 +161,7 @@ export default function AuthForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-2xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
             />
           </div>
         </div>
@@ -172,7 +169,7 @@ export default function AuthForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition-all active:scale-[0.98] cursor-pointer"
+          className="w-full mt-2 py-3 px-4 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer min-h-[44px]"
         >
           {loading ? (
             <>

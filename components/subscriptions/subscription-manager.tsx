@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, CreditCard, AlertCircle, XCircle } from 'lucide-react';
 import { 
   fetchSubscriptions, 
   createSubscription, 
@@ -9,35 +10,24 @@ import {
   type SubscriptionRow,
   type SubscriptionInsert 
 } from '@/lib/services/subscription-service';
-import { 
-  calculateMonthlySpend, 
-  calculateAnnualSpend, 
-  getActiveCount, 
-  getUpcomingRenewalsCount, 
-  formatCurrency 
-} from '@/lib/utils/metrics-utils';
 
 import SubscriptionCard from './subscription-card';
 import SubscriptionModal from './subscription-modal';
 import SubscriptionFilters from './subscription-filters';
 import PaymentReminderModal from './payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
-import { MetricCardSkeleton, SubscriptionCardSkeleton } from '@/components/ui/skeleton';
+import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
-import { PersonalizedHeader } from '@/components/dashboard/personalized-header';
-import { UpcomingRenewalsSpotlight } from '@/components/subscriptions/upcoming-renewals-spotlight';
 
-import { 
-  CreditCard, 
-  DollarSign, 
-  Calendar, 
-  TrendingUp, 
-  AlertCircle,
-  XCircle
-} from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+
+  const paramHighlight = searchParams.get('highlight');
+  const paramCategory = searchParams.get('category');
+  const paramStatus = searchParams.get('status');
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +60,7 @@ export default function SubscriptionManager() {
     try {
       localStorage.setItem('subsync_reminders', JSON.stringify(updated));
     } catch {
-      // Ignore localStorage errors
+      // Ignore storage errors
     }
     toast.success(`Payment reminder configured for subscription.`, 'Reminder Set');
   };
@@ -85,31 +75,56 @@ export default function SubscriptionManager() {
     try {
       localStorage.setItem('subsync_reminders', JSON.stringify(updated));
     } catch {
-      // Ignore localStorage errors
+      // Ignore storage errors
     }
     toast.info(`Dismissed payment reminder for ${sub.name}.`, 'Reminder Dismissed');
   };
 
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState(paramCategory || 'All');
+  const [selectedStatus, setSelectedStatus] = useState(paramStatus || 'All');
   const [sortBy, setSortBy] = useState('next_billing_asc');
+  const [highlightedSubId, setHighlightedSubId] = useState<string | null>(paramHighlight);
+
+  useEffect(() => {
+    if (paramCategory) setSelectedCategory(paramCategory);
+    if (paramStatus) setSelectedStatus(paramStatus);
+    if (paramHighlight) setHighlightedSubId(paramHighlight);
+  }, [paramCategory, paramStatus, paramHighlight]);
+
+  // Scroll into view & highlight effect
+  useEffect(() => {
+    if (highlightedSubId && !loading && subscriptions.length > 0) {
+      const scrollTimer = setTimeout(() => {
+        const el = document.getElementById(`sub-card-${highlightedSubId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 150);
+
+      const clearTimer = setTimeout(() => {
+        setHighlightedSubId(null);
+      }, 2500);
+
+      return () => {
+        clearTimeout(scrollTimer);
+        clearTimeout(clearTimer);
+      };
+    }
+  }, [highlightedSubId, loading, subscriptions]);
 
   // Fetch Subscriptions Data
-  const loadData = useCallback(async (showToast = false) => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     const { data, error: err } = await fetchSubscriptions();
     if (err) {
       setError(err.message || 'Failed to load subscriptions.');
     } else if (data) {
       setSubscriptions(data);
-      if (showToast) {
-        toast.info('Subscription data synchronized with Supabase.', 'Data Refreshed');
-      }
     }
     setLoading(false);
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -132,9 +147,11 @@ export default function SubscriptionManager() {
     if (id) {
       const { error: err } = await updateSubscription(id, data);
       if (err) throw err;
+      toast.success('Subscription updated successfully.', 'Changes Saved');
     } else {
       const { error: err } = await createSubscription(data);
       if (err) throw err;
+      toast.success('New subscription added to your portfolio.', 'Subscription Created');
     }
     await loadData();
   };
@@ -190,122 +207,42 @@ export default function SubscriptionManager() {
       });
   }, [subscriptions, searchQuery, selectedCategory, selectedStatus, sortBy]);
 
-  // Calculated Metrics
-  const monthlySpend = useMemo(() => calculateMonthlySpend(subscriptions), [subscriptions]);
-  const annualSpend = useMemo(() => calculateAnnualSpend(subscriptions), [subscriptions]);
-  const activeCount = useMemo(() => getActiveCount(subscriptions), [subscriptions]);
-  const upcomingCount = useMemo(() => getUpcomingRenewalsCount(subscriptions), [subscriptions]);
-
   const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All' || selectedStatus !== 'All';
 
   return (
     <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-32 sm:pb-48">
-      {/* 1. HERO PANEL (Centerpiece Header) */}
-      <PersonalizedHeader
-        onRefresh={() => loadData(true)}
-        onAddSubscription={() => {
-          setEditingSubscription(null);
-          setIsModalOpen(true);
-        }}
-        loading={loading}
-      />
-
-      {/* 2. STATISTICS SUMMARY CARDS */}
-      {loading && subscriptions.length === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          <MetricCardSkeleton />
-          <MetricCardSkeleton />
-          <MetricCardSkeleton />
-          <MetricCardSkeleton />
+      {/* 1. PAGE HEADER (Primary Action: Add Subscription) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-bold text-white tracking-tight leading-[34px]">
+            Subscriptions
+          </h1>
+          <p className="text-[14px] font-normal text-[#A1AAB8] mt-1">
+            Manage your active plans, recurring billing cycles, and payment reminders.
+          </p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {/* Monthly Spend */}
-          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-indigo-500 hover:scale-[1.01] transition-all">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-indigo-500/15 blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Monthly Spend</span>
-              <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center border border-indigo-500/30 shadow-lg shadow-indigo-500/25">
-                <DollarSign className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
-              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">{formatCurrency(monthlySpend)}</span>
-              <span className="text-[11px] text-indigo-400 font-semibold shrink-0">/ month</span>
-            </div>
-            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10 truncate">Normalized recurring monthly total</span>
-          </div>
-
-          {/* Annual Spend */}
-          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-purple-500 hover:scale-[1.01] transition-all">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-purple-500/15 blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Annual Projection</span>
-              <div className="w-11 h-11 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center border border-purple-500/30 shadow-lg shadow-purple-500/25">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
-              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">{formatCurrency(annualSpend)}</span>
-              <span className="text-[11px] text-purple-400 font-semibold shrink-0">/ year</span>
-            </div>
-            <span className="text-[11px] text-env-muted/75 block mt-1.5 relative z-10 truncate">Projected yearly total expenditure</span>
-          </div>
-
-          {/* Active Subscriptions */}
-          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-active hover:scale-[1.01] transition-all">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-env-status-active-bg blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Active Plans</span>
-              <div className="w-11 h-11 rounded-2xl bg-env-status-active-bg text-env-status-active flex items-center justify-center border border-env-status-active-border shadow-lg">
-                <CreditCard className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
-              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">{activeCount}</span>
-              <span className="text-[11px] text-env-status-active font-semibold shrink-0">Tracked</span>
-            </div>
-            <span className="text-[11px] text-env-status-active opacity-80 font-semibold block mt-1.5 relative z-10 truncate">Active & Trial subscriptions</span>
-          </div>
-
-          {/* Upcoming Renewals */}
-          <div className="glass-panel group relative overflow-hidden p-5 sm:p-6 rounded-3xl space-y-3 shadow-xl border-l-4 border-l-env-status-warning hover:scale-[1.01] transition-all">
-            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-env-status-warning-bg blur-2xl pointer-events-none" />
-            <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold text-env-body tracking-wider uppercase">Due in 30 Days</span>
-              <div className="w-11 h-11 rounded-2xl bg-env-status-warning-bg text-env-status-warning flex items-center justify-center border border-env-status-warning-border shadow-lg">
-                <Calendar className="w-5 h-5" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2 relative z-10 min-w-0">
-              <span className="text-2xl sm:text-3xl font-black text-env-heading tracking-tight truncate">{upcomingCount}</span>
-              <span className="text-[11px] text-env-status-warning font-semibold shrink-0">Pending</span>
-            </div>
-            <span className="text-[11px] text-env-status-warning opacity-80 font-semibold block mt-1.5 relative z-10 truncate">Upcoming billing renewal dates</span>
-          </div>
-        </div>
-      )}
-
-      {/* 3. UPCOMING RENEWALS SPOTLIGHT BANNER */}
-      {!loading && (
-        <UpcomingRenewalsSpotlight
-          subscriptions={subscriptions}
-          onEdit={(sub) => {
-            setEditingSubscription(sub);
+        <button
+          type="button"
+          onClick={() => {
+            setEditingSubscription(null);
             setIsModalOpen(true);
           }}
-        />
-      )}
+          className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Subscription</span>
+        </button>
+      </div>
 
       {/* Error Banner */}
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3 text-rose-400 text-xs">
+        <div className="p-4 rounded-2xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-3 text-[#EF4444] text-xs">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* 4. SEARCH AND FILTERS BAR */}
+      {/* 2. SEARCH AND FILTERS BAR */}
       <SubscriptionFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -317,7 +254,7 @@ export default function SubscriptionManager() {
         onSortChange={setSortBy}
       />
 
-      {/* 5. SUBSCRIPTIONS GRID / SKELETONS / EMPTY STATES */}
+      {/* 3. SUBSCRIPTIONS GRID / SKELETONS / EMPTY STATES */}
       {loading && subscriptions.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <SubscriptionCardSkeleton />
@@ -330,6 +267,7 @@ export default function SubscriptionManager() {
             <SubscriptionCard
               key={sub.id}
               subscription={sub}
+              isHighlighted={sub.id === highlightedSubId}
               onEdit={(item) => {
                 setEditingSubscription(item);
                 setIsModalOpen(true);
@@ -342,15 +280,15 @@ export default function SubscriptionManager() {
           ))}
         </div>
       ) : (
-        <div className="glass-panel p-16 rounded-3xl text-center flex flex-col items-center justify-center space-y-4">
-          <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-xl">
-            {hasActiveFilters ? <XCircle className="w-8 h-8 text-amber-400" /> : <CreditCard className="w-8 h-8 text-indigo-400" />}
+        <div className="p-16 rounded-[20px] bg-[#171A21] border border-[#2B313D] text-center flex flex-col items-center justify-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#4F46E5]/10 border border-[#4F46E5]/20 flex items-center justify-center text-[#4F46E5]">
+            {hasActiveFilters ? <XCircle className="w-8 h-8 text-[#F59E0B]" /> : <CreditCard className="w-8 h-8 text-[#4F46E5]" />}
           </div>
           <div className="max-w-xs space-y-1">
-            <h3 className="text-base font-bold text-env-heading">
+            <h3 className="text-base font-bold text-white">
               {hasActiveFilters ? 'No matching subscriptions' : 'No subscriptions added yet'}
             </h3>
-            <p className="text-xs text-env-body">
+            <p className="text-xs text-[#A1AAB8]">
               {hasActiveFilters
                 ? 'No subscriptions match your current search terms or filter criteria.'
                 : 'Track your recurring Netflix, Spotify, or software subscriptions in one place.'}
@@ -362,7 +300,7 @@ export default function SubscriptionManager() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="px-5 py-2.5 rounded-2xl bg-env-button-sec hover:bg-env-button-sec-hover text-env-heading text-xs font-semibold border border-env-main transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-white text-xs font-semibold border border-[#2B313D] transition-all cursor-pointer"
               >
                 Clear All Filters
               </button>
@@ -373,7 +311,7 @@ export default function SubscriptionManager() {
                   setEditingSubscription(null);
                   setIsModalOpen(true);
                 }}
-                className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold transition-all cursor-pointer"
               >
                 Add Your First Subscription
               </button>
@@ -405,7 +343,7 @@ export default function SubscriptionManager() {
         variant="danger"
       />
 
-      {/* Payment Reminder Modal (Single Source of Truth) */}
+      {/* Payment Reminder Modal */}
       <PaymentReminderModal
         isOpen={!!reminderSubscription}
         onClose={() => setReminderSubscription(null)}

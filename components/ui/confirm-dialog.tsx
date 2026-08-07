@@ -54,18 +54,18 @@ export default function ConfirmDialog({
   const variantStyles = {
     danger: {
       icon: Trash2,
-      iconBg: 'bg-rose-500/10 border-rose-500/20 text-rose-400',
-      btnBg: 'bg-rose-600 hover:bg-rose-500 focus:ring-rose-500/50',
+      iconBg: 'bg-[#EF4444]/10 border-[#EF4444]/20 text-[#EF4444]',
+      btnBg: 'bg-[#EF4444] hover:bg-[#DC2626] text-white',
     },
     warning: {
       icon: AlertTriangle,
-      iconBg: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
-      btnBg: 'bg-amber-600 hover:bg-amber-500 focus:ring-amber-500/50',
+      iconBg: 'bg-[#F59E0B]/10 border-[#F59E0B]/20 text-[#F59E0B]',
+      btnBg: 'bg-[#F59E0B] hover:bg-[#D97706] text-white',
     },
     info: {
       icon: RefreshCw,
-      iconBg: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400',
-      btnBg: 'bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-500/50',
+      iconBg: 'bg-[#4F46E5]/10 border-[#4F46E5]/20 text-[#4F46E5]',
+      btnBg: 'bg-[#4F46E5] hover:bg-[#4338CA] text-white',
     },
   };
 
@@ -74,7 +74,7 @@ export default function ConfirmDialog({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-in fade-in duration-200"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -84,15 +84,15 @@ export default function ConfirmDialog({
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md glass-panel rounded-3xl p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-150"
+        className="w-full max-w-md bg-[#171A21] border border-[#2B313D] rounded-[20px] p-6 space-y-5 shadow-xl"
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${currentVariant.iconBg}`}>
+            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${currentVariant.iconBg}`}>
               <Icon className="w-5 h-5" />
             </div>
             <div>
-              <h3 id="confirm-dialog-title" className="text-base font-bold subsync-heading tracking-tight">
+              <h3 id="confirm-dialog-title" className="text-[28px] font-bold text-white tracking-tight leading-[36px]">
                 {title}
               </h3>
             </div>
@@ -102,22 +102,22 @@ export default function ConfirmDialog({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-2xl text-env-muted hover:text-env-heading hover:bg-env-button-sec transition-colors flex items-center justify-center cursor-pointer border border-env-subtle shrink-0"
+            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-[#6F7787] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-[#2B313D] shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <p id="confirm-dialog-desc" className="text-xs subsync-subtitle leading-relaxed">
+        <p id="confirm-dialog-desc" className="text-[15px] text-[#A1AAB8] leading-[22px]">
           {description}
         </p>
 
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-2">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-2xl text-xs font-semibold text-env-body hover:text-env-heading hover:bg-env-button-sec transition-colors cursor-pointer flex items-center justify-center"
+            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] transition-colors cursor-pointer flex items-center justify-center"
           >
             {cancelText}
           </button>
@@ -130,7 +130,7 @@ export default function ConfirmDialog({
               onClose();
             }}
             disabled={loading}
-            className={`w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-2xl text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all focus:outline-none focus:ring-2 cursor-pointer ${currentVariant.btnBg}`}
+            className={`w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer ${currentVariant.btnBg}`}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             <span>{confirmText}</span>

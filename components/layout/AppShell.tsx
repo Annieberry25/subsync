@@ -17,7 +17,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <ThemeProvider>
         <ToastProvider>
-          <div className="min-h-screen bg-env-main text-env-body antialiased font-sans flex items-center justify-center p-4 transition-colors duration-300">
+          <div className="min-h-screen bg-[#101215] text-white antialiased font-sans flex items-center justify-center p-4">
             {children}
             <ToastContainer />
           </div>
@@ -29,7 +29,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <div className="flex min-h-screen pt-2 sm:pt-3 bg-env-main text-env-body antialiased font-sans transition-colors duration-300">
+        <div className="flex min-h-screen bg-[#101215] text-white antialiased font-sans">
           {/* Sidebar */}
           <Sidebar
             isMobileOpen={mobileMenuOpen}
@@ -41,8 +41,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Header
               onMobileMenuToggle={() => setMobileMenuOpen(true)}
             />
-            <main className="flex-1 px-4 sm:px-6 md:px-8 pt-1.5 sm:pt-2.5 md:pt-3 pb-4 sm:pb-6 md:pb-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+            <main className="flex-1 px-4 md:px-6 lg:px-8 pt-3 md:pt-4 lg:pt-5 pb-8 overflow-y-auto">
+              <div className="max-w-7xl mx-auto space-y-6">
                 {children}
               </div>
             </main>
@@ -54,3 +54,4 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </ThemeProvider>
   );
 }
+

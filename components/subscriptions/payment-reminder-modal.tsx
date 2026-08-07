@@ -58,7 +58,6 @@ export default function PaymentReminderModal({
     setPrevIsOpen(false);
   }
 
-  // Handle body overflow scroll locking
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -76,7 +75,6 @@ export default function PaymentReminderModal({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // TODO: Integrate background notification scheduling & service worker / web push API
     const timingLabel = timingChoices.find((t) => t.id === timing)?.label || timing;
     const methodLabel = methodChoices.find((m) => m.id === method)?.label || method;
 
@@ -93,7 +91,7 @@ export default function PaymentReminderModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-in fade-in duration-200"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -101,20 +99,20 @@ export default function PaymentReminderModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-[480px] glass-panel rounded-t-3xl sm:rounded-3xl p-5 sm:p-7 shadow-2xl space-y-5 max-h-[90vh] flex flex-col overflow-y-auto animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 border border-env-subtle"
+        className="w-full sm:max-w-[480px] bg-[#171A21] border border-[#2B313D] rounded-[20px] p-6 space-y-5 max-h-[90vh] flex flex-col overflow-y-auto"
       >
         {/* Modal Header */}
-        <div className="flex items-start justify-between border-b border-env-main pb-4 shrink-0">
+        <div className="flex items-start justify-between border-b border-[#2B313D] pb-4 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-env-status-active-bg text-env-status-active border border-env-status-active-border flex items-center justify-center shrink-0">
-              <Bell className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-[#1D222B] border border-[#2B313D] flex items-center justify-center shrink-0">
+              <Bell className="w-5 h-5 text-[#F59E0B]" />
             </div>
             <div>
-              <h2 id="reminder-modal-title" className="text-base sm:text-lg font-black text-env-heading tracking-tight">
+              <h2 id="reminder-modal-title" className="text-[28px] font-bold text-white tracking-tight leading-[36px]">
                 Payment Reminder
               </h2>
-              <p className="text-xs text-env-body mt-0.5 leading-relaxed">
-                Stay ahead of your next renewal by choosing when you&apos;d like to be reminded to prepare for this payment.
+              <p className="text-[15px] text-[#A1AAB8] mt-0.5 leading-[22px]">
+                Choose when you&apos;d like to be reminded before renewal.
               </p>
             </div>
           </div>
@@ -122,7 +120,7 @@ export default function PaymentReminderModal({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-xl bg-env-button-sec hover:bg-env-badge text-env-muted hover:text-env-heading flex items-center justify-center transition-colors cursor-pointer border border-env-subtle shrink-0"
+            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-[#6F7787] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-[#2B313D] shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -132,7 +130,7 @@ export default function PaymentReminderModal({
         <form onSubmit={handleSave} className="space-y-4">
           {/* Reminder Timing Section */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-env-heading block">Reminder Timing</label>
+            <label className="text-[13px] font-medium text-[#6F7787] block">Reminder Timing</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {timingChoices.map((choice) => {
                 const isSelected = timing === choice.id;
@@ -141,14 +139,14 @@ export default function PaymentReminderModal({
                     key={choice.id}
                     type="button"
                     onClick={() => setTiming(choice.id)}
-                    className={`px-3.5 py-3 min-h-[44px] rounded-2xl text-xs font-semibold flex items-center justify-between border transition-all text-left cursor-pointer ${
+                    className={`px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-between border transition-colors text-left cursor-pointer ${
                       isSelected
-                        ? 'bg-env-status-active-bg text-env-status-active border-env-status-active-border shadow-sm'
-                        : 'bg-env-badge/50 text-env-body border-env-subtle hover:bg-env-badge'
+                        ? 'bg-[#4F46E5] text-white border-[#4F46E5] font-semibold'
+                        : 'bg-[#1D222B] text-[#A1AAB8] border-[#2B313D] hover:bg-[#2B313D] hover:text-white'
                     }`}
                   >
                     <span>{choice.label}</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-env-status-active shrink-0 ml-2" />}
+                    {isSelected && <Check className="w-4 h-4 text-white shrink-0 ml-2" />}
                   </button>
                 );
               })}
@@ -161,7 +159,7 @@ export default function PaymentReminderModal({
                   type="date"
                   value={customDate}
                   onChange={(e) => setCustomDate(e.target.value)}
-                  className="w-full h-11 px-3.5 py-2 text-xs rounded-2xl border border-env-subtle bg-env-input text-env-heading focus:outline-none focus:border-indigo-500"
+                  className="w-full h-11 px-3.5 py-2 text-xs rounded-xl border border-[#2B313D] bg-[#1D222B] text-white focus:outline-none focus:border-[#4F46E5]"
                 />
               </div>
             )}
@@ -169,7 +167,7 @@ export default function PaymentReminderModal({
 
           {/* Reminder Method Section */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-env-heading block">Reminder Method</label>
+            <label className="text-[13px] font-medium text-[#6F7787] block">Reminder Method</label>
             <div className="grid grid-cols-3 gap-2">
               {methodChoices.map((choice) => {
                 const isSelected = method === choice.id;
@@ -178,10 +176,10 @@ export default function PaymentReminderModal({
                     key={choice.id}
                     type="button"
                     onClick={() => setMethod(choice.id)}
-                    className={`px-2.5 sm:px-3 py-3 min-h-[44px] rounded-2xl text-[11px] sm:text-xs font-semibold flex items-center justify-center text-center border transition-all cursor-pointer ${
+                    className={`px-2.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-center text-center border transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-indigo-600/15 text-indigo-400 border-indigo-500/40 shadow-sm'
-                        : 'bg-env-badge/50 text-env-body border-env-subtle hover:bg-env-badge'
+                        ? 'bg-[#4F46E5] text-white border-[#4F46E5] font-semibold'
+                        : 'bg-[#1D222B] text-[#A1AAB8] border-[#2B313D] hover:bg-[#2B313D] hover:text-white'
                     }`}
                   >
                     <span className="truncate">{choice.label}</span>
@@ -193,7 +191,7 @@ export default function PaymentReminderModal({
 
           {/* Optional Note Section */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-env-heading block">
+            <label className="text-[13px] font-medium text-[#6F7787] block">
               Optional Note
             </label>
             <textarea
@@ -201,22 +199,22 @@ export default function PaymentReminderModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. Transfer money to my subscription account before renewal."
-              className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-env-subtle bg-env-input text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 resize-none"
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#2B313D] bg-[#1D222B] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] resize-none"
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-env-main">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-3 border-t border-[#2B313D]">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-2xl text-xs font-semibold text-env-body hover:bg-env-badge border border-env-subtle transition-colors cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] transition-colors cursor-pointer flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#4F46E5] hover:bg-[#4338CA] text-white transition-colors cursor-pointer flex items-center justify-center"
             >
               Save Reminder
             </button>

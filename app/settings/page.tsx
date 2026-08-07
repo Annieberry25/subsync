@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import { User as UserIcon, ShieldCheck, DollarSign, Save, Loader2, Moon, Sun, Feather, Check } from 'lucide-react';
+import { User as UserIcon, ShieldCheck, DollarSign, Save, Loader2, Moon, Sun, Check } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useTheme, type Theme } from '@/lib/hooks/use-theme';
 
@@ -62,71 +62,41 @@ export default function SettingsPage() {
     name: string;
     description: string;
     icon: React.ComponentType<{ className?: string }>;
-    previewBg: string;
-    previewCard: string;
-    previewText: string;
-    previewAccent: string;
   }> = [
     {
-      id: 'dark',
-      name: 'Midnight (Dark Obsidian)',
-      description: 'Deep obsidian space environment with neon indigo glassmorphic highlights.',
+      id: 'midnight',
+      name: 'Midnight (Default)',
+      description: 'Clean dark interface featuring #101215 background, #171A21 section surfaces, #1D222B cards, and #4F46E5 primary accent.',
       icon: Moon,
-      previewBg: 'bg-[#060609]',
-      previewCard: 'bg-[#111119] border-[#1e1e2d]',
-      previewText: 'text-[#f8fafc]',
-      previewAccent: 'bg-[#6366f1]',
     },
     {
-      id: 'ivory',
-      name: 'Ivory (Warm Cream)',
-      description: 'Warm premium linen ivory palette with soft purple frosted glass accents.',
+      id: 'light',
+      name: 'Light',
+      description: 'Clean light environment for daytime usability.',
       icon: Sun,
-      previewBg: 'bg-[#f8f5ee]',
-      previewCard: 'bg-[#f1ebde] border-[#ded5c2]',
-      previewText: 'text-[#1c1917]',
-      previewAccent: 'bg-[#9333ea]',
-    },
-    {
-      id: 'sand',
-      name: 'Sand (Soft Golden Sand)',
-      description: 'Soft warm golden-sand environment with deep espresso typography.',
-      icon: Feather,
-      previewBg: 'bg-[#eee4ce]',
-      previewCard: 'bg-[#e5d7bb] border-[#d1c1a0]',
-      previewText: 'text-[#292524]',
-      previewAccent: 'bg-[#c2410c]',
     },
   ];
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-4xl bg-ambient-grid min-h-[85vh] pb-24 sm:pb-32">
-      <div>
-        <h2 className="text-2xl md:text-3xl font-black text-env-heading tracking-tight">Settings</h2>
-        <p className="text-xs text-env-body mt-1">
-          Manage your account credentials, display preferences, and database security settings.
+    <div className="space-y-8 max-w-4xl min-h-[85vh] pb-32">
+      <div className="space-y-1">
+        <h1 className="text-[40px] font-bold text-white tracking-tight leading-[48px]">Settings</h1>
+        <p className="text-[15px] text-[#A1AAB8] font-normal leading-[22px]">
+          Manage your account credentials, theme preferences, and database security settings.
         </p>
       </div>
 
-      {/* Environmental Theme Selector Card System */}
-      <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-6 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-env-main pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <Sun className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-env-heading">Environmental Atmospheric Themes</h3>
-              <p className="text-xs text-env-body">Transform the entire app background, sidebar, header, cards, and typography.</p>
-            </div>
+      {/* Theme Preference Settings Card (Midnight Default vs Light) */}
+      <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-6">
+        <div className="flex items-center gap-3 border-b border-[#2B313D] pb-4">
+          <Moon className="w-5 h-5 text-[#6F7787]" />
+          <div>
+            <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">Appearance</h2>
+            <p className="text-[15px] text-[#A1AAB8]">Choose your preferred application theme</p>
           </div>
-
-          <span className="text-xs font-bold px-3 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider shrink-0 self-start sm:self-auto">
-            3 Cohesive Environments
-          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {themeOptions.map((opt) => {
             const isSelected = theme === opt.id;
             const Icon = opt.icon;
@@ -136,35 +106,23 @@ export default function SettingsPage() {
                 key={opt.id}
                 onClick={() => {
                   setTheme(opt.id);
-                  toast.success(`Switched environment workspace to ${opt.name}.`, 'Environment Updated');
+                  toast.success(`Theme set to ${opt.name}.`, 'Appearance Updated');
                 }}
-                className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-3 relative group ${
+                className={`p-5 rounded-2xl border transition-colors cursor-pointer space-y-3 relative ${
                   isSelected
-                    ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-lg'
-                    : 'border-env-main hover:border-env-border-hover'
+                    ? 'border-[#4F46E5] bg-[#1D222B]'
+                    : 'border-[#2B313D] bg-[#1D222B] hover:border-[#4F46E5]'
                 }`}
               >
-                {/* Visual Mini Preview */}
-                <div className={`h-24 w-full rounded-xl ${opt.previewBg} p-2.5 flex flex-col justify-between border border-env-subtle shadow-inner`}>
-                  <div className="flex items-center justify-between">
-                    <div className="w-3 h-3 rounded-full bg-rose-500/60" />
-                    <div className={`w-8 h-2 rounded-md ${opt.previewAccent}`} />
-                  </div>
-                  <div className={`p-2 rounded-lg ${opt.previewCard} space-y-1`}>
-                    <div className={`h-2 w-12 rounded ${opt.previewAccent}`} />
-                    <div className={`h-1.5 w-16 rounded opacity-60 bg-current ${opt.previewText}`} />
-                  </div>
-                </div>
-
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Icon className={`w-4 h-4 ${isSelected ? 'text-indigo-400' : 'text-env-muted'}`} />
-                    <span className="text-xs font-bold text-env-heading">{opt.name}</span>
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`w-5 h-5 ${isSelected ? 'text-[#4F46E5]' : 'text-[#6F7787]'}`} />
+                    <span className="text-[18px] font-semibold text-white">{opt.name}</span>
                   </div>
-                  {isSelected && <Check className="w-4 h-4 text-emerald-400" />}
+                  {isSelected && <Check className="w-5 h-5 text-[#22C55E]" />}
                 </div>
 
-                <p className="text-[11px] text-env-body leading-snug">{opt.description}</p>
+                <p className="text-[15px] text-[#A1AAB8] leading-[22px]">{opt.description}</p>
               </div>
             );
           })}
@@ -172,44 +130,42 @@ export default function SettingsPage() {
       </div>
 
       {/* User Profile Settings Card */}
-      <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-6 shadow-xl">
-        <div className="flex items-center gap-3 border-b border-env-main pb-4">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-            <UserIcon className="w-5 h-5" />
-          </div>
+      <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-6">
+        <div className="flex items-center gap-3 border-b border-[#2B313D] pb-4">
+          <UserIcon className="w-5 h-5 text-[#6F7787]" />
           <div>
-            <h3 className="text-sm font-bold text-env-heading">Profile Information</h3>
-            <p className="text-xs text-env-body">Update your account name and view registration details.</p>
+            <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">Profile Information</h2>
+            <p className="text-[15px] text-[#A1AAB8]">Update your account name and view registration details.</p>
           </div>
         </div>
 
         {loading ? (
-          <div className="p-4 flex items-center justify-center gap-2 text-xs text-env-body">
-            <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+          <div className="p-4 flex items-center justify-center gap-2 text-xs text-[#A1AAB8]">
+            <Loader2 className="w-4 h-4 animate-spin text-[#4F46E5]" />
             <span>Loading user profile...</span>
           </div>
         ) : (
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-env-body block">Email Address</label>
+                <label className="text-[13px] font-medium text-[#6F7787] block">Email Address</label>
                 <input
                   type="email"
                   disabled
                   value={user?.email || ''}
-                  className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-muted bg-env-badge cursor-not-allowed"
+                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl border border-[#2B313D] text-[#6F7787] bg-[#1D222B] cursor-not-allowed"
                 />
-                <span className="text-[10px] text-env-muted">Managed via Supabase Auth</span>
+                <span className="text-[10px] text-[#6F7787]">Managed via Supabase Auth</span>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-env-body block">Full Name</label>
+                <label className="text-[13px] font-medium text-[#6F7787] block">Full Name</label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Your Name"
-                  className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading placeholder-env-muted focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl border border-[#2B313D] bg-[#1D222B] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
                 />
               </div>
             </div>
@@ -218,7 +174,7 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 <span>Save Profile Changes</span>
@@ -229,48 +185,44 @@ export default function SettingsPage() {
       </div>
 
       {/* Regional & Currency Preferences Card */}
-      <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-4 shadow-xl">
-        <div className="flex items-center gap-3 border-b border-env-main pb-4">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-            <DollarSign className="w-5 h-5" />
-          </div>
+      <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4">
+        <div className="flex items-center gap-3 border-b border-[#2B313D] pb-4">
+          <DollarSign className="w-5 h-5 text-[#6F7787]" />
           <div>
-            <h3 className="text-sm font-bold text-env-heading">Default Currency & Regional Preferences</h3>
-            <p className="text-xs text-env-body">Default currency used when creating new subscriptions.</p>
+            <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">Default Currency Preferences</h2>
+            <p className="text-[15px] text-[#A1AAB8]">Default currency used when creating new subscriptions.</p>
           </div>
         </div>
 
         <div className="max-w-xs space-y-1.5">
-          <label className="text-xs font-semibold text-env-body block">Default Currency</label>
+          <label className="text-[13px] font-medium text-[#6F7787] block">Default Currency</label>
           <select
             value={currency}
             onChange={(e) => {
               setCurrency(e.target.value);
               toast.info(`Default currency set to ${e.target.value}.`, 'Preference Updated');
             }}
-            className="w-full h-11 px-4 py-2.5 text-xs rounded-2xl border text-env-heading focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full h-11 px-4 py-2.5 text-xs rounded-xl border border-[#2B313D] bg-[#1D222B] text-white focus:outline-none focus:border-[#4F46E5] transition-colors"
           >
-            <option value="USD" className="bg-env-card text-env-heading">USD ($) - US Dollar</option>
-            <option value="EUR" className="bg-env-card text-env-heading">EUR (€) - Euro</option>
-            <option value="GBP" className="bg-env-card text-env-heading">GBP (£) - British Pound</option>
-            <option value="CAD" className="bg-env-card text-env-heading">CAD ($) - Canadian Dollar</option>
+            <option value="USD" className="bg-[#1D222B] text-white">USD ($) - US Dollar</option>
+            <option value="EUR" className="bg-[#1D222B] text-white">EUR (€) - Euro</option>
+            <option value="GBP" className="bg-[#1D222B] text-white">GBP (£) - British Pound</option>
+            <option value="CAD" className="bg-[#1D222B] text-white">CAD ($) - Canadian Dollar</option>
           </select>
         </div>
       </div>
 
       {/* Security & RLS Status Card */}
-      <div className="glass-panel p-5 sm:p-6 rounded-3xl space-y-4 shadow-xl">
+      <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
+          <ShieldCheck className="w-5 h-5 text-[#22C55E]" />
           <div>
-            <h3 className="text-sm font-bold text-env-heading">Database Security & Row Level Security (RLS)</h3>
-            <p className="text-xs text-emerald-400 font-bold">Active & Enforced in PostgreSQL</p>
+            <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">Database Security & Row Level Security (RLS)</h2>
+            <p className="text-[15px] text-[#22C55E] font-semibold">Active & Enforced in PostgreSQL</p>
           </div>
         </div>
 
-        <p className="text-xs text-env-body leading-relaxed bg-env-badge p-4 rounded-2xl border border-env-main">
+        <p className="text-[15px] text-[#A1AAB8] leading-[22px] bg-[#1D222B] p-4 rounded-2xl border border-[#2B313D]">
           All subscription records are protected by Supabase Row Level Security (RLS) policies (`auth.uid() = user_id`). Your data is strictly isolated and inaccessible to any unauthenticated or third-party users.
         </p>
       </div>

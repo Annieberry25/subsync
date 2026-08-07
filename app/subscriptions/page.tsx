@@ -1,5 +1,10 @@
+import { Suspense } from 'react';
 import SubscriptionManager from '@/components/subscriptions/subscription-manager';
 
 export default function SubscriptionsPage() {
-  return <SubscriptionManager />;
+  return (
+    <Suspense fallback={null}>
+      <SubscriptionManager />
+    </Suspense>
+  );
 }
