@@ -139,7 +139,7 @@ export default function SubscriptionModal({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 animate-in fade-in duration-200"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -147,7 +147,7 @@ export default function SubscriptionModal({
     >
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[560px] bg-[#171A21] border border-[#2B313D] rounded-[20px] p-6 sm:p-8 space-y-6 max-h-[90vh] flex flex-col"
+        className="w-full max-w-[560px] bg-[#171A21] border border-[#2B313D] rounded-t-[24px] sm:rounded-[20px] p-5 sm:p-8 space-y-5 sm:space-y-6 max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#2B313D] pb-4 shrink-0">

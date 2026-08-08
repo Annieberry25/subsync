@@ -42,9 +42,9 @@ export default function SubscriptionFilters({
   onSortChange,
 }: SubscriptionFiltersProps) {
   return (
-    <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4">
+    <div className="p-4 sm:p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-3.5 sm:space-y-4">
       {/* Top Search & Filter Controls */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 sm:gap-4">
         {/* Search Input */}
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787] pointer-events-none" />
@@ -53,7 +53,7 @@ export default function SubscriptionFilters({
             placeholder="Search subscriptions by name, plan tier, or notes..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-11 pl-10 pr-3.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+            className="w-full h-11 pl-10 pr-3.5 text-xs sm:text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
           />
         </div>
 
@@ -99,7 +99,7 @@ export default function SubscriptionFilters({
       </div>
 
       {/* Category Pills Row (Selected tab strictly uses Primary Accent #4F46E5) */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pt-1">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pt-1 pb-0.5">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat;
           return (
@@ -107,7 +107,7 @@ export default function SubscriptionFilters({
               key={cat}
               type="button"
               onClick={() => onCategoryChange(cat)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap min-h-[38px] transition-colors cursor-pointer flex items-center justify-center ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap min-h-[44px] transition-colors cursor-pointer flex items-center justify-center ${
                 isActive
                   ? 'bg-[#4F46E5] text-white font-semibold'
                   : 'bg-[#1D222B] hover:bg-[#2B313D] text-[#A1AAB8] hover:text-white border border-[#2B313D]'

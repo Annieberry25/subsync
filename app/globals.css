@@ -233,3 +233,24 @@ input::placeholder, textarea::placeholder {
   animation: pageFadeInUp 190ms ease-out forwards;
 }
 
+/* Mobile Touch & Accessibility Utilities */
+@media (max-width: 639px) {
+  /* Prevent automatic iOS zoom on form inputs by ensuring 16px min font size */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Touch target safety helper */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+

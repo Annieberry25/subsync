@@ -42,15 +42,14 @@ function renderFormattedCurrency(amount: number, currency = 'USD') {
   const formatted = formatCurrency(amount, currency);
   if (formatted.startsWith('$')) {
     return (
-      <span className="inline-flex items-baseline">
+      <span className="inline-flex items-baseline flex-wrap">
         <span
-          style={{ fontSize: '24px', fontWeight: 600, color: '#FFFFFF' }}
-          className="mr-0.5 select-none"
+          className="mr-0.5 select-none text-xl sm:text-[24px] font-semibold text-white"
         >
           $
         </span>
         <span
-          style={{ fontSize: '30px', fontWeight: 600, lineHeight: '34px', letterSpacing: '-0.02em', color: '#FFFFFF' }}
+          className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white"
         >
           {formatted.slice(1)}
         </span>
@@ -59,7 +58,7 @@ function renderFormattedCurrency(amount: number, currency = 'USD') {
   }
   return (
     <span
-      style={{ fontSize: '30px', fontWeight: 600, lineHeight: '34px', letterSpacing: '-0.02em', color: '#FFFFFF' }}
+      className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white"
     >
       {formatted}
     </span>
@@ -204,9 +203,9 @@ export default function DashboardV2() {
   }, [overdueCount, renewingThisWeek]);
 
   return (
-    <div className="animate-page-transition pt-0 space-y-5 bg-ambient-grid min-h-[85vh] pb-32 sm:pb-48">
+    <div className="animate-page-transition pt-0 space-y-4 sm:space-y-5 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12 overflow-x-hidden">
       {/* 1. HEADER SECTION */}
-      <div className="mb-4">
+      <div className="mb-2 sm:mb-4">
         <PersonalizedHeader
           renewingThisWeekCount={renewingThisWeek}
         />
@@ -220,31 +219,30 @@ export default function DashboardV2() {
         </div>
       )}
 
-      {/* 2. KPI METRICS (Sits directly on dashboard background) */}
+      {/* 2. KPI METRICS (2x2 Grid on Mobile for compact ergonomics) */}
       {loading && subscriptions.length === 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {/* Card 1: Monthly Spend */}
-          <div className="px-5 py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[104px]">
-            <div className="flex items-baseline justify-between">
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', lineHeight: '20px' }}>
+          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm sm:text-[16px] font-semibold text-white leading-tight">
                 Monthly Spend
               </span>
-              <DollarSign className="w-4 h-4 text-[#6F7787] translate-y-[1px]" />
+              <DollarSign className="w-4 h-4 text-[#6F7787] shrink-0" />
             </div>
-            <div className="mt-2">
+            <div className="mt-1.5 sm:mt-2">
               <div>
                 {renderFormattedCurrency(monthlySpend)}
               </div>
               <span
-                style={{ fontSize: '15px', fontWeight: 400, lineHeight: '22px', color: '#A1AAB8' }}
-                className="block mt-2"
+                className="text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#A1AAB8] block mt-1 sm:mt-2"
               >
                 Normalized monthly expense
               </span>
@@ -252,20 +250,19 @@ export default function DashboardV2() {
           </div>
 
           {/* Card 2: Renewing This Week */}
-          <div className="px-5 py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[104px]">
-            <div className="flex items-baseline justify-between">
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', lineHeight: '20px' }}>
+          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm sm:text-[16px] font-semibold text-white leading-tight">
                 Renewing This Week
               </span>
-              <Calendar className={`w-4 h-4 ${renewalSemantic.iconColor} translate-y-[1px]`} />
+              <Calendar className={`w-4 h-4 ${renewalSemantic.iconColor} shrink-0`} />
             </div>
-            <div className="mt-2">
-              <div style={{ fontSize: '30px', fontWeight: 600, lineHeight: '34px', letterSpacing: '-0.02em', color: '#FFFFFF' }}>
+            <div className="mt-1.5 sm:mt-2">
+              <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white">
                 {renewingThisWeek}
               </div>
               <span
-                style={{ fontSize: '15px', fontWeight: 400, lineHeight: '22px' }}
-                className={`block mt-2 ${renewalSemantic.textColor}`}
+                className={`block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] ${renewalSemantic.textColor}`}
               >
                 {renewalSemantic.label}
               </span>
@@ -273,20 +270,19 @@ export default function DashboardV2() {
           </div>
 
           {/* Card 3: Active Plans */}
-          <div className="px-5 py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[104px]">
-            <div className="flex items-baseline justify-between">
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', lineHeight: '20px' }}>
+          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm sm:text-[16px] font-semibold text-white leading-tight">
                 Active Plans
               </span>
-              <CreditCard className="w-4 h-4 text-[#22C55E] translate-y-[1px]" />
+              <CreditCard className="w-4 h-4 text-[#22C55E] shrink-0" />
             </div>
-            <div className="mt-2">
-              <div style={{ fontSize: '30px', fontWeight: 600, lineHeight: '34px', letterSpacing: '-0.02em', color: '#FFFFFF' }}>
+            <div className="mt-1.5 sm:mt-2">
+              <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white">
                 {activeCount}
               </div>
               <span
-                style={{ fontSize: '15px', fontWeight: 400, lineHeight: '22px', color: '#22C55E' }}
-                className="block mt-2"
+                className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#22C55E]"
               >
                 Active & trial subscriptions
               </span>
@@ -294,20 +290,19 @@ export default function DashboardV2() {
           </div>
 
           {/* Card 4: Potential Savings */}
-          <div className="px-5 py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[104px]">
-            <div className="flex items-baseline justify-between">
-              <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', lineHeight: '20px' }}>
+          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm sm:text-[16px] font-semibold text-white leading-tight">
                 Potential Savings
               </span>
-              <Wallet className="w-4 h-4 text-[#A1AAB8] translate-y-[1px]" />
+              <Wallet className="w-4 h-4 text-[#A1AAB8] shrink-0" />
             </div>
-            <div className="mt-2">
+            <div className="mt-1.5 sm:mt-2">
               <div>
                 {renderFormattedCurrency(potentialSavings)}
               </div>
               <span
-                style={{ fontSize: '15px', fontWeight: 400, lineHeight: '22px', color: '#A1AAB8' }}
-                className="block mt-2"
+                className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#A1AAB8]"
               >
                 From paused/trial plans
               </span>

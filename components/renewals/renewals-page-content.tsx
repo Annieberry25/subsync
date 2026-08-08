@@ -6,15 +6,11 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { 
   fetchSubscriptions, 
   getCachedSubscriptions,
-  updateSubscription,
-  type SubscriptionRow, 
-  type SubscriptionInsert 
+  type SubscriptionRow 
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
-import SubscriptionModal from '@/components/subscriptions/subscription-modal';
-import { useToast } from '@/lib/hooks/use-toast';
 
 function getPlanName(sub: SubscriptionRow): string {
   if (sub.notes && sub.notes.trim().toLowerCase().includes('plan')) {
@@ -60,12 +56,10 @@ function getCycleSuffix(billingCycle?: string): string {
 }
 
 export default function RenewalsPageContent() {
-  const { toast } = useToast();
   const initialCache = getCachedSubscriptions();
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initialCache || []);
   const [loading, setLoading] = useState(!initialCache);
   const [error, setError] = useState<string | null>(null);
-  const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -82,16 +76,6 @@ export default function RenewalsPageContent() {
       active = false;
     };
   }, [subscriptions.length]);
-
-  const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
-    if (id) {
-      const { error: err } = await updateSubscription(id, data);
-      if (err) throw err;
-      toast.success('Subscription details updated.', 'Saved');
-      const { data: updated } = await fetchSubscriptions();
-      if (updated) setSubscriptions(updated);
-    }
-  };
 
   const upcomingRenewals = useMemo(() => {
     const today = new Date();
@@ -111,7 +95,7 @@ export default function RenewalsPageContent() {
   }, [subscriptions]);
 
   return (
-    <div className="animate-page-transition pt-0 space-y-5 bg-ambient-grid min-h-[85vh] pb-32 sm:pb-48">
+    <div className="animate-page-transition pt-0 space-y-4 sm:space-y-5 bg-ambient-grid pb-8 sm:pb-12 overflow-x-hidden">
       {/* Top-left Back Button */}
       <div>
         <Link
@@ -120,13 +104,13 @@ export default function RenewalsPageContent() {
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#A1AAB8] hover:text-white transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back</span>
+          <span>Back to Dashboard</span>
         </Link>
       </div>
 
-      {/* Page Title (No Subtitle) */}
+      {/* Page Title */}
       <div>
-        <h1 className="text-[28px] font-bold text-white tracking-tight leading-[34px]">
+        <h1 className="text-xl sm:text-2xl md:text-[28px] font-bold text-white tracking-tight leading-tight sm:leading-[34px]">
           Upcoming Renewals
         </h1>
       </div>
@@ -147,7 +131,7 @@ export default function RenewalsPageContent() {
           <SubscriptionCardSkeleton />
         </div>
       ) : upcomingRenewals.length === 0 ? (
-        <div className="p-8 text-center bg-[#171A21] border border-[#2B313D] rounded-[20px]">
+        <div className="p-6 sm:p-8 text-center bg-[#171A21] border border-[#2B313D] rounded-[20px]">
           <p className="text-base font-semibold text-white">
             No renewals in the next 30 days.
           </p>
@@ -156,7 +140,7 @@ export default function RenewalsPageContent() {
           </p>
         </div>
       ) : (
-        <div className="bg-[#171A21] border border-[#2B313D]/60 rounded-[20px] space-y-3.5 p-6">
+        <div className="bg-[#171A21] border border-[#2B313D]/60 rounded-[20px] space-y-3.5 p-4 sm:p-6">
           <div className="space-y-2.5">
             {upcomingRenewals.map(({ sub, diffDays }) => {
               const status = getRenewalStatus(diffDays);
@@ -167,40 +151,42 @@ export default function RenewalsPageContent() {
               return (
                 <div
                   key={sub.id}
-                  onClick={() => setEditingSubscription(sub)}
-                  className="grid grid-cols-[minmax(0,1fr)_160px_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_180px_minmax(0,1fr)] items-center px-5 py-3.5 bg-[#1D222B] border border-white/[0.04] hover:border-[#4F46E5]/40 rounded-2xl transition-colors cursor-pointer gap-4"
+                  className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#1D222B] border border-white/[0.04] rounded-2xl transition-colors cursor-default gap-2.5 sm:gap-4 w-full"
                 >
                   {/* 1. Service Logo + Name + Plan */}
-                  <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
                     <ServiceIcon name={sub.name} category={sub.category} className="w-10 h-10 rounded-xl shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <span className="text-base font-semibold text-white block truncate">
+                      <span className="text-sm sm:text-base font-semibold text-white block">
                         {sub.name}
                       </span>
-                      <span className="text-[14px] text-[#A1AAB8] block truncate mt-0.5">
+                      <span className="text-xs sm:text-[14px] text-[#A1AAB8] block mt-0.5">
                         {planName}
                       </span>
                     </div>
                   </div>
 
-                  {/* 2. Renewal Status */}
-                  <div className="flex items-center justify-center text-center min-w-0">
-                    <span
-                      className="text-sm font-semibold truncate"
-                      style={{ color: status.color }}
-                    >
-                      {status.text}
-                    </span>
-                  </div>
+                  {/* 2 & 3: Mobile sub-row (flex justify-between) / Desktop grid cells (sm:contents) */}
+                  <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.04] gap-2">
+                    {/* 2. Renewal Status */}
+                    <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
+                      <span
+                        className="text-xs sm:text-sm font-semibold"
+                        style={{ color: status.color }}
+                      >
+                        {status.text}
+                      </span>
+                    </div>
 
-                  {/* 3. Single-line Price */}
-                  <div className="text-right min-w-0 justify-self-end">
-                    <span style={{ fontSize: '20px', fontWeight: 700, color: '#FFFFFF' }}>
-                      {formatCurrency(price, sub.currency || 'USD')}
-                    </span>
-                    <span style={{ fontSize: '15px', fontWeight: 400, color: '#A1AAB8' }}>
-                      {cycleSuffix}
-                    </span>
+                    {/* 3. Single-line Price */}
+                    <div className="text-right min-w-0 shrink-0 justify-self-end">
+                      <span className="text-base sm:text-[20px] font-bold text-white">
+                        {formatCurrency(price, sub.currency || 'USD')}
+                      </span>
+                      <span className="text-xs sm:text-[15px] font-normal text-[#A1AAB8]">
+                        {cycleSuffix}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
@@ -208,14 +194,6 @@ export default function RenewalsPageContent() {
           </div>
         </div>
       )}
-
-      {/* Subscription Details Modal on click */}
-      <SubscriptionModal
-        isOpen={!!editingSubscription}
-        onClose={() => setEditingSubscription(null)}
-        onSave={handleSave}
-        initialData={editingSubscription}
-      />
     </div>
   );
 }

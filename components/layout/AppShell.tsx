@@ -41,8 +41,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Header
               onMobileMenuToggle={() => setMobileMenuOpen(true)}
             />
-            <main className="flex-1 px-4 md:px-6 lg:px-8 pt-3 md:pt-4 lg:pt-5 pb-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto space-y-6">
+            <main className="flex-1 px-3 sm:px-6 lg:px-8 pt-2 sm:pt-4 lg:pt-5 pb-12 sm:pb-8 overflow-y-auto w-full max-w-full overflow-x-hidden">
+              <div className="max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">
                 {children}
               </div>
             </main>

@@ -68,7 +68,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   const initials = getInitials(fullName || (user ? '' : 'Say Say'));
 
   const content = (
-    <div className="flex flex-col justify-between h-full bg-[#101215]">
+    <div className="flex flex-col justify-between h-full bg-[#101215] overflow-y-auto">
       <div>
         {/* Brand Logo & Mobile Close (Clean "SubSync" without secondary MANAGER label) */}
         <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-[#2B313D]">
@@ -84,9 +84,9 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               type="button"
               onClick={onMobileClose}
               aria-label="Close navigation menu"
-              className="md:hidden w-7 h-7 rounded-xl text-[#A1AAB8] hover:text-white hover:bg-[#171A21] transition-colors flex items-center justify-center cursor-pointer"
+              className="lg:hidden w-11 h-11 rounded-xl text-[#A1AAB8] hover:text-white hover:bg-[#171A21] transition-colors flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -207,15 +207,15 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
   return (
     <>
-      {/* Desktop Sidebar (Compact 240px width) */}
-      <aside className="w-[240px] bg-[#101215] border-r border-[#2B313D] hidden md:flex flex-col h-screen sticky top-0 shrink-0 z-20">
+      {/* Desktop Sidebar (Compact 240px width - Visible on lg screens 1024px+) */}
+      <aside className="w-[240px] bg-[#101215] border-r border-[#2B313D] hidden lg:flex flex-col h-screen sticky top-0 shrink-0 z-20">
         {content}
       </aside>
 
-      {/* Mobile Drawer Overlay */}
+      {/* Mobile & Tablet Drawer Overlay (Active on screens < 1024px) */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/70 z-50 md:hidden animate-in fade-in duration-150"
+          className="fixed inset-0 bg-black/70 z-50 lg:hidden animate-in fade-in duration-150"
           onClick={onMobileClose}
         >
           <aside

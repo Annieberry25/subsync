@@ -62,13 +62,13 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-[20px] p-8 bg-[#171A21] border border-[#2B313D] space-y-6">
+    <div className="w-full max-w-md rounded-[20px] p-5 sm:p-8 bg-[#171A21] border border-[#2B313D] space-y-5 sm:space-y-6">
       {/* Auth Mode Toggle Tabs */}
       <div className="flex bg-[#1D222B] p-1 rounded-xl border border-[#2B313D]">
         <button
           type="button"
           onClick={() => { setMode('signin'); setError(null); setSuccess(null); }}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+          className={`flex-1 py-2.5 min-h-[44px] text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
             mode === 'signin'
               ? 'bg-[#4F46E5] text-white'
               : 'text-[#A1AAB8] hover:text-white'
@@ -79,7 +79,7 @@ export default function AuthForm() {
         <button
           type="button"
           onClick={() => { setMode('signup'); setError(null); setSuccess(null); }}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+          className={`flex-1 py-2.5 min-h-[44px] text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
             mode === 'signup'
               ? 'bg-[#4F46E5] text-white'
               : 'text-[#A1AAB8] hover:text-white'
@@ -91,10 +91,10 @@ export default function AuthForm() {
 
       {/* Header text */}
       <div className="text-center">
-        <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">
+        <h2 className="text-xl sm:text-[28px] font-bold text-white tracking-tight leading-snug sm:leading-[36px]">
           {mode === 'signin' ? 'Welcome back to SubSync' : 'Create your SubSync account'}
         </h2>
-        <p className="text-[15px] text-[#A1AAB8] mt-1 leading-[22px]">
+        <p className="text-xs sm:text-[15px] text-[#A1AAB8] mt-1 leading-relaxed sm:leading-[22px]">
           {mode === 'signin'
             ? 'Enter your credentials to access your subscription dashboard.'
             : 'Start tracking and optimizing your recurring subscriptions today.'}

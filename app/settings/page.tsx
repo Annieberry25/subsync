@@ -80,19 +80,19 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-4xl min-h-[85vh] pb-32">
       <div className="space-y-1">
-        <h1 className="text-[40px] font-bold text-white tracking-tight leading-[48px]">Settings</h1>
-        <p className="text-[15px] text-[#A1AAB8] font-normal leading-[22px]">
+        <h1 className="text-2xl sm:text-3xl md:text-[40px] font-bold text-white tracking-tight leading-tight sm:leading-[48px]">Settings</h1>
+        <p className="text-xs sm:text-sm md:text-[15px] text-[#A1AAB8] font-normal leading-relaxed sm:leading-[22px]">
           Manage your account credentials, theme preferences, and database security settings.
         </p>
       </div>
 
       {/* Theme Preference Settings Card (Midnight Default vs Light) */}
-      <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-6">
-        <div className="flex items-center gap-3 border-b border-[#2B313D] pb-4">
-          <Moon className="w-5 h-5 text-[#6F7787]" />
+      <div className="p-4 sm:p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4 sm:space-y-6">
+        <div className="flex items-center gap-3 border-b border-[#2B313D] pb-3.5 sm:pb-4">
+          <Moon className="w-5 h-5 text-[#6F7787] shrink-0" />
           <div>
-            <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">Appearance</h2>
-            <p className="text-[15px] text-[#A1AAB8]">Choose your preferred application theme</p>
+            <h2 className="text-xl sm:text-[28px] font-bold text-white tracking-tight leading-tight sm:leading-[36px]">Appearance</h2>
+            <p className="text-xs sm:text-[15px] text-[#A1AAB8]">Choose your preferred application theme</p>
           </div>
         </div>
 

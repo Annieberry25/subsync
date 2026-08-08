@@ -305,8 +305,8 @@ export default function SubscriptionCard({
             className="w-10 h-10 rounded-xl shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-white text-[18px] leading-[24px] flex items-center gap-1.5 min-w-0">
-              <span className="truncate">{subscription.name}</span>
+            <h3 className="font-semibold text-white text-[18px] leading-[24px] flex items-center gap-1.5 min-w-0 flex-wrap">
+              <span>{subscription.name}</span>
               {subscription.provider_url && (
                 <a
                   href={subscription.provider_url}
@@ -350,16 +350,16 @@ export default function SubscriptionCard({
         {subscription.payment_method && (
           <div className="flex items-center gap-1.5 text-xs text-[#A1AAB8] bg-[#171A21] px-2.5 py-1 rounded-xl border border-[#2B313D] shrink-0">
             <CreditCard className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
-            <span className="truncate">{subscription.payment_method}</span>
+            <span>{subscription.payment_method}</span>
           </div>
         )}
       </div>
 
       {/* Renewal Info & Category Row */}
-      <div className="flex items-center justify-between text-[15px] text-[#A1AAB8] min-w-0 gap-2">
-        <div className="flex items-center gap-1.5 min-w-0 truncate">
+      <div className="flex flex-wrap items-center justify-between text-[15px] text-[#A1AAB8] min-w-0 gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <Calendar className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
-          <span className="truncate text-[#A1AAB8]">
+          <span className="text-[#A1AAB8]">
             {diffDays <= 0 ? (
               <strong className="text-[#EF4444] font-semibold">Due today</strong>
             ) : (

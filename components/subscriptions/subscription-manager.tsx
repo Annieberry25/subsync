@@ -210,7 +210,7 @@ export default function SubscriptionManager() {
   const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All' || selectedStatus !== 'All';
 
   return (
-    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-32 sm:pb-48">
+    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12">
       {/* 1. PAGE HEADER (Primary Action: Add Subscription) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
