@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, CreditCard, AlertCircle, XCircle } from 'lucide-react';
+import { Plus, CreditCard, AlertCircle, XCircle, LayoutGrid, List } from 'lucide-react';
 import { 
   fetchSubscriptions, 
   createSubscription, 
@@ -12,6 +12,8 @@ import {
 } from '@/lib/services/subscription-service';
 
 import SubscriptionCard from './subscription-card';
+import SubscriptionTable from './subscription-table';
+import SubscriptionDetailModal from './subscription-detail-modal';
 import SubscriptionModal from './subscription-modal';
 import SubscriptionFilters from './subscription-filters';
 import PaymentReminderModal from './payment-reminder-modal';
@@ -33,9 +35,17 @@ export default function SubscriptionManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // View Mode: 'table' (default list/table) or 'grid' (cards)
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+
+  // Detail View Modal state
+  const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
   // Modal & Confirm State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
+  const [returnToDetailSub, setReturnToDetailSub] = useState<SubscriptionRow | null>(null);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -210,8 +220,8 @@ export default function SubscriptionManager() {
   const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All' || selectedStatus !== 'All';
 
   return (
-    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12">
-      {/* 1. PAGE HEADER (Primary Action: Add Subscription) */}
+    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-72 sm:pb-80">
+      {/* 1. PAGE HEADER (Primary Action: Add Subscription & View Switcher) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-bold text-white tracking-tight leading-[34px]">
@@ -221,17 +231,51 @@ export default function SubscriptionManager() {
             Manage your active plans, recurring billing cycles, and payment reminders.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setEditingSubscription(null);
-            setIsModalOpen(true);
-          }}
-          className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Subscription</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Layout View Toggle */}
+          <div className="flex items-center bg-[#171A21] border border-[#2B313D] rounded-xl p-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              title="Table/List View"
+              aria-label="Table view"
+              className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-[#4F46E5] text-white'
+                  : 'text-[#6F7787] hover:text-white hover:bg-[#1D222B]'
+              }`}
+            >
+              <List className="w-4 h-4" />
+              <span className="hidden sm:inline">List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              title="Grid Cards View"
+              aria-label="Grid view"
+              className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-[#4F46E5] text-white'
+                  : 'text-[#6F7787] hover:text-white hover:bg-[#1D222B]'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+              <span className="hidden sm:inline">Cards</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditingSubscription(null);
+              setIsModalOpen(true);
+            }}
+            className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Subscription</span>
+          </button>
+        </div>
       </div>
 
       {/* Error Banner */}
@@ -254,7 +298,7 @@ export default function SubscriptionManager() {
         onSortChange={setSortBy}
       />
 
-      {/* 3. SUBSCRIPTIONS GRID / SKELETONS / EMPTY STATES */}
+      {/* 3. SUBSCRIPTIONS TABLE / GRID / SKELETONS / EMPTY STATES */}
       {loading && subscriptions.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <SubscriptionCardSkeleton />
@@ -262,23 +306,50 @@ export default function SubscriptionManager() {
           <SubscriptionCardSkeleton />
         </div>
       ) : filteredSubscriptions.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSubscriptions.map((sub) => (
-            <SubscriptionCard
-              key={sub.id}
-              subscription={sub}
-              isHighlighted={sub.id === highlightedSubId}
-              onEdit={(item) => {
-                setEditingSubscription(item);
-                setIsModalOpen(true);
-              }}
-              onDeleteRequest={(item) => setDeletingSubscription(item)}
-              onPaymentReminderRequest={(item) => setReminderSubscription(item)}
-              reminderInfo={reminders[sub.id] || null}
-              onDismissReminder={handleDismissReminder}
-            />
-          ))}
-        </div>
+        viewMode === 'table' ? (
+          <SubscriptionTable
+            subscriptions={filteredSubscriptions}
+            highlightedSubId={highlightedSubId}
+            onSelectSubscription={(item) => {
+              setSelectedDetailSub(item);
+              setIsDetailOpen(true);
+            }}
+            onEdit={(item) => {
+              setEditingSubscription(item);
+              setIsModalOpen(true);
+            }}
+            onDeleteRequest={(item) => setDeletingSubscription(item)}
+            onPaymentReminderRequest={(item) => setReminderSubscription(item)}
+            reminders={reminders}
+            onDismissReminder={handleDismissReminder}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSubscriptions.map((sub) => (
+              <div
+                key={sub.id}
+                onClick={() => {
+                  setSelectedDetailSub(sub);
+                  setIsDetailOpen(true);
+                }}
+                className="cursor-pointer"
+              >
+                <SubscriptionCard
+                  subscription={sub}
+                  isHighlighted={sub.id === highlightedSubId}
+                  onEdit={(item) => {
+                    setEditingSubscription(item);
+                    setIsModalOpen(true);
+                  }}
+                  onDeleteRequest={(item) => setDeletingSubscription(item)}
+                  onPaymentReminderRequest={(item) => setReminderSubscription(item)}
+                  reminderInfo={reminders[sub.id] || null}
+                  onDismissReminder={handleDismissReminder}
+                />
+              </div>
+            ))}
+          </div>
+        )
       ) : (
         <div className="p-16 rounded-[20px] bg-[#171A21] border border-[#2B313D] text-center flex flex-col items-center justify-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-[#4F46E5]/10 border border-[#4F46E5]/20 flex items-center justify-center text-[#4F46E5]">
@@ -320,12 +391,36 @@ export default function SubscriptionManager() {
         </div>
       )}
 
+      {/* Subscription Detail View Modal */}
+      <SubscriptionDetailModal
+        subscription={selectedDetailSub}
+        isOpen={isDetailOpen}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setSelectedDetailSub(null);
+        }}
+        onEdit={(item) => {
+          setReturnToDetailSub(item);
+          setIsDetailOpen(false);
+          setEditingSubscription(item);
+          setIsModalOpen(true);
+        }}
+        onDeleteRequest={(item) => setDeletingSubscription(item)}
+        onPaymentReminderRequest={(item) => setReminderSubscription(item)}
+      />
+
       {/* Subscription Form Modal */}
       <SubscriptionModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           setEditingSubscription(null);
+          if (returnToDetailSub) {
+            const updated = subscriptions.find((s) => s.id === returnToDetailSub.id) || returnToDetailSub;
+            setSelectedDetailSub(updated);
+            setIsDetailOpen(true);
+            setReturnToDetailSub(null);
+          }
         }}
         onSave={handleSave}
         initialData={editingSubscription}

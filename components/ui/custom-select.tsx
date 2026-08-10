@@ -17,6 +17,7 @@ interface CustomSelectProps {
   className?: string;
   minWidth?: string;
   alignRight?: boolean;
+  variant?: 'default' | 'borderless';
 }
 
 const emptySubscribe = () => () => {};
@@ -29,6 +30,7 @@ export function CustomSelect({
   className = '',
   minWidth = 'min-w-[110px]',
   alignRight = false,
+  variant = 'default',
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -151,7 +153,7 @@ export function CustomSelect({
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 min-h-[40px] rounded-xl text-xs font-medium transition-colors text-left cursor-pointer capitalize ${
+                  className={`w-full flex items-center justify-between px-5 py-2.5 min-h-[40px] rounded-xl text-xs font-medium transition-colors text-left cursor-pointer capitalize ${
                     isSelected
                       ? 'bg-[#4F46E5] text-white font-semibold'
                       : 'text-[#A1AAB8] hover:text-white hover:bg-[#2B313D]'
@@ -168,8 +170,10 @@ export function CustomSelect({
       )
     : null;
 
+  const isBorderless = variant === 'borderless';
+
   return (
-    <div ref={containerRef} className={`relative inline-block text-left ${minWidth.includes('w-full') ? 'w-full' : ''}`}>
+    <div ref={containerRef} className={`relative inline-block text-left ${!isBorderless && minWidth.includes('w-full') ? 'w-full' : ''}`}>
       <button
         ref={buttonRef}
         type="button"
@@ -177,9 +181,13 @@ export function CustomSelect({
         onKeyDown={handleKeyDown}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
-        className={`flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] border border-[#2B313D] text-xs font-medium text-white transition-colors cursor-pointer group ${minWidth} ${className}`}
+        className={
+          isBorderless
+            ? `flex items-center gap-1.5 py-1 text-sm font-medium text-white hover:text-white/80 transition-colors cursor-pointer group outline-none focus:outline-none bg-transparent border-none ${className}`
+            : `flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] border border-[#2B313D] text-xs font-medium text-white transition-colors cursor-pointer group ${minWidth} ${className}`
+        }
       >
-        <span className="truncate capitalize tracking-wide pr-1">{selectedOption.label}</span>
+        <span className="truncate tracking-wide pr-0.5">{selectedOption.label}</span>
         <ChevronDown
           className={`w-3.5 h-3.5 text-[#6F7787] group-hover:text-white transition-transform duration-200 shrink-0 ${
             isOpen ? 'rotate-180 text-[#4F46E5]' : ''

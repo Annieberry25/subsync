@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell } from 'lucide-react';
-import type { SubscriptionRow } from '@/lib/services/subscription-service';
+import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, Link2 } from 'lucide-react';
+import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, parseAccountLinks } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -47,6 +47,7 @@ export default function SubscriptionCard({
 
   const formattedPrice = formatCurrency(Number(subscription.price), subscription.currency);
   const statusDotStyle = statusDotColors[subscription.status] || statusDotColors.active;
+  const accountLinks = parseAccountLinks(subscription);
 
   // Calculate days until next renewal cleanly
   const today = new Date();
@@ -66,7 +67,7 @@ export default function SubscriptionCard({
 
   const hasReminder = Boolean((reminderInfo && !reminderInfo.dismissed) || (diffDays <= 7 && subscription.status === 'active'));
 
-  const handleToggleMenu = async () => {
+  const handleToggleMenu = () => {
     if (menuOpen) {
       setMenuOpen(false);
       return;
@@ -74,40 +75,11 @@ export default function SubscriptionCard({
 
     if (!buttonRef.current) return;
 
-    const initialRect = buttonRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - initialRect.bottom;
-    const actualMenuHeight = 285;
-    const bottomMargin = 24;
-    const requiredHeight = actualMenuHeight + 6 + bottomMargin;
-
-    if (spaceBelow < requiredHeight) {
-      const scrollNeeded = requiredHeight - spaceBelow;
-      window.scrollBy({ top: scrollNeeded, behavior: 'smooth' });
-
-      await new Promise<void>((resolve) => {
-        let timer: NodeJS.Timeout;
-        const onScroll = () => {
-          clearTimeout(timer);
-          timer = setTimeout(() => {
-            window.removeEventListener('scroll', onScroll);
-            resolve();
-          }, 50);
-        };
-        window.addEventListener('scroll', onScroll);
-        timer = setTimeout(() => {
-          window.removeEventListener('scroll', onScroll);
-          resolve();
-        }, 300);
-      });
-    }
-
-    if (buttonRef.current) {
-      const finalRect = buttonRef.current.getBoundingClientRect();
-      const safeRight = Math.max(16, Math.min(window.innerWidth - 208, window.innerWidth - finalRect.right));
-      const top = finalRect.bottom + 6;
-      setMenuPos({ top, right: safeRight });
-      setMenuOpen(true);
-    }
+    const rect = buttonRef.current.getBoundingClientRect();
+    const safeRight = Math.max(16, Math.min(window.innerWidth - 208, window.innerWidth - rect.right));
+    const top = rect.bottom + 6;
+    setMenuPos({ top, right: safeRight });
+    setMenuOpen(true);
   };
 
   useEffect(() => {
@@ -180,8 +152,9 @@ export default function SubscriptionCard({
 
   const handleManageSubscription = () => {
     setMenuOpen(false);
-    if (subscription.provider_url) {
-      window.open(subscription.provider_url, '_blank', 'noopener,noreferrer');
+    const targetUrl = getProviderManagementUrl(subscription.name, subscription.provider_url);
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     } else {
       toast.info(`Managing ${subscription.name} settings coming soon.`, 'Feature Pending');
     }
@@ -302,18 +275,19 @@ export default function SubscriptionCard({
           <ServiceIcon
             name={subscription.name}
             category={subscription.category}
+            providerUrl={getProviderWebsite(subscription.name, subscription.provider_url)}
             className="w-10 h-10 rounded-xl shrink-0"
           />
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-white text-[18px] leading-[24px] flex items-center gap-1.5 min-w-0 flex-wrap">
               <span>{subscription.name}</span>
-              {subscription.provider_url && (
+              {getProviderManagementUrl(subscription.name, subscription.provider_url) && (
                 <a
-                  href={subscription.provider_url}
+                  href={getProviderManagementUrl(subscription.name, subscription.provider_url)!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="Open provider website"
-                  aria-label={`Open provider website for ${subscription.name}`}
+                  title="Open subscription management page"
+                  aria-label={`Open subscription management page for ${subscription.name}`}
                   className="text-[#6F7787] hover:text-white transition-colors p-0.5 shrink-0"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -346,13 +320,6 @@ export default function SubscriptionCard({
           <span className="text-2xl font-bold text-white tracking-tight">{formattedPrice}</span>
           <span className="text-[15px] text-[#A1AAB8] ml-1">/ {subscription.billing_cycle}</span>
         </div>
-
-        {subscription.payment_method && (
-          <div className="flex items-center gap-1.5 text-xs text-[#A1AAB8] bg-[#171A21] px-2.5 py-1 rounded-xl border border-[#2B313D] shrink-0">
-            <CreditCard className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
-            <span>{subscription.payment_method}</span>
-          </div>
-        )}
       </div>
 
       {/* Renewal Info & Category Row */}
@@ -386,6 +353,31 @@ export default function SubscriptionCard({
           </button>
         )}
       </div>
+
+      {/* Subscription Account Links */}
+      {accountLinks.length > 0 && (
+        <div className="pt-2 border-t border-[#2B313D]/60 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#6F7787] uppercase tracking-wider">
+            <Link2 className="w-3 h-3 text-[#4F46E5]" />
+            <span>Subscription Accounts</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {accountLinks.map((link) => (
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#171A21] hover:bg-[#2B313D] text-xs font-medium text-[#4F46E5] hover:text-white border border-[#2B313D] transition-colors cursor-pointer"
+                title={`Open ${link.label || 'Account'} link: ${link.url}`}
+              >
+                <span>{link.label || 'Account'}</span>
+                <ExternalLink className="w-3 h-3 text-[#6F7787]" />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Floating Action Menu Popover Portal */}
       {menuPortal}

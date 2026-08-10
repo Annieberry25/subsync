@@ -44,29 +44,29 @@ export default function SubscriptionFilters({
   return (
     <div className="p-4 sm:p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-3.5 sm:space-y-4">
       {/* Top Search & Filter Controls */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 sm:gap-4">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5 sm:gap-4">
         {/* Search Input */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787] pointer-events-none" />
           <input
             type="text"
             placeholder="Search subscriptions by name, plan tier, or notes..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-11 pl-10 pr-3.5 text-xs sm:text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+            className="w-full h-11 !pl-11 pr-3.5 text-xs sm:text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
           />
         </div>
 
         {/* Filter Groups */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex items-center gap-3 w-full lg:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto shrink-0">
           {/* Status Select */}
-          <div className="flex items-center gap-2.5 flex-1 sm:flex-initial">
-            <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#6F7787] w-14 shrink-0">
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+            <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#6F7787] shrink-0">
               <Filter className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
               <span>Status:</span>
             </div>
             
-            <div className="flex-1 sm:flex-initial">
+            <div className="flex-1 sm:flex-initial min-w-[120px]">
               <CustomSelect
                 options={statusOptions}
                 value={selectedStatus}
@@ -78,19 +78,19 @@ export default function SubscriptionFilters({
           </div>
 
           {/* Sort Select */}
-          <div className="flex items-center gap-2.5 flex-1 sm:flex-initial">
-            <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#6F7787] w-14 shrink-0">
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+            <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#6F7787] shrink-0">
               <ArrowUpDown className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
               <span>Sort:</span>
             </div>
 
-            <div className="flex-1 sm:flex-initial">
+            <div className="flex-1 sm:flex-initial min-w-[180px]">
               <CustomSelect
                 options={sortOptions}
                 value={sortBy}
                 onChange={onSortChange}
                 ariaLabel="Sort subscriptions"
-                minWidth="w-full sm:min-w-[210px]"
+                minWidth="w-full sm:min-w-[200px]"
                 alignRight={true}
               />
             </div>

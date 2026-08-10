@@ -155,7 +155,7 @@ export default function RenewalsPageContent() {
                 >
                   {/* 1. Service Logo + Name + Plan */}
                   <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
-                    <ServiceIcon name={sub.name} category={sub.category} className="w-10 h-10 rounded-xl shrink-0" />
+                    <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-10 h-10 rounded-xl shrink-0" />
                     <div className="min-w-0 flex-1">
                       <span className="text-sm sm:text-base font-semibold text-white block">
                         {sub.name}

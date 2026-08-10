@@ -81,6 +81,7 @@ export function parseJSONSubscriptions(jsonText: string): ImportResult {
         next_billing_date: nextBillingDate,
         payment_method: item.payment_method || item.paymentMethod || item['Payment Method'] || null,
         provider_url: item.provider_url || item.providerUrl || item['Provider URL'] || null,
+        account_links: item.account_links || item.accountLinks || null,
         notes: item.notes || item.Notes || null,
       });
     });

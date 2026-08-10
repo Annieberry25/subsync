@@ -84,18 +84,16 @@ export default function ConfirmDialog({
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-[#171A21] border border-[#2B313D] rounded-[20px] p-6 space-y-5 shadow-xl"
+        className="w-full max-w-md bg-[#171A21] border border-[#2B313D] rounded-[20px] p-6 sm:p-6.5 shadow-xl flex flex-col"
       >
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3.5 min-w-0 pr-2">
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${currentVariant.iconBg}`}>
               <Icon className="w-5 h-5" />
             </div>
-            <div>
-              <h3 id="confirm-dialog-title" className="text-[28px] font-bold text-white tracking-tight leading-[36px]">
-                {title}
-              </h3>
-            </div>
+            <h3 id="confirm-dialog-title" className="text-[25px] font-bold text-white tracking-tight leading-[32px]">
+              {title}
+            </h3>
           </div>
 
           <button
@@ -108,11 +106,11 @@ export default function ConfirmDialog({
           </button>
         </div>
 
-        <p id="confirm-dialog-desc" className="text-[15px] text-[#A1AAB8] leading-[22px]">
+        <p id="confirm-dialog-desc" className="text-[15px] text-[#A1AAB8] leading-[25px] mb-6">
           {description}
         </p>
 
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-2">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
             type="button"
             onClick={onClose}

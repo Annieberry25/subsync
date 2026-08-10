@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-space-grotesk), system-ui, sans-serif;
+}
+
 @layer base {
   /* ==========================================
      SUBSYNC DESIGN SYSTEM (VERSION 2.0)
@@ -57,9 +61,13 @@
   body {
     background-color: #101215;
     color: #FFFFFF;
-    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+  }
+
+  input, select, textarea, button, table {
+    font-family: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 }
 
@@ -191,21 +199,22 @@ input::placeholder, textarea::placeholder {
 
 /* Custom Sleek Minimal Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2B313D;
+  background: #3B4252;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6F7787;
+  background: #4F46E5;
 }
 
 .no-scrollbar::-webkit-scrollbar {

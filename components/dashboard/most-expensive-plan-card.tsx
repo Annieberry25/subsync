@@ -8,6 +8,7 @@ import {
   formatCurrency,
 } from '@/lib/utils/metrics-utils';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
+import { getProviderManagementUrl } from '@/lib/services/subscription-service';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { Crown, ExternalLink, CreditCard, Calendar, Settings2 } from 'lucide-react';
 
@@ -75,19 +76,17 @@ export function MostExpensivePlanCard({ subscriptions }: MostExpensivePlanCardPr
               >
                 {/* Logo + Title + Category */}
                 <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                  <div className="w-10 h-10 rounded-xl bg-[#171A21] border border-[#2B313D] p-2 flex items-center justify-center shrink-0">
-                    <ServiceIcon name={sub.name} category={sub.category} className="w-full h-full object-contain" />
-                  </div>
+                  <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-10 h-10 rounded-xl shrink-0" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm sm:text-base font-semibold text-white">{sub.name}</span>
-                      {sub.provider_url && (
+                      {getProviderManagementUrl(sub.name, sub.provider_url) && (
                         <a
-                          href={sub.provider_url}
+                          href={getProviderManagementUrl(sub.name, sub.provider_url)!}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-[#6F7787] hover:text-white transition-colors"
-                          title="Visit provider website"
+                          title="Open subscription management page"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
@@ -145,20 +144,18 @@ export function MostExpensivePlanCard({ subscriptions }: MostExpensivePlanCardPr
       {/* Main Content Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 pt-2">
         <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 min-w-0 w-full md:w-auto">
-          <div className="w-12 h-12 rounded-xl bg-[#1D222B] border border-[#2B313D] p-2.5 flex items-center justify-center shrink-0">
-            <ServiceIcon name={topSubscription.name} category={topSubscription.category} className="w-full h-full object-contain" />
-          </div>
+          <ServiceIcon name={topSubscription.name} category={topSubscription.category} providerUrl={topSubscription.provider_url} className="w-12 h-12 rounded-xl shrink-0" />
 
           <div className="space-y-1 min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-base sm:text-[18px] font-semibold text-white leading-snug sm:leading-[24px]">{topSubscription.name}</h3>
-              {topSubscription.provider_url && (
+              {getProviderManagementUrl(topSubscription.name, topSubscription.provider_url) && (
                 <a
-                  href={topSubscription.provider_url}
+                  href={getProviderManagementUrl(topSubscription.name, topSubscription.provider_url)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#6F7787] hover:text-white transition-colors shrink-0"
-                  title="Visit provider website"
+                  title="Open subscription management page"
                 >
                   <ExternalLink className="w-4 h-4" />
                 </a>
@@ -172,15 +169,6 @@ export function MostExpensivePlanCard({ subscriptions }: MostExpensivePlanCardPr
                 <Calendar className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
                 Renews {topSubscription.next_billing_date}
               </span>
-              {topSubscription.payment_method && (
-                <>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <CreditCard className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
-                    {topSubscription.payment_method}
-                  </span>
-                </>
-              )}
             </div>
           </div>
         </div>

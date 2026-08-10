@@ -4,7 +4,6 @@ import { usePathname } from 'next/navigation';
 import { Menu, Bell } from 'lucide-react';
 
 const routeTitles: Record<string, string> = {
-  '/subscriptions': 'Subscriptions',
   '/export': 'Export & Analytics',
   '/settings': 'Settings',
 };
