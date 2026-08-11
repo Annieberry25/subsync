@@ -173,48 +173,44 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-5 max-w-4xl min-h-[80vh] pb-24 animate-fade-in text-white">
-      {/* Subtitle Header (No duplicate H1 title, header has main title) */}
-      <div className="pb-1">
-        <p className="text-xs sm:text-sm text-[#A1AAB8]">
-          Manage profile details, default currency reporting, category tags, and account settings.
-        </p>
-      </div>
+    <div className="space-y-5 max-w-4xl min-h-[80vh] pb-24 animate-fade-in text-[#F5F7F6]">
+      {/* Accessible DOM Heading */}
+      <h1 className="sr-only">Settings</h1>
 
       {/* UNIFIED WORKSPACE CARD CONTAINER */}
-      <div className="rounded-2xl bg-[#171A21] border border-[#2B313D] p-4 sm:p-6 space-y-6 shadow-xl">
+      <div className="rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] p-4 sm:p-6 space-y-6 shadow-xl">
         
         {/* 1. PROFILE SECTION */}
         <section className="space-y-4">
           <div>
-            <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">Profile</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Profile</h2>
           </div>
 
           {settingsLoading ? (
-            <div className="py-4 flex items-center justify-center gap-2 text-xs text-[#A1AAB8]">
-              <Loader2 className="w-4 h-4 animate-spin text-[#4F46E5]" />
+            <div className="py-4 flex items-center justify-center gap-2 text-xs text-[#94A3B8]">
+              <Loader2 className="w-4 h-4 animate-spin text-[#14B8A6]" />
               <span>Loading profile...</span>
             </div>
           ) : (
             <form onSubmit={handleSaveProfile} className="space-y-4">
               {/* Name (First) */}
               <div className="space-y-1">
-                <label className="text-[12px] font-medium text-[#A1AAB8] block">Name</label>
+                <label className="text-[12px] font-medium text-[#94A3B8] block">Name</label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Your Name"
-                  className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#2B313D] bg-[#1D222B] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+                  className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 />
                 {isLockedBy30Days && !isProfileUnchanged && (
-                  <p className="text-[11px] text-[#EF4444] pt-0.5 flex items-center gap-1">
+                  <p className="text-[11px] text-[#D9363E] pt-0.5 flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                     <span>Name can only be changed once every 30 days. You can change it again on {nextAllowedDateString}.</span>
                   </p>
                 )}
                 {isLockedBy30Days && isProfileUnchanged && (
-                  <p className="text-[11px] text-[#6F7787] pt-0.5">
+                  <p className="text-[11px] text-[#94A3B8] pt-0.5">
                     Name can only be changed once every 30 days. Next change allowed on {nextAllowedDateString}.
                   </p>
                 )}
@@ -222,18 +218,18 @@ export default function SettingsPage() {
 
               {/* Email Address (Second) */}
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-[#A1AAB8] block">Email Address</label>
+                <label className="text-[12px] font-medium text-[#94A3B8] block">Email Address</label>
                 <input
                   type="email"
                   disabled
                   value={email}
-                  className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#2B313D] text-[#6F7787] bg-[#1D222B] cursor-not-allowed"
+                  className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] text-[#94A3B8] bg-[#0D0F0F] cursor-not-allowed"
                 />
                 <div>
                   <button
                     type="button"
                     onClick={() => setIsChangeEmailOpen(true)}
-                    className="text-xs text-[#4F46E5] hover:text-[#6366F1] font-semibold hover:underline transition-colors cursor-pointer inline-flex items-center gap-1 pt-0.5"
+                    className="text-xs text-[#14B8A6] font-semibold hover:underline transition-colors cursor-pointer inline-flex items-center gap-1 pt-0.5"
                   >
                     Change Email
                   </button>
@@ -245,9 +241,9 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={savingProfile || isProfileUnchanged || (isLockedBy30Days && !isProfileUnchanged)}
-                  className="h-10 px-5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  className="h-10 px-5 rounded-xl bg-[#14B8A6] hover:opacity-90 disabled:opacity-50 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  {savingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  {savingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" /> : <Save className="w-3.5 h-3.5 text-[#091512]" />}
                   <span>Save Profile</span>
                 </button>
               </div>
@@ -255,16 +251,16 @@ export default function SettingsPage() {
           )}
         </section>
 
-        <div className="border-b border-[#2B313D]/70" />
+        <div className="border-b border-[#1A1D1D]" />
 
         {/* 2. CURRENCY & SPENDING SECTION */}
         <section className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">Currency & Spending</h2>
-              <p className="text-xs text-[#A1AAB8]">Reporting currency for dashboard spending metrics & analytics</p>
+              <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Currency & Spending</h2>
+              <p className="text-xs text-[#94A3B8]">Reporting currency for dashboard spending metrics & analytics</p>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#1D222B] border border-[#2B313D] text-[10px] text-[#22C55E]">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0D0F0F] border border-[#1A1D1D] text-[10px] text-[#14B8A6]">
               <RefreshCw className="w-3 h-3 animate-spin-slow" />
               <span>Rates synced</span>
             </div>
@@ -275,41 +271,41 @@ export default function SettingsPage() {
               <select
                 value={defaultCurrency}
                 onChange={(e) => handleCurrencyChange(e.target.value)}
-                className="w-full h-10 px-3.5 text-xs font-medium rounded-xl border border-[#2B313D] bg-[#1D222B] text-white focus:outline-none focus:border-[#4F46E5] transition-colors cursor-pointer"
+                className="w-full h-10 px-3.5 text-xs font-medium rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors cursor-pointer"
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
-                  <option key={c.code} value={c.code} className="bg-[#1D222B] text-white">
+                  <option key={c.code} value={c.code} className="bg-[#0D0F0F] text-[#F5F7F6]">
                     {c.code} ({c.symbol}) — {c.name}
                   </option>
                 ))}
               </select>
             </div>
-            <p className="text-[11px] sm:text-xs text-[#6F7787] leading-tight">
-              Original subscription amounts are preserved. Financial totals dynamically convert into <span className="text-white font-medium">{defaultCurrency}</span>.
+            <p className="text-[11px] sm:text-xs text-[#94A3B8] leading-tight">
+              Original subscription amounts are preserved. Financial totals dynamically convert into <span className="text-[#F5F7F6] font-medium">{defaultCurrency}</span>.
             </p>
           </div>
         </section>
 
-        <div className="border-b border-[#2B313D]/70" />
+        <div className="border-b border-[#1A1D1D]" />
 
         {/* 3. APPEARANCE SECTION */}
         <section className="space-y-3">
           <div>
-            <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">Appearance</h2>
-            <p className="text-xs text-[#A1AAB8]">Application visual environment</p>
+            <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Appearance</h2>
+            <p className="text-xs text-[#94A3B8]">Application visual environment</p>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl border border-[#4F46E5] bg-[#1D222B]">
-              <Moon className="w-4 h-4 text-[#4F46E5]" />
-              <span className="text-xs font-semibold text-white">Midnight Dark</span>
-              <Check className="w-4 h-4 text-[#22C55E] ml-1" />
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl border border-[#14B8A6] bg-[#0D0F0F]">
+              <Moon className="w-4 h-4 text-[#14B8A6]" />
+              <span className="text-xs font-semibold text-[#F5F7F6]">Midnight Dark</span>
+              <Check className="w-4 h-4 text-[#14B8A6] ml-1" />
             </div>
-            <span className="text-xs text-[#6F7787]">Active default theme</span>
+            <span className="text-xs text-[#94A3B8]">Active default theme</span>
           </div>
         </section>
 
-        <div className="border-b border-[#2B313D]/70" />
+        <div className="border-b border-[#1A1D1D]" />
 
         {/* 4. CATEGORIES SECTION */}
         <CategoryManager
@@ -317,23 +313,23 @@ export default function SettingsPage() {
           onSubscriptionsUpdated={loadSubData}
         />
 
-        <div className="border-b border-[#2B313D]/70" />
+        <div className="border-b border-[#1A1D1D]" />
 
         {/* 5. LEGAL SECTION */}
         <section className="space-y-2">
-          <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">Legal</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Legal</h2>
           <div className="flex items-center gap-4 text-xs font-medium">
             <button
               onClick={() => setLegalModalType('privacy')}
-              className="text-[#4F46E5] hover:text-[#6366F1] hover:underline cursor-pointer flex items-center gap-1"
+              className="text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>Privacy Policy</span>
             </button>
-            <span className="text-[#2B313D]">•</span>
+            <span className="text-[#1A1D1D]">•</span>
             <button
               onClick={() => setLegalModalType('terms')}
-              className="text-[#4F46E5] hover:text-[#6366F1] hover:underline cursor-pointer flex items-center gap-1"
+              className="text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
             >
               <FileText className="w-3.5 h-3.5" />
               <span>Terms of Service</span>
@@ -343,20 +339,20 @@ export default function SettingsPage() {
       </div>
 
       {/* 6. ACCOUNT DELETION SECTION (Visually distinct red accent container) */}
-      <section className="rounded-2xl bg-[#171A21] border border-[#EF4444]/30 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <section className="rounded-2xl bg-[#0B0D0D] border border-[#D9363E]/30 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-[#EF4444]" />
-            <h2 className="text-sm font-semibold text-white">Delete Account</h2>
+            <AlertTriangle className="w-4 h-4 text-[#D9363E]" />
+            <h2 className="text-sm font-semibold text-[#F5F7F6]">Delete Account</h2>
           </div>
-          <p className="text-xs text-[#A1AAB8]">
+          <p className="text-xs text-[#94A3B8]">
             Your account and all recorded subscription data will be permanently removed. This action cannot be undone.
           </p>
         </div>
 
         <button
           onClick={() => setIsDeleteAccountOpen(true)}
-          className="h-9 px-4 rounded-xl bg-[#EF4444]/10 hover:bg-[#EF4444]/20 border border-[#EF4444]/40 text-[#EF4444] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+          className="h-9 px-4 rounded-xl bg-[#D9363E]/10 hover:bg-[#D9363E]/20 border border-[#D9363E]/40 text-[#D9363E] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
         >
           <Trash2 className="w-3.5 h-3.5" />
           <span>Delete Account</span>

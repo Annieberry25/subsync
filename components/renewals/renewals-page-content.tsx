@@ -32,7 +32,7 @@ function getRenewalStatus(diffDays: number) {
     const days = Math.abs(diffDays);
     return {
       text: days === 1 ? 'Overdue by 1 day' : `Overdue by ${days} days`,
-      color: '#EF4444',
+      color: '#D9363E',
     };
   }
   if (diffDays === 0) {
@@ -44,7 +44,7 @@ function getRenewalStatus(diffDays: number) {
   if (diffDays <= 7) {
     return { text: `In ${diffDays} days`, color: '#F59E0B' };
   }
-  return { text: `In ${diffDays} days`, color: '#22C55E' };
+  return { text: `In ${diffDays} days`, color: '#14B8A6' };
 }
 
 function getCycleSuffix(billingCycle?: string): string {
@@ -96,29 +96,25 @@ export default function RenewalsPageContent() {
   }, [subscriptions]);
 
   return (
-    <div className="animate-page-transition pt-0 space-y-4 sm:space-y-5 bg-ambient-grid pb-8 sm:pb-12 overflow-x-hidden">
+    <div className="animate-page-transition space-y-4 sm:space-y-5 bg-ambient-grid pb-8 sm:pb-12 overflow-x-hidden">
       {/* Top-left Back Button */}
       <div>
         <Link
           href="/"
           prefetch={true}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#A1AAB8] hover:text-white transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Dashboard</span>
         </Link>
       </div>
 
-      {/* Page Title */}
-      <div>
-        <h1 className="text-xl sm:text-2xl md:text-[28px] font-bold text-white tracking-tight leading-tight sm:leading-[34px]">
-          Upcoming Renewals
-        </h1>
-      </div>
+      {/* Accessible DOM Heading */}
+      <h1 className="sr-only">Upcoming Renewals</h1>
 
       {/* Error Banner */}
       {error && (
-        <div className="p-4 rounded-2xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-3 text-[#EF4444] text-xs">
+        <div className="p-4 rounded-2xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-center gap-3 text-[#D9363E] text-xs">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -132,16 +128,16 @@ export default function RenewalsPageContent() {
           <SubscriptionCardSkeleton />
         </div>
       ) : upcomingRenewals.length === 0 ? (
-        <div className="p-6 sm:p-8 text-center bg-[#171A21] border border-[#2B313D] rounded-[20px]">
-          <p className="text-base font-semibold text-white">
+        <div className="p-6 sm:p-8 text-center bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px]">
+          <p className="text-base font-semibold text-[#F5F7F6]">
             No renewals in the next 30 days.
           </p>
-          <p className="text-sm text-[#A1AAB8] mt-1">
+          <p className="text-sm text-[#94A3B8] mt-1">
             You&apos;re all caught up.
           </p>
         </div>
       ) : (
-        <div className="bg-[#171A21] border border-[#2B313D]/60 rounded-[20px] space-y-3.5 p-4 sm:p-6">
+        <div className="bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px] space-y-3.5 p-4 sm:p-6">
           <div className="space-y-2.5">
             {upcomingRenewals.map(({ sub, diffDays }) => {
               const status = getRenewalStatus(diffDays);
@@ -152,23 +148,23 @@ export default function RenewalsPageContent() {
               return (
                 <div
                   key={sub.id}
-                  className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#1D222B] border border-white/[0.04] rounded-2xl transition-colors cursor-default gap-2.5 sm:gap-4 w-full"
+                  className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl transition-colors cursor-default gap-2.5 sm:gap-4 w-full"
                 >
                   {/* 1. Service Logo + Name + Plan */}
                   <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
                     <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-10 h-10 rounded-xl shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <span className="text-sm sm:text-base font-semibold text-white block">
+                      <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">
                         {sub.name}
                       </span>
-                      <span className="text-xs sm:text-[14px] text-[#A1AAB8] block mt-0.5">
+                      <span className="text-xs sm:text-[14px] text-[#94A3B8] block mt-0.5">
                         {planName}
                       </span>
                     </div>
                   </div>
 
                   {/* 2 & 3: Mobile sub-row (flex justify-between) / Desktop grid cells (sm:contents) */}
-                  <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-white/[0.04] gap-2">
+                  <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D] gap-2">
                     {/* 2. Renewal Status */}
                     <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
                       <span
@@ -181,10 +177,10 @@ export default function RenewalsPageContent() {
 
                     {/* 3. Single-line Price */}
                     <div className="text-right min-w-0 shrink-0 justify-self-end">
-                      <span className="text-base sm:text-[20px] font-bold text-white">
+                      <span className="text-base sm:text-[20px] font-bold text-[#F5F7F6]">
                         {formatCurrency(price, sub.currency || 'USD')}
                       </span>
-                      <span className="text-xs sm:text-[15px] font-normal text-[#A1AAB8]">
+                      <span className="text-xs sm:text-[15px] font-normal text-[#94A3B8]">
                         {cycleSuffix}
                       </span>
                     </div>

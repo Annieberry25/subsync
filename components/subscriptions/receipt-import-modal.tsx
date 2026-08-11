@@ -165,7 +165,7 @@ export default function ReceiptImportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -173,26 +173,26 @@ export default function ReceiptImportModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[560px] bg-[#171A21] border border-[#2B313D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
+        className="w-full max-w-[560px] bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#2B313D] pb-4 shrink-0">
+        <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-[#4F46E5]/10 border border-[#4F46E5]/20 flex items-center justify-center text-[#4F46E5]">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6]">
+              <Sparkles className="w-5 h-5 text-[#14B8A6]" />
             </div>
             <div>
-              <h2 id="receipt-modal-title" className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              <h2 id="receipt-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">
                 Import Subscription Receipt
               </h2>
-              <p className="text-xs text-[#A1AAB8]">Extract provider details from receipt files or text confirmation</p>
+              <p className="text-xs text-[#94A3B8]">Extract provider details from receipt files or text confirmation</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close import receipt modal"
-            className="w-9 h-9 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] flex items-center justify-center text-[#6F7787] hover:text-white transition-colors cursor-pointer border border-[#2B313D]"
+            className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -204,10 +204,10 @@ export default function ReceiptImportModal({
             <>
               {/* Step 1: Upload or Paste Receipt */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#A1AAB8] uppercase tracking-wider block">
+                <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
                   1. Upload Receipt File (PDF, Text, Image)
                 </label>
-                <div className="relative border-2 border-dashed border-[#2B313D] hover:border-[#4F46E5] rounded-2xl p-4 text-center bg-[#1D222B]/50 transition-colors">
+                <div className="relative border-2 border-dashed border-[#1A1D1D] hover:border-[#14B8A6] rounded-2xl p-4 text-center bg-[#0D0F0F]/50 transition-colors">
                   <input
                     type="file"
                     accept=".txt,.pdf,.png,.jpg,.jpeg"
@@ -215,17 +215,17 @@ export default function ReceiptImportModal({
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div className="flex flex-col items-center justify-center space-y-1.5 pointer-events-none">
-                    <Upload className="w-6 h-6 text-[#4F46E5]" />
-                    <span className="text-xs font-semibold text-white">
+                    <Upload className="w-6 h-6 text-[#14B8A6]" />
+                    <span className="text-xs font-semibold text-[#F5F7F6]">
                       {fileName ? `Uploaded: ${fileName}` : 'Click or drop subscription receipt here'}
                     </span>
-                    <span className="text-[11px] text-[#6F7787]">Supports PDF invoices, text receipts, or image files</span>
+                    <span className="text-[11px] text-[#94A3B8]">Supports PDF invoices, text receipts, or image files</span>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#A1AAB8] uppercase tracking-wider block">
+                <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
                   Or Paste Receipt / Confirmation Text
                 </label>
                 <textarea
@@ -233,13 +233,13 @@ export default function ReceiptImportModal({
                   placeholder="Paste your email receipt or subscription confirmation text here..."
                   value={receiptText}
                   onChange={(e) => setReceiptText(e.target.value)}
-                  className="w-full px-4 py-3 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors resize-none"
+                  className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
                 />
               </div>
 
               {/* Sample Presets */}
               <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-[#6F7787] uppercase tracking-wider block">
+                <span className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider block">
                   Try Sample Subscription Receipts:
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -248,9 +248,9 @@ export default function ReceiptImportModal({
                       key={idx}
                       type="button"
                       onClick={() => setReceiptText(sample.text)}
-                      className="px-3 py-1.5 rounded-lg bg-[#1D222B] hover:bg-[#2B313D] text-xs font-medium text-[#A1AAB8] hover:text-white border border-[#2B313D] transition-colors cursor-pointer flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center gap-1.5"
                     >
-                      <FileText className="w-3.5 h-3.5 text-[#4F46E5]" />
+                      <FileText className="w-3.5 h-3.5 text-[#14B8A6]" />
                       <span>{sample.title}</span>
                     </button>
                   ))}
@@ -260,64 +260,64 @@ export default function ReceiptImportModal({
           ) : (
             /* Step 2: Extraction Review & Confirmation */
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#22C55E] text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <div className="p-3.5 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 text-[#14B8A6] text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-[#14B8A6]" />
                 <span>Extracted subscription information. Please review before applying.</span>
               </div>
 
-              <div className="space-y-3 bg-[#1D222B] p-4 rounded-2xl border border-[#2B313D]">
-                <h3 className="text-xs font-semibold text-[#6F7787] uppercase tracking-wider">
+              <div className="space-y-3 bg-[#0D0F0F] p-4 rounded-2xl border border-[#1A1D1D]">
+                <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
                   Extracted Subscription Data
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="bg-[#171A21] p-3 rounded-xl border border-[#2B313D]">
-                    <span className="text-[#A1AAB8] block text-[11px]">Provider Name</span>
+                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                    <span className="text-[#94A3B8] block text-[11px]">Provider Name</span>
                     <input
                       type="text"
                       value={reviewData.name}
                       onChange={(e) => setReviewData({ ...reviewData, name: e.target.value })}
-                      className="w-full bg-transparent text-white font-semibold text-sm focus:outline-none mt-0.5"
+                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-sm focus:outline-none mt-0.5"
                     />
                   </div>
 
-                  <div className="bg-[#171A21] p-3 rounded-xl border border-[#2B313D]">
-                    <span className="text-[#A1AAB8] block text-[11px]">Price & Currency</span>
+                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                    <span className="text-[#94A3B8] block text-[11px]">Price & Currency</span>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-white font-semibold text-sm">$</span>
+                      <span className="text-[#F5F7F6] font-semibold text-sm">$</span>
                       <input
                         type="text"
                         value={reviewData.price}
                         onChange={(e) => setReviewData({ ...reviewData, price: e.target.value })}
-                        className="w-full bg-transparent text-white font-semibold text-sm focus:outline-none"
+                        className="w-full bg-transparent text-[#F5F7F6] font-semibold text-sm focus:outline-none"
                       />
                     </div>
                   </div>
 
-                  <div className="bg-[#171A21] p-3 rounded-xl border border-[#2B313D]">
-                    <span className="text-[#A1AAB8] block text-[11px]">Billing Cycle</span>
-                    <span className="text-white font-semibold text-xs capitalize mt-0.5 block">{reviewData.billingCycle}</span>
+                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                    <span className="text-[#94A3B8] block text-[11px]">Billing Cycle</span>
+                    <span className="text-[#F5F7F6] font-semibold text-xs capitalize mt-0.5 block">{reviewData.billingCycle}</span>
                   </div>
 
-                  <div className="bg-[#171A21] p-3 rounded-xl border border-[#2B313D]">
-                    <span className="text-[#A1AAB8] block text-[11px]">Next Billing Date</span>
+                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                    <span className="text-[#94A3B8] block text-[11px]">Next Billing Date</span>
                     <input
                       type="date"
                       value={reviewData.nextBillingDate}
                       onChange={(e) => setReviewData({ ...reviewData, nextBillingDate: e.target.value })}
-                      className="w-full bg-transparent text-white font-semibold text-xs focus:outline-none mt-0.5"
+                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
                     />
                   </div>
 
-                  <div className="bg-[#171A21] p-3 rounded-xl border border-[#2B313D]">
-                    <span className="text-[#A1AAB8] block text-[11px]">Category</span>
-                    <span className="text-white font-semibold text-xs mt-0.5 block">{reviewData.category}</span>
+                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                    <span className="text-[#94A3B8] block text-[11px]">Category</span>
+                    <span className="text-[#F5F7F6] font-semibold text-xs mt-0.5 block">{reviewData.category}</span>
                   </div>
 
                   {reviewData.plan && (
-                    <div className="bg-[#171A21] p-3 rounded-xl border border-[#2B313D]">
-                      <span className="text-[#A1AAB8] block text-[11px]">Detected Plan</span>
-                      <span className="text-white font-semibold text-xs mt-0.5 block">{reviewData.plan}</span>
+                    <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                      <span className="text-[#94A3B8] block text-[11px]">Detected Plan</span>
+                      <span className="text-[#F5F7F6] font-semibold text-xs mt-0.5 block">{reviewData.plan}</span>
                     </div>
                   )}
                 </div>
@@ -327,7 +327,7 @@ export default function ReceiptImportModal({
                 <button
                   type="button"
                   onClick={() => setReviewData(null)}
-                  className="text-xs text-[#A1AAB8] hover:text-white underline"
+                  className="text-xs text-[#94A3B8] hover:text-[#F5F7F6] underline"
                 >
                   ← Edit or re-upload text
                 </button>
@@ -337,11 +337,11 @@ export default function ReceiptImportModal({
         </div>
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#2B313D] shrink-0">
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1A1D1D] shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -350,18 +350,18 @@ export default function ReceiptImportModal({
             <button
               type="button"
               onClick={handleAnalyze}
-              className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 text-[#091512]" />
               <span>Extract Receipt Info</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={handleConfirmExtracted}
-              className="px-6 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
             >
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="w-4 h-4 text-[#091512]" />
               <span>Confirm & Populate Form</span>
             </button>
           )}

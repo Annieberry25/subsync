@@ -10,57 +10,58 @@
      Monochromatic Surface Hierarchy & Neutral Palette
      ========================================== */
   :root, .dark {
-    --bg-main: #101215;
-    --bg-section: #171A21;
-    --bg-card: #1D222B;
-    --border-main: #2B313D;
+    --bg-main: #000000;
+    --bg-section: #0B0D0D;
+    --bg-card: #0B0D0D;
+    --bg-elevated: #0F1111;
+    --border-main: #1A1D1D;
 
-    --text-primary: #FFFFFF;
-    --text-secondary: #A1AAB8;
-    --text-muted: #6F7787;
+    --text-primary: #F5F7F6;
+    --text-secondary: #94A3B8;
+    --text-muted: #94A3B8;
 
-    --accent-primary: #4F46E5;
-    --accent-hover: #4338CA;
+    --accent-primary: #14B8A6;
+    --accent-hover: #14B8A6;
 
-    --status-success: #22C55E;
+    --status-success: #14B8A6;
     --status-warning: #F59E0B;
-    --status-danger: #EF4444;
+    --status-danger: #D9363E;
 
-    /* Legacy compatibility aliases mapped strictly to v2.0 tokens */
-    --env-bg-main: #101215;
-    --env-bg-sidebar: #101215;
-    --env-bg-header: #101215;
-    --env-bg-section: #171A21;
-    --env-bg-card: #1D222B;
-    --env-bg-panel: #171A21;
-    --env-bg-hero: #171A21;
-    --env-bg-input: #1D222B;
+    /* Legacy compatibility aliases mapped strictly to tokens */
+    --env-bg-main: #000000;
+    --env-bg-sidebar: #000000;
+    --env-bg-header: #000000;
+    --env-bg-section: #0B0D0D;
+    --env-bg-card: #0B0D0D;
+    --env-bg-panel: #0B0D0D;
+    --env-bg-hero: #0B0D0D;
+    --env-bg-input: #0D0F0F;
     --env-bg-button-sec: transparent;
-    --env-bg-button-sec-hover: #2B313D;
-    --env-bg-badge: #1D222B;
+    --env-bg-button-sec-hover: #1A1D1D;
+    --env-bg-badge: #0B0D0D;
 
-    --env-border-main: #2B313D;
-    --env-border-subtle: #2B313D;
-    --env-border-hover: #4F46E5;
-    --env-border-hero: #2B313D;
+    --env-border-main: #1A1D1D;
+    --env-border-subtle: #1A1D1D;
+    --env-border-hover: #14B8A6;
+    --env-border-hero: #1A1D1D;
     --env-border-width: 1px;
     --env-section-radius: 20px;
     --env-card-radius: 16px;
 
-    --env-text-heading: #FFFFFF;
-    --env-text-body: #A1AAB8;
-    --env-text-muted: #6F7787;
-    --env-text-accent: #4F46E5;
+    --env-text-heading: #F5F7F6;
+    --env-text-body: #94A3B8;
+    --env-text-muted: #94A3B8;
+    --env-text-accent: #14B8A6;
 
-    --env-status-active: #22C55E;
+    --env-status-active: #14B8A6;
     --env-status-warning: #F59E0B;
-    --env-status-danger: #EF4444;
-    --env-status-neutral: #6F7787;
+    --env-status-danger: #D9363E;
+    --env-status-neutral: #94A3B8;
   }
 
   body {
-    background-color: #101215;
-    color: #FFFFFF;
+    background-color: #000000;
+    color: #F5F7F6;
     font-family: var(--font-space-grotesk), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
@@ -78,7 +79,7 @@
   font-size: 40px;
   line-height: 48px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #F5F7F6;
   letter-spacing: -0.02em;
 }
 
@@ -86,7 +87,7 @@
   font-size: 28px;
   line-height: 36px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #F5F7F6;
   letter-spacing: -0.01em;
 }
 
@@ -94,14 +95,14 @@
   font-size: 18px;
   line-height: 24px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: #F5F7F6;
 }
 
 .large-metric {
   font-size: 48px;
   line-height: 56px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #F5F7F6;
   letter-spacing: -0.02em;
 }
 
@@ -109,14 +110,14 @@
   font-size: 15px;
   line-height: 22px;
   font-weight: 400;
-  color: #A1AAB8;
+  color: #94A3B8;
 }
 
 .secondary-text {
   font-size: 13px;
   line-height: 18px;
   font-weight: 500;
-  color: #6F7787;
+  color: #94A3B8;
 }
 
 /* ==========================================
@@ -124,8 +125,8 @@
    ========================================== */
 .glass-panel,
 .glass-hero {
-  background-color: #171A21 !important;
-  border: 1px solid #2B313D !important;
+  background-color: #0B0D0D !important;
+  border: 1px solid #1A1D1D !important;
   border-radius: 20px !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
@@ -134,8 +135,8 @@
 }
 
 .glass-card {
-  background-color: #1D222B !important;
-  border: 1px solid #2B313D !important;
+  background-color: #0B0D0D !important;
+  border: 1px solid #1A1D1D !important;
   border-radius: 16px !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
@@ -144,26 +145,26 @@
 }
 
 .glass-card:hover {
-  border-color: #4F46E5 !important;
+  border-color: #14B8A6 !important;
 }
 
 .glass-header {
-  background-color: #101215 !important;
+  background-color: #000000 !important;
   border-bottom: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 .glass-sidebar {
-  background-color: #101215 !important;
-  border-right: 1px solid #2B313D !important;
+  background-color: #000000 !important;
+  border-right: 1px solid #1A1D1D !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
 
 .glass-popover {
-  background-color: #171A21 !important;
-  border: 1px solid #2B313D !important;
+  background-color: #0F1111 !important;
+  border: 1px solid #1A1D1D !important;
   border-radius: 16px !important;
   box-shadow: none !important;
 }
@@ -171,15 +172,15 @@
 /* Clean background grid override (No gradients/glows) */
 .bg-ambient-grid {
   background-image: none !important;
-  background-color: #101215 !important;
+  background-color: #000000 !important;
 }
 
 /* Form Controls (Inputs, Selects, Textareas) */
 input, select:not(.bg-transparent), textarea {
-  background-color: #1D222B !important;
-  border: 1px solid #2B313D !important;
+  background-color: #0D0F0F !important;
+  border: 1px solid #1A1D1D !important;
   border-radius: 12px !important;
-  color: #FFFFFF !important;
+  color: #F5F7F6 !important;
   font-size: 15px !important;
   min-height: 44px !important;
   transition: border-color 200ms ease-in-out !important;
@@ -187,12 +188,12 @@ input, select:not(.bg-transparent), textarea {
 
 input:focus, select:focus, textarea:focus {
   outline: none !important;
-  border-color: #4F46E5 !important;
+  border-color: #14B8A6 !important;
   box-shadow: none !important;
 }
 
 input::placeholder, textarea::placeholder {
-  color: #6F7787 !important;
+  color: #94A3B8 !important;
 }
 
 /* Custom Sleek Minimal Scrollbar */
@@ -207,12 +208,12 @@ input::placeholder, textarea::placeholder {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3B4252;
+  background: #1A1D1D;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4F46E5;
+  background: #14B8A6;
 }
 
 .no-scrollbar::-webkit-scrollbar {

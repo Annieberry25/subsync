@@ -22,10 +22,10 @@ interface SubscriptionTableProps {
 }
 
 const statusDotColors: Record<string, string> = {
-  active: 'bg-[#22C55E]',
+  active: 'bg-[#14B8A6]',
   trial: 'bg-[#F59E0B]',
   paused: 'bg-[#6B7280]',
-  canceled: 'bg-[#EF4444]',
+  canceled: 'bg-[#D9363E]',
 };
 
 function getPlanName(sub: SubscriptionRow): string {
@@ -127,7 +127,7 @@ export default function SubscriptionTable({
             right: `${menuPos.right}px`,
             top: `${menuPos.top}px`,
           }}
-          className="w-52 rounded-2xl bg-[#171A21] border border-[#2B313D] shadow-xl py-1.5 z-[9999]"
+          className="w-52 rounded-2xl bg-[#0F1111] border border-[#1A1D1D] shadow-xl py-1.5 z-[9999]"
           role="menu"
           aria-orientation="vertical"
           aria-label={`Actions for ${activeSubForMenu.name}`}
@@ -139,10 +139,10 @@ export default function SubscriptionTable({
               setActiveMenuSubId(null);
               onSelectSubscription(activeSubForMenu);
             }}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <ChevronRight className="w-3.5 h-3.5 text-[#4F46E5] shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 text-[#14B8A6] shrink-0" />
             <span>View Subscription Details</span>
           </button>
 
@@ -152,10 +152,10 @@ export default function SubscriptionTable({
               setActiveMenuSubId(null);
               onEdit(activeSubForMenu);
             }}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Edit2 className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
+            <Edit2 className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Edit Subscription</span>
           </button>
 
@@ -165,10 +165,10 @@ export default function SubscriptionTable({
               setActiveMenuSubId(null);
               onPaymentReminderRequest(activeSubForMenu);
             }}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Bell className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
+            <Bell className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Payment Reminder</span>
           </button>
 
@@ -183,14 +183,14 @@ export default function SubscriptionTable({
                 toast.info(`Managing ${activeSubForMenu.name} coming soon.`, 'Manage Plan');
               }
             }}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Settings className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
+            <Settings className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Manage Subscription</span>
           </button>
 
-          <div className="border-t border-[#2B313D] my-1" />
+          <div className="border-t border-[#1A1D1D] my-1" />
 
           <button
             type="button"
@@ -221,10 +221,10 @@ export default function SubscriptionTable({
               setActiveMenuSubId(null);
               onDeleteRequest(activeSubForMenu);
             }}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#EF4444] hover:bg-[#EF4444]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Trash2 className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
+            <Trash2 className="w-3.5 h-3.5 text-[#D9363E] shrink-0" />
             <span>Delete Subscription</span>
           </button>
         </div>,
@@ -233,12 +233,12 @@ export default function SubscriptionTable({
     : null;
 
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-[20px] bg-[#171A21] border border-[#2B313D] shadow-sm">
+    <div className="w-full max-w-full overflow-hidden rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] shadow-sm">
       {/* Contained Horizontal Scroll Wrapper */}
       <div className="w-full overflow-x-auto no-scrollbar">
         <table className="w-full text-left border-collapse min-w-[760px]">
           <thead>
-            <tr className="border-b border-[#2B313D] text-[13px] font-semibold text-[#6F7787] uppercase tracking-wider bg-[#1D222B]/60">
+            <tr className="border-b border-[#1A1D1D] text-[13px] font-semibold text-[#94A3B8] uppercase tracking-wider bg-[#0B0D0D]">
               <th className="py-4 px-5 font-semibold">Provider</th>
               <th className="py-4 px-4 font-semibold">Plan</th>
               <th className="py-4 px-4 font-semibold">Category</th>
@@ -247,7 +247,7 @@ export default function SubscriptionTable({
               <th className="py-4 px-5 text-right font-semibold">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#2B313D]/60 text-xs sm:text-sm">
+          <tbody className="divide-y divide-[#1A1D1D] text-xs sm:text-sm">
             {subscriptions.map((sub) => {
               const formattedPrice = formatCurrency(Number(sub.price), sub.currency);
               const statusDotStyle = statusDotColors[sub.status] || statusDotColors.active;
@@ -272,8 +272,8 @@ export default function SubscriptionTable({
                   key={sub.id}
                   id={`sub-card-${sub.id}`}
                   onClick={() => onSelectSubscription(sub)}
-                  className={`group transition-colors cursor-pointer hover:bg-[#1D222B]/90 ${
-                    isHighlighted ? 'bg-[#4F46E5]/15 border-l-4 border-l-[#4F46E5]' : ''
+                  className={`group transition-colors cursor-pointer hover:bg-[#0F1111] ${
+                    isHighlighted ? 'bg-[#14B8A6]/15 border-l-4 border-l-[#14B8A6]' : ''
                   }`}
                 >
                   {/* Provider (Logo + Name + Status Dot) */}
@@ -283,10 +283,10 @@ export default function SubscriptionTable({
                         name={sub.name}
                         category={sub.category}
                         providerUrl={sub.provider_url}
-                        className="w-9 h-9 rounded-xl shrink-0 border border-[#2B313D]"
+                        className="w-9 h-9 rounded-xl shrink-0 border border-[#1A1D1D]"
                       />
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white text-sm sm:text-base group-hover:text-[#6366F1] transition-colors">
+                        <span className="font-semibold text-[#F5F7F6] text-sm sm:text-base group-hover:text-[#14B8A6] transition-colors">
                           {sub.name}
                         </span>
                         <span
@@ -298,28 +298,28 @@ export default function SubscriptionTable({
                   </td>
 
                   {/* Plan */}
-                  <td className="py-4 px-4 whitespace-nowrap text-[#A1AAB8] font-medium text-xs sm:text-sm">
+                  <td className="py-4 px-4 whitespace-nowrap text-[#94A3B8] font-medium text-xs sm:text-sm">
                     {planName}
                   </td>
 
                   {/* Category */}
                   <td className="py-4 px-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-[#1D222B] border border-[#2B313D] text-[#A1AAB8]">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-[#0D0F0F] border border-[#1A1D1D] text-[#94A3B8]">
                       {sub.category}
                     </span>
                   </td>
 
                   {/* Amount */}
-                  <td className="py-4 px-4 whitespace-nowrap font-bold text-white text-sm sm:text-base">
-                    {formattedPrice} <span className="text-xs font-normal text-[#A1AAB8]">/ {sub.billing_cycle}</span>
+                  <td className="py-4 px-4 whitespace-nowrap font-bold text-[#F5F7F6] text-sm sm:text-base">
+                    {formattedPrice} <span className="text-xs font-normal text-[#94A3B8]">/ {sub.billing_cycle}</span>
                   </td>
 
                   {/* Next Billing */}
-                  <td className="py-4 px-4 whitespace-nowrap text-xs sm:text-sm text-[#A1AAB8]">
+                  <td className="py-4 px-4 whitespace-nowrap text-xs sm:text-sm text-[#94A3B8]">
                     {diffDays <= 0 ? (
-                      <span className="text-[#EF4444] font-bold">Due today</span>
+                      <span className="text-[#D9363E] font-bold">Due today</span>
                     ) : (
-                      <span>{formattedDate} <span className="text-[11px] text-[#6F7787]">({diffDays}d)</span></span>
+                      <span>{formattedDate} <span className="text-[11px] text-[#94A3B8]">({diffDays}d)</span></span>
                     )}
                   </td>
 
@@ -330,7 +330,7 @@ export default function SubscriptionTable({
                         ref={(el) => { buttonRefs.current[sub.id] = el; }}
                         type="button"
                         onClick={(e) => handleToggleMenu(e, sub)}
-                        className="w-8 h-8 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-[#6F7787] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-[#2B313D]"
+                        className="w-8 h-8 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D]"
                         title="Actions"
                         aria-label={`Actions for ${sub.name}`}
                       >

@@ -212,8 +212,8 @@ export default function DashboardV2() {
   const renewalSemantic = useMemo(() => {
     if (overdueCount > 0) {
       return {
-        iconColor: 'text-[#EF4444]',
-        textColor: 'text-[#EF4444]',
+        iconColor: 'text-[#D9363E]',
+        textColor: 'text-[#D9363E]',
         label: overdueCount === 1 ? 'Overdue subscription' : 'Overdue subscriptions',
       };
     }
@@ -232,7 +232,7 @@ export default function DashboardV2() {
   }, [overdueCount, renewingThisWeek]);
 
   return (
-    <div className="animate-page-transition pt-0 space-y-4 sm:space-y-5 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12 overflow-x-hidden">
+    <div className="animate-page-transition space-y-4 sm:space-y-5 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12 overflow-x-hidden">
       {/* 1. HEADER SECTION */}
       <div className="mb-2 sm:mb-4">
         <PersonalizedHeader
@@ -242,7 +242,7 @@ export default function DashboardV2() {
 
       {/* ERROR BANNER */}
       {error && (
-        <div className="p-4 rounded-2xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-3 text-[#EF4444] text-xs">
+        <div className="p-4 rounded-2xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-center gap-3 text-[#D9363E] text-xs">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -259,19 +259,19 @@ export default function DashboardV2() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {/* Card 1: Monthly Spend */}
-          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
+          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm sm:text-[16px] font-semibold text-white leading-tight">
+              <span className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] leading-tight">
                 Monthly Spend
               </span>
-              <DollarSign className="w-4 h-4 text-[#6F7787] shrink-0" />
+              <DollarSign className="w-4 h-4 text-[#94A3B8] shrink-0" />
             </div>
             <div className="mt-1.5 sm:mt-2">
               <div>
                 {renderFormattedCurrency(monthlySpend, defaultCurrency)}
               </div>
               <span
-                className="text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#A1AAB8] block mt-1 sm:mt-2"
+                className="text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#94A3B8] block mt-1 sm:mt-2"
               >
                 Normalized monthly expense ({defaultCurrency})
               </span>
@@ -279,15 +279,15 @@ export default function DashboardV2() {
           </div>
 
           {/* Card 2: Renewing This Week */}
-          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
+          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm sm:text-[16px] font-semibold text-white leading-tight">
+              <span className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] leading-tight">
                 Renewing This Week
               </span>
               <Calendar className={`w-4 h-4 ${renewalSemantic.iconColor} shrink-0`} />
             </div>
             <div className="mt-1.5 sm:mt-2">
-              <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white">
+              <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
                 {renewingThisWeek}
               </div>
               <span
@@ -299,19 +299,19 @@ export default function DashboardV2() {
           </div>
 
           {/* Card 3: Active Plans */}
-          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
+          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm sm:text-[16px] font-semibold text-white leading-tight">
+              <span className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] leading-tight">
                 Active Plans
               </span>
-              <CreditCard className="w-4 h-4 text-[#22C55E] shrink-0" />
+              <CreditCard className="w-4 h-4 text-[#14B8A6] shrink-0" />
             </div>
             <div className="mt-1.5 sm:mt-2">
-              <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white">
+              <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
                 {activeCount}
               </div>
               <span
-                className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#22C55E]"
+                className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#14B8A6]"
               >
                 Active & trial subscriptions
               </span>
@@ -319,19 +319,19 @@ export default function DashboardV2() {
           </div>
 
           {/* Card 4: Potential Savings */}
-          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
+          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm sm:text-[16px] font-semibold text-white leading-tight">
+              <span className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] leading-tight">
                 Potential Savings
               </span>
-              <Wallet className="w-4 h-4 text-[#A1AAB8] shrink-0" />
+              <Wallet className="w-4 h-4 text-[#94A3B8] shrink-0" />
             </div>
             <div className="mt-1.5 sm:mt-2">
               <div>
                 {renderFormattedCurrency(potentialSavings, defaultCurrency)}
               </div>
               <span
-                className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#A1AAB8]"
+                className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#94A3B8]"
               >
                 From paused/trial plans ({defaultCurrency})
               </span>

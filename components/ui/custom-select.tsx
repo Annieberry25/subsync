@@ -138,7 +138,7 @@ export function CustomSelect({
             left: `${menuPos.left}px`,
             minWidth: `${menuPos.minWidth}px`,
           }}
-          className={`p-1.5 rounded-2xl bg-[#1D222B] border border-[#2B313D] z-50 animate-in fade-in duration-100 max-w-[280px] ${
+          className={`p-1.5 rounded-2xl bg-[#0F1111] border border-[#1A1D1D] z-50 animate-in fade-in duration-100 max-w-[280px] ${
             alignRight ? 'origin-top-right' : 'origin-top-left'
           }`}
         >
@@ -155,12 +155,12 @@ export function CustomSelect({
                   }}
                   className={`w-full flex items-center justify-between px-5 py-2.5 min-h-[40px] rounded-xl text-xs font-medium transition-colors text-left cursor-pointer capitalize ${
                     isSelected
-                      ? 'bg-[#4F46E5] text-white font-semibold'
-                      : 'text-[#A1AAB8] hover:text-white hover:bg-[#2B313D]'
+                      ? 'bg-[#14B8A6] text-[#091512] font-semibold'
+                      : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
                   }`}
                 >
                   <span className="truncate">{opt.label}</span>
-                  {isSelected && <Check className="w-3.5 h-3.5 ml-3 text-white shrink-0" />}
+                  {isSelected && <Check className="w-3.5 h-3.5 ml-3 text-[#091512] shrink-0" />}
                 </button>
               );
             })}
@@ -183,14 +183,14 @@ export function CustomSelect({
         aria-expanded={isOpen}
         className={
           isBorderless
-            ? `flex items-center gap-1.5 py-1 text-sm font-medium text-white hover:text-white/80 transition-colors cursor-pointer group outline-none focus:outline-none bg-transparent border-none ${className}`
-            : `flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] border border-[#2B313D] text-xs font-medium text-white transition-colors cursor-pointer group ${minWidth} ${className}`
+            ? `flex items-center gap-1.5 py-1 text-sm font-medium text-[#F5F7F6] hover:text-[#F5F7F6]/80 transition-colors cursor-pointer group outline-none focus:outline-none bg-transparent border-none ${className}`
+            : `flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] text-xs font-medium text-[#F5F7F6] transition-colors cursor-pointer group ${minWidth} ${className}`
         }
       >
         <span className="truncate tracking-wide pr-0.5">{selectedOption.label}</span>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-[#6F7787] group-hover:text-white transition-transform duration-200 shrink-0 ${
-            isOpen ? 'rotate-180 text-[#4F46E5]' : ''
+          className={`w-3.5 h-3.5 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-transform duration-200 shrink-0 ${
+            isOpen ? 'rotate-180 text-[#14B8A6]' : ''
           }`}
         />
       </button>

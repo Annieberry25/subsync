@@ -21,10 +21,10 @@ export interface CategoryMeta {
 }
 
 export const DEFAULT_CATEGORY_META: Record<string, CategoryMeta> = {
-  Streaming: { icon: 'Film', color: '#4F46E5' },
+  Streaming: { icon: 'Film', color: '#14B8A6' },
   Software: { icon: 'Laptop', color: '#3B82F6' },
   Utilities: { icon: 'Zap', color: '#F59E0B' },
-  Fitness: { icon: 'Dumbbell', color: '#10B981' },
+  Fitness: { icon: 'Dumbbell', color: '#14B8A6' },
   Finance: { icon: 'CreditCard', color: '#22C55E' },
   Education: { icon: 'BookOpen', color: '#8B5CF6' },
   Gaming: { icon: 'Gamepad2', color: '#EC4899' },
@@ -328,7 +328,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       if (DEFAULT_CATEGORY_META[categoryName]) {
         return DEFAULT_CATEGORY_META[categoryName];
       }
-      return { icon: 'Tag', color: '#4F46E5' };
+      return { icon: 'Tag', color: '#14B8A6' };
     },
     [categoryMetadata]
   );

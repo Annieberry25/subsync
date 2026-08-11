@@ -19,12 +19,12 @@ interface SubscriptionCardProps {
   isHighlighted?: boolean;
 }
 
-// SubSync Design System v1.1 status dots (Strictly green, amber, red, neutral)
+// SubSync Design System status dots (Strictly green, amber, red, neutral)
 const statusDotColors: Record<string, string> = {
-  active: 'bg-[#22C55E]',
+  active: 'bg-[#14B8A6]',
   trial: 'bg-[#F59E0B]',
   paused: 'bg-[#6B7280]',
-  canceled: 'bg-[#EF4444]',
+  canceled: 'bg-[#D9363E]',
 };
 
 const emptySubscribe = () => () => {};
@@ -179,9 +179,7 @@ export default function SubscriptionCard({
   const handleDelete = () => {
     setMenuOpen(false);
     onDeleteRequest(subscription);
-  };
-
-  const menuPortal = menuOpen && mounted && typeof document !== 'undefined'
+  };  const menuPortal = menuOpen && mounted && typeof document !== 'undefined'
     ? createPortal(
         <div
           ref={menuRef}
@@ -190,7 +188,7 @@ export default function SubscriptionCard({
             right: `${menuPos.right}px`,
             top: `${menuPos.top}px`,
           }}
-          className="w-52 rounded-2xl bg-[#171A21] border border-[#2B313D] shadow-xl py-1.5 z-[9999]"
+          className="w-52 rounded-2xl bg-[#0F1111] border border-[#1A1D1D] shadow-xl py-1.5 z-[9999]"
           role="menu"
           aria-orientation="vertical"
           aria-label={`Actions for ${subscription.name}`}
@@ -198,40 +196,40 @@ export default function SubscriptionCard({
           <button
             type="button"
             onClick={handleEdit}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Edit2 className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
+            <Edit2 className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Edit Subscription</span>
           </button>
 
           <button
             type="button"
             onClick={handleRenewalHistory}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Clock className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
+            <Clock className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Renewal History</span>
           </button>
 
           <button
             type="button"
             onClick={handlePriceHistory}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <TrendingUp className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
+            <TrendingUp className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Price History</span>
           </button>
 
           <button
             type="button"
             onClick={handlePaymentReminder}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Bell className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
+            <Bell className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Payment Reminder</span>
           </button>
 
@@ -242,7 +240,7 @@ export default function SubscriptionCard({
                 setMenuOpen(false);
                 onDismissReminder(subscription);
               }}
-              className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F59E0B] hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+              className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F59E0B] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
               role="menuitem"
             >
               <Bell className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
@@ -253,14 +251,14 @@ export default function SubscriptionCard({
           <button
             type="button"
             onClick={handleManageSubscription}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-white hover:bg-[#2B313D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Settings className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
+            <Settings className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Manage Subscription</span>
           </button>
 
-          <div className="border-t border-[#2B313D] my-1" />
+          <div className="border-t border-[#1A1D1D] my-1" />
 
           <button
             type="button"
@@ -275,10 +273,10 @@ export default function SubscriptionCard({
           <button
             type="button"
             onClick={handleDelete}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#EF4444] hover:bg-[#EF4444]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Trash2 className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
+            <Trash2 className="w-3.5 h-3.5 text-[#D9363E] shrink-0" />
             <span>Delete Subscription</span>
           </button>
         </div>,
@@ -289,10 +287,10 @@ export default function SubscriptionCard({
   return (
     <div
       id={`sub-card-${subscription.id}`}
-      className={`w-full rounded-2xl p-5 bg-[#1D222B] flex flex-col justify-between transition-all duration-300 gap-4 ${
+      className={`w-full rounded-2xl p-5 bg-[#0B0D0D] flex flex-col justify-between transition-all duration-300 gap-4 ${
         isHighlighted
-          ? 'border-2 border-[#4F46E5] ring-2 ring-[#4F46E5]/40 shadow-lg'
-          : 'border border-[#2B313D] hover:border-[#4F46E5]'
+          ? 'border-2 border-[#14B8A6] ring-2 ring-[#14B8A6]/40 shadow-lg'
+          : 'border border-[#1A1D1D] hover:border-[#14B8A6]'
       }`}
     >
       {/* Header Row */}
@@ -305,7 +303,7 @@ export default function SubscriptionCard({
             className="w-10 h-10 rounded-xl shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-white text-[18px] leading-[24px] flex items-center gap-1.5 min-w-0 flex-wrap">
+            <h3 className="font-semibold text-[#F5F7F6] text-[18px] leading-[24px] flex items-center gap-1.5 min-w-0 flex-wrap">
               <span>{subscription.name}</span>
               {getProviderManagementUrl(subscription.name, subscription.provider_url) && (
                 <a
@@ -314,7 +312,7 @@ export default function SubscriptionCard({
                   rel="noopener noreferrer"
                   title="Open subscription management page"
                   aria-label={`Open subscription management page for ${subscription.name}`}
-                  className="text-[#6F7787] hover:text-white transition-colors p-0.5 shrink-0"
+                  className="text-[#94A3B8] hover:text-[#F5F7F6] transition-colors p-0.5 shrink-0"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
@@ -330,7 +328,7 @@ export default function SubscriptionCard({
             ref={buttonRef}
             type="button"
             onClick={handleToggleMenu}
-            className="w-9 h-9 rounded-xl bg-[#171A21] hover:bg-[#2B313D] text-[#6F7787] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-[#2B313D] shrink-0"
+            className="w-9 h-9 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
             title="Subscription actions"
             aria-label={`Actions for ${subscription.name}`}
             aria-expanded={menuOpen}
@@ -343,25 +341,25 @@ export default function SubscriptionCard({
       {/* Prominent Price Line */}
       <div className="flex items-baseline justify-between gap-2">
         <div className="min-w-0">
-          <span className="text-2xl font-bold text-white tracking-tight">{formattedPrice}</span>
-          <span className="text-[15px] text-[#A1AAB8] ml-1">/ {subscription.billing_cycle}</span>
+          <span className="text-2xl font-bold text-[#F5F7F6] tracking-tight">{formattedPrice}</span>
+          <span className="text-[15px] text-[#94A3B8] ml-1">/ {subscription.billing_cycle}</span>
         </div>
       </div>
 
       {/* Renewal Info & Category Row */}
-      <div className="flex flex-wrap items-center justify-between text-[15px] text-[#A1AAB8] min-w-0 gap-2">
+      <div className="flex flex-wrap items-center justify-between text-[15px] text-[#94A3B8] min-w-0 gap-2">
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-          <Calendar className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
-          <span className="text-[#A1AAB8]">
+          <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+          <span className="text-[#94A3B8]">
             {diffDays <= 0 ? (
-              <strong className="text-[#EF4444] font-semibold">Due today</strong>
+              <strong className="text-[#D9363E] font-semibold">Due today</strong>
             ) : (
               <>
-                Renews <strong className="text-white font-medium">{formattedDate}</strong>
+                Renews <strong className="text-[#F5F7F6] font-medium">{formattedDate}</strong>
               </>
             )}
-            <span className="mx-2 text-[#6F7787]">•</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-[#171A21] border border-[#2B313D] text-[#A1AAB8]">
+            <span className="mx-2 text-[#1A1D1D]">•</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-[#0B0D0D] border border-[#1A1D1D] text-[#94A3B8]">
               {subscription.category}
             </span>
           </span>
@@ -382,9 +380,9 @@ export default function SubscriptionCard({
 
       {/* Subscription Account Links */}
       {accountLinks.length > 0 && (
-        <div className="pt-2 border-t border-[#2B313D]/60 space-y-1.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#6F7787] uppercase tracking-wider">
-            <Link2 className="w-3 h-3 text-[#4F46E5]" />
+        <div className="pt-2 border-t border-[#1A1D1D] space-y-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">
+            <Link2 className="w-3 h-3 text-[#14B8A6]" />
             <span>Subscription Accounts</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -394,11 +392,11 @@ export default function SubscriptionCard({
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#171A21] hover:bg-[#2B313D] text-xs font-medium text-[#4F46E5] hover:text-white border border-[#2B313D] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-medium text-[#14B8A6] hover:text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer"
                 title={`Open ${link.label || 'Account'} link: ${link.url}`}
               >
                 <span>{link.label || 'Account'}</span>
-                <ExternalLink className="w-3 h-3 text-[#6F7787]" />
+                <ExternalLink className="w-3 h-3 text-[#94A3B8]" />
               </a>
             ))}
           </div>

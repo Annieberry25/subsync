@@ -67,12 +67,13 @@ export function PersonalizedHeader({
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3">
+      <h1 className="sr-only">Dashboard</h1>
       {/* Left: Greeting + Subtitle */}
       <div>
-        <h1 className="text-xl sm:text-2xl md:text-[28px] font-bold text-white tracking-tight leading-tight sm:leading-[34px]">
+        <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">
           {greeting}, {displayName}.
-        </h1>
-        <p className="text-xs sm:text-sm md:text-[16px] text-[#A1AAB8] font-normal leading-relaxed sm:leading-[24px] mt-1 block">
+        </h2>
+        <p className="text-xs sm:text-sm text-[#94A3B8] font-normal leading-relaxed mt-0.5 block">
           {renewingThisWeekCount > 0
             ? `You have ${renewingThisWeekCount} renewal${renewingThisWeekCount > 1 ? 's' : ''} this week.`
             : 'All subscription renewals are up to date for this week.'}
@@ -81,7 +82,7 @@ export function PersonalizedHeader({
 
       {/* Right: Date */}
       <div className="text-left sm:text-right shrink-0">
-        <span className="text-xs sm:text-sm md:text-[15px] font-medium text-[#A1AAB8] leading-normal sm:leading-[34px] block">
+        <span className="text-xs sm:text-sm md:text-[15px] font-medium text-[#94A3B8] leading-normal sm:leading-[34px] block">
           {formattedDate}
         </span>
       </div>

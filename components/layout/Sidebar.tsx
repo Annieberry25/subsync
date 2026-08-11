@@ -91,15 +91,15 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   const initials = getInitials(effectiveFullName || (user ? '' : 'Say Say'));
 
   const content = (
-    <div className="flex flex-col justify-between h-full bg-[#101215] overflow-y-auto">
+    <div className="flex flex-col justify-between h-full bg-[#000000] overflow-y-auto">
       <div>
         {/* Brand Logo & Mobile Close */}
-        <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-[#2B313D]">
+        <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-[#121414]">
           <Link href="/" onClick={onMobileClose} className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-xl bg-[#4F46E5] flex items-center justify-center text-white shrink-0">
-              <Zap className="w-4 h-4 fill-current text-white" />
+            <div className="w-8 h-8 rounded-xl bg-[#000000] border border-[#1A1D1D] flex items-center justify-center text-[#14B8A6] shrink-0">
+              <Zap className="w-4 h-4 fill-[#14B8A6] text-[#14B8A6]" />
             </div>
-            <span className="font-bold text-lg text-white tracking-tight">SubSync</span>
+            <span className="font-bold text-lg text-[#14B8A6] tracking-tight">SubSync</span>
           </Link>
 
           {onMobileClose && (
@@ -107,7 +107,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               type="button"
               onClick={onMobileClose}
               aria-label="Close navigation menu"
-              className="lg:hidden w-11 h-11 rounded-xl text-[#A1AAB8] hover:text-white hover:bg-[#171A21] transition-colors flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+              className="lg:hidden w-11 h-11 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] transition-colors flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
               <X className="w-5 h-5" />
             </button>
@@ -116,9 +116,6 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
         {/* Navigation Items */}
         <nav className="px-3 pt-4 pb-4 space-y-1" aria-label="Main Navigation">
-          <div className="px-3 pb-2 text-[12px] font-medium text-[#6F7787] tracking-[0.08em] uppercase">
-            Menu
-          </div>
           {navItems.map((item) => {
             if (item.name === 'History') {
               const isParentActive = pathname.startsWith('/history');
@@ -131,26 +128,26 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                     onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                     aria-label="Toggle History submenu"
                     aria-expanded={isHistoryOpen}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                    className={`w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors cursor-pointer ${
                       isParentActive
-                        ? 'text-white font-semibold hover:bg-[#171A21]'
-                        : 'text-[#A1AAB8] hover:text-white hover:bg-[#171A21]'
+                        ? 'bg-[#14B8A6]/15 text-[#14B8A6] font-semibold border border-[#1A1D1D]'
+                        : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className={`w-4 h-4 ${isParentActive ? 'text-white' : 'text-[#6F7787]'}`} />
+                      <Icon className={`w-4 h-4 ${isParentActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
                       <span>History</span>
                     </div>
                     {isHistoryOpen ? (
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className="w-4 h-4 text-[#14B8A6]" />
                     ) : (
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4 text-[#94A3B8]" />
                     )}
                   </button>
 
                   {/* Submenu Children */}
                   {isHistoryOpen && (
-                    <div className="pl-4 space-y-1 border-l border-[#2B313D] ml-5 my-1">
+                    <div className="pl-4 space-y-1 border-l border-[#1A1D1D] ml-5 my-1">
                       {historySubItems.map((sub) => {
                         const isSubActive =
                           pathname === sub.href ||
@@ -164,11 +161,11 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                             onClick={onMobileClose}
                             className={`flex items-center gap-2.5 px-3 py-2 min-h-[38px] rounded-lg text-xs transition-all ${
                               isSubActive
-                                ? 'text-white font-semibold hover:bg-[#171A21]'
-                                : 'text-[#A1AAB8] hover:text-white hover:bg-[#171A21] font-medium'
+                                ? 'bg-[#14B8A6]/15 text-[#14B8A6] font-semibold'
+                                : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                             }`}
                           >
-                            <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-white' : 'text-[#6F7787]'}`} />
+                            <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
                             <span>{sub.name}</span>
                           </Link>
                         );
@@ -187,13 +184,13 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 key={item.href}
                 href={item.href}
                 onClick={onMobileClose}
-                className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors ${
                   isActive
-                    ? 'bg-[#4F46E5]/15 text-[#4F46E5] font-semibold'
-                    : 'text-[#A1AAB8] hover:text-white hover:bg-[#171A21]'
+                    ? 'bg-[#14B8A6]/15 text-[#14B8A6] font-semibold border border-[#1A1D1D]'
+                    : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#4F46E5]' : 'text-[#6F7787]'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
                 <span>{item.name}</span>
               </Link>
             );
@@ -204,17 +201,17 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
       {/* Sidebar Footer: Upgrade Card & User Profile */}
       <div className="px-3 pt-2 pb-5 space-y-3 mt-auto">
         {/* Go Premium Card */}
-        <div className="p-2.5 rounded-xl border border-[#2B313D] bg-[#171A21] space-y-1.5">
+        <div className="p-2.5 rounded-xl border border-[#1A1D1D] bg-[#0B0D0D] space-y-1.5">
           <div className="flex items-center gap-1.5">
-            <Crown className="w-3.5 h-3.5 text-[#6F7787] shrink-0" />
-            <span className="font-medium text-[#A1AAB8] text-[11px] tracking-tight">Go Premium</span>
+            <Crown className="w-3.5 h-3.5 text-[#14B8A6] shrink-0" />
+            <span className="font-medium text-[#94A3B8] text-[11px] tracking-tight">Go Premium</span>
           </div>
-          <p className="text-[11px] text-[#6F7787] leading-snug font-normal">
+          <p className="text-[11px] text-[#94A3B8] leading-snug font-normal">
             Unlock advanced analytics & savings insights.
           </p>
           <button
             type="button"
-            className="w-full py-1.5 px-3 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[11px] font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center min-h-[36px]"
+            className="w-full py-1.5 px-3 bg-[#14B8A6] hover:opacity-90 text-[#091512] text-[11px] font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center min-h-[36px]"
           >
             Upgrade Now
           </button>
@@ -227,7 +224,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             aria-label="User profile options"
             aria-expanded={showProfileMenu}
-            className="w-full flex items-center justify-between p-2 rounded-xl border border-[#2B313D] bg-[#171A21] hover:border-[#4F46E5] transition-colors text-left group cursor-pointer"
+            className="w-full flex items-center justify-between p-2 rounded-xl border border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#14B8A6] transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               {avatarUrl ? (
@@ -235,49 +232,49 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 <img
                   src={avatarUrl}
                   alt={userName}
-                  className="w-8 h-8 rounded-full object-cover shrink-0"
+                  className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#14B8A6]/30"
                 />
               ) : initials ? (
-                <div className="w-8 h-8 rounded-full bg-[#4F46E5] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] text-xs font-bold shrink-0">
                   {initials}
                 </div>
               ) : (
-                <div className="w-8 h-8 rounded-full bg-[#2B313D] flex items-center justify-center text-[#A1AAB8] shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] shrink-0">
                   <UserIcon className="w-4 h-4" />
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <span className="text-xs font-semibold text-white tracking-tight truncate block">
+                <span className="text-xs font-semibold text-[#F5F7F6] tracking-tight truncate block">
                   {userName}
                 </span>
-                <span className="text-[11px] text-[#A1AAB8] truncate block">
+                <span className="text-[11px] text-[#94A3B8] truncate block">
                   {effectiveEmail}
                 </span>
               </div>
             </div>
-            <ChevronDown className="w-4 h-4 text-[#6F7787] group-hover:text-white transition-colors shrink-0 ml-1" />
+            <ChevronDown className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors shrink-0 ml-1" />
           </button>
 
           {/* Profile Dropdown Menu */}
           {showProfileMenu && (
             <div
-              className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-[#171A21] border border-[#2B313D] shadow-lg z-50 animate-in fade-in duration-150"
+              className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-[#0F1111] border border-[#1A1D1D] shadow-lg z-50 animate-in fade-in duration-150"
               onClick={() => setShowProfileMenu(false)}
             >
               <Link
                 href="/settings"
                 onClick={onMobileClose}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] rounded-lg transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors"
               >
-                <Settings className="w-4 h-4 text-[#6F7787]" />
+                <Settings className="w-4 h-4 text-[#94A3B8]" />
                 <span>Settings</span>
               </Link>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#D9363E] hover:bg-[#D9363E]/10 rounded-lg transition-colors cursor-pointer"
               >
-                <LogOut className="w-4 h-4 text-[#EF4444]" />
+                <LogOut className="w-4 h-4 text-[#D9363E]" />
                 <span>Sign Out</span>
               </button>
             </div>
@@ -290,7 +287,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   return (
     <>
       {/* Desktop Sidebar (Compact 240px width - Visible on lg screens 1024px+) */}
-      <aside className="w-[240px] bg-[#101215] border-r border-[#2B313D] hidden lg:flex flex-col h-screen sticky top-0 shrink-0 z-20">
+      <aside className="w-[240px] bg-[#000000] border-r border-[#1A1D1D] hidden lg:flex flex-col h-screen sticky top-0 shrink-0 z-20">
         {content}
       </aside>
 
@@ -302,7 +299,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         >
           <aside
             onClick={(e) => e.stopPropagation()}
-            className="w-[260px] max-w-[80vw] bg-[#101215] h-full shadow-2xl animate-in slide-in-from-left duration-200"
+            className="w-[260px] max-w-[80vw] bg-[#000000] h-full shadow-2xl animate-in slide-in-from-left duration-200"
           >
             {content}
           </aside>

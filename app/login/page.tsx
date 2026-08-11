@@ -6,10 +6,10 @@ export default function LoginPage() {
     <div className="w-full max-w-md space-y-6">
       {/* Brand Header */}
       <div className="flex flex-col items-center text-center space-y-2">
-        <div className="w-12 h-12 rounded-xl bg-[#4F46E5] flex items-center justify-center text-white shrink-0">
-          <Zap className="w-6 h-6 fill-current" />
+        <div className="w-12 h-12 rounded-xl bg-[#000000] border border-[#1A1D1D] flex items-center justify-center text-[#14B8A6] shrink-0">
+          <Zap className="w-6 h-6 fill-current text-[#14B8A6]" />
         </div>
-        <span className="text-2xl font-bold text-white tracking-tight">SubSync</span>
+        <span className="text-2xl font-bold text-[#14B8A6] tracking-tight">SubSync</span>
       </div>
 
       {/* Auth Card */}

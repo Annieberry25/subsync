@@ -63,16 +63,16 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-[20px] p-6 sm:p-8 bg-[#171A21] border border-[#2B313D] space-y-6">
+    <div className="w-full max-w-md rounded-[20px] p-6 sm:p-8 bg-[#0B0D0D] border border-[#1A1D1D] space-y-6 shadow-2xl">
       {/* Auth Mode Toggle Tabs */}
-      <div className="flex bg-[#1D222B] p-1 rounded-xl border border-[#2B313D]">
+      <div className="flex bg-[#0D0F0F] p-1 rounded-xl border border-[#1A1D1D]">
         <button
           type="button"
           onClick={() => { setMode('signin'); setError(null); setSuccess(null); }}
           className={`flex-1 py-2.5 min-h-[44px] text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
             mode === 'signin'
-              ? 'bg-[#4F46E5] text-white'
-              : 'text-[#A1AAB8] hover:text-white'
+              ? 'bg-[#14B8A6] text-[#091512]'
+              : 'text-[#94A3B8] hover:text-[#F5F7F6]'
           }`}
         >
           Sign In
@@ -82,8 +82,8 @@ export default function AuthForm() {
           onClick={() => { setMode('signup'); setError(null); setSuccess(null); }}
           className={`flex-1 py-2.5 min-h-[44px] text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
             mode === 'signup'
-              ? 'bg-[#4F46E5] text-white'
-              : 'text-[#A1AAB8] hover:text-white'
+              ? 'bg-[#14B8A6] text-[#091512]'
+              : 'text-[#94A3B8] hover:text-[#F5F7F6]'
           }`}
         >
           Create Account
@@ -92,10 +92,10 @@ export default function AuthForm() {
 
       {/* Header text */}
       <div className="text-center space-y-2 py-1">
-        <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight sm:leading-snug">
+        <h2 className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight leading-tight sm:leading-snug">
           {mode === 'signin' ? 'Welcome back to SubSync' : 'Create your SubSync account'}
         </h2>
-        <p className="text-xs sm:text-sm text-[#A1AAB8] leading-relaxed">
+        <p className="text-xs sm:text-sm text-[#94A3B8] leading-relaxed">
           {mode === 'signin'
             ? 'Enter your credentials to access your subscription dashboard.'
             : 'Start tracking and optimizing your recurring subscriptions today.'}
@@ -104,15 +104,15 @@ export default function AuthForm() {
 
       {/* Alerts */}
       {error && (
-        <div className="p-3.5 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-2.5 text-[#EF4444] text-xs">
+        <div className="p-3.5 rounded-xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-center gap-2.5 text-[#D9363E] text-xs">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="p-3.5 rounded-xl bg-[#22C55E]/10 border border-[#22C55E]/20 flex items-center gap-2.5 text-[#22C55E] text-xs">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div className="p-3.5 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center gap-2.5 text-[#14B8A6] text-xs">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-[#14B8A6]" />
           <span>{success}</span>
         </div>
       )}
@@ -121,10 +121,10 @@ export default function AuthForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === 'signup' && (
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-[#6F7787] block">Full Name</label>
+            <label className="text-[13px] font-medium text-[#94A3B8] block">Full Name</label>
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
-                <User className="w-4 h-4 text-[#6F7787]" />
+                <User className="w-4 h-4 text-[#94A3B8]" />
               </div>
               <input
                 type="text"
@@ -132,17 +132,17 @@ export default function AuthForm() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full pl-12 pr-4 py-2.5 text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+                className="w-full pl-12 pr-4 py-2.5 text-sm rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />
             </div>
           </div>
         )}
 
         <div className="space-y-1.5">
-          <label className="text-[13px] font-medium text-[#6F7787] block">Email Address</label>
+          <label className="text-[13px] font-medium text-[#94A3B8] block">Email Address</label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
-              <Mail className="w-4 h-4 text-[#6F7787]" />
+              <Mail className="w-4 h-4 text-[#94A3B8]" />
             </div>
             <input
               type="email"
@@ -150,16 +150,16 @@ export default function AuthForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full pl-12 pr-4 py-2.5 text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+              className="w-full pl-12 pr-4 py-2.5 text-sm rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[13px] font-medium text-[#6F7787] block">Password</label>
+          <label className="text-[13px] font-medium text-[#94A3B8] block">Password</label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
-              <Lock className="w-4 h-4 text-[#6F7787]" />
+              <Lock className="w-4 h-4 text-[#94A3B8]" />
             </div>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -168,14 +168,14 @@ export default function AuthForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full pl-12 pr-11 py-2.5 text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+              className="w-full pl-12 pr-11 py-2.5 text-sm rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               title={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6F7787] hover:text-white focus:text-white focus:outline-none transition-colors cursor-pointer p-1 rounded-md flex items-center justify-center"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#F5F7F6] focus:text-[#F5F7F6] focus:outline-none transition-colors cursor-pointer p-1 rounded-md flex items-center justify-center"
             >
               {showPassword ? (
                 <EyeOff className="w-4 h-4" />
@@ -189,17 +189,17 @@ export default function AuthForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 py-3 px-4 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer min-h-[44px]"
+          className="w-full mt-2 py-3 px-4 rounded-xl bg-[#14B8A6] hover:opacity-90 disabled:opacity-50 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer min-h-[44px]"
         >
           {loading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin text-[#091512]" />
               <span>Processing...</span>
             </>
           ) : (
             <>
               <span>{mode === 'signin' ? 'Sign In to Dashboard' : 'Create Account'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 text-[#091512]" />
             </>
           )}
         </button>

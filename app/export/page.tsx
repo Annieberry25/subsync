@@ -24,7 +24,7 @@ import {
 
 // SubSync Design System v1.1: Maximum 3 restrained colors per chart
 const chartColorPalette = [
-  { bar: 'bg-[#4F46E5]', dot: 'bg-[#4F46E5]' },
+  { bar: 'bg-[#14B8A6]', dot: 'bg-[#14B8A6]' },
   { bar: 'bg-[#94A3B8]', dot: 'bg-[#94A3B8]' },
   { bar: 'bg-[#6B7280]', dot: 'bg-[#6B7280]' },
 ];
@@ -148,15 +148,11 @@ export default function ExportPage() {
         onChange={(e) => handleFileUpload(e, 'json')}
       />
 
-      {/* Header */}
-      <div className="pb-1">
-        <p className="text-xs sm:text-sm md:text-[15px] text-[#A1AAB8] font-normal leading-relaxed sm:leading-[22px]">
-          Backup, restore, and analyze your recurring subscription expenses and category distributions.
-        </p>
-      </div>
+      {/* Accessible DOM Heading */}
+      <h1 className="sr-only">Export & Analytics</h1>
 
       {error && (
-        <div className="p-4 rounded-xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-3 text-[#EF4444] text-xs">
+        <div className="p-4 rounded-xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-center gap-3 text-[#D9363E] text-xs">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -165,12 +161,12 @@ export default function ExportPage() {
       {/* Export & Import Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* CSV Operations Card */}
-        <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4">
+        <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-4">
           <div className="flex items-center gap-3">
-            <FileSpreadsheet className="w-5 h-5 text-[#6F7787]" />
+            <FileSpreadsheet className="w-5 h-5 text-[#94A3B8]" />
             <div>
-              <h3 className="text-[18px] font-semibold text-white leading-[24px]">CSV Spreadsheet Data</h3>
-              <p className="text-[15px] text-[#A1AAB8]">Export formatted CSV or import existing CSV backup spreadsheets.</p>
+              <h3 className="text-[18px] font-semibold text-[#F5F7F6] leading-[24px]">CSV Spreadsheet Data</h3>
+              <p className="text-[15px] text-[#94A3B8]">Export formatted CSV or import existing CSV backup spreadsheets.</p>
             </div>
           </div>
 
@@ -179,9 +175,9 @@ export default function ExportPage() {
               type="button"
               onClick={handleExportCSV}
               disabled={loading || subscriptions.length === 0}
-              className="w-full py-3 px-4 min-h-[44px] rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full py-3 px-4 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 disabled:opacity-50 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4 text-[#091512]" />
               <span>Export CSV</span>
             </button>
 
@@ -189,21 +185,21 @@ export default function ExportPage() {
               type="button"
               onClick={() => csvInputRef.current?.click()}
               disabled={importing}
-              className="w-full py-3 px-4 min-h-[44px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-white border border-[#2B313D] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full py-3 px-4 min-h-[44px] rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Upload className="w-4 h-4 text-[#A1AAB8]" />
+              <Upload className="w-4 h-4 text-[#94A3B8]" />
               <span>Restore CSV</span>
             </button>
           </div>
         </div>
 
         {/* JSON Operations Card */}
-        <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-4">
+        <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-4">
           <div className="flex items-center gap-3">
-            <FileCode className="w-5 h-5 text-[#6F7787]" />
+            <FileCode className="w-5 h-5 text-[#94A3B8]" />
             <div>
-              <h3 className="text-[18px] font-semibold text-white leading-[24px]">JSON Full Data Backup</h3>
-              <p className="text-[15px] text-[#A1AAB8]">Export raw structured JSON dataset or restore previous backups.</p>
+              <h3 className="text-[18px] font-semibold text-[#F5F7F6] leading-[24px]">JSON Full Data Backup</h3>
+              <p className="text-[15px] text-[#94A3B8]">Export raw structured JSON dataset or restore previous backups.</p>
             </div>
           </div>
 
@@ -212,9 +208,9 @@ export default function ExportPage() {
               type="button"
               onClick={handleExportJSON}
               disabled={loading || subscriptions.length === 0}
-              className="w-full py-3 px-4 min-h-[44px] rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full py-3 px-4 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 disabled:opacity-50 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4 text-[#091512]" />
               <span>Export JSON</span>
             </button>
 
@@ -222,9 +218,9 @@ export default function ExportPage() {
               type="button"
               onClick={() => jsonInputRef.current?.click()}
               disabled={importing}
-              className="w-full py-3 px-4 min-h-[44px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-white border border-[#2B313D] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full py-3 px-4 min-h-[44px] rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Upload className="w-4 h-4 text-[#A1AAB8]" />
+              <Upload className="w-4 h-4 text-[#94A3B8]" />
               <span>Restore JSON</span>
             </button>
           </div>
@@ -233,23 +229,23 @@ export default function ExportPage() {
 
       {/* Restore File Preview & Confirmation Section */}
       {(pendingImports.length > 0 || importErrors.length > 0) && (
-        <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#4F46E5] space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#2B313D] pb-3">
+        <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#14B8A6] space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1A1D1D] pb-3">
             <div className="flex items-center gap-2.5">
-              <FileCheck className="w-5 h-5 text-[#4F46E5] shrink-0" />
-              <h3 className="text-base font-semibold text-white truncate">
-                Backup Restore Preview: <span className="text-[#A1AAB8] font-mono">{importedFileName}</span>
+              <FileCheck className="w-5 h-5 text-[#14B8A6] shrink-0" />
+              <h3 className="text-base font-semibold text-[#F5F7F6] truncate">
+                Backup Restore Preview: <span className="text-[#94A3B8] font-mono">{importedFileName}</span>
               </h3>
             </div>
             {pendingImports.length > 0 && (
-              <span className="text-xs px-3 py-1 rounded-xl bg-[#4F46E5]/15 text-[#4F46E5] font-semibold border border-[#4F46E5]/30 shrink-0 self-start sm:self-auto">
+              <span className="text-xs px-3 py-1 rounded-xl bg-[#14B8A6]/15 text-[#14B8A6] font-semibold border border-[#14B8A6]/30 shrink-0 self-start sm:self-auto">
                 {pendingImports.length} Valid Record(s) Ready
               </span>
             )}
           </div>
 
           {importErrors.length > 0 && (
-            <div className="space-y-1 bg-[#EF4444]/10 border border-[#EF4444]/20 p-3.5 rounded-xl text-xs text-[#EF4444]">
+            <div className="space-y-1 bg-[#D9363E]/10 border border-[#D9363E]/20 p-3.5 rounded-xl text-xs text-[#D9363E]">
               <span className="font-semibold block">Parsing Warnings / Errors:</span>
               <ul className="list-disc list-inside space-y-0.5 text-[11px]">
                 {importErrors.map((err, i) => (
@@ -261,19 +257,19 @@ export default function ExportPage() {
 
           {pendingImports.length > 0 && (
             <div className="space-y-3">
-              <div className="max-h-48 overflow-y-auto rounded-2xl border border-[#2B313D] bg-[#1D222B] p-3.5 space-y-2">
-                <div className="grid grid-cols-2 sm:grid-cols-4 text-[13px] font-medium text-[#6F7787] pb-1 border-b border-[#2B313D] gap-2">
+              <div className="max-h-48 overflow-y-auto rounded-2xl border border-[#1A1D1D] bg-[#0B0D0D] p-3.5 space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 text-[13px] font-medium text-[#94A3B8] pb-1 border-b border-[#1A1D1D] gap-2">
                   <span>Name</span>
                   <span>Price</span>
                   <span className="hidden sm:inline">Category</span>
                   <span className="hidden sm:inline">Billing Cycle</span>
                 </div>
                 {pendingImports.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-2 sm:grid-cols-4 text-xs text-white py-1 border-b border-[#2B313D] last:border-0 gap-2">
-                    <span className="font-medium text-white truncate">{item.name}</span>
+                  <div key={idx} className="grid grid-cols-2 sm:grid-cols-4 text-xs text-[#F5F7F6] py-1 border-b border-[#1A1D1D] last:border-0 gap-2">
+                    <span className="font-medium text-[#F5F7F6] truncate">{item.name}</span>
                     <span>{formatCurrency(item.price, item.currency)}</span>
-                    <span className="text-[#A1AAB8] hidden sm:inline">{item.category}</span>
-                    <span className="capitalize text-[#A1AAB8] hidden sm:inline">{item.billing_cycle}</span>
+                    <span className="text-[#94A3B8] hidden sm:inline">{item.category}</span>
+                    <span className="capitalize text-[#94A3B8] hidden sm:inline">{item.billing_cycle}</span>
                   </div>
                 ))}
               </div>
@@ -286,7 +282,7 @@ export default function ExportPage() {
                     setImportedFileName(null);
                     setImportErrors([]);
                   }}
-                  className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] transition-colors flex items-center justify-center"
+                  className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center"
                 >
                   Cancel
                 </button>
@@ -295,7 +291,7 @@ export default function ExportPage() {
                   type="button"
                   onClick={() => setShowConfirmRestore(true)}
                   disabled={importing}
-                  className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   <span>Confirm Restore ({pendingImports.length} Subscriptions)</span>
                 </button>
@@ -307,38 +303,38 @@ export default function ExportPage() {
 
       {/* Analytical Insights Highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-2">
+        <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-[#6F7787] uppercase tracking-wider block">Top Category Spend</span>
-            <Tag className="w-4 h-4 text-[#6F7787]" />
+            <span className="text-[13px] font-medium text-[#94A3B8] uppercase tracking-wider block">Top Category Spend</span>
+            <Tag className="w-4 h-4 text-[#94A3B8]" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-white">{topCategory ? topCategory.category : 'N/A'}</span>
-            <span className="text-xs text-[#A1AAB8]">
+            <span className="text-xl font-bold text-[#F5F7F6]">{topCategory ? topCategory.category : 'N/A'}</span>
+            <span className="text-xs text-[#94A3B8]">
               {topCategory ? `(${topCategory.percentage.toFixed(0)}%)` : ''}
             </span>
           </div>
-          <span className="text-[15px] text-[#A1AAB8] block truncate">
+          <span className="text-[15px] text-[#94A3B8] block truncate">
             {topCategory ? `${formatCurrency(topCategory.monthlySpend)}/mo across ${topCategory.count} items` : 'No active subscriptions'}
           </span>
         </div>
 
-        <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-2">
+        <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-[#6F7787] uppercase tracking-wider block">Average Cost / Plan</span>
-            <TrendingUp className="w-4 h-4 text-[#6F7787]" />
+            <span className="text-[13px] font-medium text-[#94A3B8] uppercase tracking-wider block">Average Cost / Plan</span>
+            <TrendingUp className="w-4 h-4 text-[#94A3B8]" />
           </div>
-          <span className="text-xl font-bold text-white">{formatCurrency(avgCost)}</span>
-          <span className="text-[15px] text-[#A1AAB8] block truncate">Per active subscription item</span>
+          <span className="text-xl font-bold text-[#F5F7F6]">{formatCurrency(avgCost)}</span>
+          <span className="text-[15px] text-[#94A3B8] block truncate">Per active subscription item</span>
         </div>
 
-        <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-2 sm:col-span-2 md:col-span-1">
+        <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-2 sm:col-span-2 md:col-span-1">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-[#6F7787] uppercase tracking-wider block">Categories Active</span>
-            <Layers className="w-4 h-4 text-[#6F7787]" />
+            <span className="text-[13px] font-medium text-[#94A3B8] uppercase tracking-wider block">Categories Active</span>
+            <Layers className="w-4 h-4 text-[#94A3B8]" />
           </div>
-          <span className="text-xl font-bold text-white">{breakdown.length}</span>
-          <span className="text-[15px] text-[#A1AAB8] block truncate">Distinct categories tracked</span>
+          <span className="text-xl font-bold text-[#F5F7F6]">{breakdown.length}</span>
+          <span className="text-[15px] text-[#94A3B8] block truncate">Distinct categories tracked</span>
         </div>
       </div>
 
@@ -346,13 +342,13 @@ export default function ExportPage() {
       {loading ? (
         <AnalyticsChartSkeleton />
       ) : (
-        <div className="p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] space-y-6">
+        <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <PieChart className="w-5 h-5 text-[#6F7787] shrink-0" />
-              <h2 className="text-[28px] font-bold text-white tracking-tight leading-[36px]">Monthly Expense Distribution</h2>
+              <PieChart className="w-5 h-5 text-[#94A3B8] shrink-0" />
+              <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Monthly Expense Distribution</h2>
             </div>
-            <span className="text-xs text-[#A1AAB8] font-medium bg-[#1D222B] px-3 py-1.5 rounded-xl border border-[#2B313D] shrink-0 self-start sm:self-auto">
+            <span className="text-xs text-[#94A3B8] font-medium bg-[#0B0D0D] px-3 py-1.5 rounded-xl border border-[#1A1D1D] shrink-0 self-start sm:self-auto">
               Total: {formatCurrency(totalMonthly)}/mo
             </span>
           </div>
@@ -360,7 +356,7 @@ export default function ExportPage() {
           {breakdown.length > 0 ? (
             <div className="space-y-4">
               {/* Visual Stack Bar (Max 3 restrained colors) */}
-              <div className="h-4 w-full bg-[#1D222B] rounded-full overflow-hidden flex p-0.5 border border-[#2B313D]">
+              <div className="h-4 w-full bg-[#0B0D0D] rounded-full overflow-hidden flex p-0.5 border border-[#1A1D1D]">
                 {breakdown.map((item, idx) => {
                   const palette = chartColorPalette[idx % chartColorPalette.length];
                   return (
@@ -380,17 +376,17 @@ export default function ExportPage() {
                   const palette = chartColorPalette[idx % chartColorPalette.length];
 
                   return (
-                    <div key={item.category} className="p-4 rounded-2xl bg-[#1D222B] border border-[#2B313D] flex items-center justify-between">
+                    <div key={item.category} className="p-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${palette.dot} shrink-0`} />
                         <div>
-                          <span className="text-base font-semibold text-white block">{item.category}</span>
-                          <span className="text-[15px] text-[#A1AAB8] block">{item.count} subscription{item.count > 1 ? 's' : ''}</span>
+                          <span className="text-base font-semibold text-[#F5F7F6] block">{item.category}</span>
+                          <span className="text-[15px] text-[#94A3B8] block">{item.count} subscription{item.count > 1 ? 's' : ''}</span>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-base font-semibold text-white block">{formatCurrency(item.monthlySpend)}/mo</span>
-                        <span className="text-xs text-[#6F7787] font-medium block">{item.percentage.toFixed(1)}%</span>
+                        <span className="text-base font-semibold text-[#F5F7F6] block">{formatCurrency(item.monthlySpend)}/mo</span>
+                        <span className="text-xs text-[#94A3B8] font-medium block">{item.percentage.toFixed(1)}%</span>
                       </div>
                     </div>
                   );
@@ -398,7 +394,7 @@ export default function ExportPage() {
               </div>
             </div>
           ) : (
-            <div className="p-8 text-center text-xs text-[#A1AAB8]">
+            <div className="p-8 text-center text-xs text-[#94A3B8]">
               No active subscriptions available to generate expense analytics.
             </div>
           )}

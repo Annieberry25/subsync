@@ -11,9 +11,9 @@ const icons = {
 };
 
 const styles = {
-  success: 'border-emerald-500/30 text-emerald-400',
+  success: 'border-[#14B8A6]/30 text-[#14B8A6]',
   error: 'border-rose-500/30 text-rose-400',
-  info: 'border-indigo-500/30 text-indigo-400',
+  info: 'border-[#14B8A6]/30 text-[#14B8A6]',
   warning: 'border-amber-500/30 text-amber-400',
 };
 

@@ -32,21 +32,22 @@ Professional, modern, focused.
 
 ## Visual Style
 
-- Deep obsidian background
-- Dark translucent glass
-- Strong backdrop blur
-- Soft indigo glow
-- Layered shadows
+- Pure black main application and sidebar background (`#000000`)
+- Dark charcoal card surfaces with subtle dark green undertone (`#101613`)
+- Elevated surfaces and modals (`#111916`)
+- Subtle dark gray/green borders (`#1C2924`)
+- Soft teal-green backdrop glow
+- Layered depth and clean contrast
 
 ## Typography
 
-- Headings: Soft white
-- Body: Cool gray
-- Muted: Slate gray
+- Headings / Primary Text: Off-white (`#F5F7F6`)
+- Body / Secondary Text: Slate gray (`#94A3B8`)
+- Muted: Dark slate gray (`#94A3B8`)
 
 ## Accent
 
-Indigo
+Teal (`#14B8A6`) with dark text (`#091512`) on primary interactive elements.
 
 ## Feeling
 

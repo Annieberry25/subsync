@@ -168,21 +168,21 @@ export function ServiceIcon({
 
   // If Logo.dev fails to load image, render SubSync styled initial fallback
   if (hasError) {
-    let accentTextClass = 'text-white';
+    let accentTextClass = 'text-[#F5F7F6]';
     if (norm.includes('netflix')) accentTextClass = 'text-[#EF4444]';
-    else if (norm.includes('spotify')) accentTextClass = 'text-[#22C55E]';
+    else if (norm.includes('spotify')) accentTextClass = 'text-[#1DB954]';
     else if (norm.includes('youtube') || norm.includes('yt')) accentTextClass = 'text-[#EF4444]';
-    else if (norm.includes('chatgpt') || norm.includes('openai') || norm.includes('gpt')) accentTextClass = 'text-[#4F46E5]';
+    else if (norm.includes('chatgpt') || norm.includes('openai') || norm.includes('gpt')) accentTextClass = 'text-[#14B8A6]';
 
     return (
-      <div className={`${className} rounded-xl bg-[#0B0D11] border border-[#262A33] text-white flex items-center justify-center shrink-0`}>
+      <div className={`${className} rounded-xl bg-[#000000] border border-[#1A1D1D] text-[#F5F7F6] flex items-center justify-center shrink-0`}>
         <span className={`font-bold text-xs ${accentTextClass}`}>{initials}</span>
       </div>
     );
   }
 
   return (
-    <div className={`${className} rounded-xl bg-[#0B0D11] border border-[#262A33] overflow-hidden flex items-center justify-center shrink-0 p-1`}>
+    <div className={`${className} rounded-xl bg-[#000000] border border-[#1A1D1D] overflow-hidden flex items-center justify-center shrink-0 p-1`}>
       <img
         src={logoUrl}
         alt={`${name} logo`}

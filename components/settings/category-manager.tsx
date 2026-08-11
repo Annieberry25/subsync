@@ -90,17 +90,17 @@ export const AVAILABLE_ICONS = [
 ];
 
 export const CATEGORY_COLORS = [
-  '#4F46E5', // SubSync Indigo Accent
+  '#14B8A6', // SubSync Teal Accent
   '#8B5CF6', // Purple
   '#EC4899', // Pink
   '#EF4444', // Red
   '#F97316', // Orange
   '#F59E0B', // Amber
-  '#10B981', // Emerald
+  '#14B8A6', // Teal
   '#22C55E', // Green
   '#06B6D4', // Cyan
   '#3B82F6', // Blue
-  '#6366F1', // Indigo Light
+  '#34D399', // Mint Teal
   '#64748B', // Slate
 ];
 
@@ -137,7 +137,7 @@ export function CategoryManager({
   // Form Field States
   const [formName, setFormName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('Tag');
-  const [selectedColor, setSelectedColor] = useState('#4F46E5');
+  const [selectedColor, setSelectedColor] = useState('#14B8A6');
 
   // Deletion States
   const [deletingCategoryName, setDeletingCategoryName] = useState<string | null>(null);
@@ -148,7 +148,7 @@ export function CategoryManager({
     setEditingCategoryName(null);
     setFormName('');
     setSelectedIcon('Sparkles');
-    setSelectedColor('#4F46E5');
+    setSelectedColor('#14B8A6');
     setIsEditorOpen(true);
   };
 
@@ -158,7 +158,7 @@ export function CategoryManager({
     setEditingCategoryName(categoryName);
     setFormName(categoryName);
     setSelectedIcon(meta.icon || 'Tag');
-    setSelectedColor(meta.color || '#4F46E5');
+    setSelectedColor(meta.color || '#14B8A6');
     setIsEditorOpen(true);
   };
 
@@ -268,15 +268,15 @@ export function CategoryManager({
       {/* SECTION HEADER */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-base sm:text-lg font-semibold text-white tracking-tight">Categories</h2>
-          <p className="text-xs text-[#A1AAB8]">Organize your subscriptions into custom categories.</p>
+          <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Categories</h2>
+          <p className="text-xs text-[#94A3B8]">Organize your subscriptions into custom categories.</p>
         </div>
 
         {!isEditorOpen && (
           <button
             type="button"
             onClick={handleOpenAdd}
-            className="h-9 px-4 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-indigo-500/10 cursor-pointer active:scale-98"
+            className="h-9 px-4 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md cursor-pointer active:scale-98"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Add Category</span>
@@ -288,10 +288,10 @@ export function CategoryManager({
       {isEditorOpen && (
         <form
           onSubmit={handleSubmitForm}
-          className="rounded-2xl bg-[#1D222B] border border-[#4F46E5]/40 p-3.5 sm:p-4 space-y-3 shadow-2xl animate-fade-in"
+          className="rounded-2xl bg-[#0B0D0D] border border-[#14B8A6]/40 p-3.5 sm:p-4 space-y-3 shadow-2xl animate-fade-in"
         >
-          <div className="flex items-center justify-between border-b border-[#2B313D] pb-2.5">
-            <h3 className="text-xs sm:text-sm font-semibold text-white flex items-center gap-2">
+          <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-2.5">
+            <h3 className="text-xs sm:text-sm font-semibold text-[#F5F7F6] flex items-center gap-2">
               <span
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: selectedColor }}
@@ -301,7 +301,7 @@ export function CategoryManager({
             <button
               type="button"
               onClick={handleCancelForm}
-              className="p-1 rounded-lg text-[#6F7787] hover:text-white hover:bg-[#2B313D] transition-colors cursor-pointer"
+              className="p-1 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
               title="Close editor"
             >
               <X className="w-4 h-4" />
@@ -310,7 +310,7 @@ export function CategoryManager({
 
           {/* 1. Category Name */}
           <div className="space-y-1">
-            <label className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-[#A1AAB8] block">
+            <label className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-[#94A3B8] block">
               Category Name
             </label>
             <input
@@ -319,16 +319,16 @@ export function CategoryManager({
               onChange={(e) => setFormName(e.target.value)}
               placeholder="e.g. Netflix, Cloud Services, Work Tools..."
               autoFocus
-              className="w-full h-9 px-3 text-xs rounded-xl border border-[#2B313D] bg-[#101215] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+              className="w-full h-9 px-3 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
 
           {/* 2. Icon Selection */}
           <div className="space-y-1">
-            <label className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-[#A1AAB8] block">
+            <label className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-[#94A3B8] block">
               Icon
             </label>
-            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 p-2 rounded-xl bg-[#101215] border border-[#2B313D] max-h-32 overflow-y-auto custom-scrollbar">
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 p-2 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] max-h-32 overflow-y-auto custom-scrollbar">
               {AVAILABLE_ICONS.map((item) => {
                 const isSelected = selectedIcon === item.name;
                 return (
@@ -339,8 +339,8 @@ export function CategoryManager({
                     title={item.label}
                     className={`h-8 w-full rounded-lg flex items-center justify-center transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#4F46E5]/20 border-2 text-white scale-105'
-                        : 'bg-[#1D222B] border border-[#2B313D] text-[#A1AAB8] hover:text-white hover:bg-[#2B313D]'
+                        ? 'bg-[#14B8A6]/15 border-2 text-[#F5F7F6] scale-105'
+                        : 'bg-[#0B0D0D] border border-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
                     }`}
                     style={{
                       borderColor: isSelected ? selectedColor : undefined,
@@ -356,10 +356,10 @@ export function CategoryManager({
 
           {/* 3. Colour Selection */}
           <div className="space-y-1">
-            <label className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-[#A1AAB8] block">
+            <label className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-[#94A3B8] block">
               Colour
             </label>
-            <div className="flex items-center flex-wrap gap-2 p-2 rounded-xl bg-[#101215] border border-[#2B313D]">
+            <div className="flex items-center flex-wrap gap-2 p-2 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D]">
               {CATEGORY_COLORS.map((hex) => {
                 const isSelected = selectedColor.toLowerCase() === hex.toLowerCase();
                 return (
@@ -368,7 +368,7 @@ export function CategoryManager({
                     type="button"
                     onClick={() => setSelectedColor(hex)}
                     className={`w-6.5 h-6.5 rounded-full transition-transform cursor-pointer relative flex items-center justify-center ${
-                      isSelected ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-[#101215]' : 'hover:scale-105 opacity-80 hover:opacity-100'
+                      isSelected ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-[#0D0F0F]' : 'hover:scale-105 opacity-80 hover:opacity-100'
                     }`}
                     style={{ backgroundColor: hex }}
                   >
@@ -380,17 +380,17 @@ export function CategoryManager({
           </div>
 
           {/* 4. Action Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#2B313D]">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1A1D1D]">
             <button
               type="button"
               onClick={handleCancelForm}
-              className="h-8.5 px-3.5 rounded-xl text-xs font-semibold text-[#A1AAB8] hover:text-white bg-[#101215] hover:bg-[#2B313D] border border-[#2B313D] transition-colors cursor-pointer"
+              className="h-8.5 px-3.5 rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="h-8.5 px-4 rounded-xl text-xs font-semibold text-white bg-[#4F46E5] hover:bg-[#4338CA] transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/10"
+              className="h-8.5 px-4 rounded-xl text-xs font-semibold text-[#091512] bg-[#14B8A6] hover:opacity-90 transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
             >
               <Check className="w-3.5 h-3.5" />
               <span>{editingCategoryName ? 'Save Changes' : 'Create Category'}</span>
@@ -409,7 +409,7 @@ export function CategoryManager({
           return (
             <div
               key={cat}
-              className="group p-3 rounded-2xl bg-[#1D222B] border border-[#2B313D] hover:border-[#4F46E5]/40 transition-all flex items-center justify-between gap-2 shadow-sm min-w-0"
+              className="group p-3 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#14B8A6]/40 transition-all flex items-center justify-between gap-2 shadow-sm min-w-0"
             >
               {/* Left Side: Icon & Title & Subtitle Badge */}
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -429,19 +429,19 @@ export function CategoryManager({
 
                 <div className="min-w-0 space-y-0.5 flex-1">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-semibold text-white truncate block">{cat}</span>
+                    <span className="text-xs font-semibold text-[#F5F7F6] truncate block">{cat}</span>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                     <span
                       className={`text-[9px] px-1.5 py-0.2 rounded font-medium shrink-0 ${
                         isBuiltIn
-                          ? 'bg-[#2B313D]/70 text-[#A1AAB8]'
-                          : 'bg-[#4F46E5]/15 text-[#818CF8] border border-[#4F46E5]/30'
+                          ? 'bg-[#1A1D1D]/70 text-[#94A3B8]'
+                          : 'bg-[#14B8A6]/15 text-[#14B8A6] border border-[#14B8A6]/30'
                       }`}
                     >
                       {isBuiltIn ? 'Default' : 'Custom'}
                     </span>
-                    <span className="text-[10px] text-[#6F7787] whitespace-nowrap shrink-0">
+                    <span className="text-[10px] text-[#94A3B8] whitespace-nowrap shrink-0">
                       {count} plan{count === 1 ? '' : 's'}
                     </span>
                   </div>
@@ -456,11 +456,11 @@ export function CategoryManager({
                   title={`Colour: ${meta.color}`}
                 />
 
-                <div className="flex items-center gap-0.5 bg-[#101215]/60 p-0.5 rounded-lg border border-[#2B313D]/60">
+                <div className="flex items-center gap-0.5 bg-[#000000]/60 p-0.5 rounded-lg border border-[#1A1D1D]/60">
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(cat)}
-                    className="p-1 rounded-md text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] transition-colors cursor-pointer"
+                    className="p-1 rounded-md text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
                     title="Edit Category"
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -473,7 +473,7 @@ export function CategoryManager({
                         const available = allCategories.filter((c) => c !== cat);
                         setReassignCategoryTarget(available[0] || 'Other');
                       }}
-                      className="p-1 rounded-md text-[#A1AAB8] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors cursor-pointer"
+                      className="p-1 rounded-md text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 transition-colors cursor-pointer"
                       title="Delete Category"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -504,18 +504,18 @@ export function CategoryManager({
       >
         {subscriptions.filter((s) => s.category === deletingCategoryName).length > 0 && (
           <div className="pt-2 space-y-1 text-left">
-            <label className="text-[11px] font-medium text-[#A1AAB8] block">
+            <label className="text-[11px] font-medium text-[#94A3B8] block">
               Reassign Subscriptions To:
             </label>
             <select
               value={reassignCategoryTarget}
               onChange={(e) => setReassignCategoryTarget(e.target.value)}
-              className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-[#2B313D] bg-[#101215] text-white focus:outline-none focus:border-[#4F46E5] cursor-pointer"
+              className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] cursor-pointer"
             >
               {allCategories
                 .filter((c) => c !== deletingCategoryName)
                 .map((c) => (
-                  <option key={c} value={c} className="bg-[#1D222B] text-white">
+                  <option key={c} value={c} className="bg-[#0D0F0F] text-[#F5F7F6]">
                     {c}
                   </option>
                 ))}

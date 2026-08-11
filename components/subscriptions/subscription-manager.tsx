@@ -238,18 +238,11 @@ export default function SubscriptionManager() {
   return (
     <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-72 sm:pb-80">
       {/* 1. PAGE HEADER (Primary Action: Add Subscription & View Switcher) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[28px] font-bold text-white tracking-tight leading-[34px]">
-            Subscriptions
-          </h1>
-          <p className="text-[14px] font-normal text-[#A1AAB8] mt-1">
-            Manage your active plans, recurring billing cycles, and payment reminders.
-          </p>
-        </div>
+      <div className="flex items-center justify-between sm:justify-end gap-4">
+        <h1 className="sr-only">Subscriptions</h1>
         <div className="flex items-center gap-3">
           {/* Layout View Toggle */}
-          <div className="flex items-center bg-[#171A21] border border-[#2B313D] rounded-xl p-1 shrink-0">
+          <div className="flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('table')}
@@ -257,8 +250,8 @@ export default function SubscriptionManager() {
               aria-label="Table view"
               className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'table'
-                  ? 'bg-[#4F46E5] text-white'
-                  : 'text-[#6F7787] hover:text-white hover:bg-[#1D222B]'
+                  ? 'bg-[#14B8A6] text-[#091512] font-semibold'
+                  : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
               }`}
             >
               <List className="w-4 h-4" />
@@ -271,8 +264,8 @@ export default function SubscriptionManager() {
               aria-label="Grid view"
               className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'grid'
-                  ? 'bg-[#4F46E5] text-white'
-                  : 'text-[#6F7787] hover:text-white hover:bg-[#1D222B]'
+                  ? 'bg-[#14B8A6] text-[#091512] font-semibold'
+                  : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
               }`}
             >
               <LayoutGrid className="w-4 h-4" />
@@ -286,9 +279,9 @@ export default function SubscriptionManager() {
               setEditingSubscription(null);
               setIsModalOpen(true);
             }}
-            className="px-5 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
+            className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-[#091512]" />
             <span>Add Subscription</span>
           </button>
         </div>
@@ -296,7 +289,7 @@ export default function SubscriptionManager() {
 
       {/* Error Banner */}
       {error && (
-        <div className="p-4 rounded-2xl bg-[#EF4444]/10 border border-[#EF4444]/20 flex items-center gap-3 text-[#EF4444] text-xs">
+        <div className="p-4 rounded-2xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-center gap-3 text-[#D9363E] text-xs">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -367,15 +360,15 @@ export default function SubscriptionManager() {
           </div>
         )
       ) : (
-        <div className="p-16 rounded-[20px] bg-[#171A21] border border-[#2B313D] text-center flex flex-col items-center justify-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-[#4F46E5]/10 border border-[#4F46E5]/20 flex items-center justify-center text-[#4F46E5]">
-            {hasActiveFilters ? <XCircle className="w-8 h-8 text-[#F59E0B]" /> : <CreditCard className="w-8 h-8 text-[#4F46E5]" />}
+        <div className="p-16 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] text-center flex flex-col items-center justify-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6]">
+            {hasActiveFilters ? <XCircle className="w-8 h-8 text-[#F59E0B]" /> : <CreditCard className="w-8 h-8 text-[#14B8A6]" />}
           </div>
           <div className="max-w-xs space-y-1">
-            <h3 className="text-base font-bold text-white">
+            <h3 className="text-base font-bold text-[#F5F7F6]">
               {hasActiveFilters ? 'No matching subscriptions' : 'No subscriptions added yet'}
             </h3>
-            <p className="text-xs text-[#A1AAB8]">
+            <p className="text-xs text-[#94A3B8]">
               {hasActiveFilters
                 ? 'No subscriptions match your current search terms or filter criteria.'
                 : 'Track your recurring Netflix, Spotify, or software subscriptions in one place.'}
@@ -387,7 +380,7 @@ export default function SubscriptionManager() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="px-5 py-2.5 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-white text-xs font-semibold border border-[#2B313D] transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#F5F7F6] text-xs font-semibold border border-[#1A1D1D] transition-all cursor-pointer"
               >
                 Clear All Filters
               </button>
@@ -398,7 +391,7 @@ export default function SubscriptionManager() {
                   setEditingSubscription(null);
                   setIsModalOpen(true);
                 }}
-                className="px-6 py-3 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold transition-all cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold transition-all cursor-pointer"
               >
                 Add Your First Subscription
               </button>

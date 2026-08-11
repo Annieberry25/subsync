@@ -261,12 +261,12 @@ export default function SubscriptionModal({
       >
         <div 
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-[620px] bg-[#171A21] border border-[#2B313D] rounded-t-[24px] sm:rounded-[24px] p-5 sm:p-7 space-y-5 sm:space-y-6 max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95 shadow-2xl"
+          className="w-full max-w-[620px] bg-[#0F1111] border border-[#1A1D1D] rounded-t-[24px] sm:rounded-[24px] p-5 sm:p-7 space-y-5 sm:space-y-6 max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95 shadow-2xl"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#2B313D] pb-4 shrink-0">
+          <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
             <div className="flex items-center gap-3">
-              <h2 id="modal-title" className="text-2xl sm:text-[28px] font-bold text-white tracking-tight leading-tight">
+              <h2 id="modal-title" className="text-2xl sm:text-[28px] font-bold text-[#F5F7F6] tracking-tight leading-tight">
                 {initialData ? 'Edit Subscription' : 'Add New Subscription'}
               </h2>
             </div>
@@ -275,10 +275,10 @@ export default function SubscriptionModal({
               <button
                 type="button"
                 onClick={() => setIsReceiptModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-[#4F46E5]/10 hover:bg-[#4F46E5]/20 text-[#6366F1] border border-[#4F46E5]/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[38px]"
+                className="px-3 py-2 rounded-xl bg-[#14B8A6]/15 hover:bg-[#14B8A6]/25 text-[#14B8A6] border border-[#14B8A6]/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[38px]"
                 title="Import details from subscription receipt"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 text-[#14B8A6]" />
                 <span className="hidden sm:inline">Import Receipt</span>
                 <span className="sm:hidden">Import</span>
               </button>
@@ -287,7 +287,7 @@ export default function SubscriptionModal({
                 type="button"
                 onClick={onClose}
                 aria-label="Close modal"
-                className="w-9 h-9 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] flex items-center justify-center text-[#6F7787] hover:text-white transition-colors cursor-pointer border border-[#2B313D]"
+                className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -298,7 +298,7 @@ export default function SubscriptionModal({
           <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-1.5 flex-1 min-h-0 pb-2">
             {/* Name */}
             <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-[#6F7787] block">Subscription Name *</label>
+              <label className="text-[13px] font-medium text-[#94A3B8] block">Subscription Name *</label>
               <div className="flex items-center gap-2.5">
                 <ServiceIcon name={name || 'Subscription'} category={category} providerUrl={providerUrl} className="w-11 h-11 rounded-xl shrink-0" />
                 <input
@@ -306,13 +306,13 @@ export default function SubscriptionModal({
                   placeholder="e.g. Netflix, Spotify, GitHub Pro"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className={`flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border text-white placeholder-[#6F7787] focus:outline-none transition-colors ${
-                    fieldErrors.name ? 'border-[#EF4444] focus:border-[#EF4444]' : 'border-[#2B313D] focus:border-[#4F46E5]'
+                  className={`flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none transition-colors ${
+                    fieldErrors.name ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
                   }`}
                 />
               </div>
               {fieldErrors.name && (
-                <span className="text-[11px] text-[#EF4444] font-medium flex items-center gap-1">
+                <span className="text-[11px] text-[#D9363E] font-medium flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" />
                   {fieldErrors.name}
                 </span>
@@ -322,7 +322,7 @@ export default function SubscriptionModal({
             {/* Price & Currency & Billing Cycle */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#6F7787] block">Price *</label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Price *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -332,38 +332,38 @@ export default function SubscriptionModal({
                     setPrice(e.target.value);
                     if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: undefined }));
                   }}
-                  className={`w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border text-white placeholder-[#6F7787] focus:outline-none transition-colors ${
-                    fieldErrors.price ? 'border-[#EF4444] focus:border-[#EF4444]' : 'border-[#2B313D] focus:border-[#4F46E5]'
+                  className={`w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none transition-colors ${
+                    fieldErrors.price ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
                   }`}
                 />
                 {fieldErrors.price && (
-                  <span className="text-[10px] text-[#EF4444] font-medium">{fieldErrors.price}</span>
+                  <span className="text-[10px] text-[#D9363E] font-medium">{fieldErrors.price}</span>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#6F7787] block">Currency</label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Currency</label>
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors"
+                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 >
-                  <option value="USD" className="bg-[#1D222B] text-white">USD ($)</option>
-                  <option value="EUR" className="bg-[#1D222B] text-white">EUR (€)</option>
-                  <option value="GBP" className="bg-[#1D222B] text-white">GBP (£)</option>
-                  <option value="CAD" className="bg-[#1D222B] text-white">CAD ($)</option>
+                  <option value="USD" className="bg-[#0D0F0F] text-[#F5F7F6]">USD ($)</option>
+                  <option value="EUR" className="bg-[#0D0F0F] text-[#F5F7F6]">EUR (€)</option>
+                  <option value="GBP" className="bg-[#0D0F0F] text-[#F5F7F6]">GBP (£)</option>
+                  <option value="CAD" className="bg-[#0D0F0F] text-[#F5F7F6]">CAD ($)</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#6F7787] block">Cycle *</label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Cycle *</label>
                 <select
                   value={billingCycle}
                   onChange={(e) => setBillingCycle(e.target.value as typeof billingCycles[number])}
-                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors capitalize"
+                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors capitalize"
                 >
                   {billingCycles.map((c) => (
-                    <option key={c} value={c} className="bg-[#1D222B] text-white capitalize">{c}</option>
+                    <option key={c} value={c} className="bg-[#0D0F0F] text-[#F5F7F6] capitalize">{c}</option>
                   ))}
                 </select>
               </div>
@@ -372,27 +372,27 @@ export default function SubscriptionModal({
             {/* Category & Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#6F7787] block">Category *</label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Category *</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as typeof categories[number])}
-                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors"
+                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 >
                   {categories.map((cat) => (
-                    <option key={cat} value={cat} className="bg-[#1D222B] text-white">{cat}</option>
+                    <option key={cat} value={cat} className="bg-[#0D0F0F] text-[#F5F7F6]">{cat}</option>
                   ))}
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#6F7787] block">Status *</label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Status *</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as typeof statuses[number])}
-                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors capitalize"
+                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors capitalize"
                 >
                   {statuses.map((s) => (
-                    <option key={s} value={s} className="bg-[#1D222B] text-white capitalize">{s}</option>
+                    <option key={s} value={s} className="bg-[#0D0F0F] text-[#F5F7F6] capitalize">{s}</option>
                   ))}
                 </select>
               </div>
@@ -401,19 +401,19 @@ export default function SubscriptionModal({
             {/* Next Billing Date & Quick Presets (Contract & Renewal Section) */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[13px] font-medium text-[#6F7787] block">Next Billing Date *</label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Next Billing Date *</label>
                 <div className="flex items-center gap-2 text-[11px]">
                   <button
                     type="button"
                     onClick={() => setQuickDate(1)}
-                    className="px-3 py-1 min-h-[32px] rounded-lg bg-[#1D222B] hover:bg-[#2B313D] text-[#A1AAB8] hover:text-white transition-colors cursor-pointer border border-[#2B313D]"
+                    className="px-3 py-1 min-h-[32px] rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
                   >
                     +1 Month
                   </button>
                   <button
                     type="button"
                     onClick={() => setQuickDate(12)}
-                    className="px-3 py-1 min-h-[32px] rounded-lg bg-[#1D222B] hover:bg-[#2B313D] text-[#A1AAB8] hover:text-white transition-colors cursor-pointer border border-[#2B313D]"
+                    className="px-3 py-1 min-h-[32px] rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
                   >
                     +1 Year
                   </button>
@@ -423,18 +423,18 @@ export default function SubscriptionModal({
                 type="date"
                 value={nextBillingDate}
                 onChange={(e) => setNextBillingDate(e.target.value)}
-                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white focus:outline-none focus:border-[#4F46E5] transition-colors"
+                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />
               {fieldErrors.date && (
-                <span className="text-[10px] text-[#EF4444] font-medium">{fieldErrors.date}</span>
+                <span className="text-[10px] text-[#D9363E] font-medium">{fieldErrors.date}</span>
               )}
             </div>
 
             {/* Provider Website Field */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[13px] font-medium text-[#6F7787] flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-[#4F46E5]" />
+                <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-[#14B8A6]" />
                   <span>Provider Website</span>
                 </label>
               </div>
@@ -443,14 +443,14 @@ export default function SubscriptionModal({
                   href={providerUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-[#4F46E5] hover:text-[#6366F1] flex items-center justify-between transition-colors truncate font-medium group"
+                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#14B8A6] hover:underline flex items-center justify-between transition-colors truncate font-medium group"
                   title="Open provider's subscription page"
                 >
                   <span className="truncate">{providerUrl}</span>
-                  <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-2 text-[#6F7787] group-hover:text-[#6366F1] transition-colors" />
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-2 text-[#94A3B8] transition-colors" />
                 </a>
               ) : (
-                <div className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-[#6F7787] flex items-center">
+                <div className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#94A3B8] flex items-center">
                   Not configured
                 </div>
               )}
@@ -459,22 +459,22 @@ export default function SubscriptionModal({
             {/* Subscription Accounts Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-[13px] font-medium text-[#6F7787] flex items-center gap-1.5">
-                  <Link2 className="w-3.5 h-3.5 text-[#4F46E5]" />
+                <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-[#14B8A6]" />
                   <span>Subscription Accounts</span>
                 </label>
                 <button
                   type="button"
                   onClick={handleAddAccountLink}
-                  className="px-3 py-1.5 rounded-lg bg-[#4F46E5]/10 hover:bg-[#4F46E5]/20 text-[#6366F1] border border-[#4F46E5]/30 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-[#14B8A6]/15 hover:bg-[#14B8A6]/25 text-[#14B8A6] border border-[#14B8A6]/30 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5 text-[#14B8A6]" />
                   <span>Add account link</span>
                 </button>
               </div>
 
               {accountLinks.length === 0 ? (
-                <div className="p-3 text-center rounded-xl bg-[#1D222B] border border-[#2B313D] text-xs text-[#6F7787]">
+                <div className="p-3 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-xs text-[#94A3B8]">
                   No account entries added yet. Click &quot;Add account link&quot; to configure your accounts.
                 </div>
               ) : (
@@ -495,11 +495,11 @@ export default function SubscriptionModal({
                     const hasAccountUrl = Boolean(effectiveAccountUrl);
 
                     return (
-                      <div key={link.id} className="space-y-3 pt-2 pb-1 border-b border-[#2B313D]/40 last:border-b-0">
+                      <div key={link.id} className="space-y-3 pt-2 pb-1 border-b border-[#1A1D1D]/40 last:border-b-0">
                         {/* Account Type Header with Delete Row Button */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="space-y-1.5 flex-1 min-w-0">
-                            <label className="text-[13px] font-medium text-[#6F7787] block">
+                            <label className="text-[13px] font-medium text-[#94A3B8] block">
                               Account Type {accountLinks.length > 1 ? `#${idx + 1}` : ''}
                             </label>
                             <CustomSelect
@@ -514,7 +514,7 @@ export default function SubscriptionModal({
                           <button
                             type="button"
                             onClick={() => handleRemoveAccountLink(link.id)}
-                            className="w-8 h-8 rounded-lg text-[#6F7787] hover:text-[#EF4444] hover:bg-[#EF4444]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0 mt-3"
+                            className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0 mt-3"
                             title="Delete account row"
                             aria-label="Delete account row"
                           >
@@ -524,21 +524,21 @@ export default function SubscriptionModal({
 
                         {/* Account URL */}
                         <div className="space-y-1.5">
-                          <label className="text-[13px] font-medium text-[#6F7787] block">Account URL</label>
+                          <label className="text-[13px] font-medium text-[#94A3B8] block">Account URL</label>
                           <div className="flex items-center gap-2">
                             <input
                               type="url"
                               placeholder="Account URL (optional)"
                               value={link.url || ''}
                               onChange={(e) => handleUpdateAccountLink(link.id, 'url', e.target.value)}
-                              className="flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+                              className="flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
                             />
                             {hasAccountUrl ? (
                               <a
                                 href={effectiveAccountUrl!}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="h-11 w-11 shrink-0 rounded-xl bg-[#1D222B] border border-[#2B313D] hover:bg-[#2B313D] text-[#A1AAB8] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                                className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer"
                                 title={
                                   customUrl
                                     ? 'Open custom account URL in new tab'
@@ -552,7 +552,7 @@ export default function SubscriptionModal({
                                 type="button"
                                 disabled
                                 title="Enter an Account URL or select a known provider to open account destination"
-                                className="h-11 w-11 shrink-0 rounded-xl bg-[#1D222B] border border-[#2B313D] text-[#A1AAB8] flex items-center justify-center transition-colors opacity-40 cursor-not-allowed"
+                                className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#94A3B8] flex items-center justify-center transition-colors opacity-40 cursor-not-allowed"
                               >
                                 <ExternalLink className="w-4 h-4" />
                               </button>
@@ -568,33 +568,33 @@ export default function SubscriptionModal({
 
             {/* Notes */}
             <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-[#6F7787] block">Notes (Optional)</label>
+              <label className="text-[13px] font-medium text-[#94A3B8] block">Notes (Optional)</label>
               <textarea
                 rows={2}
                 placeholder="Additional renewal notes or plan tier details..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-4 py-3 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors resize-none"
+                className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
               />
             </div>
 
             {/* Form Actions */}
-            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4 border-t border-[#2B313D] shrink-0">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4 border-t border-[#1A1D1D] shrink-0">
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl min-h-[44px] text-xs font-semibold text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] transition-colors cursor-pointer flex items-center justify-center"
+                className="w-full sm:w-auto px-5 py-3 rounded-xl min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl min-h-[44px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl min-h-[44px] bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin text-[#091512]" />
                     <span>Saving...</span>
                   </>
                 ) : (

@@ -281,23 +281,23 @@ export function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
   return (
     <div
       onClick={() => setIsOpen((prev) => !prev)}
-      className="p-4 sm:p-5 md:p-6 rounded-[20px] bg-[#171A21] border border-[#2B313D] cursor-pointer transition-all duration-300 hover:border-[#3B4252] select-none"
+      className="p-4 sm:p-5 md:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] cursor-pointer transition-all duration-300 hover:border-[#14B8A6]/40 select-none"
     >
       {/* Header Row: Always displays 💡 "Smart Insight" Title + Short 1-Sentence Preview (when Collapsed) + Chevron */}
       <div className="flex items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1 overflow-hidden">
-          <div className="w-9 h-9 rounded-xl bg-[#1D222B] border border-[#2B313D] flex items-center justify-center shrink-0">
-            <Lightbulb className="w-5 h-5 text-[#F59E0B]" />
+          <div className="w-9 h-9 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-center shrink-0">
+            <Lightbulb className="w-5 h-5 text-[#14B8A6]" />
           </div>
 
           <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 overflow-hidden">
-            <h3 className="text-base sm:text-[17px] font-semibold text-white tracking-tight shrink-0">
+            <h3 className="text-base sm:text-[17px] font-semibold text-[#F5F7F6] tracking-tight shrink-0">
               Smart Insight
             </h3>
 
             {/* Collapsed One-Sentence Preview (Without Category Name) */}
             {!isOpen && (
-              <span className="text-xs sm:text-[14px] text-[#A1AAB8] min-w-0 flex-1 block leading-tight truncate sm:whitespace-normal">
+              <span className="text-xs sm:text-[14px] text-[#94A3B8] min-w-0 flex-1 block leading-tight truncate sm:whitespace-normal">
                 {selectedInsight.preview}
               </span>
             )}
@@ -305,10 +305,10 @@ export function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
         </div>
 
         {/* Animated Chevron ▼ / ▲ */}
-        <div className="w-8 h-8 rounded-lg bg-[#1D222B] border border-[#2B313D] flex items-center justify-center shrink-0 ml-auto">
+        <div className="w-8 h-8 rounded-lg bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-center shrink-0 ml-auto">
           <ChevronDown
-            className={`w-4 h-4 text-[#A1AAB8] transition-transform duration-300 ${
-              isOpen ? 'rotate-180 text-white' : ''
+            className={`w-4 h-4 text-[#94A3B8] transition-transform duration-300 ${
+              isOpen ? 'rotate-180 text-[#F5F7F6]' : ''
             }`}
           />
         </div>
@@ -318,24 +318,24 @@ export function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
       <div
         className={`grid transition-all duration-300 ease-in-out ${
           isOpen
-            ? 'grid-rows-[1fr] opacity-100 mt-4 sm:mt-5 pt-4 sm:pt-5 border-t border-[#2B313D]/60'
+            ? 'grid-rows-[1fr] opacity-100 mt-4 sm:mt-5 pt-4 sm:pt-5 border-t border-[#1A1D1D]'
             : 'grid-rows-[0fr] opacity-0 mt-0 pt-0 border-t-0'
         }`}
       >
         <div className="overflow-hidden">
           <div className="pl-0 sm:pl-[50px] space-y-3 pt-0.5">
             {/* Clean Heading (e.g. "Spending Trend") without duplicate icon or purple badge */}
-            <h4 className="text-sm sm:text-[16px] font-semibold text-white tracking-tight">
+            <h4 className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] tracking-tight">
               {selectedInsight.title}
             </h4>
 
             {/* Conversational Friendly Assistant Advice */}
-            <p className="text-xs sm:text-[15px] text-[#A1AAB8] leading-relaxed sm:leading-[26px] max-w-3xl font-normal">
-              <span className="text-white font-medium">
+            <p className="text-xs sm:text-[15px] text-[#94A3B8] leading-relaxed sm:leading-[26px] max-w-3xl font-normal">
+              <span className="text-[#F5F7F6] font-medium">
                 {selectedInsight.observation}{' '}
               </span>
               <span>{selectedInsight.meaning} </span>
-              <span className="text-[#C1C8D4]">
+              <span className="text-[#94A3B8]">
                 {selectedInsight.recommendation}
               </span>
             </p>
@@ -345,7 +345,6 @@ export function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
     </div>
   );
 }
-
 
 
 

@@ -56,8 +56,8 @@ export default function ConfirmDialog({
   const variantStyles = {
     danger: {
       icon: Trash2,
-      iconBg: 'bg-[#EF4444]/10 border-[#EF4444]/20 text-[#EF4444]',
-      btnBg: 'bg-[#EF4444] hover:bg-[#DC2626] text-white',
+      iconBg: 'bg-[#D9363E]/10 border-[#D9363E]/20 text-[#D9363E]',
+      btnBg: 'bg-[#D9363E] hover:bg-[#B91C1C] text-white',
     },
     warning: {
       icon: AlertTriangle,
@@ -66,8 +66,8 @@ export default function ConfirmDialog({
     },
     info: {
       icon: RefreshCw,
-      iconBg: 'bg-[#4F46E5]/10 border-[#4F46E5]/20 text-[#4F46E5]',
-      btnBg: 'bg-[#4F46E5] hover:bg-[#4338CA] text-white',
+      iconBg: 'bg-[#14B8A6]/15 border-[#14B8A6]/30 text-[#14B8A6]',
+      btnBg: 'bg-[#14B8A6] hover:opacity-90 text-[#091512] font-semibold',
     },
   };
 
@@ -86,14 +86,14 @@ export default function ConfirmDialog({
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-[#171A21] border border-[#2B313D] rounded-[20px] p-6 sm:p-6.5 shadow-xl flex flex-col"
+        className="w-full max-w-md bg-[#0F1111] border border-[#1A1D1D] rounded-[20px] p-6 sm:p-6.5 shadow-xl flex flex-col"
       >
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3.5 min-w-0 pr-2">
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${currentVariant.iconBg}`}>
               <Icon className="w-5 h-5" />
             </div>
-            <h3 id="confirm-dialog-title" className="text-[25px] font-bold text-white tracking-tight leading-[32px]">
+            <h3 id="confirm-dialog-title" className="text-[25px] font-bold text-[#F5F7F6] tracking-tight leading-[32px]">
               {title}
             </h3>
           </div>
@@ -102,13 +102,13 @@ export default function ConfirmDialog({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-[#6F7787] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-[#2B313D] shrink-0"
+            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <p id="confirm-dialog-desc" className="text-[15px] text-[#A1AAB8] leading-[25px] mb-4">
+        <p id="confirm-dialog-desc" className="text-[15px] text-[#94A3B8] leading-[25px] mb-4">
           {description}
         </p>
 
@@ -119,7 +119,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#A1AAB8] hover:text-white hover:bg-[#2B313D] transition-colors cursor-pointer flex items-center justify-center"
+            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
           >
             {cancelText}
           </button>
