@@ -182,8 +182,6 @@ input, select:not(.bg-transparent), textarea {
   color: #FFFFFF !important;
   font-size: 15px !important;
   min-height: 44px !important;
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
   transition: border-color 200ms ease-in-out !important;
 }
 

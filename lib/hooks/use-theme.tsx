@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
-export type Theme = 'midnight' | 'light';
+export type Theme = 'midnight';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -15,7 +15,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('subsync-theme') as Theme | null;
-      if (saved === 'midnight' || saved === 'light') {
+      if (saved === 'midnight') {
         return saved;
       }
     }
@@ -27,10 +27,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     root.classList.add('theme-switching');
 
-    const isLight = newTheme === 'light';
-
-    root.classList.toggle('dark', !isLight);
-    root.classList.toggle('light', isLight);
+    root.classList.add('dark');
+    root.classList.remove('light');
 
     void root.offsetHeight;
 

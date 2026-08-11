@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Mail, Lock, User, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 export default function AuthForm() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-[20px] p-5 sm:p-8 bg-[#171A21] border border-[#2B313D] space-y-5 sm:space-y-6">
+    <div className="w-full max-w-md rounded-[20px] p-6 sm:p-8 bg-[#171A21] border border-[#2B313D] space-y-6">
       {/* Auth Mode Toggle Tabs */}
       <div className="flex bg-[#1D222B] p-1 rounded-xl border border-[#2B313D]">
         <button
@@ -90,11 +91,11 @@ export default function AuthForm() {
       </div>
 
       {/* Header text */}
-      <div className="text-center">
-        <h2 className="text-xl sm:text-[28px] font-bold text-white tracking-tight leading-snug sm:leading-[36px]">
+      <div className="text-center space-y-2 py-1">
+        <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-tight sm:leading-snug">
           {mode === 'signin' ? 'Welcome back to SubSync' : 'Create your SubSync account'}
         </h2>
-        <p className="text-xs sm:text-[15px] text-[#A1AAB8] mt-1 leading-relaxed sm:leading-[22px]">
+        <p className="text-xs sm:text-sm text-[#A1AAB8] leading-relaxed">
           {mode === 'signin'
             ? 'Enter your credentials to access your subscription dashboard.'
             : 'Start tracking and optimizing your recurring subscriptions today.'}
@@ -122,14 +123,16 @@ export default function AuthForm() {
           <div className="space-y-1.5">
             <label className="text-[13px] font-medium text-[#6F7787] block">Full Name</label>
             <div className="relative">
-              <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787]" />
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                <User className="w-4 h-4 text-[#6F7787]" />
+              </div>
               <input
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+                className="w-full pl-12 pr-4 py-2.5 text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
               />
             </div>
           </div>
@@ -138,14 +141,16 @@ export default function AuthForm() {
         <div className="space-y-1.5">
           <label className="text-[13px] font-medium text-[#6F7787] block">Email Address</label>
           <div className="relative">
-            <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787]" />
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+              <Mail className="w-4 h-4 text-[#6F7787]" />
+            </div>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+              className="w-full pl-12 pr-4 py-2.5 text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
             />
           </div>
         </div>
@@ -153,16 +158,31 @@ export default function AuthForm() {
         <div className="space-y-1.5">
           <label className="text-[13px] font-medium text-[#6F7787] block">Password</label>
           <div className="relative">
-            <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787]" />
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+              <Lock className="w-4 h-4 text-[#6F7787]" />
+            </div>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+              className="w-full pl-12 pr-11 py-2.5 text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              title={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6F7787] hover:text-white focus:text-white focus:outline-none transition-colors cursor-pointer p-1 rounded-md flex items-center justify-center"
+            >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
           </div>
         </div>
 

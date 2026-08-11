@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { 
   fetchSubscriptions, 
-  getCachedSubscriptions,
+  getCachedSubscriptions, 
+  filterActiveSubscriptions,
   type SubscriptionRow 
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
@@ -81,7 +82,7 @@ export default function RenewalsPageContent() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return subscriptions
+    return filterActiveSubscriptions(subscriptions)
       .filter((sub) => sub.status === 'active' || sub.status === 'trial')
       .map((sub) => {
         const nextDate = new Date(sub.next_billing_date);

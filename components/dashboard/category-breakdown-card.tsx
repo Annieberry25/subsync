@@ -1,6 +1,9 @@
+'use client';
+
 import { calculateCategoryBreakdown } from '@/lib/utils/analytics-utils';
 import { calculateMonthlySpend, formatCurrency } from '@/lib/utils/metrics-utils';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
+import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { PieChart, Tag } from 'lucide-react';
 
 interface CategoryBreakdownCardProps {
@@ -15,8 +18,10 @@ const chartColorPalette = [
 ];
 
 export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardProps) {
-  const breakdown = calculateCategoryBreakdown(subscriptions);
-  const totalMonthlySpend = calculateMonthlySpend(subscriptions);
+  const { defaultCurrency, exchangeRates } = useUserSettings();
+
+  const breakdown = calculateCategoryBreakdown(subscriptions, defaultCurrency, exchangeRates);
+  const totalMonthlySpend = calculateMonthlySpend(subscriptions, defaultCurrency, exchangeRates);
 
   // SVG Donut Chart Calculation
   const radius = 68;
@@ -84,7 +89,7 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
                       strokeLinecap="round"
                       fill="none"
                     >
-                      <title>{`${item.category}: ${formatCurrency(item.monthlySpend)} (${item.percentage.toFixed(1)}%)`}</title>
+                      <title>{`${item.category}: ${formatCurrency(item.monthlySpend, defaultCurrency)} (${item.percentage.toFixed(1)}%)`}</title>
                     </circle>
                   );
                 })}
@@ -96,7 +101,7 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
                   Total Monthly
                 </span>
                 <span className="text-xl sm:text-2xl font-bold text-white tracking-tight block">
-                  {formatCurrency(totalMonthlySpend)}
+                  {formatCurrency(totalMonthlySpend, defaultCurrency)}
                 </span>
                 <span className="text-[11px] sm:text-[13px] text-[#6F7787] block">
                   {breakdown.length} {breakdown.length === 1 ? 'category' : 'categories'}
@@ -130,7 +135,7 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
                   <div className="text-left xs:text-right shrink-0 flex items-center justify-between xs:justify-end gap-3 sm:gap-4 w-full xs:w-auto pt-2 xs:pt-0 border-t xs:border-t-0 border-[#2B313D]/60">
                     <div>
                       <span className="text-sm sm:text-base font-semibold text-white block">
-                        {formatCurrency(item.monthlySpend)}
+                        {formatCurrency(item.monthlySpend, defaultCurrency)}
                       </span>
                       <span className="text-xs sm:text-[13px] text-[#6F7787] block">
                         / mo

@@ -316,18 +316,80 @@ export function parseAccountLinks(subscription: SubscriptionRow | null | undefin
   return [];
 }
 
-export function cleanNotesUserText(notesText: string | null | undefined): string {
-  if (!notesText) return '';
-  return notesText.replace(/\[AccountLinks:\s*\[.*?\]\]/g, '').trim();
+export interface HistoryStateMetadata {
+  state: 'archived' | 'deleted';
+  previousStatus?: 'active' | 'paused' | 'canceled' | 'trial';
+  archivedAt?: string;
+  deletedAt?: string;
 }
 
-export function formatNotesWithAccountLinks(userNotes: string | null | undefined, links: AccountLink[]): string | null {
-  const clean = cleanNotesUserText(userNotes);
-  if (!links || links.length === 0) {
-    return clean || null;
+export interface RestoredHistoryRecord {
+  id: string;
+  subscriptionId: string;
+  name: string;
+  provider: string;
+  previousState: 'Archived' | 'Deleted';
+  dateRestored: string;
+}
+
+export function getSubscriptionHistoryState(subscription: SubscriptionRow | null | undefined): {
+  state: 'active' | 'archived' | 'deleted';
+  metadata?: HistoryStateMetadata;
+} {
+  if (!subscription || !subscription.notes) {
+    return { state: 'active' };
   }
-  const serialized = `[AccountLinks: ${JSON.stringify(links)}]`;
-  return clean ? `${clean}\n${serialized}` : serialized;
+  if (subscription.notes.includes('[HistoryState:')) {
+    try {
+      const match = subscription.notes.match(/\[HistoryState:\s*(\{.*?\})\]/);
+      if (match && match[1]) {
+        const parsed: HistoryStateMetadata = JSON.parse(match[1]);
+        if (parsed.state === 'archived' || parsed.state === 'deleted') {
+          return { state: parsed.state, metadata: parsed };
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+  return { state: 'active' };
+}
+
+export function cleanNotesUserText(notesText: string | null | undefined): string {
+  if (!notesText) return '';
+  return notesText
+    .replace(/\[AccountLinks:\s*\[.*?\]\]/g, '')
+    .replace(/\[HistoryState:\s*\{.*?\}\]/g, '')
+    .trim();
+}
+
+export function formatNotesWithAccountLinks(
+  userNotes: string | null | undefined,
+  links: AccountLink[],
+  existingHistoryState?: HistoryStateMetadata | null
+): string | null {
+  const clean = cleanNotesUserText(userNotes);
+  const parts: string[] = [];
+  if (clean) parts.push(clean);
+  if (links && links.length > 0) {
+    parts.push(`[AccountLinks: ${JSON.stringify(links)}]`);
+  }
+  if (existingHistoryState) {
+    parts.push(`[HistoryState: ${JSON.stringify(existingHistoryState)}]`);
+  }
+  return parts.length > 0 ? parts.join('\n') : null;
+}
+
+export function filterActiveSubscriptions(subscriptions: SubscriptionRow[]): SubscriptionRow[] {
+  return subscriptions.filter((sub) => getSubscriptionHistoryState(sub).state === 'active');
+}
+
+export function filterArchivedSubscriptions(subscriptions: SubscriptionRow[]): SubscriptionRow[] {
+  return subscriptions.filter((sub) => getSubscriptionHistoryState(sub).state === 'archived');
+}
+
+export function filterDeletedSubscriptions(subscriptions: SubscriptionRow[]): SubscriptionRow[] {
+  return subscriptions.filter((sub) => getSubscriptionHistoryState(sub).state === 'deleted');
 }
 
 let cachedSubscriptions: SubscriptionRow[] | null = null;
@@ -400,6 +462,123 @@ export async function deleteSubscription(id: string): Promise<{ error: Error | n
   return { error: null };
 }
 
+export async function archiveSubscription(id: string): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
+  const supabase = createClient();
+  const { data: sub, error: fetchErr } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !sub) {
+    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.') };
+  }
+
+  const links = parseAccountLinks(sub);
+  const userNotes = cleanNotesUserText(sub.notes);
+  const historyMetadata: HistoryStateMetadata = {
+    state: 'archived',
+    previousStatus: sub.status as any,
+    archivedAt: new Date().toISOString(),
+  };
+
+  const newNotes = formatNotesWithAccountLinks(userNotes, links, historyMetadata);
+
+  return await updateSubscription(id, { notes: newNotes });
+}
+
+export async function softDeleteSubscription(id: string): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
+  const supabase = createClient();
+  const { data: sub, error: fetchErr } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !sub) {
+    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.') };
+  }
+
+  const links = parseAccountLinks(sub);
+  const userNotes = cleanNotesUserText(sub.notes);
+  const historyMetadata: HistoryStateMetadata = {
+    state: 'deleted',
+    previousStatus: sub.status as any,
+    deletedAt: new Date().toISOString(),
+  };
+
+  const newNotes = formatNotesWithAccountLinks(userNotes, links, historyMetadata);
+
+  return await updateSubscription(id, { notes: newNotes });
+}
+
+export const RESTORED_STORAGE_KEY = 'subsync_restored_history';
+
+export function getRestoredHistory(): RestoredHistoryRecord[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(RESTORED_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addRestoredHistoryRecord(record: RestoredHistoryRecord): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getRestoredHistory();
+    const updated = [record, ...current];
+    localStorage.setItem(RESTORED_STORAGE_KEY, JSON.stringify(updated));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export async function restoreSubscription(id: string): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
+  const supabase = createClient();
+  const { data: sub, error: fetchErr } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !sub) {
+    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.') };
+  }
+
+  const { state: currentState, metadata } = getSubscriptionHistoryState(sub);
+  const previousStateLabel: 'Archived' | 'Deleted' = currentState === 'archived' ? 'Archived' : 'Deleted';
+
+  const links = parseAccountLinks(sub);
+  const userNotes = cleanNotesUserText(sub.notes);
+  const newNotes = formatNotesWithAccountLinks(userNotes, links, null);
+
+  const restoredStatus = metadata?.previousStatus || 'active';
+
+  const result = await updateSubscription(id, {
+    notes: newNotes,
+    status: restoredStatus,
+  });
+
+  if (!result.error && result.data) {
+    addRestoredHistoryRecord({
+      id: `restored-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      subscriptionId: sub.id,
+      name: sub.name,
+      provider: sub.name,
+      previousState: previousStateLabel,
+      dateRestored: new Date().toISOString(),
+    });
+  }
+
+  return result;
+}
+
+export async function permanentlyDeleteSubscription(id: string): Promise<{ error: Error | null }> {
+  return await deleteSubscription(id);
+}
+
 export async function bulkCreateSubscriptions(
   items: Omit<SubscriptionInsert, 'user_id'>[]
 ): Promise<{ count: number; error: Error | null }> {
@@ -423,3 +602,4 @@ export async function bulkCreateSubscriptions(
   if (error) return { count: 0, error: new Error(error.message) };
   return { count: data?.length || 0, error: null };
 }
+

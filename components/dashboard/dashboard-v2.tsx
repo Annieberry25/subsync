@@ -7,6 +7,7 @@ import {
   createSubscription,
   updateSubscription,
   deleteSubscription,
+  filterActiveSubscriptions,
   type SubscriptionRow,
   type SubscriptionInsert,
 } from '@/lib/services/subscription-service';
@@ -19,6 +20,7 @@ import {
 } from '@/lib/utils/metrics-utils';
 import { MetricCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
+import { useUserSettings } from '@/lib/contexts/user-settings-context';
 
 import { PersonalizedHeader } from './personalized-header';
 import { UpcomingRenewalsSpotlight } from '@/components/subscriptions/upcoming-renewals-spotlight';
@@ -40,22 +42,40 @@ import {
 
 function renderFormattedCurrency(amount: number, currency = 'USD') {
   const formatted = formatCurrency(amount, currency);
+  let symbol = '';
+  let rest = formatted;
+
   if (formatted.startsWith('$')) {
+    symbol = '$';
+    rest = formatted.slice(1);
+  } else if (formatted.startsWith('₦')) {
+    symbol = '₦';
+    rest = formatted.slice(1);
+  } else if (formatted.startsWith('€')) {
+    symbol = '€';
+    rest = formatted.slice(1);
+  } else if (formatted.startsWith('£')) {
+    symbol = '£';
+    rest = formatted.slice(1);
+  }
+
+  if (symbol) {
     return (
       <span className="inline-flex items-baseline flex-wrap">
         <span
           className="mr-0.5 select-none text-xl sm:text-[24px] font-semibold text-white"
         >
-          $
+          {symbol}
         </span>
         <span
           className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white"
         >
-          {formatted.slice(1)}
+          {rest}
         </span>
       </span>
     );
   }
+
   return (
     <span
       className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white"
@@ -67,6 +87,7 @@ function renderFormattedCurrency(amount: number, currency = 'USD') {
 
 export default function DashboardV2() {
   const { toast } = useToast();
+  const { defaultCurrency, exchangeRates } = useUserSettings();
 
   const initialCache = getCachedSubscriptions();
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initialCache || []);
@@ -164,21 +185,29 @@ export default function DashboardV2() {
     toast.success('Payment reminder configured.', 'Reminder Set');
   };
 
-  // Metrics
-  const monthlySpend = useMemo(() => calculateMonthlySpend(subscriptions), [subscriptions]);
-  const renewingThisWeek = useMemo(() => getUpcomingRenewalsCount(subscriptions, 7), [subscriptions]);
-  const activeCount = useMemo(() => getActiveCount(subscriptions), [subscriptions]);
-  const potentialSavings = useMemo(() => calculatePotentialSavings(subscriptions), [subscriptions]);
+  // Metrics with User Default Currency
+  const activeSubscriptions = useMemo(() => filterActiveSubscriptions(subscriptions), [subscriptions]);
+
+  const monthlySpend = useMemo(
+    () => calculateMonthlySpend(activeSubscriptions, defaultCurrency, exchangeRates),
+    [activeSubscriptions, defaultCurrency, exchangeRates]
+  );
+  const renewingThisWeek = useMemo(() => getUpcomingRenewalsCount(activeSubscriptions, 7), [activeSubscriptions]);
+  const activeCount = useMemo(() => getActiveCount(activeSubscriptions), [activeSubscriptions]);
+  const potentialSavings = useMemo(
+    () => calculatePotentialSavings(activeSubscriptions, defaultCurrency, exchangeRates),
+    [activeSubscriptions, defaultCurrency, exchangeRates]
+  );
 
   const overdueCount = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    return subscriptions.filter((sub) => {
+    return activeSubscriptions.filter((sub) => {
       if (sub.status === 'canceled') return false;
       const nextBilling = new Date(sub.next_billing_date);
       return nextBilling < now;
     }).length;
-  }, [subscriptions]);
+  }, [activeSubscriptions]);
 
   const renewalSemantic = useMemo(() => {
     if (overdueCount > 0) {
@@ -239,12 +268,12 @@ export default function DashboardV2() {
             </div>
             <div className="mt-1.5 sm:mt-2">
               <div>
-                {renderFormattedCurrency(monthlySpend)}
+                {renderFormattedCurrency(monthlySpend, defaultCurrency)}
               </div>
               <span
                 className="text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#A1AAB8] block mt-1 sm:mt-2"
               >
-                Normalized monthly expense
+                Normalized monthly expense ({defaultCurrency})
               </span>
             </div>
           </div>
@@ -299,12 +328,12 @@ export default function DashboardV2() {
             </div>
             <div className="mt-1.5 sm:mt-2">
               <div>
-                {renderFormattedCurrency(potentialSavings)}
+                {renderFormattedCurrency(potentialSavings, defaultCurrency)}
               </div>
               <span
                 className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#A1AAB8]"
               >
-                From paused/trial plans
+                From paused/trial plans ({defaultCurrency})
               </span>
             </div>
           </div>
@@ -314,22 +343,22 @@ export default function DashboardV2() {
       {/* 3. UPCOMING RENEWALS */}
       {!loading && (
         <UpcomingRenewalsSpotlight
-          subscriptions={subscriptions}
+          subscriptions={activeSubscriptions}
         />
       )}
 
       {/* 4. SPENDING BY CATEGORY */}
-      {!loading && <CategoryBreakdownCard subscriptions={subscriptions} />}
+      {!loading && <CategoryBreakdownCard subscriptions={activeSubscriptions} />}
 
       {/* 5. MOST EXPENSIVE PLAN */}
       {!loading && (
         <MostExpensivePlanCard
-          subscriptions={subscriptions}
+          subscriptions={activeSubscriptions}
         />
       )}
 
       {/* 6. SMART INSIGHT */}
-      {!loading && <SmartInsightCard subscriptions={subscriptions} />}
+      {!loading && <SmartInsightCard subscriptions={activeSubscriptions} />}
 
       {/* Modals & Dialogs */}
       <SubscriptionModal

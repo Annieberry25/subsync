@@ -6,7 +6,9 @@ import {
   fetchSubscriptions, 
   createSubscription, 
   updateSubscription, 
-  deleteSubscription,
+  softDeleteSubscription,
+  archiveSubscription,
+  filterActiveSubscriptions,
   type SubscriptionRow,
   type SubscriptionInsert 
 } from '@/lib/services/subscription-service';
@@ -166,18 +168,29 @@ export default function SubscriptionManager() {
     await loadData();
   };
 
-  // Handle Delete Confirmation
+  // Handle Archive
+  const handleArchiveSubscription = async (sub: SubscriptionRow) => {
+    const { error: err } = await archiveSubscription(sub.id);
+    if (err) {
+      toast.error(err.message, 'Archiving Failed');
+    } else {
+      toast.success(`Moved "${sub.name}" to History → Archive.`, 'Subscription Archived');
+      await loadData();
+    }
+  };
+
+  // Handle Soft Delete Confirmation
   const handleConfirmDelete = async () => {
     if (!deletingSubscription) return;
     setDeleteLoading(true);
 
-    const { error: err } = await deleteSubscription(deletingSubscription.id);
+    const { error: err } = await softDeleteSubscription(deletingSubscription.id);
     setDeleteLoading(false);
 
     if (err) {
       toast.error(err.message, 'Deletion Failed');
     } else {
-      toast.success(`Removed "${deletingSubscription.name}" from your subscriptions.`, 'Subscription Deleted');
+      toast.success(`Moved "${deletingSubscription.name}" to History → Deleted.`, 'Subscription Moved to Deleted');
       setDeletingSubscription(null);
       await loadData();
     }
@@ -190,9 +203,12 @@ export default function SubscriptionManager() {
     setSortBy('next_billing_asc');
   };
 
-  // Filter and Sort subscriptions
+  // Active Subscriptions
+  const activeSubscriptions = useMemo(() => filterActiveSubscriptions(subscriptions), [subscriptions]);
+
+  // Filter and Sort active subscriptions
   const filteredSubscriptions = useMemo(() => {
-    return subscriptions
+    return activeSubscriptions
       .filter((sub) => {
         const matchesSearch = sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (sub.notes && sub.notes.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -215,7 +231,7 @@ export default function SubscriptionManager() {
         }
         return 0;
       });
-  }, [subscriptions, searchQuery, selectedCategory, selectedStatus, sortBy]);
+  }, [activeSubscriptions, searchQuery, selectedCategory, selectedStatus, sortBy]);
 
   const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All' || selectedStatus !== 'All';
 
@@ -432,9 +448,9 @@ export default function SubscriptionManager() {
         onClose={() => setDeletingSubscription(null)}
         onConfirm={handleConfirmDelete}
         loading={deleteLoading}
-        title={`Delete "${deletingSubscription?.name}"?`}
-        description="Are you sure you want to delete this subscription? This action cannot be undone and will update your expense analytics."
-        confirmText="Delete Subscription"
+        title={`Move "${deletingSubscription?.name}" to Deleted?`}
+        description="This subscription will be removed from your active list and moved to History → Deleted where you can review or restore it anytime."
+        confirmText="Move to Deleted"
         variant="danger"
       />
 

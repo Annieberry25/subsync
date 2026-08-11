@@ -13,6 +13,7 @@ interface ConfirmDialogProps {
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
   loading?: boolean;
+  children?: React.ReactNode;
 }
 
 export default function ConfirmDialog({
@@ -25,6 +26,7 @@ export default function ConfirmDialog({
   cancelText = 'Cancel',
   variant = 'danger',
   loading = false,
+  children,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
@@ -106,9 +108,11 @@ export default function ConfirmDialog({
           </button>
         </div>
 
-        <p id="confirm-dialog-desc" className="text-[15px] text-[#A1AAB8] leading-[25px] mb-6">
+        <p id="confirm-dialog-desc" className="text-[15px] text-[#A1AAB8] leading-[25px] mb-4">
           {description}
         </p>
+
+        {children && <div className="mb-6">{children}</div>}
 
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button

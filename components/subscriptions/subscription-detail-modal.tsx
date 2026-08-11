@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { X, ExternalLink, Calendar, DollarSign, Edit2, Settings, Bell, Archive, FileText, Clock, ShieldCheck, Link2, CheckCircle2 } from 'lucide-react';
+import { X, ExternalLink, Calendar, DollarSign, Edit2, Settings, Bell, Archive, FileText, Clock, ShieldCheck, Link2, CheckCircle2, RotateCcw } from 'lucide-react';
 import { 
   type SubscriptionRow,
   parseAccountLinks,
@@ -20,6 +20,7 @@ interface SubscriptionDetailModalProps {
   onEdit: (subscription: SubscriptionRow) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
   onPaymentReminderRequest: (subscription: SubscriptionRow) => void;
+  onRestoreRequest?: (subscription: SubscriptionRow) => void;
 }
 
 function getPlanName(sub: SubscriptionRow): string {
@@ -60,6 +61,7 @@ export default function SubscriptionDetailModal({
   onEdit,
   onDeleteRequest,
   onPaymentReminderRequest,
+  onRestoreRequest,
 }: SubscriptionDetailModalProps) {
   const { toast } = useToast();
 
@@ -336,51 +338,69 @@ export default function SubscriptionDetailModal({
         {/* Bottom Actions Bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-[#2B313D] shrink-0">
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onEdit(subscription);
-              }}
-              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer min-h-[44px]"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-              <span>Edit Subscription</span>
-            </button>
+            {onRestoreRequest ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onRestoreRequest(subscription);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#22C55E] hover:bg-[#16A34A] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer min-h-[44px]"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Restore Subscription</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onEdit(subscription);
+                  }}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer min-h-[44px]"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Subscription</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={handleManageWebsite}
-              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[#2B313D] min-h-[44px]"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-[#6F7787]" />
-              <span>Manage Plan</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleManageWebsite}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[#2B313D] min-h-[44px]"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-[#6F7787]" />
+                  <span>Manage Plan</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onPaymentReminderRequest(subscription);
-              }}
-              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-[#F59E0B] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[#2B313D] min-h-[44px]"
-            >
-              <Bell className="w-3.5 h-3.5 text-[#F59E0B]" />
-              <span>Set Reminder</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onPaymentReminderRequest(subscription);
+                  }}
+                  className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#1D222B] hover:bg-[#2B313D] text-[#F59E0B] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[#2B313D] min-h-[44px]"
+                >
+                  <Bell className="w-3.5 h-3.5 text-[#F59E0B]" />
+                  <span>Set Reminder</span>
+                </button>
+              </>
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onDeleteRequest(subscription);
-            }}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[#EF4444]/30 min-h-[44px]"
-          >
-            <Archive className="w-3.5 h-3.5" />
-            <span>Archive / Delete</span>
-          </button>
+          {!onRestoreRequest && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onDeleteRequest(subscription);
+              }}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#EF4444]/10 hover:bg-[#EF4444]/20 text-[#EF4444] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer border border-[#EF4444]/30 min-h-[44px]"
+            >
+              <Archive className="w-3.5 h-3.5" />
+              <span>Archive / Delete</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

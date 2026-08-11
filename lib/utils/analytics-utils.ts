@@ -1,5 +1,6 @@
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { calculateMonthlySpend } from './metrics-utils';
+import { calculateMonthlySpend, getNormalizedMonthlyPrice } from './metrics-utils';
+import { DEFAULT_EXCHANGE_RATES } from '@/lib/services/currency-service';
 
 export interface CategoryBreakdown {
   category: string;
@@ -8,32 +9,18 @@ export interface CategoryBreakdown {
   count: number;
 }
 
-export function calculateCategoryBreakdown(subscriptions: SubscriptionRow[]): CategoryBreakdown[] {
+export function calculateCategoryBreakdown(
+  subscriptions: SubscriptionRow[],
+  targetCurrency?: string,
+  rates: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): CategoryBreakdown[] {
   const activeSubs = subscriptions.filter((sub) => sub.status === 'active' || sub.status === 'trial');
-  const totalMonthly = calculateMonthlySpend(subscriptions);
+  const totalMonthly = calculateMonthlySpend(subscriptions, targetCurrency, rates);
 
   const breakdownMap: Record<string, { monthlySpend: number; count: number }> = {};
 
   activeSubs.forEach((sub) => {
-    const price = Number(sub.price) || 0;
-    let normalized = price;
-
-    switch (sub.billing_cycle) {
-      case 'weekly':
-        normalized = (price * 52) / 12;
-        break;
-      case 'quarterly':
-        normalized = price / 3;
-        break;
-      case 'yearly':
-        normalized = price / 12;
-        break;
-      case 'monthly':
-      case 'custom':
-      default:
-        normalized = price;
-        break;
-    }
+    const normalized = getNormalizedMonthlyPrice(sub, targetCurrency, rates);
 
     if (!breakdownMap[sub.category]) {
       breakdownMap[sub.category] = { monthlySpend: 0, count: 0 };

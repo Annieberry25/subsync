@@ -1,27 +1,54 @@
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
+import { convertAmount, formatCurrencyAmount, DEFAULT_EXCHANGE_RATES } from '@/lib/services/currency-service';
 
-export function calculateMonthlySpend(subscriptions: SubscriptionRow[]): number {
-  return subscriptions
-    .filter((sub) => sub.status === 'active' || sub.status === 'trial')
-    .reduce((total, sub) => {
-      const price = Number(sub.price) || 0;
-      switch (sub.billing_cycle) {
-        case 'weekly':
-          return total + (price * 52) / 12;
-        case 'quarterly':
-          return total + price / 3;
-        case 'yearly':
-          return total + price / 12;
-        case 'monthly':
-        case 'custom':
-        default:
-          return total + price;
-      }
-    }, 0);
+export function getNormalizedMonthlyPrice(
+  sub: SubscriptionRow,
+  targetCurrency?: string,
+  rates: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): number {
+  const price = Number(sub.price) || 0;
+  let normalizedMonthly = price;
+
+  switch (sub.billing_cycle) {
+    case 'weekly':
+      normalizedMonthly = (price * 52) / 12;
+      break;
+    case 'quarterly':
+      normalizedMonthly = price / 3;
+      break;
+    case 'yearly':
+      normalizedMonthly = price / 12;
+      break;
+    case 'monthly':
+    case 'custom':
+    default:
+      normalizedMonthly = price;
+      break;
+  }
+
+  if (targetCurrency) {
+    return convertAmount(normalizedMonthly, sub.currency || 'USD', targetCurrency, rates);
+  }
+
+  return normalizedMonthly;
 }
 
-export function calculateAnnualSpend(subscriptions: SubscriptionRow[]): number {
-  return calculateMonthlySpend(subscriptions) * 12;
+export function calculateMonthlySpend(
+  subscriptions: SubscriptionRow[],
+  targetCurrency?: string,
+  rates: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): number {
+  return subscriptions
+    .filter((sub) => sub.status === 'active' || sub.status === 'trial')
+    .reduce((total, sub) => total + getNormalizedMonthlyPrice(sub, targetCurrency, rates), 0);
+}
+
+export function calculateAnnualSpend(
+  subscriptions: SubscriptionRow[],
+  targetCurrency?: string,
+  rates: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): number {
+  return calculateMonthlySpend(subscriptions, targetCurrency, rates) * 12;
 }
 
 export function getActiveCount(subscriptions: SubscriptionRow[]): number {
@@ -42,43 +69,41 @@ export function getUpcomingRenewalsCount(subscriptions: SubscriptionRow[], days 
   }).length;
 }
 
-export function getNormalizedMonthlyPrice(sub: SubscriptionRow): number {
-  const price = Number(sub.price) || 0;
-  switch (sub.billing_cycle) {
-    case 'weekly':
-      return (price * 52) / 12;
-    case 'quarterly':
-      return price / 3;
-    case 'yearly':
-      return price / 12;
-    case 'monthly':
-    case 'custom':
-    default:
-      return price;
-  }
-}
-
-export function calculatePotentialSavings(subscriptions: SubscriptionRow[]): number {
+export function calculatePotentialSavings(
+  subscriptions: SubscriptionRow[],
+  targetCurrency?: string,
+  rates: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): number {
   return subscriptions
     .filter((sub) => sub.status === 'paused' || sub.status === 'trial')
-    .reduce((total, sub) => total + getNormalizedMonthlyPrice(sub), 0);
+    .reduce((total, sub) => total + getNormalizedMonthlyPrice(sub, targetCurrency, rates), 0);
 }
 
-export function getMostExpensiveSubscription(subscriptions: SubscriptionRow[]): SubscriptionRow | null {
+export function getMostExpensiveSubscription(
+  subscriptions: SubscriptionRow[],
+  targetCurrency?: string,
+  rates: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): SubscriptionRow | null {
   const activeSubs = subscriptions.filter((sub) => sub.status === 'active' || sub.status === 'trial');
   if (activeSubs.length === 0) return null;
   return activeSubs.reduce((max, sub) => {
-    return getNormalizedMonthlyPrice(sub) > getNormalizedMonthlyPrice(max) ? sub : max;
+    return getNormalizedMonthlyPrice(sub, targetCurrency, rates) > getNormalizedMonthlyPrice(max, targetCurrency, rates)
+      ? sub
+      : max;
   }, activeSubs[0]);
 }
 
-export function getMostExpensiveSubscriptions(subscriptions: SubscriptionRow[]): SubscriptionRow[] {
+export function getMostExpensiveSubscriptions(
+  subscriptions: SubscriptionRow[],
+  targetCurrency?: string,
+  rates: Record<string, number> = DEFAULT_EXCHANGE_RATES
+): SubscriptionRow[] {
   const activeSubs = subscriptions.filter((sub) => sub.status === 'active' || sub.status === 'trial');
   if (activeSubs.length === 0) return [];
-  
+
   let maxPrice = -1;
   activeSubs.forEach((sub) => {
-    const price = getNormalizedMonthlyPrice(sub);
+    const price = getNormalizedMonthlyPrice(sub, targetCurrency, rates);
     if (price > maxPrice) {
       maxPrice = price;
     }
@@ -86,19 +111,11 @@ export function getMostExpensiveSubscriptions(subscriptions: SubscriptionRow[]):
 
   if (maxPrice <= 0) return [];
 
-  return activeSubs.filter((sub) => Math.abs(getNormalizedMonthlyPrice(sub) - maxPrice) < 0.001);
+  return activeSubs.filter(
+    (sub) => Math.abs(getNormalizedMonthlyPrice(sub, targetCurrency, rates) - maxPrice) < 0.001
+  );
 }
 
 export function formatCurrency(amount: number, currency = 'USD'): string {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `$${amount.toFixed(2)}`;
-  }
+  return formatCurrencyAmount(amount, currency);
 }
-

@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, Link2 } from 'lucide-react';
-import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, parseAccountLinks } from '@/lib/services/subscription-service';
+import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, Link2, Trash2 } from 'lucide-react';
+import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, parseAccountLinks, archiveSubscription } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -12,6 +12,7 @@ interface SubscriptionCardProps {
   subscription: SubscriptionRow;
   onEdit: (subscription: SubscriptionRow) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
+  onArchiveRequest?: (subscription: SubscriptionRow) => void;
   onPaymentReminderRequest?: (subscription: SubscriptionRow) => void;
   reminderInfo?: { timing: string; method: string; note?: string; dismissed?: boolean } | null;
   onDismissReminder?: (subscription: SubscriptionRow) => void;
@@ -32,6 +33,7 @@ export default function SubscriptionCard({
   subscription,
   onEdit,
   onDeleteRequest,
+  onArchiveRequest,
   onPaymentReminderRequest,
   reminderInfo,
   onDismissReminder,
@@ -160,7 +162,21 @@ export default function SubscriptionCard({
     }
   };
 
-  const handleArchive = () => {
+  const handleArchive = async () => {
+    setMenuOpen(false);
+    if (onArchiveRequest) {
+      onArchiveRequest(subscription);
+    } else {
+      const { error } = await archiveSubscription(subscription.id);
+      if (error) {
+        toast.error(error.message, 'Archiving Failed');
+      } else {
+        toast.success(`Moved "${subscription.name}" to History → Archive.`, 'Subscription Archived');
+      }
+    }
+  };
+
+  const handleDelete = () => {
     setMenuOpen(false);
     onDeleteRequest(subscription);
   };
@@ -249,11 +265,21 @@ export default function SubscriptionCard({
           <button
             type="button"
             onClick={handleArchive}
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F59E0B] hover:bg-[#F59E0B]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            role="menuitem"
+          >
+            <Archive className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
+            <span>Archive Subscription</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDelete}
             className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#EF4444] hover:bg-[#EF4444]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Archive className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
-            <span>Archive Subscription</span>
+            <Trash2 className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
+            <span>Delete Subscription</span>
           </button>
         </div>,
         document.body

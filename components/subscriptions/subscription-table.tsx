@@ -2,9 +2,9 @@
 
 import { useRef, useState, useEffect, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, ChevronRight } from 'lucide-react';
+import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, ChevronRight, Trash2 } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { getProviderManagementUrl } from '@/lib/services/subscription-service';
+import { getProviderManagementUrl, archiveSubscription } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -15,6 +15,7 @@ interface SubscriptionTableProps {
   onSelectSubscription: (subscription: SubscriptionRow) => void;
   onEdit: (subscription: SubscriptionRow) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
+  onArchiveRequest?: (subscription: SubscriptionRow) => void;
   onPaymentReminderRequest: (subscription: SubscriptionRow) => void;
   reminders?: Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>;
   onDismissReminder?: (subscription: SubscriptionRow) => void;
@@ -50,6 +51,7 @@ export default function SubscriptionTable({
   onSelectSubscription,
   onEdit,
   onDeleteRequest,
+  onArchiveRequest,
   onPaymentReminderRequest,
   reminders = {},
   onDismissReminder,
@@ -192,6 +194,29 @@ export default function SubscriptionTable({
 
           <button
             type="button"
+            onClick={async () => {
+              const targetSub = activeSubForMenu;
+              setActiveMenuSubId(null);
+              if (onArchiveRequest) {
+                onArchiveRequest(targetSub);
+              } else {
+                const { error } = await archiveSubscription(targetSub.id);
+                if (error) {
+                  toast.error(error.message, 'Archiving Failed');
+                } else {
+                  toast.success(`Moved "${targetSub.name}" to History → Archive.`, 'Subscription Archived');
+                }
+              }
+            }}
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F59E0B] hover:bg-[#F59E0B]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            role="menuitem"
+          >
+            <Archive className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
+            <span>Archive Subscription</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               setActiveMenuSubId(null);
               onDeleteRequest(activeSubForMenu);
@@ -199,8 +224,8 @@ export default function SubscriptionTable({
             className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#EF4444] hover:bg-[#EF4444]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
-            <Archive className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
-            <span>Archive Subscription</span>
+            <Trash2 className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
+            <span>Delete Subscription</span>
           </button>
         </div>,
         document.body

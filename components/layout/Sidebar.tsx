@@ -5,15 +5,20 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { 
   LayoutDashboard, 
   CreditCard, 
-  Calendar,
   Download, 
   Settings, 
+  History as HistoryIcon,
+  Archive,
+  Trash2,
+  RotateCcw,
   Zap,
   Crown,
   ChevronDown,
+  ChevronRight,
   LogOut,
   User as UserIcon,
   X
@@ -22,8 +27,15 @@ import {
 export const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard },
+  { name: 'History', href: '/history/archive', icon: HistoryIcon },
   { name: 'Export & Analytics', href: '/export', icon: Download },
   { name: 'Settings', href: '/settings', icon: Settings },
+];
+
+export const historySubItems = [
+  { name: 'Archive', href: '/history/archive', icon: Archive },
+  { name: 'Deleted', href: '/history/deleted', icon: Trash2 },
+  { name: 'Restored', href: '/history/restored', icon: RotateCcw },
 ];
 
 interface SidebarProps {
@@ -34,9 +46,19 @@ interface SidebarProps {
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { fullName: contextFullName, email: contextEmail } = useUserSettings();
   const [user, setUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const supabase = createClient();
+
+  const isHistoryRoute = pathname.startsWith('/history');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryRoute);
+
+  useEffect(() => {
+    if (isHistoryRoute) {
+      setIsHistoryOpen(true);
+    }
+  }, [isHistoryRoute]);
 
   useEffect(() => {
     async function loadUser() {
@@ -53,8 +75,9 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   };
 
   const avatarUrl = user?.user_metadata?.avatar_url;
-  const fullName = user?.user_metadata?.full_name?.trim();
-  const userName = fullName || (user?.email ? user.email.split('@')[0] : 'Say Say');
+  const effectiveFullName = contextFullName?.trim() || user?.user_metadata?.full_name?.trim();
+  const effectiveEmail = contextEmail || user?.email || 'saysay@example.com';
+  const userName = effectiveFullName || (effectiveEmail ? effectiveEmail.split('@')[0] : 'Say Say');
 
   const getInitials = (name?: string): string | null => {
     if (!name || !name.trim()) return null;
@@ -65,12 +88,12 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const initials = getInitials(fullName || (user ? '' : 'Say Say'));
+  const initials = getInitials(effectiveFullName || (user ? '' : 'Say Say'));
 
   const content = (
     <div className="flex flex-col justify-between h-full bg-[#101215] overflow-y-auto">
       <div>
-        {/* Brand Logo & Mobile Close (Clean "SubSync" without secondary MANAGER label) */}
+        {/* Brand Logo & Mobile Close */}
         <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-[#2B313D]">
           <Link href="/" onClick={onMobileClose} className="flex items-center gap-3 group">
             <div className="w-8 h-8 rounded-xl bg-[#4F46E5] flex items-center justify-center text-white shrink-0">
@@ -91,12 +114,71 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           )}
         </div>
 
-        {/* Navigation Items with 12px Medium #6F7787 Uppercase Section Label */}
+        {/* Navigation Items */}
         <nav className="px-3 pt-4 pb-4 space-y-1" aria-label="Main Navigation">
           <div className="px-3 pb-2 text-[12px] font-medium text-[#6F7787] tracking-[0.08em] uppercase">
             Menu
           </div>
           {navItems.map((item) => {
+            if (item.name === 'History') {
+              const isParentActive = pathname.startsWith('/history');
+              const Icon = item.icon;
+
+              return (
+                <div key={item.name} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    aria-label="Toggle History submenu"
+                    aria-expanded={isHistoryOpen}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                      isParentActive
+                        ? 'text-white font-semibold hover:bg-[#171A21]'
+                        : 'text-[#A1AAB8] hover:text-white hover:bg-[#171A21]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 ${isParentActive ? 'text-white' : 'text-[#6F7787]'}`} />
+                      <span>History</span>
+                    </div>
+                    {isHistoryOpen ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                  </button>
+
+                  {/* Submenu Children */}
+                  {isHistoryOpen && (
+                    <div className="pl-4 space-y-1 border-l border-[#2B313D] ml-5 my-1">
+                      {historySubItems.map((sub) => {
+                        const isSubActive =
+                          pathname === sub.href ||
+                          (sub.href === '/history/archive' && (pathname === '/history' || pathname === '/history/'));
+                        const SubIcon = sub.icon;
+
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            onClick={onMobileClose}
+                            className={`flex items-center gap-2.5 px-3 py-2 min-h-[38px] rounded-lg text-xs transition-all ${
+                              isSubActive
+                                ? 'text-white font-semibold hover:bg-[#171A21]'
+                                : 'text-[#A1AAB8] hover:text-white hover:bg-[#171A21] font-medium'
+                            }`}
+                          >
+                            <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-white' : 'text-[#6F7787]'}`} />
+                            <span>{sub.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
             const Icon = item.icon;
 
@@ -169,7 +251,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                   {userName}
                 </span>
                 <span className="text-[11px] text-[#A1AAB8] truncate block">
-                  {user?.email || 'saysay@example.com'}
+                  {effectiveEmail}
                 </span>
               </div>
             </div>

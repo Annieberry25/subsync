@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
+import { useUserSettings } from '@/lib/contexts/user-settings-context';
+
 interface PersonalizedHeaderProps {
   onRefresh?: () => void;
   onAddSubscription?: () => void;
@@ -31,6 +33,7 @@ function getFormattedDateString() {
 export function PersonalizedHeader({
   renewingThisWeekCount = 0,
 }: PersonalizedHeaderProps) {
+  const { fullName: contextFullName, email: contextEmail } = useUserSettings();
   const [user, setUser] = useState<User | null>(null);
   const [greeting] = useState<string>(getGreeting);
   const [formattedDate] = useState<string>(getFormattedDateString);
@@ -46,11 +49,15 @@ export function PersonalizedHeader({
   }, [supabase]);
 
   const getDisplayName = () => {
+    if (contextFullName?.trim()) {
+      return contextFullName.trim();
+    }
     if (user?.user_metadata?.full_name?.trim()) {
       return user.user_metadata.full_name.trim();
     }
-    if (user?.email) {
-      const emailName = user.email.split('@')[0];
+    const currentEmail = contextEmail || user?.email;
+    if (currentEmail) {
+      const emailName = currentEmail.split('@')[0];
       return emailName.charAt(0).toUpperCase() + emailName.slice(1);
     }
     return 'Say Say';

@@ -47,13 +47,15 @@ export default function SubscriptionFilters({
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5 sm:gap-4">
         {/* Search Input */}
         <div className="relative flex-1 min-w-0">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6F7787] pointer-events-none" />
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+            <Search className="w-4 h-4 text-[#6F7787]" />
+          </div>
           <input
             type="text"
             placeholder="Search subscriptions by name, plan tier, or notes..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-11 !pl-11 pr-3.5 text-xs sm:text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
+            className="w-full h-11 pl-12 pr-3.5 text-xs sm:text-sm rounded-xl bg-[#1D222B] border border-[#2B313D] text-white placeholder-[#6F7787] focus:outline-none focus:border-[#4F46E5] transition-colors"
           />
         </div>
 
