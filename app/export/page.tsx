@@ -149,8 +149,7 @@ export default function ExportPage() {
       />
 
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl md:text-[40px] font-bold text-white tracking-tight leading-tight sm:leading-[48px]">Export & Analytics</h1>
+      <div className="pb-1">
         <p className="text-xs sm:text-sm md:text-[15px] text-[#A1AAB8] font-normal leading-relaxed sm:leading-[22px]">
           Backup, restore, and analyze your recurring subscription expenses and category distributions.
         </p>
