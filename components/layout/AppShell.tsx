@@ -8,6 +8,7 @@ import { ToastProvider } from '@/lib/hooks/use-toast';
 import { ToastContainer } from '@/components/ui/toast';
 import { ThemeProvider } from '@/lib/hooks/use-theme';
 import { UserSettingsProvider } from '@/lib/contexts/user-settings-context';
+import { InboxProvider } from '@/lib/contexts/inbox-context';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,12 +19,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <ThemeProvider>
         <UserSettingsProvider>
-          <ToastProvider>
-            <div className="min-h-screen bg-[#000000] text-white antialiased font-sans flex items-center justify-center p-4">
-              {children}
-              <ToastContainer />
-            </div>
-          </ToastProvider>
+          <InboxProvider>
+            <ToastProvider>
+              <div className="min-h-screen bg-[#000000] text-white antialiased font-sans flex items-center justify-center p-4">
+                {children}
+                <ToastContainer />
+              </div>
+            </ToastProvider>
+          </InboxProvider>
         </UserSettingsProvider>
       </ThemeProvider>
     );
@@ -32,29 +35,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <UserSettingsProvider>
-        <ToastProvider>
-          <div className="flex min-h-screen bg-[#000000] text-white antialiased font-sans">
-            {/* Sidebar */}
-            <Sidebar
-              isMobileOpen={mobileMenuOpen}
-              onMobileClose={() => setMobileMenuOpen(false)}
-            />
-
-            {/* Main Content Viewport */}
-            <div className="flex-1 flex flex-col min-w-0">
-              <Header
-                onMobileMenuToggle={() => setMobileMenuOpen(true)}
+        <InboxProvider>
+          <ToastProvider>
+            <div className="flex min-h-screen bg-[#000000] text-white antialiased font-sans">
+              {/* Sidebar */}
+              <Sidebar
+                isMobileOpen={mobileMenuOpen}
+                onMobileClose={() => setMobileMenuOpen(false)}
               />
-              <main className="flex-1 px-3 sm:px-6 lg:px-8 pt-6 sm:pt-7 lg:pt-8 pb-12 sm:pb-8 overflow-y-auto w-full max-w-full overflow-x-hidden">
-                <div className="max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">
-                  {children}
-                </div>
-              </main>
-            </div>
 
-            <ToastContainer />
-          </div>
-        </ToastProvider>
+              {/* Main Content Viewport */}
+              <div className="flex-1 flex flex-col min-w-0">
+                <Header
+                  onMobileMenuToggle={() => setMobileMenuOpen(true)}
+                />
+                <main className="flex-1 px-3 sm:px-6 lg:px-8 pt-6 sm:pt-7 lg:pt-8 pb-12 sm:pb-8 overflow-y-auto w-full max-w-full overflow-x-hidden">
+                  <div className="max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">
+                    {children}
+                  </div>
+                </main>
+              </div>
+
+              <ToastContainer />
+            </div>
+          </ToastProvider>
+        </InboxProvider>
       </UserSettingsProvider>
     </ThemeProvider>
   );

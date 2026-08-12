@@ -1,31 +1,17 @@
 'use client';
 
 import { Menu, Bell } from 'lucide-react';
+import Link from 'next/link';
+import { useInbox } from '@/lib/contexts/inbox-context';
 
 interface HeaderProps {
   onMobileMenuToggle?: () => void;
   hasUnreadNotifications?: boolean;
 }
 
-export default function Header({ onMobileMenuToggle, hasUnreadNotifications = false }: HeaderProps) {
-  if (!hasUnreadNotifications) {
-    return (
-      <header className="lg:hidden glass-header h-14 sticky top-0 z-30 px-3 sm:px-4 flex items-center justify-between bg-[#000000]">
-        <div className="flex items-center gap-2.5">
-          {onMobileMenuToggle && (
-            <button
-              type="button"
-              onClick={onMobileMenuToggle}
-              aria-label="Open navigation menu"
-              className="w-11 h-11 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] transition-colors flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      </header>
-    );
-  }
+export default function Header({ onMobileMenuToggle, hasUnreadNotifications }: HeaderProps) {
+  const { unreadCount } = useInbox();
+  const showUnreadDot = unreadCount > 0 || Boolean(hasUnreadNotifications);
 
   return (
     <header className="glass-header h-14 sm:h-16 sticky top-0 z-30 px-3 sm:px-6 md:px-8 flex items-center justify-between bg-[#000000]">
@@ -43,19 +29,19 @@ export default function Header({ onMobileMenuToggle, hasUnreadNotifications = fa
         )}
       </div>
 
-      {/* Right: Functional Notification Icon (Only displayed if unread notifications exist) */}
+      {/* Right: Functional Notification Icon connecting to Inbox */}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        {hasUnreadNotifications && (
-          <button
-            type="button"
-            aria-label="Notifications"
-            title="Notifications (Unread items)"
-            className="relative p-2 text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer rounded-xl flex items-center justify-center min-h-[44px] min-w-[44px]"
-          >
-            <Bell className="w-5 h-5 text-[#94A3B8]" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#14B8A6]" />
-          </button>
-        )}
+        <Link
+          href="/inbox"
+          aria-label={showUnreadDot ? `Notifications (${unreadCount} unread items)` : 'Notifications (Inbox)'}
+          title={showUnreadDot ? `Inbox (${unreadCount} unread items)` : 'Inbox'}
+          className="relative p-2 text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] transition-colors cursor-pointer rounded-xl flex items-center justify-center min-h-[44px] min-w-[44px]"
+        >
+          <Bell className="w-5 h-5 text-[#94A3B8]" />
+          {showUnreadDot && (
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#14B8A6] animate-pulse" />
+          )}
+        </Link>
       </div>
     </header>
   );

@@ -31,6 +31,20 @@ export const DEFAULT_CATEGORY_META: Record<string, CategoryMeta> = {
   Other: { icon: 'Folder', color: '#64748B' },
 };
 
+export interface NotificationPreferences {
+  inApp: boolean;
+  email: boolean;
+  sms: boolean;
+  push: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  inApp: true,
+  email: true,
+  sms: false,
+  push: true,
+};
+
 interface UserSettingsContextValue {
   defaultCurrency: string;
   timezone: string;
@@ -41,10 +55,12 @@ interface UserSettingsContextValue {
   allCategories: string[];
   categoryMetadata: Record<string, CategoryMeta>;
   exchangeRates: Record<string, number>;
+  notificationPreferences: NotificationPreferences;
   loading: boolean;
   updateProfile: (data: { fullName?: string; timezone?: string }) => Promise<void>;
   reauthenticateAndChangeEmail: (password: string, newEmail: string) => Promise<void>;
   updateDefaultCurrency: (newCurrency: string) => Promise<void>;
+  updateNotificationPreferences: (prefs: Partial<NotificationPreferences>) => Promise<void>;
   addCategory: (categoryName: string, meta?: CategoryMeta) => Promise<void>;
   updateCategory: (oldName: string, newName: string, meta?: CategoryMeta) => Promise<void>;
   deleteCategory: (categoryName: string) => Promise<void>;
@@ -69,6 +85,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [customCategories, setCustomCategoriesState] = useState<string[]>([]);
   const [categoryMetadata, setCategoryMetadata] = useState<Record<string, CategoryMeta>>({});
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>(DEFAULT_EXCHANGE_RATES);
+  const [notificationPreferences, setNotificationPreferencesState] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
   const [loading, setLoading] = useState(true);
 
   const supabase = useMemo(() => createClient(), []);
@@ -108,6 +125,13 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         if (savedMeta) {
           try {
             setCategoryMetadata(JSON.parse(savedMeta));
+          } catch {}
+        }
+
+        const savedNotifs = localStorage.getItem('subsync_notification_preferences');
+        if (savedNotifs) {
+          try {
+            setNotificationPreferencesState(JSON.parse(savedNotifs));
           } catch {}
         }
       }
@@ -241,6 +265,18 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     if (error) throw error;
   };
 
+  const updateNotificationPreferences = async (prefs: Partial<NotificationPreferences>) => {
+    const updated = { ...notificationPreferences, ...prefs };
+    setNotificationPreferencesState(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('subsync_notification_preferences', JSON.stringify(updated));
+    }
+    const { error } = await supabase.auth.updateUser({
+      data: { notification_preferences: updated },
+    });
+    if (error) throw error;
+  };
+
   const addCategory = async (categoryName: string, meta?: CategoryMeta) => {
     const trimmed = categoryName.trim();
     if (!trimmed) return;
@@ -350,10 +386,12 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         allCategories,
         categoryMetadata,
         exchangeRates,
+        notificationPreferences,
         loading,
         updateProfile,
         reauthenticateAndChangeEmail,
         updateDefaultCurrency,
+        updateNotificationPreferences,
         addCategory,
         updateCategory,
         deleteCategory,

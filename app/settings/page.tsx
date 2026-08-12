@@ -7,12 +7,10 @@ import {
   Save,
   Loader2,
   Moon,
-  Check,
   Trash2,
   AlertTriangle,
   FileText,
   ShieldCheck,
-  RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useTheme } from '@/lib/hooks/use-theme';
@@ -38,8 +36,10 @@ export default function SettingsPage() {
     email,
     lastNameChange,
     loading: settingsLoading,
+    notificationPreferences,
     updateProfile,
     updateDefaultCurrency,
+    updateNotificationPreferences,
   } = useUserSettings();
 
   // Profile Form States
@@ -255,18 +255,12 @@ export default function SettingsPage() {
 
         {/* 2. CURRENCY & SPENDING SECTION */}
         <section className="space-y-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Currency & Spending</h2>
-              <p className="text-xs text-[#94A3B8]">Reporting currency for dashboard spending metrics & analytics</p>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0D0F0F] border border-[#1A1D1D] text-[10px] text-[#14B8A6]">
-              <RefreshCw className="w-3 h-3 animate-spin-slow" />
-              <span>Rates synced</span>
-            </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Currency & Spending</h2>
+            <p className="text-xs text-[#94A3B8]">Reporting currency for dashboard spending metrics & analytics</p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1">
             <div className="w-full sm:w-64">
               <select
                 value={defaultCurrency}
@@ -289,19 +283,135 @@ export default function SettingsPage() {
         <div className="border-b border-[#1A1D1D]" />
 
         {/* 3. APPEARANCE SECTION */}
-        <section className="space-y-3">
+        <section className="space-y-2">
           <div>
             <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Appearance</h2>
             <p className="text-xs text-[#94A3B8]">Application visual environment</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl border border-[#14B8A6] bg-[#0D0F0F]">
-              <Moon className="w-4 h-4 text-[#14B8A6]" />
-              <span className="text-xs font-semibold text-[#F5F7F6]">Midnight Dark</span>
-              <Check className="w-4 h-4 text-[#14B8A6] ml-1" />
+          <div className="flex items-center gap-2 text-xs font-medium text-[#F5F7F6] pt-1">
+            <Moon className="w-4 h-4 text-[#94A3B8]" />
+            <span>Midnight</span>
+          </div>
+        </section>
+
+        <div className="border-b border-[#1A1D1D]" />
+
+        {/* 4. NOTIFICATIONS SECTION */}
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Notifications</h2>
+            <p className="text-xs text-[#94A3B8]">Manage delivery channels and alert preferences</p>
+          </div>
+
+          <div className="space-y-4 pt-1">
+            {/* In-app Notifications */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-xs sm:text-sm font-medium text-[#F5F7F6] block">In-app notifications</span>
+                <span className="text-xs text-[#94A3B8] block">Inbox alerts & bell indicators</span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notificationPreferences.inApp}
+                onClick={async () => {
+                  const val = !notificationPreferences.inApp;
+                  await updateNotificationPreferences({ inApp: val });
+                  toast.success(`In-app notifications ${val ? 'enabled' : 'disabled'}.`, 'Preferences Updated');
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                  notificationPreferences.inApp ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    notificationPreferences.inApp ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
             </div>
-            <span className="text-xs text-[#94A3B8]">Active default theme</span>
+
+            {/* Email Notifications */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-xs sm:text-sm font-medium text-[#F5F7F6] block">Email notifications</span>
+                <span className="text-xs text-[#94A3B8] block">Renewal summaries & price alerts</span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notificationPreferences.email}
+                onClick={async () => {
+                  const val = !notificationPreferences.email;
+                  await updateNotificationPreferences({ email: val });
+                  toast.success(`Email notifications ${val ? 'enabled' : 'disabled'}.`, 'Preferences Updated');
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                  notificationPreferences.email ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    notificationPreferences.email ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* SMS Notifications */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-xs sm:text-sm font-medium text-[#F5F7F6] block">SMS notifications</span>
+                <span className="text-xs text-[#94A3B8] block">Urgent billing & trial reminders</span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notificationPreferences.sms}
+                onClick={async () => {
+                  const val = !notificationPreferences.sms;
+                  await updateNotificationPreferences({ sms: val });
+                  toast.success(`SMS notifications ${val ? 'enabled' : 'disabled'}.`, 'Preferences Updated');
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                  notificationPreferences.sms ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    notificationPreferences.sms ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Push Notifications */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-xs sm:text-sm font-medium text-[#F5F7F6] block">Push notifications</span>
+                <span className="text-xs text-[#94A3B8] block">Real-time mobile & browser alerts</span>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notificationPreferences.push}
+                onClick={async () => {
+                  const val = !notificationPreferences.push;
+                  await updateNotificationPreferences({ push: val });
+                  toast.success(`Push notifications ${val ? 'enabled' : 'disabled'}.`, 'Preferences Updated');
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                  notificationPreferences.push ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    notificationPreferences.push ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </section>
 

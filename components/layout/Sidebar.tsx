@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useInbox } from '@/lib/contexts/inbox-context';
 import { 
   LayoutDashboard, 
   CreditCard, 
@@ -21,18 +22,22 @@ import {
   ChevronRight,
   LogOut,
   User as UserIcon,
-  X
+  X,
+  Inbox as InboxIcon,
+  Clock
 } from 'lucide-react';
 
 export const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard },
-  { name: 'History', href: '/history/archive', icon: HistoryIcon },
+  { name: 'Inbox', href: '/inbox', icon: InboxIcon },
+  { name: 'History', href: '/history', icon: HistoryIcon },
   { name: 'Export & Analytics', href: '/export', icon: Download },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export const historySubItems = [
+  { name: 'Past Activity', href: '/history/all', icon: Clock },
   { name: 'Archive', href: '/history/archive', icon: Archive },
   { name: 'Deleted', href: '/history/deleted', icon: Trash2 },
   { name: 'Restored', href: '/history/restored', icon: RotateCcw },
@@ -47,6 +52,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   const pathname = usePathname();
   const router = useRouter();
   const { fullName: contextFullName, email: contextEmail } = useUserSettings();
+  const { unreadCount } = useInbox();
   const [user, setUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const supabase = createClient();
@@ -151,7 +157,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                       {historySubItems.map((sub) => {
                         const isSubActive =
                           pathname === sub.href ||
-                          (sub.href === '/history/archive' && (pathname === '/history' || pathname === '/history/'));
+                          (sub.href === '/history/all' && (pathname === '/history' || pathname === '/history/'));
                         const SubIcon = sub.icon;
 
                         return (
@@ -184,14 +190,21 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 key={item.href}
                 href={item.href}
                 onClick={onMobileClose}
-                className={`flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors ${
+                className={`flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors ${
                   isActive
                     ? 'bg-[#14B8A6]/15 text-[#14B8A6] font-semibold border border-[#1A1D1D]'
                     : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
-                <span>{item.name}</span>
+                <div className="flex items-center gap-3">
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
+                  <span>{item.name}</span>
+                </div>
+                {item.name === 'Inbox' && unreadCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#14B8A6] text-[#091512] shadow-sm">
+                    {unreadCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -255,20 +268,12 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             <ChevronDown className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors shrink-0 ml-1" />
           </button>
 
-          {/* Profile Dropdown Menu */}
+          {/* Profile Dropdown Menu (Contains ONLY Sign Out) */}
           {showProfileMenu && (
             <div
               className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-[#0F1111] border border-[#1A1D1D] shadow-lg z-50 animate-in fade-in duration-150"
               onClick={() => setShowProfileMenu(false)}
             >
-              <Link
-                href="/settings"
-                onClick={onMobileClose}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors"
-              >
-                <Settings className="w-4 h-4 text-[#94A3B8]" />
-                <span>Settings</span>
-              </Link>
               <button
                 type="button"
                 onClick={handleSignOut}
