@@ -140,35 +140,57 @@ export default function InboxPageContent() {
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto max-w-full overflow-x-hidden">
           <div className="flex items-center gap-1.5 sm:gap-1 overflow-x-auto no-scrollbar w-full sm:w-auto py-1 px-0.5 sm:p-1 rounded-none sm:rounded-xl bg-transparent sm:bg-[#0B0D0D] border-0 sm:border sm:border-[#1A1D1D] shrink-0">
             {[
-              { id: 'all', label: 'All', count: items.length },
-              { id: 'unread', label: 'Unread', count: unreadCount },
-              { id: 'action_required', label: 'Action Required', count: actionRequiredCount },
-              { id: 'marked_as_read', label: 'Marked as read', count: readCount },
+              {
+                id: 'unread' as FilterTab,
+                label: 'Unread',
+                count: unreadCount,
+                showBadge: unreadCount > 0,
+                badgeStyle: (isActive: boolean) =>
+                  isActive
+                    ? 'bg-[#14B8A6] text-[#091512]'
+                    : 'bg-[#14B8A6]/20 text-[#14B8A6] border border-[#14B8A6]/30',
+              },
+              {
+                id: 'action_required' as FilterTab,
+                label: 'Action Required',
+                count: actionRequiredCount,
+                showBadge: actionRequiredCount > 0,
+                badgeStyle: (_isActive: boolean) =>
+                  'bg-[#1A1D1D] text-[#94A3B8] border border-[#262929]',
+              },
+              {
+                id: 'all' as FilterTab,
+                label: 'All',
+                showBadge: false,
+              },
+              {
+                id: 'marked_as_read' as FilterTab,
+                label: 'Marked as read',
+                showBadge: false,
+              },
             ].map((tab) => {
-              const isActive = activeTab === (tab.id as FilterTab);
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id as FilterTab)}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                     isActive
-                      ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#262929] sm:border-transparent'
+                      ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#262929] sm:border-transparent shadow-sm'
                       : 'bg-[#0B0D0D]/70 sm:bg-transparent text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D]/70 sm:border-transparent'
                   }`}
                 >
                   <span>{tab.label}</span>
-                  <span
-                    className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold min-w-[18px] h-4 leading-none transition-colors ${
-                      isActive
-                        ? 'bg-[#14B8A6] text-[#091512]'
-                        : tab.count > 0
-                        ? 'bg-[#14B8A6]/20 text-[#14B8A6]'
-                        : 'bg-[#1A1D1D] text-[#94A3B8]'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
+                  {tab.showBadge && tab.count !== undefined && (
+                    <span
+                      className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold min-w-[18px] h-4 leading-none transition-colors ${
+                        tab.badgeStyle ? tab.badgeStyle(isActive) : 'bg-[#1A1D1D] text-[#94A3B8]'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
                 </button>
               );
             })}

@@ -299,7 +299,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
       {/* Mobile & Tablet Drawer Overlay (Active on screens < 1024px) */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/70 z-50 lg:hidden animate-in fade-in duration-150"
+          className="fixed inset-0 bg-black/85 z-50 lg:hidden animate-in fade-in duration-150"
           onClick={onMobileClose}
         >
           <aside

@@ -172,13 +172,13 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
-      className="group cursor-pointer py-2 px-3 sm:px-0 min-h-[32px] flex items-center w-full max-w-full overflow-hidden"
+      className="group cursor-pointer py-2 px-4 sm:px-0 min-h-[32px] flex items-center w-full max-w-full overflow-hidden"
     >
       <div className="relative w-full max-w-xl overflow-hidden flex items-center">
         <div
           ref={containerRef}
           onScroll={handleScroll}
-          className="w-full overflow-x-auto no-scrollbar whitespace-nowrap touch-pan-x scroll-smooth flex items-center"
+          className="w-full overflow-x-auto no-scrollbar whitespace-nowrap touch-pan-x flex items-center"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <p
