@@ -20,6 +20,7 @@ export interface InboxItem {
   description: string;
   date: string;
   isRead: boolean;
+  isFavourited?: boolean;
   isUrgent?: boolean;
   actionType?: ActionType;
   actionLabel?: string;
@@ -32,11 +33,21 @@ export interface InboxItem {
 
 interface InboxContextType {
   items: InboxItem[];
+  archivedItems: InboxItem[];
+  allItems: InboxItem[];
+  favouritedItems: InboxItem[];
+  favouritedIds: string[];
   unreadCount: number;
   markAsRead: (id: string) => void;
   markAsUnread: (id: string) => void;
   markAllAsRead: () => void;
   deleteItem: (id: string) => void;
+  archiveItem: (id: string) => void;
+  unarchiveItem: (id: string) => void;
+  toggleFavourite: (id: string) => void;
+  addToFavourites: (id: string) => void;
+  removeFromFavourites: (id: string) => void;
+  getItemById: (id: string) => InboxItem | undefined;
 }
 
 export const INITIAL_INBOX_ITEMS: InboxItem[] = [
@@ -127,35 +138,46 @@ export const INITIAL_INBOX_ITEMS: InboxItem[] = [
   },
 ];
 
-const OVERRIDES_STORAGE_KEY = 'subsync_inbox_user_overrides_v7';
+const OVERRIDES_STORAGE_KEY = 'subsync_inbox_user_overrides_v9';
 
 interface UserOverrides {
   readState: Record<string, boolean>;
+  archivedIds: string[];
+  favouritedIds: string[];
   deletedIds: string[];
 }
 
 const InboxContext = createContext<InboxContextType | undefined>(undefined);
 
 export function InboxProvider({ children }: { children: React.ReactNode }) {
-  // Always initialize with static INITIAL_INBOX_ITEMS to guarantee SSR/hydration match
-  const [items, setItems] = useState<InboxItem[]>(INITIAL_INBOX_ITEMS);
+  const [rawItems, setRawItems] = useState<InboxItem[]>(INITIAL_INBOX_ITEMS);
+  const [archivedIds, setArchivedIds] = useState<string[]>([]);
+  const [favouritedIds, setFavouritedIds] = useState<string[]>([]);
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
   // Helper to apply user overrides to base INITIAL_INBOX_ITEMS
-  const applyOverrides = useCallback((overrides: UserOverrides): InboxItem[] => {
+  const applyOverrides = useCallback((overrides: UserOverrides) => {
     const deletedSet = new Set(overrides.deletedIds || []);
-    return INITIAL_INBOX_ITEMS.filter((item) => !deletedSet.has(item.id)).map((item) => {
+
+    const updatedRaw = INITIAL_INBOX_ITEMS.filter((item) => !deletedSet.has(item.id)).map((item) => {
       if (overrides.readState && item.id in overrides.readState) {
         return { ...item, isRead: overrides.readState[item.id] };
       }
       return item;
     });
+
+    setRawItems(updatedRaw);
+    setArchivedIds(overrides.archivedIds || []);
+    setFavouritedIds(overrides.favouritedIds || []);
+    setDeletedIds(overrides.deletedIds || []);
   }, []);
 
   // Post-mount useEffect to clean legacy stale test state and apply explicit user overrides stored in localStorage
   useEffect(() => {
     try {
-      // Clean up all contaminated/legacy storage keys from previous debugging runs
       const legacyKeys = [
+        'subsync_inbox_user_overrides_v8',
+        'subsync_inbox_user_overrides_v7',
         'subsync_inbox_user_overrides_v6',
         'subsync_inbox_user_overrides_v5',
         'subsync_inbox_user_overrides_v4',
@@ -173,9 +195,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem(OVERRIDES_STORAGE_KEY);
       if (stored) {
         const parsed: UserOverrides = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object' && parsed.readState) {
-          const updatedItems = applyOverrides(parsed);
-          setItems(updatedItems);
+        if (parsed && typeof parsed === 'object') {
+          applyOverrides(parsed);
         }
       }
     } catch {
@@ -183,16 +204,21 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, [applyOverrides]);
 
-  // Helper to update state and persist only explicit user overrides to localStorage
   const saveOverrides = useCallback(
-    (updater: (prev: InboxItem[]) => InboxItem[]) => {
-      setItems((prevItems) => {
+    (
+      updater: (prev: InboxItem[]) => InboxItem[],
+      newArchivedIds?: string[],
+      newFavouritedIds?: string[]
+    ) => {
+      setRawItems((prevItems) => {
         const nextItems = updater(prevItems);
+        const activeArchivedIds = newArchivedIds !== undefined ? newArchivedIds : archivedIds;
+        const activeFavouritedIds = newFavouritedIds !== undefined ? newFavouritedIds : favouritedIds;
 
         if (typeof window !== 'undefined') {
           try {
             const currentItemIds = new Set(nextItems.map((i) => i.id));
-            const deletedIds = INITIAL_INBOX_ITEMS.map((i) => i.id).filter((id) => !currentItemIds.has(id));
+            const activeDeletedIds = INITIAL_INBOX_ITEMS.map((i) => i.id).filter((id) => !currentItemIds.has(id));
 
             const readState: Record<string, boolean> = {};
             nextItems.forEach((item) => {
@@ -202,7 +228,12 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
               }
             });
 
-            const overrides: UserOverrides = { readState, deletedIds };
+            const overrides: UserOverrides = {
+              readState,
+              archivedIds: activeArchivedIds,
+              favouritedIds: activeFavouritedIds,
+              deletedIds: activeDeletedIds,
+            };
             localStorage.setItem(OVERRIDES_STORAGE_KEY, JSON.stringify(overrides));
           } catch {
             // Ignore storage errors
@@ -212,7 +243,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         return nextItems;
       });
     },
-    []
+    [archivedIds, favouritedIds]
   );
 
   const markAsRead = useCallback(
@@ -235,9 +266,113 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
   const deleteItem = useCallback(
     (id: string) => {
-      saveOverrides((prev) => prev.filter((item) => item.id !== id));
+      setArchivedIds((prevArchived) => {
+        const nextArchived = prevArchived.filter((archId) => archId !== id);
+        setFavouritedIds((prevFav) => {
+          const nextFav = prevFav.filter((favId) => favId !== id);
+          saveOverrides((prev) => prev.filter((item) => item.id !== id), nextArchived, nextFav);
+          return nextFav;
+        });
+        return nextArchived;
+      });
     },
     [saveOverrides]
+  );
+
+  const archiveItem = useCallback(
+    (id: string) => {
+      setArchivedIds((prev) => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        saveOverrides((items) => items, next, favouritedIds);
+        return next;
+      });
+    },
+    [saveOverrides, favouritedIds]
+  );
+
+  const unarchiveItem = useCallback(
+    (id: string) => {
+      setArchivedIds((prev) => {
+        const next = prev.filter((item) => item !== id);
+        saveOverrides((items) => items, next, favouritedIds);
+        return next;
+      });
+    },
+    [saveOverrides, favouritedIds]
+  );
+
+  const toggleFavourite = useCallback(
+    (id: string) => {
+      setFavouritedIds((prev) => {
+        const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+        saveOverrides((items) => items, archivedIds, next);
+        return next;
+      });
+    },
+    [saveOverrides, archivedIds]
+  );
+
+  const addToFavourites = useCallback(
+    (id: string) => {
+      setFavouritedIds((prev) => {
+        if (prev.includes(id)) return prev;
+        const next = [...prev, id];
+        saveOverrides((items) => items, archivedIds, next);
+        return next;
+      });
+    },
+    [saveOverrides, archivedIds]
+  );
+
+  const removeFromFavourites = useCallback(
+    (id: string) => {
+      setFavouritedIds((prev) => {
+        const next = prev.filter((item) => item !== id);
+        saveOverrides((items) => items, archivedIds, next);
+        return next;
+      });
+    },
+    [saveOverrides, archivedIds]
+  );
+
+  const archivedSet = useMemo(() => new Set(archivedIds), [archivedIds]);
+  const favouritedSet = useMemo(() => new Set(favouritedIds), [favouritedIds]);
+  const deletedSet = useMemo(() => new Set(deletedIds), [deletedIds]);
+
+  // Enhance raw items with isFavourited computed boolean property
+  const enhancedItems = useMemo(
+    () =>
+      rawItems.map((item) => ({
+        ...item,
+        isFavourited: favouritedSet.has(item.id),
+      })),
+    [rawItems, favouritedSet]
+  );
+
+  const items = useMemo(
+    () => enhancedItems.filter((item) => !archivedSet.has(item.id) && !deletedSet.has(item.id)),
+    [enhancedItems, archivedSet, deletedSet]
+  );
+
+  const archivedItems = useMemo(
+    () => enhancedItems.filter((item) => archivedSet.has(item.id) && !deletedSet.has(item.id)),
+    [enhancedItems, archivedSet, deletedSet]
+  );
+
+  const favouritedItems = useMemo(
+    () => enhancedItems.filter((item) => favouritedSet.has(item.id) && !deletedSet.has(item.id)),
+    [enhancedItems, favouritedSet, deletedSet]
+  );
+
+  const allItems = useMemo(
+    () => enhancedItems.filter((item) => !deletedSet.has(item.id)),
+    [enhancedItems, deletedSet]
+  );
+
+  const getItemById = useCallback(
+    (id: string) => allItems.find((item) => item.id === id),
+    [allItems]
   );
 
   const unreadCount = useMemo(() => items.filter((item) => !item.isRead).length, [items]);
@@ -246,11 +381,21 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     <InboxContext.Provider
       value={{
         items,
+        archivedItems,
+        allItems,
+        favouritedItems,
+        favouritedIds,
         unreadCount,
         markAsRead,
         markAsUnread,
         markAllAsRead,
         deleteItem,
+        archiveItem,
+        unarchiveItem,
+        toggleFavourite,
+        addToFavourites,
+        removeFromFavourites,
+        getItemById,
       }}
     >
       {children}
@@ -265,3 +410,5 @@ export function useInbox() {
   }
   return context;
 }
+
+

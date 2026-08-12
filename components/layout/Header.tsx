@@ -2,6 +2,7 @@
 
 import { Menu, Bell } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useInbox } from '@/lib/contexts/inbox-context';
 
 interface HeaderProps {
@@ -10,8 +11,10 @@ interface HeaderProps {
 }
 
 export default function Header({ onMobileMenuToggle, hasUnreadNotifications }: HeaderProps) {
+  const pathname = usePathname();
   const { unreadCount } = useInbox();
   const showUnreadDot = unreadCount > 0 || Boolean(hasUnreadNotifications);
+  const isInboxRoute = pathname.startsWith('/inbox');
 
   return (
     <header className="glass-header h-14 sm:h-16 sticky top-0 z-30 px-3 sm:px-6 md:px-8 flex items-center justify-between bg-[#000000]">
@@ -29,19 +32,21 @@ export default function Header({ onMobileMenuToggle, hasUnreadNotifications }: H
         )}
       </div>
 
-      {/* Right: Functional Notification Icon connecting to Inbox */}
+      {/* Right: Functional Notification Icon connecting to Inbox (Hidden on Inbox routes) */}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        <Link
-          href="/inbox"
-          aria-label={showUnreadDot ? `Notifications (${unreadCount} unread items)` : 'Notifications (Inbox)'}
-          title={showUnreadDot ? `Inbox (${unreadCount} unread items)` : 'Inbox'}
-          className="relative p-2 text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] transition-colors cursor-pointer rounded-xl flex items-center justify-center min-h-[44px] min-w-[44px]"
-        >
-          <Bell className="w-5 h-5 text-[#94A3B8]" />
-          {showUnreadDot && (
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#14B8A6] animate-pulse" />
-          )}
-        </Link>
+        {!isInboxRoute && (
+          <Link
+            href="/inbox"
+            aria-label={showUnreadDot ? `Notifications (${unreadCount} unread items)` : 'Notifications (Inbox)'}
+            title={showUnreadDot ? `Inbox (${unreadCount} unread items)` : 'Inbox'}
+            className="relative p-2 text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] transition-colors cursor-pointer rounded-xl flex items-center justify-center min-h-[44px] min-w-[44px]"
+          >
+            <Bell className="w-5 h-5 text-[#94A3B8]" />
+            {showUnreadDot && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#14B8A6] animate-pulse" />
+            )}
+          </Link>
+        )}
       </div>
     </header>
   );

@@ -31,6 +31,7 @@ import {
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
+import { useInbox } from '@/lib/contexts/inbox-context';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
@@ -293,6 +294,7 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
 
 export default function HistoryPageContent({ section = 'all' }: HistoryPageContentProps) {
   const { toast } = useToast();
+  const { archivedItems: archivedInboxItems, unarchiveItem: unarchiveInboxItem } = useInbox();
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [restoredHistory, setRestoredHistory] = useState<RestoredHistoryRecord[]>([]);
@@ -562,67 +564,122 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
 
           {/* SECTION 1: ARCHIVE */}
           {section === 'archive' && (
-            archivedList.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {archivedList.map((sub) => (
-                  <div
-                    key={sub.id}
-                    className="w-full rounded-2xl p-5 bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#14B8A6] flex flex-col justify-between transition-all duration-300 gap-4"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <ServiceIcon
-                          name={sub.name}
-                          category={sub.category}
-                          providerUrl={sub.provider_url}
-                          className="w-10 h-10 rounded-xl shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-[#F5F7F6] text-[18px] tracking-tight truncate">
-                            {sub.name}
-                          </h3>
-                          <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] mt-0.5">
-                            Archived
-                          </span>
+            (archivedList.length > 0 || archivedInboxItems.length > 0) ? (
+              <div className="space-y-6">
+                {/* Archived Subscriptions */}
+                {archivedList.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+                      Archived Subscriptions ({archivedList.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {archivedList.map((sub) => (
+                        <div
+                          key={sub.id}
+                          className="w-full rounded-2xl p-5 bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#14B8A6] flex flex-col justify-between transition-all duration-300 gap-4"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <ServiceIcon
+                                name={sub.name}
+                                category={sub.category}
+                                providerUrl={sub.provider_url}
+                                className="w-10 h-10 rounded-xl shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <h3 className="font-semibold text-[#F5F7F6] text-[18px] tracking-tight truncate">
+                                  {sub.name}
+                                </h3>
+                                <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] mt-0.5">
+                                  Archived
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-2xl font-bold text-[#F5F7F6] tracking-tight">
+                              {formatCurrency(Number(sub.price), sub.currency)}
+                            </span>
+                            <span className="text-xs text-[#94A3B8]">/ {sub.billing_cycle}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs text-[#94A3B8]">
+                            <span>Category: <strong className="text-[#F5F7F6] font-medium">{sub.category}</strong></span>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-2 border-t border-[#1A1D1D]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSub(sub);
+                                setIsDetailOpen(true);
+                              }}
+                              className="flex-1 py-2 px-3 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-semibold text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <ChevronRight className="w-3.5 h-3.5 text-[#14B8A6]" />
+                              <span>View Details</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRestore(sub)}
+                              className="flex-1 py-2 px-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-xs font-semibold text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-[#091512]" />
+                              <span>Restore</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-2xl font-bold text-[#F5F7F6] tracking-tight">
-                        {formatCurrency(Number(sub.price), sub.currency)}
-                      </span>
-                      <span className="text-xs text-[#94A3B8]">/ {sub.billing_cycle}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-[#94A3B8]">
-                      <span>Category: <strong className="text-[#F5F7F6] font-medium">{sub.category}</strong></span>
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-2 border-t border-[#1A1D1D]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedSub(sub);
-                          setIsDetailOpen(true);
-                        }}
-                        className="flex-1 py-2 px-3 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-semibold text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5 text-[#14B8A6]" />
-                        <span>View Details</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRestore(sub)}
-                        className="flex-1 py-2 px-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-xs font-semibold text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5 text-[#091512]" />
-                        <span>Restore</span>
-                      </button>
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {/* Archived Inbox Messages */}
+                {archivedInboxItems.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-[#1A1D1D]/60">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+                      Archived Inbox Messages ({archivedInboxItems.length})
+                    </h3>
+                    <div className="space-y-2.5">
+                      {archivedInboxItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl p-4 sm:p-5 border border-[#1A1D1D] bg-[#0B0D0D] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                        >
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B]">
+                                Archived Message
+                              </span>
+                              <h4 className="text-sm font-semibold text-[#F5F7F6] truncate">
+                                {item.title}
+                              </h4>
+                            </div>
+                            <p className="text-xs text-[#94A3B8] leading-relaxed line-clamp-2">
+                              {item.description}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                unarchiveInboxItem(item.id);
+                                toast.success(`Message "${item.title}" restored to Inbox`, 'Inbox Restored');
+                              }}
+                              className="py-1.5 px-3.5 rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center gap-1.5"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Restore to Inbox</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="py-12 text-center flex flex-col items-center justify-center space-y-4">
@@ -630,9 +687,9 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                   <Archive className="w-8 h-8 text-[#F59E0B]" />
                 </div>
                 <div className="max-w-xs space-y-1">
-                  <h3 className="text-base font-bold text-[#F5F7F6]">No archived subscriptions</h3>
+                  <h3 className="text-base font-bold text-[#F5F7F6]">No archived items</h3>
                   <p className="text-xs text-[#94A3B8]">
-                    Subscriptions you archive will be stored here safely without affecting active metrics.
+                    Items you archive will be stored here safely without affecting active metrics.
                   </p>
                 </div>
               </div>
