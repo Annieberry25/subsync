@@ -362,38 +362,33 @@ export default function InboxPageContent() {
                 onTouchStart={() => handleTouchStart(item)}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchMove}
-                className={`group relative rounded-2xl p-4 sm:p-5 border bg-[#0B0D0D] transition-all duration-150 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer ${
+                className={`group relative rounded-2xl p-4 sm:p-5 border bg-[#0B0D0D] transition-all duration-150 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer ${
                   !item.isRead
                     ? 'border-[#1A1D1D] hover:border-[#14B8A6]/50 shadow-sm'
                     : 'border-[#1A1D1D] hover:border-[#262929]'
                 }`}
               >
-                {/* Left: Indicator & Content */}
-                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                {/* 1. Left Flexible Content Area (Status Dot + Title & Description) */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   {getStatusDot(item)}
 
                   <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <h3
-                          className={`text-sm font-semibold tracking-tight truncate ${
-                            !item.isRead ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'
-                          }`}
-                        >
-                          {item.title}
-                        </h3>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3
+                        className={`text-sm font-semibold tracking-tight truncate ${
+                          !item.isRead ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'
+                        }`}
+                      >
+                        {item.title}
+                      </h3>
 
-                        {/* Favourited Star Badge */}
-                        {item.isFavourited && (
-                          <Star className="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B] shrink-0" />
-                        )}
-                      </div>
-                      <span className="text-[11px] text-[#94A3B8] shrink-0 font-normal">
-                        {formatDate(item.date)}
-                      </span>
+                      {/* Favourited Star Badge */}
+                      {item.isFavourited && (
+                        <Star className="w-3.5 h-3.5 text-[#F59E0B] fill-[#F59E0B] shrink-0" />
+                      )}
                     </div>
                     <p
-                      className={`text-xs leading-relaxed ${
+                      className={`text-xs leading-relaxed truncate ${
                         !item.isRead ? 'text-[#94A3B8]' : 'text-[#94A3B8]/80'
                       }`}
                     >
@@ -402,8 +397,15 @@ export default function InboxPageContent() {
                   </div>
                 </div>
 
-                {/* Right: Actions & Secondary Interaction Controls */}
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]/40">
+                {/* 2. Fixed Right-Aligned Date Column (Lines up vertically across ALL cards) */}
+                <div className="w-16 sm:w-20 text-right shrink-0">
+                  <span className="text-[11px] text-[#94A3B8] font-normal whitespace-nowrap block">
+                    {formatDate(item.date)}
+                  </span>
+                </div>
+
+                {/* 3. Actions Column at the Far Right (CTA button, Read checkmark, 3-dots trigger) */}
+                <div className="flex items-center gap-1.5 sm:gap-2 justify-end shrink-0">
                   {/* CTA Action Button (if actionable) */}
                   {item.actionLabel && (
                     <button
@@ -412,7 +414,7 @@ export default function InboxPageContent() {
                         e.stopPropagation();
                         handleAction(item);
                       }}
-                      className="py-1.5 px-3.5 rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1 min-h-[36px]"
+                      className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1 min-h-[34px] whitespace-nowrap"
                     >
                       <span>{item.actionLabel}</span>
                       <ChevronRight className="w-3.5 h-3.5 opacity-80" />
