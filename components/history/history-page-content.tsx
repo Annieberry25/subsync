@@ -82,6 +82,11 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
   const textRef = useRef<HTMLParagraphElement>(null);
   const animationRef = useRef<Animation | null>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const isTouchSwiping = useRef(false);
 
   const handleMouseEnter = () => {
     if (!containerRef.current || !textRef.current) return;
@@ -124,27 +129,76 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
     setIsHovered(false);
   };
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft;
+    if (scrollLeft > 6) {
+      if (!isScrolled) setIsScrolled(true);
+    } else {
+      if (isScrolled) setIsScrolled(false);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isTouchSwiping.current = false;
+    if (animationRef.current) {
+      animationRef.current.cancel();
+      animationRef.current = null;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current !== null && touchStartY.current !== null) {
+      const diffX = Math.abs(e.touches[0].clientX - touchStartX.current);
+      const diffY = Math.abs(e.touches[0].clientY - touchStartY.current);
+      if (diffX > 6 && diffX > diffY) {
+        isTouchSwiping.current = true;
+      }
+    }
+  };
+
+  const handleClick = () => {
+    if (isTouchSwiping.current) {
+      return;
+    }
+    onClick();
+  };
+
   return (
     <div
-      onClick={onClick}
+      onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="group cursor-pointer py-1.5 min-h-[28px] flex items-center"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      className="group cursor-pointer py-2 px-3 sm:px-0 min-h-[32px] flex items-center w-full max-w-full overflow-hidden"
     >
-      <div
-        ref={containerRef}
-        className="w-full max-w-xl overflow-hidden whitespace-nowrap"
-      >
-        <p
-          ref={textRef}
-          className={`text-xs sm:text-sm font-normal leading-relaxed inline-block transition-colors duration-200 ${
-            isHovered
-              ? 'text-[#F5F7F6] overflow-visible'
-              : 'text-[#94A3B8] truncate max-w-full'
-          }`}
+      <div className="relative w-full max-w-xl overflow-hidden flex items-center">
+        <div
+          ref={containerRef}
+          onScroll={handleScroll}
+          className="w-full overflow-x-auto no-scrollbar whitespace-nowrap touch-pan-x scroll-smooth flex items-center"
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {activity.description}
-        </p>
+          <p
+            ref={textRef}
+            className={`text-xs sm:text-sm font-normal leading-relaxed inline-block transition-colors duration-200 select-none ${
+              isHovered || isScrolled
+                ? 'text-[#F5F7F6]'
+                : 'text-[#94A3B8]'
+            }`}
+          >
+            {activity.description}
+          </p>
+        </div>
+
+        {/* Trailing ellipsis fade indicator for initial un-scrolled state */}
+        {!isScrolled && !isHovered && (
+          <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none flex items-center justify-end bg-gradient-to-l from-[#000000] via-[#000000]/90 to-transparent pr-0.5 text-xs text-[#94A3B8]">
+            ...
+          </div>
+        )}
       </div>
     </div>
   );
@@ -246,7 +300,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
   const headerInfo = sectionHeaderMeta[section] || sectionHeaderMeta.all;
 
   return (
-    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-32">
+    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-32 w-full max-w-full overflow-x-hidden">
       {/* Accessible DOM Heading */}
       <h1 className="sr-only">{headerInfo.title} - History</h1>
 
@@ -344,7 +398,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
               /* MAIN ACTIVITY FEED LIST VIEW */
               <div className="space-y-4">
                 {/* Activity Filter Custom SaaS Dropdown sitting directly on page background */}
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2 px-3 sm:px-0">
                   <SlidersHorizontal className="w-4 h-4 text-[#94A3B8] shrink-0" />
                   <div ref={dropdownRef} className="relative inline-block text-left">
                     <button

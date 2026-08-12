@@ -126,63 +126,52 @@ export default function InboxPageContent() {
   const hasItemsToShow = displayedItems.length > 0;
 
   return (
-    <div className="space-y-6 max-w-4xl min-h-[85vh] pb-32">
+    <div className="space-y-6 max-w-4xl min-h-[85vh] pb-32 w-full max-w-full overflow-x-hidden">
       {/* Accessible DOM Heading */}
       <h1 className="sr-only">Inbox - Attention Center</h1>
 
       {/* HEADER & FILTER CONTROLS */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-[#1A1D1D]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 pb-3 border-b border-[#1A1D1D] w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-[#F5F7F6] tracking-tight">Inbox</h2>
         </div>
 
         {/* Filter Tabs & Mark Read */}
-        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D]">
-            <button
-              type="button"
-              onClick={() => setActiveTab('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                activeTab === 'all'
-                  ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
-                  : 'text-[#94A3B8] hover:text-[#F5F7F6]'
-              }`}
-            >
-              All ({items.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('unread')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                activeTab === 'unread'
-                  ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
-                  : 'text-[#94A3B8] hover:text-[#F5F7F6]'
-              }`}
-            >
-              Unread ({unreadCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('action_required')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                activeTab === 'action_required'
-                  ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
-                  : 'text-[#94A3B8] hover:text-[#F5F7F6]'
-              }`}
-            >
-              Action Required ({actionRequiredCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('marked_as_read')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                activeTab === 'marked_as_read'
-                  ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
-                  : 'text-[#94A3B8] hover:text-[#F5F7F6]'
-              }`}
-            >
-              Marked as read ({readCount})
-            </button>
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto max-w-full overflow-x-hidden">
+          <div className="flex items-center gap-1.5 sm:gap-1 overflow-x-auto no-scrollbar w-full sm:w-auto py-1 px-0.5 sm:p-1 rounded-none sm:rounded-xl bg-transparent sm:bg-[#0B0D0D] border-0 sm:border sm:border-[#1A1D1D] shrink-0">
+            {[
+              { id: 'all', label: 'All', count: items.length },
+              { id: 'unread', label: 'Unread', count: unreadCount },
+              { id: 'action_required', label: 'Action Required', count: actionRequiredCount },
+              { id: 'marked_as_read', label: 'Marked as read', count: readCount },
+            ].map((tab) => {
+              const isActive = activeTab === (tab.id as FilterTab);
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as FilterTab)}
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#262929] sm:border-transparent'
+                      : 'bg-[#0B0D0D]/70 sm:bg-transparent text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D]/70 sm:border-transparent'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-bold min-w-[18px] h-4 leading-none transition-colors ${
+                      isActive
+                        ? 'bg-[#14B8A6] text-[#091512]'
+                        : tab.count > 0
+                        ? 'bg-[#14B8A6]/20 text-[#14B8A6]'
+                        : 'bg-[#1A1D1D] text-[#94A3B8]'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
