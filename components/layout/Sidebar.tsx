@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -24,7 +24,8 @@ import {
   User as UserIcon,
   X,
   Inbox as InboxIcon,
-  Clock
+  Clock,
+  HelpCircle
 } from 'lucide-react';
 
 export const navItems = [
@@ -55,6 +56,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   const { unreadCount } = useInbox();
   const [user, setUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
   const isHistoryRoute = pathname.startsWith('/history');
@@ -73,6 +75,21 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
     }
     loadUser();
   }, [supabase]);
+
+  // Click outside to close account profile menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    }
+    if (showProfileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileMenu]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -230,14 +247,58 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           </button>
         </div>
 
-        {/* User Profile Section */}
-        <div className="relative">
+        {/* User Profile Section with Expandable Account Menu */}
+        <div className="relative" ref={profileMenuRef}>
+          {/* SaaS Style Account Popover Menu */}
+          {showProfileMenu && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-[#0F1111] border border-[#1A1D1D] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5">
+              <Link
+                href="/settings"
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  onMobileClose?.();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
+              >
+                <UserIcon className="w-4 h-4 text-[#94A3B8]" />
+                <span>Profile</span>
+              </Link>
+
+              <a
+                href="mailto:support@subsync.app"
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  onMobileClose?.();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4 text-[#94A3B8]" />
+                <span>Help</span>
+              </a>
+
+              <div className="border-t border-[#1A1D1D]/70 my-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    handleSignOut();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 text-[#94A3B8]" />
+                  <span>Log out</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* User Profile Card Button */}
           <button
             type="button"
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             aria-label="User profile options"
             aria-expanded={showProfileMenu}
-            className="w-full flex items-center justify-between p-2 rounded-xl border border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#14B8A6] transition-colors text-left group cursor-pointer"
+            className="w-full flex items-center justify-between p-2.5 rounded-xl border border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#14B8A6] transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               {avatarUrl ? (
@@ -265,25 +326,8 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 </span>
               </div>
             </div>
-            <ChevronDown className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors shrink-0 ml-1" />
+            <ChevronDown className={`w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-transform duration-200 shrink-0 ml-1 ${showProfileMenu ? 'rotate-180 text-[#14B8A6]' : ''}`} />
           </button>
-
-          {/* Profile Dropdown Menu (Contains ONLY Sign Out) */}
-          {showProfileMenu && (
-            <div
-              className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-[#0F1111] border border-[#1A1D1D] shadow-lg z-50 animate-in fade-in duration-150"
-              onClick={() => setShowProfileMenu(false)}
-            >
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#D9363E] hover:bg-[#D9363E]/10 rounded-lg transition-colors cursor-pointer"
-              >
-                <LogOut className="w-4 h-4 text-[#D9363E]" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
