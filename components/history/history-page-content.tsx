@@ -95,7 +95,8 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
   const textRef = useRef<HTMLParagraphElement>(null);
   const animationRef = useRef<Animation | null>(null);
 
-  const [isRevealing, setIsRevealing] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const [, setIsRevealing] = useState(false);
 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -103,27 +104,45 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
   const isHolding = useRef(false);
   const isSwiping = useRef(false);
 
+  const checkOverflow = useCallback(() => {
+    if (containerRef.current && textRef.current) {
+      const isOverflowing =
+        textRef.current.scrollWidth > containerRef.current.clientWidth + 4 ||
+        activity.description.length > 65;
+      setHasOverflow(isOverflowing);
+    }
+  }, [activity.description]);
+
+  useEffect(() => {
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [checkOverflow]);
+
   const startReveal = () => {
     if (!containerRef.current || !textRef.current) return;
     const containerWidth = containerRef.current.clientWidth;
     const textWidth = textRef.current.scrollWidth;
     const overflowDistance = textWidth - containerWidth;
 
-    if (overflowDistance > 0) {
+    if (overflowDistance > 4) {
       setIsRevealing(true);
       const speedPxPerSec = 35;
-      const duration = Math.max(3000, (overflowDistance / speedPxPerSec) * 1000);
+      const duration = Math.max(3200, (overflowDistance / speedPxPerSec) * 1000);
 
       if (animationRef.current) {
         animationRef.current.cancel();
       }
 
+      textRef.current.className =
+        'text-xs sm:text-sm font-normal leading-relaxed select-none whitespace-nowrap inline-block text-[#F5F7F6] transition-colors duration-200';
+
       animationRef.current = textRef.current.animate(
         [
           { transform: 'translateX(0px)', offset: 0 },
           { transform: 'translateX(0px)', offset: 0.08 },
-          { transform: `translateX(-${overflowDistance + 12}px)`, offset: 0.92 },
-          { transform: `translateX(-${overflowDistance + 12}px)`, offset: 1.0 },
+          { transform: `translateX(-${overflowDistance + 14}px)`, offset: 0.92 },
+          { transform: `translateX(-${overflowDistance + 14}px)`, offset: 1.0 },
         ],
         {
           duration: duration,
@@ -141,17 +160,23 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
     }
     if (textRef.current) {
       textRef.current.style.transform = 'translateX(0px)';
+      textRef.current.className =
+        'text-xs sm:text-sm font-normal leading-relaxed select-none truncate w-full text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors duration-200';
     }
     setIsRevealing(false);
   };
 
   // Desktop Mouse Events
   const handleMouseEnter = () => {
-    startReveal();
+    if (hasOverflow) {
+      startReveal();
+    }
   };
 
   const handleMouseLeave = () => {
-    stopReveal();
+    if (hasOverflow) {
+      stopReveal();
+    }
   };
 
   // Mobile Touch Events (Press-and-Hold directly on text/row)
@@ -165,12 +190,14 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
       clearTimeout(touchTimer.current);
     }
 
-    touchTimer.current = setTimeout(() => {
-      if (!isSwiping.current) {
-        isHolding.current = true;
-        startReveal();
-      }
-    }, 200);
+    if (hasOverflow) {
+      touchTimer.current = setTimeout(() => {
+        if (!isSwiping.current) {
+          isHolding.current = true;
+          startReveal();
+        }
+      }, 200);
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -235,7 +262,7 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
-      className="group cursor-pointer py-1.5 px-4 sm:px-0 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 w-full max-w-full overflow-hidden border-b border-[#1A1D1D]/30 last:border-b-0 hover:bg-[#0B0D0D]/50 transition-colors"
+      className="group cursor-pointer py-1.5 px-4 sm:px-0 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 w-full max-w-full overflow-hidden border-b border-[#1A1D1D]/30 last:border-b-0 hover:bg-[#14B8A6]/[0.04] transition-all duration-150"
     >
       {/* Mobile date line (compact secondary metadata) */}
       <span className="sm:hidden text-[11px] text-[#94A3B8]/60 font-normal block tracking-tight">
@@ -243,31 +270,21 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
       </span>
 
       {/* Activity message container */}
-      <div className="relative flex-1 min-w-0 overflow-hidden flex items-center">
-        <div
-          ref={containerRef}
-          className="w-full overflow-x-auto no-scrollbar whitespace-nowrap flex items-center"
+      <div
+        ref={containerRef}
+        className="relative flex-1 min-w-0 max-w-[520px] sm:max-w-[620px] md:max-w-[700px] lg:max-w-[760px] xl:max-w-[780px] overflow-hidden flex items-center h-6"
+      >
+        <p
+          ref={textRef}
+          className="text-xs sm:text-sm font-normal leading-relaxed select-none truncate w-full text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors duration-200"
+          style={{ willChange: 'transform' }}
         >
-          <p
-            ref={textRef}
-            className={`text-xs sm:text-sm font-normal leading-relaxed inline-block transition-colors duration-200 select-none ${
-              isRevealing ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'
-            }`}
-          >
-            {activity.description}
-          </p>
-        </div>
-
-        {/* Trailing ellipsis in resting state */}
-        {!isRevealing && (
-          <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none flex items-center justify-end bg-gradient-to-l from-[#000000] via-[#000000]/90 to-transparent pr-0.5 text-xs text-[#94A3B8]">
-            ...
-          </div>
-        )}
+          {activity.description}
+        </p>
       </div>
 
-      {/* Desktop date (subtle secondary metadata aligned far right) */}
-      <span className="hidden sm:block text-xs text-[#94A3B8]/60 font-normal shrink-0 text-right ml-auto">
+      {/* Desktop date (subtle secondary metadata aligned far right, fixed) */}
+      <span className="hidden sm:block text-xs text-[#94A3B8]/60 group-hover:text-[#94A3B8] font-normal shrink-0 text-right ml-auto transition-colors">
         {formatDate(activity.timestamp)}
       </span>
     </div>
