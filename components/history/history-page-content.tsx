@@ -77,26 +77,42 @@ interface ActivityMessageItemProps {
   onClick: () => void;
 }
 
+function formatDate(isoStr: string) {
+  const d = new Date(isoStr);
+  const now = new Date();
+  const diffHours = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60));
+  if (diffHours < 1) return 'Just now';
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
   const animationRef = useRef<Animation | null>(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
+
+  const [isRevealing, setIsRevealing] = useState(false);
 
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
-  const isTouchSwiping = useRef(false);
+  const touchTimer = useRef<NodeJS.Timeout | null>(null);
+  const isHolding = useRef(false);
+  const isSwiping = useRef(false);
 
-  const handleMouseEnter = () => {
+  const startReveal = () => {
     if (!containerRef.current || !textRef.current) return;
     const containerWidth = containerRef.current.clientWidth;
     const textWidth = textRef.current.scrollWidth;
     const overflowDistance = textWidth - containerWidth;
 
     if (overflowDistance > 0) {
-      setIsHovered(true);
-      const duration = Math.max(3500, (overflowDistance / 35) * 1000);
+      setIsRevealing(true);
+      const speedPxPerSec = 35;
+      const duration = Math.max(3000, (overflowDistance / speedPxPerSec) * 1000);
 
       if (animationRef.current) {
         animationRef.current.cancel();
@@ -105,8 +121,8 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
       animationRef.current = textRef.current.animate(
         [
           { transform: 'translateX(0px)', offset: 0 },
-          { transform: 'translateX(0px)', offset: 0.12 },
-          { transform: `translateX(-${overflowDistance + 12}px)`, offset: 0.9 },
+          { transform: 'translateX(0px)', offset: 0.08 },
+          { transform: `translateX(-${overflowDistance + 12}px)`, offset: 0.92 },
           { transform: `translateX(-${overflowDistance + 12}px)`, offset: 1.0 },
         ],
         {
@@ -118,7 +134,7 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
     }
   };
 
-  const handleMouseLeave = () => {
+  const stopReveal = () => {
     if (animationRef.current) {
       animationRef.current.cancel();
       animationRef.current = null;
@@ -126,43 +142,88 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
     if (textRef.current) {
       textRef.current.style.transform = 'translateX(0px)';
     }
-    setIsHovered(false);
+    setIsRevealing(false);
   };
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollLeft = e.currentTarget.scrollLeft;
-    if (scrollLeft > 6) {
-      if (!isScrolled) setIsScrolled(true);
-    } else {
-      if (isScrolled) setIsScrolled(false);
-    }
+  // Desktop Mouse Events
+  const handleMouseEnter = () => {
+    startReveal();
   };
 
+  const handleMouseLeave = () => {
+    stopReveal();
+  };
+
+  // Mobile Touch Events (Press-and-Hold directly on text/row)
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
-    isTouchSwiping.current = false;
-    if (animationRef.current) {
-      animationRef.current.cancel();
-      animationRef.current = null;
+    isSwiping.current = false;
+    isHolding.current = false;
+
+    if (touchTimer.current) {
+      clearTimeout(touchTimer.current);
     }
+
+    touchTimer.current = setTimeout(() => {
+      if (!isSwiping.current) {
+        isHolding.current = true;
+        startReveal();
+      }
+    }, 200);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartX.current !== null && touchStartY.current !== null) {
       const diffX = Math.abs(e.touches[0].clientX - touchStartX.current);
       const diffY = Math.abs(e.touches[0].clientY - touchStartY.current);
-      if (diffX > 6 && diffX > diffY) {
-        isTouchSwiping.current = true;
+
+      if (diffY > 8 || diffX > 8) {
+        isSwiping.current = true;
+        if (touchTimer.current) {
+          clearTimeout(touchTimer.current);
+          touchTimer.current = null;
+        }
+        if (isHolding.current) {
+          stopReveal();
+          isHolding.current = false;
+        }
       }
     }
   };
 
-  const handleClick = () => {
-    if (isTouchSwiping.current) {
+  const handleTouchEnd = () => {
+    if (touchTimer.current) {
+      clearTimeout(touchTimer.current);
+      touchTimer.current = null;
+    }
+
+    if (isHolding.current) {
+      stopReveal();
+      isHolding.current = false;
       return;
     }
-    onClick();
+
+    if (!isSwiping.current) {
+      onClick();
+    }
+  };
+
+  const handleTouchCancel = () => {
+    if (touchTimer.current) {
+      clearTimeout(touchTimer.current);
+      touchTimer.current = null;
+    }
+    if (isHolding.current) {
+      stopReveal();
+      isHolding.current = false;
+    }
+  };
+
+  const handleClick = () => {
+    if (!isHolding.current && !isSwiping.current) {
+      onClick();
+    }
   };
 
   return (
@@ -172,34 +233,43 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
-      className="group cursor-pointer py-2 px-4 sm:px-0 min-h-[32px] flex items-center w-full max-w-full overflow-hidden"
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
+      className="group cursor-pointer py-1.5 px-4 sm:px-0 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 w-full max-w-full overflow-hidden border-b border-[#1A1D1D]/30 last:border-b-0 hover:bg-[#0B0D0D]/50 transition-colors"
     >
-      <div className="relative w-full max-w-xl overflow-hidden flex items-center">
+      {/* Mobile date line (compact secondary metadata) */}
+      <span className="sm:hidden text-[11px] text-[#94A3B8]/60 font-normal block tracking-tight">
+        {formatDate(activity.timestamp)}
+      </span>
+
+      {/* Activity message container */}
+      <div className="relative flex-1 min-w-0 overflow-hidden flex items-center">
         <div
           ref={containerRef}
-          onScroll={handleScroll}
-          className="w-full overflow-x-auto no-scrollbar whitespace-nowrap touch-pan-x flex items-center"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          className="w-full overflow-x-auto no-scrollbar whitespace-nowrap flex items-center"
         >
           <p
             ref={textRef}
             className={`text-xs sm:text-sm font-normal leading-relaxed inline-block transition-colors duration-200 select-none ${
-              isHovered || isScrolled
-                ? 'text-[#F5F7F6]'
-                : 'text-[#94A3B8]'
+              isRevealing ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'
             }`}
           >
             {activity.description}
           </p>
         </div>
 
-        {/* Trailing ellipsis fade indicator for initial un-scrolled state */}
-        {!isScrolled && !isHovered && (
+        {/* Trailing ellipsis in resting state */}
+        {!isRevealing && (
           <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none flex items-center justify-end bg-gradient-to-l from-[#000000] via-[#000000]/90 to-transparent pr-0.5 text-xs text-[#94A3B8]">
             ...
           </div>
         )}
       </div>
+
+      {/* Desktop date (subtle secondary metadata aligned far right) */}
+      <span className="hidden sm:block text-xs text-[#94A3B8]/60 font-normal shrink-0 text-right ml-auto">
+        {formatDate(activity.timestamp)}
+      </span>
     </div>
   );
 }
@@ -443,9 +513,9 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                   </div>
                 </div>
 
-                {/* Activity Feed List - Clean Vertical List with Hover-to-Scroll Text Preview */}
+                {/* Activity Feed List - Clean Dense Vertical List */}
                 {filteredActivities.length > 0 ? (
-                  <div className="space-y-3 py-2">
+                  <div className="space-y-0.5 py-1">
                     {filteredActivities.map((act) => (
                       <ActivityMessageItem
                         key={act.id}

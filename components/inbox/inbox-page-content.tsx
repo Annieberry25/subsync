@@ -202,12 +202,30 @@ export default function InboxPageContent() {
       {hasItemsToShow ? (
         <div className="space-y-2.5">
           {displayedItems.map((item) => {
+            const handleCardClick = () => {
+              if (!item.isRead) {
+                markAsRead(item.id);
+              }
+              if (item.actionLabel || item.subscriptionName || item.providerUrl) {
+                handleAction(item);
+              }
+            };
+
+            const handleContextMenu = (e: React.MouseEvent) => {
+              e.preventDefault();
+              if (window.confirm(`Delete message "${item.title}"?`)) {
+                deleteItem(item.id);
+              }
+            };
+
             if (!item.isRead) {
-              // UNREAD ITEM (Prominent styling, appropriate CTA button if available, NO double-check icon, NO X icon)
+              // UNREAD ITEM (Prominent styling, optional CTA if actionable, NO read tick check, NO cancel X icon)
               return (
                 <div
                   key={item.id}
-                  className="group rounded-2xl p-4 sm:p-5 border border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#14B8A6]/50 transition-colors duration-150 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm"
+                  onClick={handleCardClick}
+                  onContextMenu={handleContextMenu}
+                  className="group rounded-2xl p-4 sm:p-5 border border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#14B8A6]/50 transition-colors duration-150 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm cursor-pointer"
                 >
                   {/* Left: Status Indicator Dot & Content */}
                   <div className="flex items-start gap-3.5 min-w-0 flex-1">
@@ -228,21 +246,9 @@ export default function InboxPageContent() {
                     </div>
                   </div>
 
-                  {/* Right: Actions for Unread Items */}
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        markAsRead(item.id);
-                      }}
-                      title="Mark as read"
-                      aria-label="Mark as read"
-                      className="p-1 text-[#94A3B8] hover:text-[#14B8A6] transition-colors cursor-pointer"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-                    {item.actionLabel && (
+                  {/* Right: Actions for Unread Items (CTA Button only if action required, NO check icon, NO X icon) */}
+                  {item.actionLabel && (
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -254,19 +260,21 @@ export default function InboxPageContent() {
                         <span>{item.actionLabel}</span>
                         <ChevronRight className="w-3.5 h-3.5 opacity-80" />
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             }
 
-            // READ ITEM (Visually muted, teal double-check icon for mark as unread + dismiss X icon, NO active CTA)
+            // READ ITEM (Full opacity, read tick/check indicator, clickable, NO cancel X icon, NO auto deletion)
             return (
               <div
                 key={item.id}
-                className="group rounded-2xl p-4 sm:p-4.5 border border-[#1A1D1D]/70 bg-[#0B0D0D]/40 opacity-60 hover:opacity-85 transition-opacity duration-150 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                onClick={handleCardClick}
+                onContextMenu={handleContextMenu}
+                className="group rounded-2xl p-4 sm:p-4.5 border border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#262929] transition-colors duration-150 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer"
               >
-                {/* Left: Muted Content */}
+                {/* Left: Content */}
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   {getStatusDot(item)}
 
@@ -279,13 +287,13 @@ export default function InboxPageContent() {
                         {formatDate(item.date)}
                       </span>
                     </div>
-                    <p className="text-xs text-[#94A3B8]/70 leading-relaxed">
+                    <p className="text-xs text-[#94A3B8]/80 leading-relaxed">
                       {item.description}
                     </p>
                   </div>
                 </div>
 
-                {/* Right: Icons for Read Messages (Teal double-check + X/dismiss) */}
+                {/* Right: Read-status tick icon (Check / CheckCheck), NO cancel X icon */}
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]/40">
                   <button
                     type="button"
@@ -295,21 +303,9 @@ export default function InboxPageContent() {
                     }}
                     title="Mark as unread"
                     aria-label="Mark as unread"
-                    className="p-1 text-[#14B8A6] hover:text-[#2DD4BF] transition-colors cursor-pointer"
+                    className="p-1 text-[#14B8A6] hover:text-[#2DD4BF] transition-colors cursor-pointer flex items-center gap-1 text-xs font-medium"
                   >
-                    <CheckCheck className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteItem(item.id);
-                    }}
-                    title="Dismiss"
-                    aria-label="Dismiss"
-                    className="p-1 text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
+                    <CheckCheck className="w-4 h-4 text-[#14B8A6]" />
                   </button>
                 </div>
               </div>
