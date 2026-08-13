@@ -12,7 +12,7 @@ import { InboxProvider } from '@/lib/contexts/inbox-context';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAuthPage = pathname === '/login';
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (isAuthPage) {

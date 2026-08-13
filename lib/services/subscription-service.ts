@@ -9,6 +9,18 @@ export interface AccountLink {
   id: string;
   label?: string;
   url: string;
+  email?: string;
+}
+
+export interface AttachedReceipt {
+  id: string;
+  fileName: string;
+  uploadDate: string;
+  price?: number | null;
+  currency?: string | null;
+  provider?: string | null;
+  rawText?: string | null;
+  fileUrl?: string | null;
 }
 
 const KNOWN_PROVIDER_WEBSITES: Record<string, string> = {
@@ -284,16 +296,41 @@ export function getProviderManagementUrl(name: string, providerUrl?: string | nu
   return null;
 }
 
+export function parseAttachedReceipts(subscription: SubscriptionRow | null | undefined): AttachedReceipt[] {
+  if (!subscription) return [];
+
+  if (Array.isArray(subscription.receipts) && subscription.receipts.length > 0) {
+    return subscription.receipts as AttachedReceipt[];
+  }
+
+  if (subscription.notes && subscription.notes.includes('[AttachedReceipts:')) {
+    try {
+      const match = subscription.notes.match(/\[AttachedReceipts:\s*(\[.*?\])\]/);
+      if (match && match[1]) {
+        const parsed = JSON.parse(match[1]);
+        if (Array.isArray(parsed)) {
+          return parsed as AttachedReceipt[];
+        }
+      }
+    } catch {
+      // Ignore parse error
+    }
+  }
+
+  return [];
+}
+
 export function parseAccountLinks(subscription: SubscriptionRow | null | undefined): AccountLink[] {
   if (!subscription) return [];
 
   const processLinks = (links: any[]): AccountLink[] => {
     return links
-      .filter((link) => link && (link.label || link.url))
+      .filter((link) => link && (link.label || link.url || link.email))
       .map((link, idx) => ({
         id: link.id || `link-${idx}-${Date.now()}`,
         label: link.label || 'Personal',
         url: link.url || '',
+        email: link.email || '',
       }));
   };
 
@@ -359,6 +396,7 @@ export function cleanNotesUserText(notesText: string | null | undefined): string
   if (!notesText) return '';
   return notesText
     .replace(/\[AccountLinks:\s*\[.*?\]\]/g, '')
+    .replace(/\[AttachedReceipts:\s*\[.*?\]\]/g, '')
     .replace(/\[HistoryState:\s*\{.*?\}\]/g, '')
     .trim();
 }
@@ -366,13 +404,17 @@ export function cleanNotesUserText(notesText: string | null | undefined): string
 export function formatNotesWithAccountLinks(
   userNotes: string | null | undefined,
   links: AccountLink[],
-  existingHistoryState?: HistoryStateMetadata | null
+  existingHistoryState?: HistoryStateMetadata | null,
+  receipts?: AttachedReceipt[] | null
 ): string | null {
   const clean = cleanNotesUserText(userNotes);
   const parts: string[] = [];
   if (clean) parts.push(clean);
   if (links && links.length > 0) {
     parts.push(`[AccountLinks: ${JSON.stringify(links)}]`);
+  }
+  if (receipts && receipts.length > 0) {
+    parts.push(`[AttachedReceipts: ${JSON.stringify(receipts)}]`);
   }
   if (existingHistoryState) {
     parts.push(`[HistoryState: ${JSON.stringify(existingHistoryState)}]`);

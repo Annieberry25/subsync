@@ -253,7 +253,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           {showProfileMenu && (
             <div className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-[#0F1111] border border-[#1A1D1D] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5">
               <Link
-                href="/settings"
+                href="/profile"
                 onClick={() => {
                   setShowProfileMenu(false);
                   onMobileClose?.();
@@ -264,8 +264,8 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 <span>Profile</span>
               </Link>
 
-              <a
-                href="mailto:support@subsync.app"
+              <Link
+                href="/help"
                 onClick={() => {
                   setShowProfileMenu(false);
                   onMobileClose?.();
@@ -274,7 +274,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               >
                 <HelpCircle className="w-4 h-4 text-[#94A3B8]" />
                 <span>Help</span>
-              </a>
+              </Link>
 
               <div className="border-t border-[#1A1D1D]/70 my-1 pt-1">
                 <button

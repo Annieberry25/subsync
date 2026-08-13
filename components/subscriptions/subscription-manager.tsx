@@ -17,6 +17,8 @@ import SubscriptionCard from './subscription-card';
 import SubscriptionTable from './subscription-table';
 import SubscriptionDetailModal from './subscription-detail-modal';
 import SubscriptionModal from './subscription-modal';
+import AddSubscriptionModal from './add-subscription-modal';
+import SubscriptionNotesModal from './subscription-notes-modal';
 import SubscriptionFilters from './subscription-filters';
 import PaymentReminderModal from './payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
@@ -44,7 +46,14 @@ export default function SubscriptionManager() {
   const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Modal & Confirm State
+  // Add Subscription Three Path Entry Modal State
+  const [isAddPathModalOpen, setIsAddPathModalOpen] = useState(false);
+  const [prefillData, setPrefillData] = useState<Partial<Omit<SubscriptionInsert, 'user_id'>> | null>(null);
+
+  // Notes Modal state
+  const [notesSub, setNotesSub] = useState<SubscriptionRow | null>(null);
+
+  // Manual Form Modal & Confirm State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
   const [returnToDetailSub, setReturnToDetailSub] = useState<SubscriptionRow | null>(null);
@@ -276,8 +285,7 @@ export default function SubscriptionManager() {
           <button
             type="button"
             onClick={() => {
-              setEditingSubscription(null);
-              setIsModalOpen(true);
+              setIsAddPathModalOpen(true);
             }}
             className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
           >
@@ -329,33 +337,31 @@ export default function SubscriptionManager() {
             }}
             onDeleteRequest={(item) => setDeletingSubscription(item)}
             onPaymentReminderRequest={(item) => setReminderSubscription(item)}
+            onOpenNotes={(item) => setNotesSub(item)}
             reminders={reminders}
             onDismissReminder={handleDismissReminder}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredSubscriptions.map((sub) => (
-              <div
+              <SubscriptionCard
                 key={sub.id}
-                onClick={() => {
-                  setSelectedDetailSub(sub);
+                subscription={sub}
+                isHighlighted={sub.id === highlightedSubId}
+                onViewDetails={(item) => {
+                  setSelectedDetailSub(item);
                   setIsDetailOpen(true);
                 }}
-                className="cursor-pointer"
-              >
-                <SubscriptionCard
-                  subscription={sub}
-                  isHighlighted={sub.id === highlightedSubId}
-                  onEdit={(item) => {
-                    setEditingSubscription(item);
-                    setIsModalOpen(true);
-                  }}
-                  onDeleteRequest={(item) => setDeletingSubscription(item)}
-                  onPaymentReminderRequest={(item) => setReminderSubscription(item)}
-                  reminderInfo={reminders[sub.id] || null}
-                  onDismissReminder={handleDismissReminder}
-                />
-              </div>
+                onEdit={(item) => {
+                  setEditingSubscription(item);
+                  setIsModalOpen(true);
+                }}
+                onDeleteRequest={(item) => setDeletingSubscription(item)}
+                onPaymentReminderRequest={(item) => setReminderSubscription(item)}
+                onOpenNotes={(item) => setNotesSub(item)}
+                reminderInfo={reminders[sub.id] || null}
+                onDismissReminder={handleDismissReminder}
+              />
             ))}
           </div>
         )
@@ -388,8 +394,7 @@ export default function SubscriptionManager() {
               <button
                 type="button"
                 onClick={() => {
-                  setEditingSubscription(null);
-                  setIsModalOpen(true);
+                  setIsAddPathModalOpen(true);
                 }}
                 className="px-6 py-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold transition-all cursor-pointer"
               >
@@ -399,6 +404,38 @@ export default function SubscriptionManager() {
           </div>
         </div>
       )}
+
+      {/* Add Subscription Entry Choice Modal (Three Path Flow) */}
+      <AddSubscriptionModal
+        isOpen={isAddPathModalOpen}
+        onClose={() => setIsAddPathModalOpen(false)}
+        onSelectManual={(prefill) => {
+          if (prefill) {
+            setEditingSubscription({
+              id: '',
+              user_id: '',
+              name: prefill.name || '',
+              price: prefill.price || 0,
+              currency: prefill.currency || 'USD',
+              billing_cycle: (prefill.billing_cycle as any) || 'monthly',
+              category: (prefill.category as any) || 'Streaming',
+              status: (prefill.status as any) || 'active',
+              start_date: prefill.start_date || null,
+              end_date: prefill.end_date || null,
+              next_billing_date: prefill.next_billing_date || new Date().toISOString().split('T')[0],
+              payment_method: null,
+              provider_url: prefill.provider_url || null,
+              notes: prefill.notes || null,
+              account_links: prefill.account_links || [],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          } else {
+            setEditingSubscription(null);
+          }
+          setIsModalOpen(true);
+        }}
+      />
 
       {/* Subscription Detail View Modal */}
       <SubscriptionDetailModal
@@ -433,6 +470,14 @@ export default function SubscriptionManager() {
         }}
         onSave={handleSave}
         initialData={editingSubscription}
+      />
+
+      {/* Dedicated Notes Editor Modal */}
+      <SubscriptionNotesModal
+        subscription={notesSub}
+        isOpen={!!notesSub}
+        onClose={() => setNotesSub(null)}
+        onSaved={loadData}
       />
 
       {/* Confirm Delete Dialog */}

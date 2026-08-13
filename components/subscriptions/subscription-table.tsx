@@ -17,6 +17,7 @@ interface SubscriptionTableProps {
   onDeleteRequest: (subscription: SubscriptionRow) => void;
   onArchiveRequest?: (subscription: SubscriptionRow) => void;
   onPaymentReminderRequest: (subscription: SubscriptionRow) => void;
+  onOpenNotes?: (subscription: SubscriptionRow) => void;
   reminders?: Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>;
   onDismissReminder?: (subscription: SubscriptionRow) => void;
 }
@@ -53,6 +54,7 @@ export default function SubscriptionTable({
   onDeleteRequest,
   onArchiveRequest,
   onPaymentReminderRequest,
+  onOpenNotes,
   reminders = {},
   onDismissReminder,
 }: SubscriptionTableProps) {
@@ -188,6 +190,20 @@ export default function SubscriptionTable({
           >
             <Settings className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
             <span>Manage Subscription</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const targetSub = activeSubForMenu;
+              setActiveMenuSubId(null);
+              onOpenNotes?.(targetSub);
+            }}
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            role="menuitem"
+          >
+            <Clock className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+            <span>Notes</span>
           </button>
 
           <div className="border-t border-[#1A1D1D] my-1" />

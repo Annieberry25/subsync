@@ -47,11 +47,14 @@ export interface Database {
           category: 'Streaming' | 'Software' | 'Utilities' | 'Fitness' | 'Finance' | 'Education' | 'Gaming' | 'Other'
           status: 'active' | 'paused' | 'canceled' | 'trial'
           start_date: string | null
+          end_date?: string | null
           next_billing_date: string
           payment_method: string | null
           provider_url: string | null
           notes: string | null
-          account_links?: { id?: string; label?: string; url: string }[] | null
+          account_links?: { id?: string; label?: string; url: string; email?: string }[] | null
+          receipts?: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
+          is_synced?: boolean | null
           created_at: string
           updated_at: string
         }
@@ -65,11 +68,14 @@ export interface Database {
           category: 'Streaming' | 'Software' | 'Utilities' | 'Fitness' | 'Finance' | 'Education' | 'Gaming' | 'Other'
           status?: 'active' | 'paused' | 'canceled' | 'trial'
           start_date?: string | null
+          end_date?: string | null
           next_billing_date: string
           payment_method?: string | null
           provider_url?: string | null
           notes?: string | null
-          account_links?: { id?: string; label?: string; url: string }[] | null
+          account_links?: { id?: string; label?: string; url: string; email?: string }[] | null
+          receipts?: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
+          is_synced?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -83,11 +89,14 @@ export interface Database {
           category?: 'Streaming' | 'Software' | 'Utilities' | 'Fitness' | 'Finance' | 'Education' | 'Gaming' | 'Other'
           status?: 'active' | 'paused' | 'canceled' | 'trial'
           start_date?: string | null
+          end_date?: string | null
           next_billing_date?: string
           payment_method?: string | null
           provider_url?: string | null
           notes?: string | null
-          account_links?: { id?: string; label?: string; url: string }[] | null
+          account_links?: { id?: string; label?: string; url: string; email?: string }[] | null
+          receipts?: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
+          is_synced?: boolean | null
           created_at?: string
           updated_at?: string
         }

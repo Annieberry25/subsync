@@ -409,7 +409,7 @@ export function CategoryManager({
           return (
             <div
               key={cat}
-              className="group p-3 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#14B8A6]/40 transition-all flex items-center justify-between gap-2 shadow-sm min-w-0"
+              className="group p-3 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] hover:bg-[#0D0F0F] transition-all flex items-center justify-between gap-2 shadow-sm min-w-0"
             >
               {/* Left Side: Icon & Title & Subtitle Badge */}
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -436,7 +436,7 @@ export function CategoryManager({
                       className={`text-[9px] px-1.5 py-0.2 rounded font-medium shrink-0 ${
                         isBuiltIn
                           ? 'bg-[#1A1D1D]/70 text-[#94A3B8]'
-                          : 'bg-[#14B8A6]/15 text-[#14B8A6] border border-[#14B8A6]/30'
+                          : 'bg-[#1A1D1D] text-[#94A3B8] border border-[#1A1D1D]'
                       }`}
                     >
                       {isBuiltIn ? 'Default' : 'Custom'}

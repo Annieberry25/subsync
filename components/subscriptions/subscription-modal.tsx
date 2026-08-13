@@ -45,6 +45,8 @@ export default function SubscriptionModal({
   const [billingCycle, setBillingCycle] = useState<typeof billingCycles[number]>('monthly');
   const [category, setCategory] = useState<typeof categories[number]>('Streaming');
   const [status, setStatus] = useState<typeof statuses[number]>('active');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [nextBillingDate, setNextBillingDate] = useState('');
   const [providerUrl, setProviderUrl] = useState('');
   const [isUserEditedUrl, setIsUserEditedUrl] = useState(false);
@@ -79,6 +81,8 @@ export default function SubscriptionModal({
       setBillingCycle(initialData.billing_cycle as typeof billingCycles[number]);
       setCategory(initialData.category as typeof categories[number]);
       setStatus(initialData.status as typeof statuses[number]);
+      setStartDate(initialData.start_date || '');
+      setEndDate(initialData.end_date || '');
       setNextBillingDate(initialData.next_billing_date);
       
       const knownManage = getKnownProviderManagementUrl(initialData.name);
@@ -107,6 +111,8 @@ export default function SubscriptionModal({
       setBillingCycle('monthly');
       setCategory('Streaming');
       setStatus('active');
+      setStartDate('');
+      setEndDate('');
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       setNextBillingDate(nextMonth.toISOString().split('T')[0]);
@@ -228,6 +234,8 @@ export default function SubscriptionModal({
           billing_cycle: billingCycle,
           category,
           status,
+          start_date: startDate ? startDate : null,
+          end_date: endDate ? endDate : null,
           next_billing_date: nextBillingDate,
           payment_method: null,
           provider_url: providerUrl.trim() || null,
@@ -398,10 +406,34 @@ export default function SubscriptionModal({
               </div>
             </div>
 
+            {/* Optional Start Date & End Date Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Start Date (Optional)</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-[#94A3B8] block">End Date (Optional)</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  placeholder="No end date"
+                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                />
+              </div>
+            </div>
+
             {/* Next Billing Date & Quick Presets (Contract & Renewal Section) */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">Next Billing Date *</label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Next Billing / Renewal Date *</label>
                 <div className="flex items-center gap-2 text-[11px]">
                   <button
                     type="button"
@@ -432,28 +464,17 @@ export default function SubscriptionModal({
 
             {/* Provider Website Field */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-[#14B8A6]" />
-                  <span>Provider Website</span>
-                </label>
-              </div>
-              {providerUrl ? (
-                <a
-                  href={providerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#14B8A6] hover:underline flex items-center justify-between transition-colors truncate font-medium group"
-                  title="Open provider's subscription page"
-                >
-                  <span className="truncate">{providerUrl}</span>
-                  <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-2 text-[#94A3B8] transition-colors" />
-                </a>
-              ) : (
-                <div className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#94A3B8] flex items-center">
-                  Not configured
-                </div>
-              )}
+              <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-[#14B8A6]" />
+                <span>Provider Website / Account Link (Optional)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://www.provider.com/account"
+                value={providerUrl}
+                onChange={(e) => handleUrlChange(e.target.value)}
+                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+              />
             </div>
 
             {/* Subscription Accounts Section */}
@@ -583,14 +604,14 @@ export default function SubscriptionModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+                className="w-full sm:w-auto px-5 py-3 rounded-full min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl min-h-[44px] bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-3 rounded-full min-h-[44px] bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {loading ? (
                   <>

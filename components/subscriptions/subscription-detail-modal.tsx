@@ -5,6 +5,7 @@ import { X, ExternalLink, Calendar, DollarSign, Edit2, Settings, Bell, Archive, 
 import { 
   type SubscriptionRow,
   parseAccountLinks,
+  parseAttachedReceipts,
   cleanNotesUserText,
   getProviderWebsite,
   getProviderManagementUrl
@@ -85,6 +86,7 @@ export default function SubscriptionDetailModal({
   const formattedAnnualCost = formatCurrency(annualCost, subscription.currency);
   const statusInfo = statusBadgeStyles[subscription.status] || statusBadgeStyles.active;
   const accountLinks = parseAccountLinks(subscription);
+  const attachedReceipts = parseAttachedReceipts(subscription);
   const cleanNotes = cleanNotesUserText(subscription.notes);
 
   const officialWebsite = getProviderWebsite(subscription.name, subscription.provider_url);
@@ -213,7 +215,25 @@ export default function SubscriptionDetailModal({
 
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#94A3B8]">Next Billing Date</span>
+                <span className="text-[#94A3B8]">Start Date</span>
+                <span className="font-semibold text-[#F5F7F6]">
+                  {subscription.start_date
+                    ? new Date(subscription.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : 'Not specified'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-[#1A1D1D]/60">
+                <span className="text-[#94A3B8]">End Date</span>
+                <span className="font-semibold text-[#F5F7F6]">
+                  {subscription.end_date
+                    ? new Date(subscription.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : 'Ongoing (No end date)'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-[#1A1D1D]/60">
+                <span className="text-[#94A3B8]">Next Billing / Renewal</span>
                 <span className="font-semibold text-[#F5F7F6]">{formattedNextDate}</span>
               </div>
 
@@ -224,14 +244,6 @@ export default function SubscriptionDetailModal({
                 ) : (
                   `Renews in ${diffDays} days`
                 )}</span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-[#94A3B8]">Auto-Renew Status</span>
-                <span className="font-medium text-[#14B8A6] flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#14B8A6]" />
-                  Active Auto-Renew
-                </span>
               </div>
             </div>
           </div>
@@ -306,9 +318,37 @@ export default function SubscriptionDetailModal({
               </div>
             )}
           </div>
+
+          {/* Card 5: Attached Receipts */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-3 col-span-1 md:col-span-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
+              <FileText className="w-4 h-4 text-[#14B8A6]" />
+              <span>Attached Receipts ({attachedReceipts.length})</span>
+            </div>
+
+            {attachedReceipts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+                {attachedReceipts.map((receipt) => (
+                  <div key={receipt.id} className="p-3 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <FileText className="w-4 h-4 text-[#14B8A6] shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-[#F5F7F6] text-xs font-medium block truncate">{receipt.fileName}</span>
+                        <span className="text-[11px] text-[#94A3B8] block">{receipt.uploadDate}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-[#94A3B8] italic p-2.5 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D]/60">
+                No receipts attached yet. Use &quot;Import Receipt&quot; to attach payment confirmation files or screenshots.
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Card 5: History */}
+        {/* Card 6: History */}
         <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
             <Clock className="w-4 h-4 text-[#14B8A6]" />

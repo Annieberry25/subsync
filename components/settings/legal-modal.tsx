@@ -26,7 +26,7 @@ export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

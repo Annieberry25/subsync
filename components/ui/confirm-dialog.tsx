@@ -119,7 +119,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-full text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center border border-[#1A1D1D]"
           >
             {cancelText}
           </button>
@@ -132,7 +132,7 @@ export default function ConfirmDialog({
               onClose();
             }}
             disabled={loading}
-            className={`w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer ${currentVariant.btnBg}`}
+            className={`w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-full text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer ${currentVariant.btnBg}`}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             <span>{confirmText}</span>

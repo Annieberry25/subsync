@@ -14,6 +14,8 @@ interface SubscriptionCardProps {
   onDeleteRequest: (subscription: SubscriptionRow) => void;
   onArchiveRequest?: (subscription: SubscriptionRow) => void;
   onPaymentReminderRequest?: (subscription: SubscriptionRow) => void;
+  onViewDetails?: (subscription: SubscriptionRow) => void;
+  onOpenNotes?: (subscription: SubscriptionRow) => void;
   reminderInfo?: { timing: string; method: string; note?: string; dismissed?: boolean } | null;
   onDismissReminder?: (subscription: SubscriptionRow) => void;
   isHighlighted?: boolean;
@@ -35,6 +37,8 @@ export default function SubscriptionCard({
   onDeleteRequest,
   onArchiveRequest,
   onPaymentReminderRequest,
+  onViewDetails,
+  onOpenNotes,
   reminderInfo,
   onDismissReminder,
   isHighlighted,
@@ -130,19 +134,14 @@ export default function SubscriptionCard({
     };
   }, [menuOpen]);
 
+  const handleViewDetails = () => {
+    setMenuOpen(false);
+    onViewDetails?.(subscription);
+  };
+
   const handleEdit = () => {
     setMenuOpen(false);
     onEdit(subscription);
-  };
-
-  const handleRenewalHistory = () => {
-    setMenuOpen(false);
-    toast.info(`Renewal History for ${subscription.name} coming soon.`, 'Feature Pending');
-  };
-
-  const handlePriceHistory = () => {
-    setMenuOpen(false);
-    toast.info(`Price History for ${subscription.name} coming soon.`, 'Feature Pending');
   };
 
   const handlePaymentReminder = () => {
@@ -162,6 +161,11 @@ export default function SubscriptionCard({
     }
   };
 
+  const handleNotes = () => {
+    setMenuOpen(false);
+    onOpenNotes?.(subscription);
+  };
+
   const handleArchive = async () => {
     setMenuOpen(false);
     if (onArchiveRequest) {
@@ -179,7 +183,9 @@ export default function SubscriptionCard({
   const handleDelete = () => {
     setMenuOpen(false);
     onDeleteRequest(subscription);
-  };  const menuPortal = menuOpen && mounted && typeof document !== 'undefined'
+  };
+
+  const menuPortal = menuOpen && mounted && typeof document !== 'undefined'
     ? createPortal(
         <div
           ref={menuRef}
@@ -193,6 +199,18 @@ export default function SubscriptionCard({
           aria-orientation="vertical"
           aria-label={`Actions for ${subscription.name}`}
         >
+          {onViewDetails && (
+            <button
+              type="button"
+              onClick={handleViewDetails}
+              className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+              role="menuitem"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-[#14B8A6] shrink-0" />
+              <span>View subscription details</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleEdit}
@@ -200,27 +218,7 @@ export default function SubscriptionCard({
             role="menuitem"
           >
             <Edit2 className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-            <span>Edit Subscription</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleRenewalHistory}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
-            role="menuitem"
-          >
-            <Clock className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-            <span>Renewal History</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handlePriceHistory}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
-            role="menuitem"
-          >
-            <TrendingUp className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-            <span>Price History</span>
+            <span>Edit subscription</span>
           </button>
 
           <button
@@ -230,23 +228,8 @@ export default function SubscriptionCard({
             role="menuitem"
           >
             <Bell className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-            <span>Payment Reminder</span>
+            <span>Payment reminder</span>
           </button>
-
-          {reminderInfo && onDismissReminder && (
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false);
-                onDismissReminder(subscription);
-              }}
-              className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F59E0B] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
-              role="menuitem"
-            >
-              <Bell className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
-              <span>Dismiss Reminder</span>
-            </button>
-          )}
 
           <button
             type="button"
@@ -255,7 +238,17 @@ export default function SubscriptionCard({
             role="menuitem"
           >
             <Settings className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-            <span>Manage Subscription</span>
+            <span>Manage subscription</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleNotes}
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            role="menuitem"
+          >
+            <Clock className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+            <span>Notes</span>
           </button>
 
           <div className="border-t border-[#1A1D1D] my-1" />
@@ -359,7 +352,7 @@ export default function SubscriptionCard({
               </>
             )}
             <span className="mx-2 text-[#1A1D1D]">•</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium bg-[#0B0D0D] border border-[#1A1D1D] text-[#94A3B8]">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-[#0B0D0D] border border-[#1A1D1D] text-[#94A3B8]">
               {subscription.category}
             </span>
           </span>

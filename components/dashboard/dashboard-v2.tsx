@@ -27,6 +27,7 @@ import { UpcomingRenewalsSpotlight } from '@/components/subscriptions/upcoming-r
 import { CategoryBreakdownCard } from './category-breakdown-card';
 import { MostExpensivePlanCard } from './most-expensive-plan-card';
 import { SmartInsightCard } from './smart-insight-card';
+import { AdBanner } from './ad-banner';
 
 import SubscriptionModal from '@/components/subscriptions/subscription-modal';
 import PaymentReminderModal from '@/components/subscriptions/payment-reminder-modal';
@@ -357,7 +358,10 @@ export default function DashboardV2() {
         />
       )}
 
-      {/* 6. SMART INSIGHT */}
+      {/* 6. SPONSOR ADVERTISEMENT (Subtle Free Plan Banner) */}
+      {!loading && <AdBanner planTier="free" />}
+
+      {/* 7. SMART INSIGHT */}
       {!loading && <SmartInsightCard subscriptions={activeSubscriptions} />}
 
       {/* Modals & Dialogs */}

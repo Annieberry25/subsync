@@ -208,13 +208,13 @@ export default function PaymentReminderModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-full border border-[#1A1D1D] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-full text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center justify-center"
             >
               Save Reminder
             </button>

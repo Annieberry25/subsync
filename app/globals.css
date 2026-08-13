@@ -175,11 +175,11 @@
   background-color: #000000 !important;
 }
 
-/* Form Controls (Inputs, Selects, Textareas) */
+/* Form Controls (Inputs, Selects, Textareas - Softly Rounded 14px, distinct from pill buttons) */
 input, select:not(.bg-transparent), textarea {
   background-color: #0D0F0F !important;
   border: 1px solid #1A1D1D !important;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   color: #F5F7F6 !important;
   font-size: 15px !important;
   min-height: 44px !important;
@@ -195,6 +195,13 @@ input:focus, select:focus, textarea:focus {
 input::placeholder, textarea::placeholder {
   color: #94A3B8 !important;
 }
+
+/* Global Button System Redesign - Soft Pill / Rounded Full */
+.btn-pill,
+button.btn-pill {
+  border-radius: 9999px !important;
+}
+
 
 /* Custom Sleek Minimal Scrollbar */
 ::-webkit-scrollbar {
@@ -260,5 +267,56 @@ input::placeholder, textarea::placeholder {
     min-width: 44px;
   }
 }
+
+/* ==========================================
+   SETTINGS NAVIGATION - STRICT FLAT STYLING (NO GLOW / NO SHADOW / NO GRADIENT / NO BLUR)
+   ========================================== */
+.settings-nav,
+.settings-nav *,
+.settings-nav *::before,
+.settings-nav *::after,
+.settings-nav-item,
+.settings-nav-item:hover,
+.settings-nav-item:focus,
+.settings-nav-item:focus-visible,
+.settings-nav-item:active,
+.settings-nav-item::before,
+.settings-nav-item::after {
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  text-shadow: none !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  outline: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-color: transparent !important;
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  --tw-drop-shadow: none !important;
+}
+
+.settings-nav-item.active,
+.settings-nav-item[data-active="true"] {
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  text-shadow: none !important;
+  background-image: none !important;
+  outline: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-color: transparent !important;
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  --tw-drop-shadow: none !important;
+}
+
+.settings-nav-item:hover {
+  background-color: #0D0F0F !important;
+}
+
 
 
