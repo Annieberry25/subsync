@@ -280,10 +280,10 @@ export default function SubscriptionCard({
   return (
     <div
       id={`sub-card-${subscription.id}`}
-      className={`w-full rounded-2xl p-5 bg-[#0B0D0D] flex flex-col justify-between transition-all duration-300 gap-4 ${
+      className={`w-full rounded-2xl p-5 bg-[#0B0D0D] flex flex-col justify-between transition-colors gap-4 ${
         isHighlighted
-          ? 'border-2 border-[#14B8A6] ring-2 ring-[#14B8A6]/40 shadow-lg'
-          : 'border border-[#1A1D1D] hover:border-[#14B8A6]'
+          ? 'border-2 border-[#14B8A6] shadow-sm'
+          : 'border border-[#1A1D1D] hover:border-[#2A2E2E]'
       }`}
     >
       {/* Header Row */}
@@ -314,14 +314,13 @@ export default function SubscriptionCard({
           </div>
         </div>
 
-        {/* Status Dot & Vertical Menu Button */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <span className={`w-2.5 h-2.5 rounded-full ${statusDotStyle}`} title={`Status: ${subscription.status}`} />
+        {/* Vertical Menu Button */}
+        <div className="flex items-center shrink-0">
           <button
             ref={buttonRef}
             type="button"
             onClick={handleToggleMenu}
-            className="w-9 h-9 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
+            className="p-1.5 text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]/50 rounded-lg transition-colors cursor-pointer flex items-center justify-center shrink-0"
             title="Subscription actions"
             aria-label={`Actions for ${subscription.name}`}
             aria-expanded={menuOpen}
@@ -374,8 +373,8 @@ export default function SubscriptionCard({
       {/* Subscription Account Links */}
       {accountLinks.length > 0 && (
         <div className="pt-2 border-t border-[#1A1D1D] space-y-1.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">
-            <Link2 className="w-3 h-3 text-[#14B8A6]" />
+          <div className="flex items-center gap-1.5 text-xs font-medium text-[#94A3B8]">
+            <Link2 className="w-3.5 h-3.5 text-[#14B8A6]" />
             <span>Subscription Accounts</span>
           </div>
           <div className="flex flex-wrap gap-1.5">

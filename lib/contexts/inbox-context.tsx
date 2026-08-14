@@ -48,235 +48,145 @@ interface InboxContextType {
   addToFavourites: (id: string) => void;
   removeFromFavourites: (id: string) => void;
   getItemById: (id: string) => InboxItem | undefined;
+  addInboxItem: (item: Omit<InboxItem, 'id' | 'date' | 'isRead'>) => void;
 }
 
-export const INITIAL_INBOX_ITEMS: InboxItem[] = [
-  {
-    id: 'inbox-1',
-    type: 'failed_payment',
-    title: 'Payment failed for ChatGPT Plus',
-    description: 'Your monthly charge of $20.00 failed on Visa ending in 4242. Update payment details to prevent subscription cancellation.',
-    date: new Date(1770765900000).toISOString(),
-    isRead: false,
-    isUrgent: true,
-    actionType: 'update_payment',
-    actionLabel: 'Update payment',
-    subscriptionName: 'ChatGPT Plus',
-    subscriptionPrice: 20.0,
-    currency: 'USD',
-    providerUrl: 'https://chatgpt.com/#settings/Subscription',
-  },
-  {
-    id: 'inbox-2',
-    type: 'trial_ending',
-    title: 'Adobe Creative Cloud trial ending soon',
-    description: 'Your 14-day trial ends tomorrow. Your account will automatically transition to $54.99/mo.',
-    date: new Date(1770757800000).toISOString(),
-    isRead: false,
-    actionType: 'manage',
-    actionLabel: 'Manage',
-    subscriptionName: 'Adobe Creative Cloud',
-    subscriptionPrice: 54.99,
-    currency: 'USD',
-    providerUrl: 'https://account.adobe.com/plans',
-  },
-  {
-    id: 'inbox-3',
-    type: 'price_increase',
-    title: 'Spotify Premium price increase notice',
-    description: 'Spotify is adjusting plan prices from $9.99 to $11.99/mo starting on your next billing cycle.',
-    date: new Date(1770725400000).toISOString(),
-    isRead: false,
-    actionType: 'review',
-    actionLabel: 'Review',
-    subscriptionName: 'Spotify',
-    subscriptionPrice: 11.99,
-    currency: 'USD',
-    providerUrl: 'https://www.spotify.com/account/overview/',
-  },
-  {
-    id: 'inbox-4',
-    type: 'duplicate',
-    title: 'Duplicate subscription detected',
-    description: 'Active subscriptions detected for both Disney+ ($13.99/mo) and Hulu ($17.99/mo). Switching to a bundle could save $7/mo.',
-    date: new Date(1770682200000).toISOString(),
-    isRead: false,
-    actionType: 'review',
-    actionLabel: 'Review',
-    subscriptionName: 'Disney+ / Hulu',
-    providerUrl: 'https://www.disneyplus.com/account',
-  },
-  {
-    id: 'inbox-5',
-    type: 'recommendation',
-    title: 'Switch Notion to annual billing',
-    description: 'Switching Notion Plus from monthly ($10/mo) to annual ($96/yr) saves 20% ($24/year).',
-    date: new Date(1770639000000).toISOString(),
-    isRead: false,
-    actionType: 'manage',
-    actionLabel: 'Manage',
-    subscriptionName: 'Notion',
-    providerUrl: 'https://www.notion.so/settings',
-  },
-  {
-    id: 'inbox-6',
-    type: 'renewal',
-    title: 'Netflix subscription renewed successfully',
-    description: 'Automatic monthly charge of $15.99 was processed on August 10, 2026.',
-    date: new Date(1770595800000).toISOString(),
-    isRead: true,
-    subscriptionName: 'Netflix',
-  },
-  {
-    id: 'inbox-7',
-    type: 'plan_update',
-    title: 'GitHub Pro plan features updated',
-    description: 'Your Pro tier now includes multi-repository context and advanced Copilot workspace features at no extra charge.',
-    date: new Date(1770509400000).toISOString(),
-    isRead: true,
-    subscriptionName: 'GitHub Pro',
-  },
-];
+export const INITIAL_INBOX_ITEMS: InboxItem[] = [];
 
-const OVERRIDES_STORAGE_KEY = 'subsync_inbox_user_overrides_v9';
+const ITEMS_STORAGE_KEY = 'subsync_inbox_items_v10';
+const OVERRIDES_STORAGE_KEY = 'subsync_inbox_user_overrides_v10';
 
-interface UserOverrides {
-  readState: Record<string, boolean>;
+interface UserState {
+  items: InboxItem[];
   archivedIds: string[];
   favouritedIds: string[];
-  deletedIds: string[];
 }
 
 const InboxContext = createContext<InboxContextType | undefined>(undefined);
 
 export function InboxProvider({ children }: { children: React.ReactNode }) {
-  const [rawItems, setRawItems] = useState<InboxItem[]>(INITIAL_INBOX_ITEMS);
+  const [rawItems, setRawItems] = useState<InboxItem[]>([]);
   const [archivedIds, setArchivedIds] = useState<string[]>([]);
   const [favouritedIds, setFavouritedIds] = useState<string[]>([]);
-  const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
-  // Helper to apply user overrides to base INITIAL_INBOX_ITEMS
-  const applyOverrides = useCallback((overrides: UserOverrides) => {
-    const deletedSet = new Set(overrides.deletedIds || []);
-
-    const updatedRaw = INITIAL_INBOX_ITEMS.filter((item) => !deletedSet.has(item.id)).map((item) => {
-      if (overrides.readState && item.id in overrides.readState) {
-        return { ...item, isRead: overrides.readState[item.id] };
-      }
-      return item;
-    });
-
-    setRawItems(updatedRaw);
-    setArchivedIds(overrides.archivedIds || []);
-    setFavouritedIds(overrides.favouritedIds || []);
-    setDeletedIds(overrides.deletedIds || []);
-  }, []);
-
-  // Post-mount useEffect to clean legacy stale test state and apply explicit user overrides stored in localStorage
+  // Load persisted user inbox data on mount
   useEffect(() => {
     try {
-      const legacyKeys = [
-        'subsync_inbox_user_overrides_v8',
-        'subsync_inbox_user_overrides_v7',
-        'subsync_inbox_user_overrides_v6',
-        'subsync_inbox_user_overrides_v5',
-        'subsync_inbox_user_overrides_v4',
-        'subsync_inbox_user_overrides_v3',
-        'subsync_inbox_user_overrides_v2',
-        'subsync_inbox_user_overrides',
-        'subsync_inbox_items',
-      ];
-      legacyKeys.forEach((key) => {
-        if (localStorage.getItem(key)) {
-          localStorage.removeItem(key);
-        }
-      });
+      const storedItems = localStorage.getItem(ITEMS_STORAGE_KEY);
+      const storedMeta = localStorage.getItem(OVERRIDES_STORAGE_KEY);
 
-      const stored = localStorage.getItem(OVERRIDES_STORAGE_KEY);
-      if (stored) {
-        const parsed: UserOverrides = JSON.parse(stored);
-        if (parsed && typeof parsed === 'object') {
-          applyOverrides(parsed);
+      if (storedItems) {
+        const parsedItems: InboxItem[] = JSON.parse(storedItems);
+        if (Array.isArray(parsedItems)) {
+          setRawItems(parsedItems);
+        }
+      }
+
+      if (storedMeta) {
+        const parsedMeta = JSON.parse(storedMeta);
+        if (parsedMeta && typeof parsedMeta === 'object') {
+          if (Array.isArray(parsedMeta.archivedIds)) setArchivedIds(parsedMeta.archivedIds);
+          if (Array.isArray(parsedMeta.favouritedIds)) setFavouritedIds(parsedMeta.favouritedIds);
         }
       }
     } catch {
       // Ignore storage errors
     }
-  }, [applyOverrides]);
+  }, []);
 
-  const saveOverrides = useCallback(
-    (
-      updater: (prev: InboxItem[]) => InboxItem[],
-      newArchivedIds?: string[],
-      newFavouritedIds?: string[]
-    ) => {
-      setRawItems((prevItems) => {
-        const nextItems = updater(prevItems);
-        const activeArchivedIds = newArchivedIds !== undefined ? newArchivedIds : archivedIds;
-        const activeFavouritedIds = newFavouritedIds !== undefined ? newFavouritedIds : favouritedIds;
+  const saveState = useCallback((newItems: InboxItem[], newArchived?: string[], newFavourited?: string[]) => {
+    setRawItems(newItems);
+    const activeArchived = newArchived !== undefined ? newArchived : archivedIds;
+    const activeFavourited = newFavourited !== undefined ? newFavourited : favouritedIds;
 
-        if (typeof window !== 'undefined') {
-          try {
-            const currentItemIds = new Set(nextItems.map((i) => i.id));
-            const activeDeletedIds = INITIAL_INBOX_ITEMS.map((i) => i.id).filter((id) => !currentItemIds.has(id));
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(newItems));
+        localStorage.setItem(
+          OVERRIDES_STORAGE_KEY,
+          JSON.stringify({ archivedIds: activeArchived, favouritedIds: activeFavourited })
+        );
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }, [archivedIds, favouritedIds]);
 
-            const readState: Record<string, boolean> = {};
-            nextItems.forEach((item) => {
-              const initial = INITIAL_INBOX_ITEMS.find((i) => i.id === item.id);
-              if (initial && initial.isRead !== item.isRead) {
-                readState[item.id] = item.isRead;
-              }
-            });
+  const addInboxItem = useCallback((item: Omit<InboxItem, 'id' | 'date' | 'isRead'>) => {
+    const newItem: InboxItem = {
+      ...item,
+      id: `inbox-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      date: new Date().toISOString(),
+      isRead: false,
+    };
 
-            const overrides: UserOverrides = {
-              readState,
-              archivedIds: activeArchivedIds,
-              favouritedIds: activeFavouritedIds,
-              deletedIds: activeDeletedIds,
-            };
-            localStorage.setItem(OVERRIDES_STORAGE_KEY, JSON.stringify(overrides));
-          } catch {
-            // Ignore storage errors
-          }
-        }
-
-        return nextItems;
-      });
-    },
-    [archivedIds, favouritedIds]
-  );
+    setRawItems((prev) => {
+      const updated = [newItem, ...prev];
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  }, []);
 
   const markAsRead = useCallback(
     (id: string) => {
-      saveOverrides((prev) => prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)));
+      setRawItems((prev) => {
+        const updated = prev.map((item) => (item.id === id ? { ...item, isRead: true } : item));
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+          } catch {}
+        }
+        return updated;
+      });
     },
-    [saveOverrides]
+    []
   );
 
   const markAsUnread = useCallback(
     (id: string) => {
-      saveOverrides((prev) => prev.map((item) => (item.id === id ? { ...item, isRead: false } : item)));
+      setRawItems((prev) => {
+        const updated = prev.map((item) => (item.id === id ? { ...item, isRead: false } : item));
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+          } catch {}
+        }
+        return updated;
+      });
     },
-    [saveOverrides]
+    []
   );
 
   const markAllAsRead = useCallback(() => {
-    saveOverrides((prev) => prev.map((item) => ({ ...item, isRead: true })));
-  }, [saveOverrides]);
+    setRawItems((prev) => {
+      const updated = prev.map((item) => ({ ...item, isRead: true }));
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  }, []);
 
   const deleteItem = useCallback(
     (id: string) => {
-      setArchivedIds((prevArchived) => {
-        const nextArchived = prevArchived.filter((archId) => archId !== id);
-        setFavouritedIds((prevFav) => {
-          const nextFav = prevFav.filter((favId) => favId !== id);
-          saveOverrides((prev) => prev.filter((item) => item.id !== id), nextArchived, nextFav);
-          return nextFav;
-        });
-        return nextArchived;
+      const nextArchived = archivedIds.filter((archId) => archId !== id);
+      const nextFav = favouritedIds.filter((favId) => favId !== id);
+      setArchivedIds(nextArchived);
+      setFavouritedIds(nextFav);
+
+      setRawItems((prev) => {
+        const updated = prev.filter((item) => item.id !== id);
+        saveState(updated, nextArchived, nextFav);
+        return updated;
       });
     },
-    [saveOverrides]
+    [archivedIds, favouritedIds, saveState]
   );
 
   const archiveItem = useCallback(
@@ -284,33 +194,33 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       setArchivedIds((prev) => {
         if (prev.includes(id)) return prev;
         const next = [...prev, id];
-        saveOverrides((items) => items, next, favouritedIds);
+        saveState(rawItems, next, favouritedIds);
         return next;
       });
     },
-    [saveOverrides, favouritedIds]
+    [rawItems, favouritedIds, saveState]
   );
 
   const unarchiveItem = useCallback(
     (id: string) => {
       setArchivedIds((prev) => {
         const next = prev.filter((item) => item !== id);
-        saveOverrides((items) => items, next, favouritedIds);
+        saveState(rawItems, next, favouritedIds);
         return next;
       });
     },
-    [saveOverrides, favouritedIds]
+    [rawItems, favouritedIds, saveState]
   );
 
   const toggleFavourite = useCallback(
     (id: string) => {
       setFavouritedIds((prev) => {
         const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
-        saveOverrides((items) => items, archivedIds, next);
+        saveState(rawItems, archivedIds, next);
         return next;
       });
     },
-    [saveOverrides, archivedIds]
+    [rawItems, archivedIds, saveState]
   );
 
   const addToFavourites = useCallback(
@@ -318,29 +228,27 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       setFavouritedIds((prev) => {
         if (prev.includes(id)) return prev;
         const next = [...prev, id];
-        saveOverrides((items) => items, archivedIds, next);
+        saveState(rawItems, archivedIds, next);
         return next;
       });
     },
-    [saveOverrides, archivedIds]
+    [rawItems, archivedIds, saveState]
   );
 
   const removeFromFavourites = useCallback(
     (id: string) => {
       setFavouritedIds((prev) => {
         const next = prev.filter((item) => item !== id);
-        saveOverrides((items) => items, archivedIds, next);
+        saveState(rawItems, archivedIds, next);
         return next;
       });
     },
-    [saveOverrides, archivedIds]
+    [rawItems, archivedIds, saveState]
   );
 
   const archivedSet = useMemo(() => new Set(archivedIds), [archivedIds]);
   const favouritedSet = useMemo(() => new Set(favouritedIds), [favouritedIds]);
-  const deletedSet = useMemo(() => new Set(deletedIds), [deletedIds]);
 
-  // Enhance raw items with isFavourited computed boolean property
   const enhancedItems = useMemo(
     () =>
       rawItems.map((item) => ({
@@ -351,24 +259,21 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   );
 
   const items = useMemo(
-    () => enhancedItems.filter((item) => !archivedSet.has(item.id) && !deletedSet.has(item.id)),
-    [enhancedItems, archivedSet, deletedSet]
+    () => enhancedItems.filter((item) => !archivedSet.has(item.id)),
+    [enhancedItems, archivedSet]
   );
 
   const archivedItems = useMemo(
-    () => enhancedItems.filter((item) => archivedSet.has(item.id) && !deletedSet.has(item.id)),
-    [enhancedItems, archivedSet, deletedSet]
+    () => enhancedItems.filter((item) => archivedSet.has(item.id)),
+    [enhancedItems, archivedSet]
   );
 
   const favouritedItems = useMemo(
-    () => enhancedItems.filter((item) => favouritedSet.has(item.id) && !deletedSet.has(item.id)),
-    [enhancedItems, favouritedSet, deletedSet]
+    () => enhancedItems.filter((item) => favouritedSet.has(item.id)),
+    [enhancedItems, favouritedSet]
   );
 
-  const allItems = useMemo(
-    () => enhancedItems.filter((item) => !deletedSet.has(item.id)),
-    [enhancedItems, deletedSet]
-  );
+  const allItems = useMemo(() => enhancedItems, [enhancedItems]);
 
   const getItemById = useCallback(
     (id: string) => allItems.find((item) => item.id === id),
@@ -396,6 +301,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         addToFavourites,
         removeFromFavourites,
         getItemById,
+        addInboxItem,
       }}
     >
       {children}
@@ -410,5 +316,6 @@ export function useInbox() {
   }
   return context;
 }
+
 
 

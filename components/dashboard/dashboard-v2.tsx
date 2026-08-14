@@ -43,44 +43,8 @@ import {
 
 function renderFormattedCurrency(amount: number, currency = 'USD') {
   const formatted = formatCurrency(amount, currency);
-  let symbol = '';
-  let rest = formatted;
-
-  if (formatted.startsWith('$')) {
-    symbol = '$';
-    rest = formatted.slice(1);
-  } else if (formatted.startsWith('₦')) {
-    symbol = '₦';
-    rest = formatted.slice(1);
-  } else if (formatted.startsWith('€')) {
-    symbol = '€';
-    rest = formatted.slice(1);
-  } else if (formatted.startsWith('£')) {
-    symbol = '£';
-    rest = formatted.slice(1);
-  }
-
-  if (symbol) {
-    return (
-      <span className="inline-flex items-baseline flex-wrap">
-        <span
-          className="mr-0.5 select-none text-xl sm:text-[24px] font-semibold text-white"
-        >
-          {symbol}
-        </span>
-        <span
-          className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white"
-        >
-          {rest}
-        </span>
-      </span>
-    );
-  }
-
   return (
-    <span
-      className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-white"
-    >
+    <span className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
       {formatted}
     </span>
   );
@@ -234,6 +198,9 @@ export default function DashboardV2() {
 
   return (
     <div className="animate-page-transition space-y-4 sm:space-y-5 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12 overflow-x-hidden">
+      {/* 0. SPONSOR ADVERTISEMENT (Restrained Top Strip) */}
+      {!loading && <AdBanner planTier="free" />}
+
       {/* 1. HEADER SECTION */}
       <div className="mb-2 sm:mb-4">
         <PersonalizedHeader
@@ -261,18 +228,17 @@ export default function DashboardV2() {
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {/* Card 1: Monthly Spend */}
           <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] leading-tight">
+            <div>
+              <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block">
                 Monthly Spend
               </span>
-              <DollarSign className="w-4 h-4 text-[#94A3B8] shrink-0" />
             </div>
-            <div className="mt-1.5 sm:mt-2">
+            <div className="mt-1 sm:mt-1.5">
               <div>
                 {renderFormattedCurrency(monthlySpend, defaultCurrency)}
               </div>
               <span
-                className="text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#94A3B8] block mt-1 sm:mt-2"
+                className="text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8] block mt-1"
               >
                 Normalized monthly expense ({defaultCurrency})
               </span>
@@ -281,18 +247,17 @@ export default function DashboardV2() {
 
           {/* Card 2: Renewing This Week */}
           <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] leading-tight">
+            <div>
+              <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block">
                 Renewing This Week
               </span>
-              <Calendar className={`w-4 h-4 ${renewalSemantic.iconColor} shrink-0`} />
             </div>
-            <div className="mt-1.5 sm:mt-2">
+            <div className="mt-1 sm:mt-1.5">
               <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
                 {renewingThisWeek}
               </div>
               <span
-                className={`block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] ${renewalSemantic.textColor}`}
+                className={`block mt-1 text-xs sm:text-[13px] font-normal leading-tight ${renewalSemantic.textColor}`}
               >
                 {renewalSemantic.label}
               </span>
@@ -301,18 +266,17 @@ export default function DashboardV2() {
 
           {/* Card 3: Active Plans */}
           <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] leading-tight">
+            <div>
+              <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block">
                 Active Plans
               </span>
-              <CreditCard className="w-4 h-4 text-[#14B8A6] shrink-0" />
             </div>
-            <div className="mt-1.5 sm:mt-2">
+            <div className="mt-1 sm:mt-1.5">
               <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
                 {activeCount}
               </div>
               <span
-                className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#14B8A6]"
+                className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#14B8A6]"
               >
                 Active & trial subscriptions
               </span>
@@ -321,18 +285,17 @@ export default function DashboardV2() {
 
           {/* Card 4: Potential Savings */}
           <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] leading-tight">
+            <div>
+              <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block">
                 Potential Savings
               </span>
-              <Wallet className="w-4 h-4 text-[#94A3B8] shrink-0" />
             </div>
-            <div className="mt-1.5 sm:mt-2">
+            <div className="mt-1 sm:mt-1.5">
               <div>
                 {renderFormattedCurrency(potentialSavings, defaultCurrency)}
               </div>
               <span
-                className="block mt-1 sm:mt-2 text-xs sm:text-[15px] font-normal leading-tight sm:leading-[22px] text-[#94A3B8]"
+                className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]"
               >
                 From paused/trial plans ({defaultCurrency})
               </span>
@@ -358,10 +321,7 @@ export default function DashboardV2() {
         />
       )}
 
-      {/* 6. SPONSOR ADVERTISEMENT (Subtle Free Plan Banner) */}
-      {!loading && <AdBanner planTier="free" />}
-
-      {/* 7. SMART INSIGHT */}
+      {/* 6. SMART INSIGHT */}
       {!loading && <SmartInsightCard subscriptions={activeSubscriptions} />}
 
       {/* Modals & Dialogs */}

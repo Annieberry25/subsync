@@ -96,7 +96,6 @@ export const CATEGORY_COLORS = [
   '#EF4444', // Red
   '#F97316', // Orange
   '#F59E0B', // Amber
-  '#14B8A6', // Teal
   '#22C55E', // Green
   '#06B6D4', // Cyan
   '#3B82F6', // Blue
@@ -208,8 +207,6 @@ export function CategoryManager({
             await onSubscriptionsUpdated();
           }
         }
-
-        toast.success(`Category "${trimmed}" updated.`, 'Category Saved');
       } else {
         // Creating New Category
         if (allCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
@@ -221,8 +218,6 @@ export function CategoryManager({
           icon: selectedIcon,
           color: selectedColor,
         });
-
-        toast.success(`Category "${trimmed}" created successfully.`, 'Category Added');
       }
 
       // Close editor on success
@@ -247,14 +242,9 @@ export function CategoryManager({
           affected.map((s) => updateSubscription(s.id, { category: reassignCategoryTarget as any }))
         );
         await onSubscriptionsUpdated();
-        toast.info(
-          `Reassigned ${affected.length} subscription(s) to "${reassignCategoryTarget}".`,
-          'Subscriptions Updated'
-        );
       }
 
       await deleteCategory(deletingCategoryName);
-      toast.success(`Category "${deletingCategoryName}" removed.`, 'Category Deleted');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to delete category.';
       toast.error(msg, 'Deletion Error');
@@ -288,14 +278,10 @@ export function CategoryManager({
       {isEditorOpen && (
         <form
           onSubmit={handleSubmitForm}
-          className="rounded-2xl bg-[#0B0D0D] border border-[#14B8A6]/40 p-3.5 sm:p-4 space-y-3 shadow-2xl animate-fade-in"
+          className="rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] p-3.5 sm:p-4 space-y-3 shadow-sm animate-fade-in"
         >
           <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-2.5">
-            <h3 className="text-xs sm:text-sm font-semibold text-[#F5F7F6] flex items-center gap-2">
-              <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: selectedColor }}
-              />
+            <h3 className="text-xs sm:text-sm font-semibold text-[#F5F7F6]">
               <span className="truncate">{editingCategoryName ? `Edit "${editingCategoryName}"` : 'New Category'}</span>
             </h3>
             <button
@@ -337,17 +323,16 @@ export function CategoryManager({
                     type="button"
                     onClick={() => setSelectedIcon(item.name)}
                     title={item.label}
-                    className={`h-8 w-full rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                    className={`h-8 w-8 mx-auto flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-[#14B8A6]/15 border-2 text-[#F5F7F6] scale-105'
-                        : 'bg-[#0B0D0D] border border-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
+                        ? 'bg-[#1A1D1D]'
+                        : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]/40'
                     }`}
                     style={{
-                      borderColor: isSelected ? selectedColor : undefined,
                       color: isSelected ? selectedColor : undefined,
                     }}
                   >
-                    <CategoryIconRenderer iconName={item.name} className="w-3.5 h-3.5" />
+                    <CategoryIconRenderer iconName={item.name} className="w-4 h-4" />
                   </button>
                 );
               })}
@@ -367,13 +352,11 @@ export function CategoryManager({
                     key={hex}
                     type="button"
                     onClick={() => setSelectedColor(hex)}
-                    className={`w-6.5 h-6.5 rounded-full transition-transform cursor-pointer relative flex items-center justify-center ${
-                      isSelected ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-[#0D0F0F]' : 'hover:scale-105 opacity-80 hover:opacity-100'
+                    className={`w-6 h-6 rounded-full transition-transform cursor-pointer relative flex items-center justify-center ${
+                      isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-[#0D0F0F]' : 'opacity-80 hover:opacity-100'
                     }`}
                     style={{ backgroundColor: hex }}
-                  >
-                    {isSelected && <Check className="w-3 h-3 text-white drop-shadow" />}
-                  </button>
+                  />
                 );
               })}
             </div>
@@ -390,9 +373,9 @@ export function CategoryManager({
             </button>
             <button
               type="submit"
-              className="h-8.5 px-4 rounded-xl text-xs font-semibold text-[#091512] bg-[#14B8A6] hover:opacity-90 transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
+              disabled={!formName.trim()}
+              className="h-8.5 px-4 rounded-xl text-xs font-semibold text-[#091512] bg-[#14B8A6] hover:opacity-90 transition-colors flex items-center justify-center cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Check className="w-3.5 h-3.5" />
               <span>{editingCategoryName ? 'Save Changes' : 'Create Category'}</span>
             </button>
           </div>
@@ -409,78 +392,41 @@ export function CategoryManager({
           return (
             <div
               key={cat}
-              className="group p-3 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] hover:bg-[#0D0F0F] transition-all flex items-center justify-between gap-2 shadow-sm min-w-0"
+              onClick={() => handleOpenEdit(cat)}
+              className="group py-2.5 px-3 rounded-lg hover:bg-[#1A1D1D]/30 transition-colors flex items-center justify-between gap-2.5 min-w-0 cursor-pointer"
             >
-              {/* Left Side: Icon & Title & Subtitle Badge */}
+              {/* Left Side: Colored Category Icon & Title & Metadata */}
               <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105"
-                  style={{
-                    backgroundColor: `${meta.color}1F`,
-                    border: `1px solid ${meta.color}35`,
-                  }}
-                >
-                  <CategoryIconRenderer
-                    iconName={meta.icon}
-                    className="w-4 h-4"
-                    style={{ color: meta.color }}
-                  />
-                </div>
-
-                <div className="min-w-0 space-y-0.5 flex-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-semibold text-[#F5F7F6] truncate block">{cat}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
-                    <span
-                      className={`text-[9px] px-1.5 py-0.2 rounded font-medium shrink-0 ${
-                        isBuiltIn
-                          ? 'bg-[#1A1D1D]/70 text-[#94A3B8]'
-                          : 'bg-[#1A1D1D] text-[#94A3B8] border border-[#1A1D1D]'
-                      }`}
-                    >
-                      {isBuiltIn ? 'Default' : 'Custom'}
-                    </span>
-                    <span className="text-[10px] text-[#94A3B8] whitespace-nowrap shrink-0">
-                      {count} plan{count === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Side: Colour dot indicator & Actions */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <div
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: meta.color }}
-                  title={`Colour: ${meta.color}`}
+                <CategoryIconRenderer
+                  iconName={meta.icon}
+                  className="w-4 h-4 shrink-0"
+                  style={{ color: meta.color }}
                 />
 
-                <div className="flex items-center gap-0.5 bg-[#000000]/60 p-0.5 rounded-lg border border-[#1A1D1D]/60">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenEdit(cat)}
-                    className="p-1 rounded-md text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
-                    title="Edit Category"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  {!isBuiltIn && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeletingCategoryName(cat);
-                        const available = allCategories.filter((c) => c !== cat);
-                        setReassignCategoryTarget(available[0] || 'Other');
-                      }}
-                      className="p-1 rounded-md text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 transition-colors cursor-pointer"
-                      title="Delete Category"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-semibold text-[#F5F7F6] truncate block">{cat}</span>
+                  <span className="text-[11px] text-[#94A3B8] block truncate">
+                    {isBuiltIn ? 'Default' : 'Custom'} · {count} {count === 1 ? 'plan' : 'plans'}
+                  </span>
                 </div>
               </div>
+
+              {/* Right Side: Delete action for custom categories (No redundant colored dot) */}
+              {!isBuiltIn && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeletingCategoryName(cat);
+                    const available = allCategories.filter((c) => c !== cat);
+                    setReassignCategoryTarget(available[0] || 'Other');
+                  }}
+                  className="p-1 rounded-md text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 transition-colors cursor-pointer shrink-0"
+                  title="Delete Category"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           );
         })}

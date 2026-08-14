@@ -30,18 +30,11 @@ const statusDotColors: Record<string, string> = {
 };
 
 function getPlanName(sub: SubscriptionRow): string {
-  if (sub.notes && sub.notes.trim().toLowerCase().includes('plan')) {
+  if (sub.notes && sub.notes.trim()) {
     return sub.notes.trim();
   }
-  const nameLower = sub.name.toLowerCase();
-  if (nameLower.includes('netflix')) return 'Basic Plan';
-  if (nameLower.includes('spotify')) return 'Premium Plan';
-  if (nameLower.includes('chatgpt') || nameLower.includes('openai')) return 'Plus Plan';
-  if (nameLower.includes('icloud') || nameLower.includes('google')) return 'Storage Plan';
-  if (nameLower.includes('amazon') || nameLower.includes('prime')) return 'Prime Plan';
-  
   const cycleName = sub.billing_cycle ? sub.billing_cycle.charAt(0).toUpperCase() + sub.billing_cycle.slice(1) : 'Monthly';
-  return `${cycleName} Plan`;
+  return `${cycleName} Subscription`;
 }
 
 const emptySubscribe = () => () => {};
@@ -254,13 +247,13 @@ export default function SubscriptionTable({
       <div className="w-full overflow-x-auto no-scrollbar">
         <table className="w-full text-left border-collapse min-w-[760px]">
           <thead>
-            <tr className="border-b border-[#1A1D1D] text-[13px] font-semibold text-[#94A3B8] uppercase tracking-wider bg-[#0B0D0D]">
-              <th className="py-4 px-5 font-semibold">Provider</th>
-              <th className="py-4 px-4 font-semibold">Plan</th>
-              <th className="py-4 px-4 font-semibold">Category</th>
-              <th className="py-4 px-4 font-semibold">Amount</th>
-              <th className="py-4 px-4 font-semibold">Next Billing</th>
-              <th className="py-4 px-5 text-right font-semibold">Actions</th>
+            <tr className="border-b border-[#1A1D1D] text-xs font-medium text-[#94A3B8] bg-[#0B0D0D]">
+              <th className="py-3.5 px-5 font-medium">Provider</th>
+              <th className="py-3.5 px-4 font-medium">Plan</th>
+              <th className="py-3.5 px-4 font-medium">Category</th>
+              <th className="py-3.5 px-4 font-medium">Amount</th>
+              <th className="py-3.5 px-4 font-medium">Next Billing</th>
+              <th className="py-3.5 px-5 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1A1D1D] text-xs sm:text-sm">
@@ -292,7 +285,7 @@ export default function SubscriptionTable({
                     isHighlighted ? 'bg-[#14B8A6]/15 border-l-4 border-l-[#14B8A6]' : ''
                   }`}
                 >
-                  {/* Provider (Logo + Name + Status Dot) */}
+                  {/* Provider (Logo + Name) */}
                   <td className="py-4 px-5 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <ServiceIcon
@@ -301,15 +294,9 @@ export default function SubscriptionTable({
                         providerUrl={sub.provider_url}
                         className="w-9 h-9 rounded-xl shrink-0 border border-[#1A1D1D]"
                       />
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#F5F7F6] text-sm sm:text-base group-hover:text-[#14B8A6] transition-colors">
-                          {sub.name}
-                        </span>
-                        <span
-                          className={`w-2 h-2 rounded-full ${statusDotStyle} shrink-0`}
-                          title={`Status: ${sub.status}`}
-                        />
-                      </div>
+                      <span className="font-semibold text-[#F5F7F6] text-sm sm:text-base group-hover:text-[#14B8A6] transition-colors">
+                        {sub.name}
+                      </span>
                     </div>
                   </td>
 
@@ -319,10 +306,8 @@ export default function SubscriptionTable({
                   </td>
 
                   {/* Category */}
-                  <td className="py-4 px-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-[#0D0F0F] border border-[#1A1D1D] text-[#94A3B8]">
-                      {sub.category}
-                    </span>
+                  <td className="py-4 px-4 whitespace-nowrap text-xs text-[#94A3B8] font-normal">
+                    {sub.category}
                   </td>
 
                   {/* Amount */}
@@ -346,7 +331,7 @@ export default function SubscriptionTable({
                         ref={(el) => { buttonRefs.current[sub.id] = el; }}
                         type="button"
                         onClick={(e) => handleToggleMenu(e, sub)}
-                        className="w-8 h-8 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D]"
+                        className="p-1.5 text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]/50 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
                         title="Actions"
                         aria-label={`Actions for ${sub.name}`}
                       >

@@ -8,12 +8,11 @@ export function Skeleton({ className = '' }: { className?: string }) {
 
 export function MetricCardSkeleton() {
   return (
-    <div className="px-5 py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-between min-h-[104px]">
-      <div className="flex items-baseline justify-between">
+    <div className="px-5 py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[104px]">
+      <div>
         <Skeleton className="h-3.5 w-24" />
-        <Skeleton className="w-4 h-4 rounded-md" />
       </div>
-      <div className="mt-1.5 space-y-1">
+      <div className="mt-2 space-y-1.5">
         <Skeleton className="h-7 w-28" />
         <Skeleton className="h-3 w-32" />
       </div>

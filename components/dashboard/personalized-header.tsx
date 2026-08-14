@@ -60,7 +60,7 @@ export function PersonalizedHeader({
       const emailName = currentEmail.split('@')[0];
       return emailName.charAt(0).toUpperCase() + emailName.slice(1);
     }
-    return 'Say Say';
+    return 'User';
   };
 
   const displayName = getDisplayName();

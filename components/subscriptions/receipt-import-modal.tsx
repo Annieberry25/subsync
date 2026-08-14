@@ -20,21 +20,6 @@ interface ReceiptImportModalProps {
   onConfirm: (extracted: ExtractedReceiptData) => void;
 }
 
-const SAMPLE_RECEIPTS = [
-  {
-    title: 'Netflix Receipt',
-    text: `Netflix Inc. Subscription Receipt\nPlan: Netflix Premium 4K\nAmount Paid: $22.99 USD\nBilling Cycle: Monthly\nNext Renewal Date: September 15, 2026\nCategory: Streaming\nWebsite: https://www.netflix.com`,
-  },
-  {
-    title: 'Spotify Confirmation',
-    text: `Spotify Premium Family Order Confirmation\nOrder ID: #SP-883921\nAmount: $16.99 / month\nCategory: Streaming\nNext billing date: 2026-09-01\nWebsite: https://www.spotify.com`,
-  },
-  {
-    title: 'Adobe Invoice',
-    text: `Adobe Creative Cloud Invoice #AC-99401\nPlan: All Apps Plan\nPrice: $54.99 USD per month\nRenewal Date: October 10, 2026\nCategory: Software\nWebsite: https://www.adobe.com`,
-  },
-];
-
 export function parseReceiptText(text: string): ExtractedReceiptData {
   const normText = text.toLowerCase();
   
@@ -49,11 +34,11 @@ export function parseReceiptText(text: string): ExtractedReceiptData {
   else if (normText.includes('youtube')) name = 'YouTube Premium';
   else {
     const firstLine = text.split('\n')[0]?.trim() || '';
-    name = firstLine.replace(/receipt|invoice|confirmation|subscription|order|#/gi, '').trim() || 'Imported Subscription';
+    name = firstLine.replace(/receipt|invoice|confirmation|subscription|order|#/gi, '').trim() || '';
   }
 
-  // Extract Price
-  let price = '14.99';
+  // Extract Price from user receipt text
+  let price = '';
   const priceMatch = text.match(/\$\s*(\d+(\.\d{1,2})?)/);
   if (priceMatch && priceMatch[1]) {
     price = priceMatch[1];
@@ -85,7 +70,6 @@ export function parseReceiptText(text: string): ExtractedReceiptData {
   if (dateMatch) {
     nextBillingDate = dateMatch[0].replace(/\./g, '-');
   } else {
-    // Look for Month Day, Year
     const monthMatch = text.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}),?\s+(20\d{2})/i);
     if (monthMatch) {
       const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
@@ -151,8 +135,8 @@ export default function ReceiptImportModal({
   };
 
   const handleAnalyze = () => {
-    const textToParse = receiptText.trim() || SAMPLE_RECEIPTS[0].text;
-    const extracted = parseReceiptText(textToParse);
+    if (!receiptText.trim()) return;
+    const extracted = parseReceiptText(receiptText.trim());
     setReviewData(extracted);
   };
 
@@ -162,6 +146,8 @@ export default function ReceiptImportModal({
       onClose();
     }
   };
+
+  const isAnalyzeDisabled = !receiptText.trim() && !fileName;
 
   return (
     <div
@@ -177,16 +163,11 @@ export default function ReceiptImportModal({
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6]">
-              <Sparkles className="w-5 h-5 text-[#14B8A6]" />
-            </div>
-            <div>
-              <h2 id="receipt-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">
-                Import Subscription Receipt
-              </h2>
-              <p className="text-xs text-[#94A3B8]">Extract provider details from receipt files or text confirmation</p>
-            </div>
+          <div>
+            <h2 id="receipt-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">
+              Import Subscription Receipt
+            </h2>
+            <p className="text-xs text-[#94A3B8] mt-0.5">Extract provider details from receipt files or text confirmation</p>
           </div>
           <button
             type="button"
@@ -229,7 +210,7 @@ export default function ReceiptImportModal({
                   Or Paste Receipt / Confirmation Text
                 </label>
                 <textarea
-                  rows={4}
+                  rows={5}
                   placeholder="Paste your email receipt or subscription confirmation text here..."
                   value={receiptText}
                   onChange={(e) => setReceiptText(e.target.value)}
@@ -237,25 +218,11 @@ export default function ReceiptImportModal({
                 />
               </div>
 
-              {/* Sample Presets */}
-              <div className="space-y-2">
-                <span className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider block">
-                  Try Sample Subscription Receipts:
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {SAMPLE_RECEIPTS.map((sample, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setReceiptText(sample.text)}
-                      className="px-3 py-1.5 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-[#14B8A6]" />
-                      <span>{sample.title}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {isAnalyzeDisabled && (
+                <p className="text-xs text-[#94A3B8] italic text-center pt-1">
+                  Upload a receipt file or paste receipt text above to extract subscription details.
+                </p>
+              )}
             </>
           ) : (
             /* Step 2: Extraction Review & Confirmation */
@@ -277,6 +244,7 @@ export default function ReceiptImportModal({
                       type="text"
                       value={reviewData.name}
                       onChange={(e) => setReviewData({ ...reviewData, name: e.target.value })}
+                      placeholder="e.g. Netflix"
                       className="w-full bg-transparent text-[#F5F7F6] font-semibold text-sm focus:outline-none mt-0.5"
                     />
                   </div>
@@ -289,6 +257,7 @@ export default function ReceiptImportModal({
                         type="text"
                         value={reviewData.price}
                         onChange={(e) => setReviewData({ ...reviewData, price: e.target.value })}
+                        placeholder="0.00"
                         className="w-full bg-transparent text-[#F5F7F6] font-semibold text-sm focus:outline-none"
                       />
                     </div>
@@ -350,7 +319,8 @@ export default function ReceiptImportModal({
             <button
               type="button"
               onClick={handleAnalyze}
-              className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+              disabled={isAnalyzeDisabled}
+              className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4 text-[#091512]" />
               <span>Extract Receipt Info</span>

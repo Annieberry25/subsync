@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Link2, Sparkles, PlusCircle, ArrowRight } from 'lucide-react';
+import { X } from 'lucide-react';
 import LinkSubscriptionModal from './link-subscription-modal';
 import ReceiptImportModal from './receipt-import-modal';
 import type { ExtractedReceiptData } from './receipt-import-modal';
@@ -86,18 +86,12 @@ export default function AddSubscriptionModal({
             <button
               type="button"
               onClick={() => setIsLinkModalOpen(true)}
-              className="p-4 sm:p-5 rounded-2xl bg-[#0D0F0F] hover:bg-[#141717] border border-[#1A1D1D] hover:border-[#14B8A6] flex items-start gap-4 transition-all duration-200 text-left group cursor-pointer shadow-sm hover:shadow-md"
+              className="p-4 sm:p-5 rounded-2xl bg-[#0D0F0F] hover:bg-[#141717] border border-[#1A1D1D] hover:border-[#14B8A6] transition-all duration-200 text-left group cursor-pointer shadow-sm hover:shadow-md"
             >
-              <div className="w-11 h-11 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] shrink-0 group-hover:scale-105 transition-transform">
-                <Link2 className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm sm:text-base font-bold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors">
-                    Link Subscription
-                  </h3>
-                  <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#14B8A6] group-hover:translate-x-1 transition-all" />
-                </div>
+              <div className="w-full min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors">
+                  Link Subscription
+                </h3>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   Connect a supported provider/account and import available subscription information.
                 </p>
@@ -108,18 +102,12 @@ export default function AddSubscriptionModal({
             <button
               type="button"
               onClick={() => setIsReceiptModalOpen(true)}
-              className="p-4 sm:p-5 rounded-2xl bg-[#0D0F0F] hover:bg-[#141717] border border-[#1A1D1D] hover:border-[#14B8A6] flex items-start gap-4 transition-all duration-200 text-left group cursor-pointer shadow-sm hover:shadow-md"
+              className="p-4 sm:p-5 rounded-2xl bg-[#0D0F0F] hover:bg-[#141717] border border-[#1A1D1D] hover:border-[#14B8A6] transition-all duration-200 text-left group cursor-pointer shadow-sm hover:shadow-md"
             >
-              <div className="w-11 h-11 rounded-xl bg-[#F59E0B]/15 border border-[#F59E0B]/30 flex items-center justify-center text-[#F59E0B] shrink-0 group-hover:scale-105 transition-transform">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm sm:text-base font-bold text-[#F5F7F6] group-hover:text-[#F59E0B] transition-colors">
-                    Import Receipt
-                  </h3>
-                  <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F59E0B] group-hover:translate-x-1 transition-all" />
-                </div>
+              <div className="w-full min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors">
+                  Import Receipt
+                </h3>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   Upload a receipt, screenshot, PDF, or paste a subscription confirmation/receipt.
                 </p>
@@ -133,18 +121,12 @@ export default function AddSubscriptionModal({
                 onClose();
                 onSelectManual();
               }}
-              className="p-4 sm:p-5 rounded-2xl bg-[#0D0F0F] hover:bg-[#141717] border border-[#1A1D1D] hover:border-[#14B8A6] flex items-start gap-4 transition-all duration-200 text-left group cursor-pointer shadow-sm hover:shadow-md"
+              className="p-4 sm:p-5 rounded-2xl bg-[#0D0F0F] hover:bg-[#141717] border border-[#1A1D1D] hover:border-[#14B8A6] transition-all duration-200 text-left group cursor-pointer shadow-sm hover:shadow-md"
             >
-              <div className="w-11 h-11 rounded-xl bg-[#6366F1]/15 border border-[#6366F1]/30 flex items-center justify-center text-[#6366F1] shrink-0 group-hover:scale-105 transition-transform">
-                <PlusCircle className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm sm:text-base font-bold text-[#F5F7F6] group-hover:text-[#6366F1] transition-colors">
-                    Add Manually
-                  </h3>
-                  <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#6366F1] group-hover:translate-x-1 transition-all" />
-                </div>
+              <div className="w-full min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors">
+                  Add Manually
+                </h3>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   Enter the subscription information yourself.
                 </p>

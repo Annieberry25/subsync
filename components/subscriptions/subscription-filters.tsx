@@ -42,7 +42,7 @@ export default function SubscriptionFilters({
   onSortChange,
 }: SubscriptionFiltersProps) {
   return (
-    <div className="p-4 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-3.5 sm:space-y-4">
+    <div className="space-y-3.5 sm:space-y-4">
       {/* Top Search & Filter Controls */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5 sm:gap-4">
         {/* Search Input */}
@@ -100,7 +100,7 @@ export default function SubscriptionFilters({
         </div>
       </div>
 
-      {/* Category Pills Row (Selected tab strictly uses SubSync Primary Accent #14B8A6) */}
+      {/* Unified Category Pills Row */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pt-1 pb-0.5">
         {categories.map((cat) => {
           const isActive = selectedCategory === cat;
@@ -109,10 +109,10 @@ export default function SubscriptionFilters({
               key={cat}
               type="button"
               onClick={() => onCategoryChange(cat)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap min-h-[44px] transition-colors cursor-pointer flex items-center justify-center ${
+              className={`h-9 px-3.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center justify-center ${
                 isActive
-                  ? 'bg-[#14B8A6] text-[#091512] font-semibold'
-                  : 'bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D]'
+                  ? 'bg-[#14B8A6] text-[#091512] font-semibold border border-[#14B8A6]'
+                  : 'bg-[#0D0F0F] text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D]'
               }`}
             >
               {cat}

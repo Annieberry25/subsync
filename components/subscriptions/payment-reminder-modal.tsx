@@ -141,12 +141,12 @@ export default function PaymentReminderModal({
                     onClick={() => setTiming(choice.id)}
                     className={`px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-between border transition-colors text-left cursor-pointer ${
                       isSelected
-                        ? 'bg-[#14B8A6] text-[#091512] border-[#14B8A6] font-semibold'
+                        ? 'bg-[#1A1D1D] text-[#F5F7F6] border-[#14B8A6] font-semibold'
                         : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
                     }`}
                   >
                     <span>{choice.label}</span>
-                    {isSelected && <Check className="w-4 h-4 text-[#091512] shrink-0 ml-2" />}
+                    {isSelected && <Check className="w-4 h-4 text-[#14B8A6] shrink-0 ml-2" />}
                   </button>
                 );
               })}
@@ -178,7 +178,7 @@ export default function PaymentReminderModal({
                     onClick={() => setMethod(choice.id)}
                     className={`px-2.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-center text-center border transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-[#14B8A6] text-[#091512] border-[#14B8A6] font-semibold'
+                        ? 'bg-[#1A1D1D] text-[#F5F7F6] border-[#14B8A6] font-semibold'
                         : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
                     }`}
                   >
@@ -208,13 +208,13 @@ export default function PaymentReminderModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-full border border-[#1A1D1D] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl border border-[#1A1D1D] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-full text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center justify-center"
             >
               Save Reminder
             </button>

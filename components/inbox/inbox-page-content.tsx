@@ -536,11 +536,10 @@ export default function InboxPageContent() {
           })}
         </div>
       ) : (
-        /* Minimal Empty State */
         <div className="py-16 text-center flex flex-col items-center justify-center space-y-2 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D]">
-          <h3 className="text-sm font-semibold text-[#F5F7F6]">All caught up</h3>
+          <h3 className="text-sm font-semibold text-[#F5F7F6]">No messages yet</h3>
           <p className="text-xs text-[#94A3B8] max-w-xs">
-            No pending items in this view. Subscription notices and billing alerts requiring attention will appear here.
+            Subscription notices and billing alerts requiring attention will appear here.
           </p>
         </div>
       )}

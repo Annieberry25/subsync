@@ -5,18 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   HelpCircle,
   Search,
-  BookOpen,
-  Link2,
-  FileSpreadsheet,
-  PlusCircle,
-  Calendar,
-  Settings,
-  Receipt,
-  Users,
-  CreditCard,
-  ShieldCheck,
-  Bell,
-  Lock,
   ChevronDown,
   ArrowLeft,
   Mail,
@@ -25,116 +13,224 @@ import {
 interface HelpTopic {
   id: string;
   category: string;
-  icon: any;
   title: string;
   description: string;
-  content: string;
+  paragraphs: string[];
+  subheading?: string;
+  bullets?: string[];
+  additionalParagraph?: string;
 }
 
 const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'getting-started',
     category: 'Overview',
-    icon: BookOpen,
     title: 'Getting started with SubSync',
     description: 'Learn how to set up your subscription dashboard, configure currency, and track recurring bills.',
-    content: 'SubSync helps you consolidate and manage all your recurring software, streaming, utility, and personal subscriptions in one centralized dashboard. Start by configuring your primary reporting currency in Settings, then add your active plans using authorized provider links, receipt imports, or manual entry.',
+    paragraphs: [
+      'SubSync helps you consolidate and manage all your recurring software, streaming, utility, and personal subscriptions in one centralized dashboard.',
+      'To get the most out of your dashboard, we recommend completing these initial setup steps:',
+    ],
+    subheading: 'Key setup actions',
+    bullets: [
+      'Configure primary currency — Normalize overall spending across foreign currencies in Settings.',
+      'Connect provider links — Authorize direct integration for automatic plan importing.',
+      'Import digital receipts — Upload PDF invoices or screenshots to prefill billing metadata.',
+      'Add custom subscriptions — Manually input offline or custom recurring plans.',
+    ],
+    additionalParagraph:
+      'Once configured, SubSync will automatically calculate your monthly commitment and schedule payment notifications.',
   },
   {
     id: 'adding-subscriptions',
     category: 'Subscription Management',
-    icon: PlusCircle,
     title: 'Adding subscriptions — three-path flow',
     description: 'Explore the three ways to add subscriptions: Link Subscription, Import Receipt, or Add Manually.',
-    content: 'Tapping "Add Subscription" presents three options: 1) Link Subscription — Connect an authorized provider account to automatically import subscription details; 2) Import Receipt — Upload a PDF/image receipt or paste text to extract billing information; 3) Add Manually — Manually input provider name, price, cycle, category, and renewal date.',
+    paragraphs: [
+      'When you tap "Add Subscription", SubSync presents three flexible entry paths tailored to different service types and integration options:',
+    ],
+    subheading: 'Available entry methods',
+    bullets: [
+      'Link Subscription — Authenticate directly via official provider OAuth flows to import active subscription plans automatically.',
+      'Import Receipt — Upload PDF invoices, receipts, or screenshots to parse provider names, prices, and renewal cycles using assisted extraction.',
+      'Add Manually — Input custom subscription parameters including provider name, price, billing frequency, category, and next renewal date.',
+    ],
+    additionalParagraph:
+      'You can switch between any of these methods at any time depending on provider support and your preferences.',
   },
   {
     id: 'linking-subscription',
     category: 'Subscription Management',
-    icon: Link2,
     title: 'Linking a subscription provider',
     description: 'How authorized provider links work and why SubSync never stores your account passwords.',
-    content: 'Link Subscription uses OAuth and official provider authorization flows. SubSync redirects you to sign into your provider account safely. We never ask for or store your provider password. Simply search for your service name, authorize connection, and review imported plan details before saving.',
+    paragraphs: [
+      'Link Subscription uses official OAuth 2.0 and provider-authorized connection frameworks. SubSync redirects you directly to the service provider to grant read-only access.',
+      'We never ask for, view, or store your provider account passwords or payment credentials.',
+    ],
+    subheading: 'How connection works',
+    bullets: [
+      'Search directory — Locate your subscription provider in our authorized services directory.',
+      'Provider OAuth — Sign into your service account securely in an official popup dialog.',
+      'Read-only permissions — Authorize plan details, billing cycle, and pricing sync.',
+      'Dashboard save — Review imported metadata and confirm saving to your portfolio.',
+    ],
   },
   {
     id: 'importing-receipts',
     category: 'Receipts & Uploads',
-    icon: FileSpreadsheet,
     title: 'Importing receipts & assisted data entry',
     description: 'Upload PDF invoices, screenshots, or email receipts to prefill subscription records.',
-    content: 'Our smart receipt parser extracts provider names, pricing, billing cycles, invoice numbers, and renewal dates from uploaded files or pasted text. Receipt extraction acts as assisted data entry: you review and adjust all extracted fields in the Review step before confirming.',
+    paragraphs: [
+      'Our smart receipt parser extracts key subscription metadata from uploaded PDF invoices, image receipts, or pasted text blocks.',
+      'Receipt parsing operates as an assisted data entry pipeline — all extracted fields are presented for your review before confirming.',
+    ],
+    subheading: 'Extracted subscription fields',
+    bullets: [
+      'Provider name and service category classification',
+      'Recurring subscription price and currency code',
+      'Billing cycle frequency (monthly, yearly, quarterly, weekly)',
+      'Invoice reference ID and upcoming renewal date',
+    ],
   },
   {
     id: 'adding-manually',
     category: 'Subscription Management',
-    icon: PlusCircle,
     title: 'Adding subscriptions manually',
     description: 'Input custom subscription fields including optional start date, end date, and provider URL.',
-    content: 'Manual entry allows full control over your subscription data. Input your provider name, price, currency, billing cycle (monthly, yearly, quarterly, weekly), category, and status. Optional fields include start date, end date (not required since most recurring plans continue indefinitely), next renewal date, website URL, and custom notes.',
+    paragraphs: [
+      'Manual entry gives you complete control over offline, custom, or unsupported subscription plans.',
+      'Required fields include provider name, recurring price, billing currency, billing cycle, and category classification.',
+    ],
+    subheading: 'Optional configuration fields',
+    bullets: [
+      'Start date — The date your subscription contract initially commenced.',
+      'End date / Term — For fixed-length contracts or trial periods.',
+      'Next renewal date — Drives automated payment reminder notifications.',
+      'Website URL — Direct link to manage account billing on the provider site.',
+      'Custom notes — Track payment methods used, seat counts, or tier specifications.',
+    ],
   },
   {
     id: 'renewal-dates-reminders',
     category: 'Notifications & Alerts',
-    icon: Calendar,
     title: 'Renewal dates and payment reminders',
     description: 'Set custom lead times for payment reminders so you never miss a renewal or trial expiration.',
-    content: 'Next renewal dates drive SubSync automated reminder notifications. You can configure payment reminders for individual subscriptions (e.g. 7 days before, 3 days before, or on renewal day) via in-app inbox alerts or email summaries.',
+    paragraphs: [
+      'Next renewal dates power SubSync\'s automated payment notification system, ensuring you are never surprised by unexpected renewals or expired trial periods.',
+    ],
+    subheading: 'Configuring reminder lead times',
+    bullets: [
+      'Custom lead times — Schedule alerts 7 days before, 3 days before, or on renewal day.',
+      'Delivery channels — Receive alerts in your in-app Inbox or via email digests.',
+      'Flexible preferences — Configure notifications per subscription or globally in Settings.',
+    ],
   },
   {
     id: 'managing-subscriptions',
     category: 'Subscription Management',
-    icon: Settings,
     title: 'Managing and editing subscriptions',
     description: 'Use the 3-dot action menu to view details, edit details, set reminders, manage, or add notes.',
-    content: 'Each subscription card and list entry features a clean 3-dot action menu containing: View subscription details, Edit subscription, Payment reminder, Manage subscription (opens provider billing portal), and Notes. Connected subscriptions remain fully editable at any time.',
+    paragraphs: [
+      'Every subscription entry in your dashboard features a 3-dot action menu for quick management and editing operations.',
+    ],
+    subheading: 'Available menu options',
+    bullets: [
+      'View Subscription Details — Inspect metadata, linked sub-accounts, and attached records.',
+      'Edit Subscription — Update recurring price, cycle, currency, category, or next renewal date.',
+      'Payment Reminder — Adjust notification lead times for upcoming billing dates.',
+      'Manage Subscription — Quick launch link to the provider\'s official billing portal.',
+      'Notes & Receipts — Attach supporting invoice receipts or custom contract notes.',
+    ],
   },
   {
     id: 'receipts-and-records',
     category: 'Receipts & Uploads',
-    icon: Receipt,
     title: 'Receipts and supporting payment records',
     description: 'Attach multiple receipts and confirmation invoices to your existing subscriptions.',
-    content: 'Every subscription can store attached supporting records regardless of how it was created. View attached receipts, upload dates, and invoice reference IDs inside the View Subscription Details panel.',
+    paragraphs: [
+      'SubSync allows you to attach multiple invoices, receipt images, or confirmation documents to any subscription record regardless of how it was created.',
+    ],
+    subheading: 'Managing stored records',
+    bullets: [
+      'File support — Upload PDF invoices or screenshot images directly to the subscription.',
+      'Metadata tracking — View upload timestamps, file sizes, and invoice reference IDs.',
+      'Record access — Download or replace stored records anytime in View Subscription Details.',
+    ],
   },
   {
     id: 'family-subscriptions',
     category: 'Accounts & Sharing',
-    icon: Users,
     title: 'Family subscriptions & multiple linked accounts',
     description: 'Manage multiple personal or family accounts under a single paid subscription record.',
-    content: 'SubSync supports adding multiple account links under one subscription record (e.g. "John\'s Netflix account" and "Sarah\'s Netflix account"). Adding multiple linked accounts does not duplicate subscription billing totals — it represents seats or sub-accounts under one paid subscription.',
+    paragraphs: [
+      'SubSync supports tracking family plans or shared multi-seat subscriptions under a single billing record without inflating your cost totals.',
+    ],
+    subheading: 'Multi-account features',
+    bullets: [
+      'Sub-account labels — Assign member tags (e.g. "Primary Account", "Sarah\'s Profile").',
+      'Shared plan clarity — Distinguish shared family plans from individual subscriptions.',
+      'Accurate total calculation — Aggregate seat details while keeping overall billing totals precise.',
+    ],
   },
   {
     id: 'plans-and-billing',
     category: 'Billing',
-    icon: CreditCard,
     title: 'SubSync plans & Free vs Premium tier',
     description: 'Understand feature availability across Free, Premium, and Family plans.',
-    content: 'SubSync Free includes full portfolio tracking, receipt parsing, and analytics. Premium features will expand bank synchronization, advanced team sharing, and ad-free reporting. Ad banners appear subtly on Free plans without interrupting core workflows.',
+    paragraphs: [
+      'SubSync offers tiers designed for individual budget tracking, power managers, and family households.',
+    ],
+    subheading: 'Plan tier breakdown',
+    bullets: [
+      'Free Plan — Full portfolio tracking, manual entry, receipt parsing, and core analytics.',
+      'Premium Plan — Automated bank synchronization, priority receipt parsing, and ad-free experience.',
+      'Family Plan — Multi-user workspace sharing, aggregated household reporting, and priority support.',
+    ],
   },
   {
     id: 'account-and-security',
     category: 'Account & Security',
-    icon: ShieldCheck,
     title: 'Account security, email & password',
     description: 'Manage password credentials, OAuth logins, and display name change limits.',
-    content: 'Manage your profile details and change account email in your Settings and Profile pages. Display name changes can be updated once every 30 days. Account deletion is securely located inside authenticated Account settings.',
+    paragraphs: [
+      'Manage your security credentials and profile information securely inside your account settings.',
+    ],
+    subheading: 'Security policies',
+    bullets: [
+      'Credential updates — Change account email and password with mandatory re-authentication.',
+      'Display name rules — Update your public display name once every 30 days.',
+      'Account deletion — Permanently purge your profile and data in authenticated Account settings.',
+    ],
   },
   {
     id: 'notifications',
     category: 'Notifications & Alerts',
-    icon: Bell,
     title: 'Configuring notification preferences',
     description: 'Toggle in-app inbox alerts, email digests, SMS, and push notifications.',
-    content: 'In Settings → Preferences → Notifications, toggle your preferred delivery channels. In-app alerts populate your Inbox feed while email digests provide periodic spending summaries.',
+    paragraphs: [
+      'Customize how and when SubSync communicates upcoming renewals and portfolio summaries.',
+    ],
+    subheading: 'Supported notification channels',
+    bullets: [
+      'In-App Inbox — Real-time alerts delivered to your dashboard notification feed.',
+      'Email Summaries — Periodic weekly or monthly portfolio spending digests.',
+      'Notification Timing — Tailor alert lead times per subscription or system-wide.',
+    ],
   },
   {
     id: 'privacy',
     category: 'Account & Security',
-    icon: Lock,
     title: 'Privacy, data export & local storage',
     description: 'Export your subscription portfolio data or clear local browser cache anytime.',
-    content: 'Your subscription data belongs to you. In Settings → Privacy & Data, you can download a full JSON export of your portfolio records or clear local browser storage cache with one click.',
+    paragraphs: [
+      'Your subscription data belongs entirely to you. SubSync adheres to strict privacy-first data handling principles.',
+    ],
+    subheading: 'Data ownership tools',
+    bullets: [
+      'Portfolio Export — Download a full JSON or CSV export of all your subscription records.',
+      'Cache Control — Clear local browser storage and cached preferences with one click.',
+      'Data Privacy — SubSync never sells your personal subscription data to third parties.',
+    ],
   },
 ];
 
@@ -150,7 +246,8 @@ export default function HelpPage() {
       topic.title.toLowerCase().includes(q) ||
       topic.description.toLowerCase().includes(q) ||
       topic.category.toLowerCase().includes(q) ||
-      topic.content.toLowerCase().includes(q)
+      topic.paragraphs.some((p) => p.toLowerCase().includes(q)) ||
+      (topic.bullets && topic.bullets.some((b) => b.toLowerCase().includes(q)))
     );
   });
 
@@ -186,7 +283,7 @@ export default function HelpPage() {
             placeholder="Search help topics (e.g. adding subscriptions, receipt import, renewal dates)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-12 pl-12 pr-4 text-xs sm:text-sm rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors shadow-lg"
+            className="w-full h-12 pl-12 pr-4 text-xs sm:text-sm rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
           />
         </div>
       </div>
@@ -220,60 +317,83 @@ export default function HelpPage() {
         ))}
       </div>
 
-      {/* Topics Accordion List */}
-      <div className="space-y-3">
+      {/* Topics Accordion List - Google "People also ask" style */}
+      <div className="border-t border-b border-[#1A1D1D]/80 divide-y divide-[#1A1D1D]/80">
         {filteredTopics.length > 0 ? (
           filteredTopics.map((topic) => {
-            const Icon = topic.icon;
             const isOpen = openTopicId === topic.id;
 
             return (
-              <div
-                key={topic.id}
-                className="rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] transition-all overflow-hidden shadow-md"
-              >
+              <div key={topic.id} className="group">
                 <button
                   type="button"
                   onClick={() => setOpenTopicId(isOpen ? null : topic.id)}
                   aria-expanded={isOpen}
-                  className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-[#0D0F0F] transition-colors cursor-pointer"
+                  className="w-full py-4.5 sm:py-5 flex items-center justify-between text-left cursor-pointer transition-colors"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0 pr-2">
-                    <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] shrink-0">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-[11px] font-semibold text-[#14B8A6] uppercase tracking-wider block">
-                        {topic.category}
-                      </span>
-                      <h3 className="text-sm sm:text-base font-bold text-[#F5F7F6] truncate">
-                        {topic.title}
-                      </h3>
-                      <p className="text-xs text-[#94A3B8] truncate mt-0.5">
-                        {topic.description}
-                      </p>
-                    </div>
+                  <div className="min-w-0 pr-4">
+                    <span className="text-[11px] font-semibold text-[#14B8A6] uppercase tracking-wider block mb-1">
+                      {topic.category}
+                    </span>
+                    <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors leading-snug">
+                      {topic.title}
+                    </h3>
                   </div>
 
-                  <ChevronDown
-                    className={`w-5 h-5 text-[#94A3B8] transition-transform duration-200 shrink-0 ml-2 ${
-                      isOpen ? 'rotate-180 text-[#14B8A6]' : ''
+                  <div
+                    className={`w-7 h-7 rounded-full bg-[#1A1D1D]/70 flex items-center justify-center text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:bg-[#262B2B] transition-all shrink-0 ml-2 ${
+                      isOpen ? 'rotate-180 bg-[#1A1D1D] text-[#14B8A6]' : ''
                     }`}
-                  />
+                  >
+                    <ChevronDown className="w-4 h-4 transition-transform duration-200" />
+                  </div>
                 </button>
 
                 {isOpen && (
-                  <div className="px-5 pb-5 pt-1 border-t border-[#1A1D1D]/70 bg-[#0D0F0F]/60 text-xs text-[#94A3B8] leading-relaxed space-y-3">
-                    <p className="text-[#F5F7F6] text-xs sm:text-sm font-normal leading-relaxed">
-                      {topic.content}
-                    </p>
+                  <div className="pb-5 pt-1 text-xs sm:text-sm text-[#D1D5DB] leading-relaxed space-y-3 animate-fade-in">
+                    {topic.paragraphs.map((p, idx) => (
+                      <p key={idx} className="text-[#D1D5DB] leading-relaxed">
+                        {p}
+                      </p>
+                    ))}
+
+                    {topic.subheading && (
+                      <h4 className="text-xs sm:text-sm font-semibold text-[#F5F7F6] pt-2 mb-1">
+                        {topic.subheading}
+                      </h4>
+                    )}
+
+                    {topic.bullets && topic.bullets.length > 0 && (
+                      <ul className="space-y-1.5 my-2 pl-4 list-disc marker:text-[#14B8A6]">
+                        {topic.bullets.map((bullet, idx) => {
+                          const parts = bullet.split(' — ');
+                          return (
+                            <li key={idx} className="text-[#94A3B8] leading-relaxed">
+                              {parts.length > 1 ? (
+                                <>
+                                  <strong className="text-[#F5F7F6] font-medium">{parts[0]}</strong> — {parts.slice(1).join(' — ')}
+                                </>
+                              ) : (
+                                bullet
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+
+                    {topic.additionalParagraph && (
+                      <p className="text-[#D1D5DB] leading-relaxed pt-1">
+                        {topic.additionalParagraph}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
             );
           })
         ) : (
-          <div className="p-12 text-center rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-3">
+          <div className="py-12 text-center space-y-3">
             <HelpCircle className="w-10 h-10 text-[#94A3B8] mx-auto" />
             <h3 className="text-sm font-bold text-[#F5F7F6]">No help topics found</h3>
             <p className="text-xs text-[#94A3B8]">
@@ -291,7 +411,7 @@ export default function HelpPage() {
       </div>
 
       {/* Support CTA Footer */}
-      <div className="p-5 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="p-5 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
         <div className="flex items-center gap-3 text-center sm:text-left">
           <Mail className="w-6 h-6 text-[#14B8A6] shrink-0" />
           <div>
@@ -310,3 +430,4 @@ export default function HelpPage() {
     </div>
   );
 }
+

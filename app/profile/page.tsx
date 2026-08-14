@@ -349,10 +349,7 @@ export default function ProfilePage() {
                   <span>Saving Profile...</span>
                 </>
               ) : (
-                <>
-                  <Save className="w-4 h-4 text-[#091512]" />
-                  <span>Save Profile</span>
-                </>
+                <span>Save Profile</span>
               )}
             </button>
           </div>

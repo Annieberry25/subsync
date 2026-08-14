@@ -108,22 +108,22 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
           </div>
 
           {/* Breakdown List on Right */}
-          <div className="lg:col-span-7 space-y-2.5">
+          <div className="lg:col-span-7 divide-y divide-[#1A1D1D]/60">
             {breakdown.map((item, idx) => {
               const categoryStyle = chartColorPalette[idx % chartColorPalette.length];
 
               return (
                 <div
                   key={item.category}
-                  className="p-3 sm:p-3.5 rounded-2xl border border-[#1A1D1D] bg-[#0B0D0D] flex flex-col xs:flex-row xs:items-center justify-between gap-2.5 sm:gap-4"
+                  className="py-3 px-1 flex flex-col xs:flex-row xs:items-center justify-between gap-2.5 sm:gap-4"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className={`w-3 h-3 rounded-full ${categoryStyle.dot} shrink-0`}
+                      className={`w-2.5 h-2.5 rounded-full ${categoryStyle.dot} shrink-0`}
                     />
                     <div className="min-w-0 flex-1">
-                      <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">{item.category}</span>
-                      <span className="text-xs sm:text-[15px] text-[#94A3B8] block">
+                      <span className="text-sm font-semibold text-[#F5F7F6] block">{item.category}</span>
+                      <span className="text-xs text-[#94A3B8] block">
                         {item.count} {item.count === 1 ? 'plan' : 'plans'}
                       </span>
                     </div>
@@ -131,14 +131,14 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
 
                   <div className="text-left xs:text-right shrink-0 flex items-center justify-between xs:justify-end gap-3 sm:gap-4 w-full xs:w-auto pt-2 xs:pt-0 border-t xs:border-t-0 border-[#1A1D1D]/60">
                     <div>
-                      <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">
+                      <span className="text-sm font-semibold text-[#F5F7F6] block">
                         {formatCurrency(item.monthlySpend, defaultCurrency)}
                       </span>
-                      <span className="text-xs sm:text-[13px] text-[#94A3B8] block">
+                      <span className="text-xs text-[#94A3B8] block">
                         / mo
                       </span>
                     </div>
-                    <span className="text-xs font-medium text-[#F5F7F6] bg-[#1A1D1D] px-2.5 py-1 rounded-lg min-w-[48px] sm:min-w-[50px] text-center">
+                    <span className="text-xs font-medium text-[#94A3B8] min-w-[48px] text-right">
                       {item.percentage.toFixed(1)}%
                     </span>
                   </div>

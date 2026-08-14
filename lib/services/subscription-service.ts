@@ -226,12 +226,12 @@ export function getKnownProviderAccountUrl(name: string): string | null {
   return null;
 }
 
-export function getProviderAccountUrl(name: string, customAccountUrl?: string | null): string | null {
+export function getProviderAccountUrl(_name: string, customAccountUrl?: string | null): string | null {
   if (customAccountUrl && customAccountUrl.trim()) {
     const trimmed = customAccountUrl.trim();
     return trimmed.startsWith('http://') || trimmed.startsWith('https://') ? trimmed : `https://${trimmed}`;
   }
-  return getKnownProviderAccountUrl(name);
+  return null;
 }
 
 export function getKnownProviderWebsite(name: string): string | null {
@@ -262,37 +262,19 @@ export function getKnownProviderManagementUrl(name: string): string | null {
   return null;
 }
 
-export function getProviderWebsite(name: string, providerUrl?: string | null): string | null {
-  const known = getKnownProviderWebsite(name);
-  if (known) return known;
-
+export function getProviderWebsite(_name: string, providerUrl?: string | null): string | null {
   if (providerUrl && providerUrl.trim()) {
-    return providerUrl.trim();
+    const trimmed = providerUrl.trim();
+    return trimmed.startsWith('http://') || trimmed.startsWith('https://') ? trimmed : `https://${trimmed}`;
   }
-
   return null;
 }
 
-export function getProviderManagementUrl(name: string, providerUrl?: string | null): string | null {
-  const knownWebsite = getKnownProviderWebsite(name);
-  const knownManagement = getKnownProviderManagementUrl(name);
-
-  if (providerUrl && providerUrl.trim() && providerUrl.trim() !== knownWebsite) {
-    return providerUrl.trim();
-  }
-
-  if (knownManagement) {
-    return knownManagement;
-  }
-
-  if (knownWebsite) {
-    return knownWebsite;
-  }
-
+export function getProviderManagementUrl(_name: string, providerUrl?: string | null): string | null {
   if (providerUrl && providerUrl.trim()) {
-    return providerUrl.trim();
+    const trimmed = providerUrl.trim();
+    return trimmed.startsWith('http://') || trimmed.startsWith('https://') ? trimmed : `https://${trimmed}`;
   }
-
   return null;
 }
 

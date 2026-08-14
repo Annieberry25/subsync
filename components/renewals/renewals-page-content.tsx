@@ -14,17 +14,11 @@ import { ServiceIcon } from '@/components/ui/service-icon';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 
 function getPlanName(sub: SubscriptionRow): string {
-  if (sub.notes && sub.notes.trim().toLowerCase().includes('plan')) {
+  if (sub.notes && sub.notes.trim()) {
     return sub.notes.trim();
   }
-  const nameLower = sub.name.toLowerCase();
-  if (nameLower.includes('netflix')) return 'Basic Plan';
-  if (nameLower.includes('spotify')) return 'Premium Plan';
-  if (nameLower.includes('chatgpt') || nameLower.includes('openai')) return 'Plus Plan';
-  if (nameLower.includes('icloud') || nameLower.includes('google')) return 'Storage Plan';
-  
   const cycleName = sub.billing_cycle ? sub.billing_cycle.charAt(0).toUpperCase() + sub.billing_cycle.slice(1) : 'Monthly';
-  return `${cycleName} Plan`;
+  return `${cycleName} Subscription`;
 }
 
 function getRenewalStatus(diffDays: number) {

@@ -145,7 +145,7 @@
 }
 
 .glass-card:hover {
-  border-color: #14B8A6 !important;
+  border-color: #2A2E2E !important;
 }
 
 .glass-header {
@@ -196,10 +196,10 @@ input::placeholder, textarea::placeholder {
   color: #94A3B8 !important;
 }
 
-/* Global Button System Redesign - Soft Pill / Rounded Full */
+/* Global Button System Redesign - Rounded Action Buttons */
 .btn-pill,
 button.btn-pill {
-  border-radius: 9999px !important;
+  border-radius: 12px !important;
 }
 
 

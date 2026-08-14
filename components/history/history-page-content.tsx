@@ -438,7 +438,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                 <div className="space-y-6 pt-2">
                   {/* 1. Activity Event */}
                   <div className="space-y-1">
-                    <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
+                    <span className="text-xs font-medium text-[#94A3B8] block">
                       Activity Event
                     </span>
                     <p className="text-base sm:text-lg font-medium text-[#F5F7F6]">
@@ -448,7 +448,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
 
                   {/* 2. Subscription */}
                   <div className="space-y-1">
-                    <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
+                    <span className="text-xs font-medium text-[#94A3B8] block">
                       Subscription
                     </span>
                     <p className="text-base sm:text-lg font-medium text-[#F5F7F6]">
@@ -458,7 +458,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
 
                   {/* 3. Detail */}
                   <div className="space-y-1 max-w-3xl">
-                    <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
+                    <span className="text-xs font-medium text-[#94A3B8] block">
                       Detail
                     </span>
                     <p className="text-base sm:text-lg font-normal text-[#F5F7F6] leading-relaxed">
@@ -468,7 +468,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
 
                   {/* 4. Timestamp */}
                   <div className="space-y-1">
-                    <span className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
+                    <span className="text-xs font-medium text-[#94A3B8] block">
                       Timestamp
                     </span>
                     <p className="text-sm sm:text-base font-normal text-[#94A3B8]">
@@ -546,13 +546,10 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                     ))}
                   </div>
                 ) : (
-                  <div className="py-12 text-center flex flex-col items-center justify-center space-y-4">
-                    <div className="w-16 h-16 rounded-2xl bg-[#14B8A6]/10 border border-[#14B8A6]/20 flex items-center justify-center text-[#14B8A6]">
-                      <Clock className="w-8 h-8 text-[#14B8A6]" />
-                    </div>
+                  <div className="py-20 sm:py-28 min-h-[320px] text-center flex flex-col items-center justify-center space-y-1.5">
                     <div className="max-w-xs space-y-1">
-                      <h3 className="text-base font-bold text-[#F5F7F6]">No activity recorded</h3>
-                      <p className="text-xs text-[#94A3B8]">
+                      <h3 className="text-sm sm:text-base font-medium text-[#F5F7F6]/80">No activity yet</h3>
+                      <p className="text-xs text-[#94A3B8]/60">
                         Actions taken on subscriptions will log here automatically.
                       </p>
                     </div>
@@ -682,13 +679,10 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                 )}
               </div>
             ) : (
-              <div className="py-12 text-center flex flex-col items-center justify-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-[#F59E0B]/10 border border-[#F59E0B]/20 flex items-center justify-center text-[#F59E0B]">
-                  <Archive className="w-8 h-8 text-[#F59E0B]" />
-                </div>
+              <div className="py-20 sm:py-28 min-h-[320px] text-center flex flex-col items-center justify-center space-y-1.5">
                 <div className="max-w-xs space-y-1">
-                  <h3 className="text-base font-bold text-[#F5F7F6]">No archived items</h3>
-                  <p className="text-xs text-[#94A3B8]">
+                  <h3 className="text-sm sm:text-base font-medium text-[#F5F7F6]/80">Nothing archived</h3>
+                  <p className="text-xs text-[#94A3B8]/60">
                     Items you archive will be stored here safely without affecting active metrics.
                   </p>
                 </div>
@@ -772,13 +766,10 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                 ))}
               </div>
             ) : (
-              <div className="py-12 text-center flex flex-col items-center justify-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-center justify-center text-[#D9363E]">
-                  <Trash2 className="w-8 h-8 text-[#D9363E]" />
-                </div>
+              <div className="py-20 sm:py-28 min-h-[320px] text-center flex flex-col items-center justify-center space-y-1.5">
                 <div className="max-w-xs space-y-1">
-                  <h3 className="text-base font-bold text-[#F5F7F6]">No deleted subscriptions</h3>
-                  <p className="text-xs text-[#94A3B8]">
+                  <h3 className="text-sm sm:text-base font-medium text-[#F5F7F6]/80">Nothing deleted</h3>
+                  <p className="text-xs text-[#94A3B8]/60">
                     Subscriptions you remove are kept here first so you can review or restore them anytime.
                   </p>
                 </div>
@@ -838,13 +829,10 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                 </div>
               </div>
             ) : (
-              <div className="py-12 text-center flex flex-col items-center justify-center space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6]">
-                  <RotateCcw className="w-8 h-8 text-[#14B8A6]" />
-                </div>
+              <div className="py-20 sm:py-28 min-h-[320px] text-center flex flex-col items-center justify-center space-y-1.5">
                 <div className="max-w-xs space-y-1">
-                  <h3 className="text-base font-bold text-[#F5F7F6]">No restored history records</h3>
-                  <p className="text-xs text-[#94A3B8]">
+                  <h3 className="text-sm sm:text-base font-medium text-[#F5F7F6]/80">Nothing restored</h3>
+                  <p className="text-xs text-[#94A3B8]/60">
                     When you restore subscriptions from Archive or Deleted, a historical log entry will appear here.
                   </p>
                 </div>

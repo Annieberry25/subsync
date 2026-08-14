@@ -305,7 +305,7 @@ export default function ExportPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-[#94A3B8] uppercase tracking-wider block">Top Category Spend</span>
+            <span className="text-xs font-medium text-[#94A3B8] block">Top Category Spend</span>
             <Tag className="w-4 h-4 text-[#94A3B8]" />
           </div>
           <div className="flex items-baseline gap-2">
@@ -321,7 +321,7 @@ export default function ExportPage() {
 
         <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-[#94A3B8] uppercase tracking-wider block">Average Cost / Plan</span>
+            <span className="text-xs font-medium text-[#94A3B8] block">Average Cost / Plan</span>
             <TrendingUp className="w-4 h-4 text-[#94A3B8]" />
           </div>
           <span className="text-xl font-bold text-[#F5F7F6]">{formatCurrency(avgCost)}</span>
@@ -330,7 +330,7 @@ export default function ExportPage() {
 
         <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-2 sm:col-span-2 md:col-span-1">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-[#94A3B8] uppercase tracking-wider block">Categories Active</span>
+            <span className="text-xs font-medium text-[#94A3B8] block">Categories Active</span>
             <Layers className="w-4 h-4 text-[#94A3B8]" />
           </div>
           <span className="text-xl font-bold text-[#F5F7F6]">{breakdown.length}</span>

@@ -17,7 +17,8 @@ interface CustomSelectProps {
   className?: string;
   minWidth?: string;
   alignRight?: boolean;
-  variant?: 'default' | 'borderless';
+  variant?: 'default' | 'borderless' | 'compact' | 'inline';
+  showCheckmark?: boolean;
 }
 
 const emptySubscribe = () => () => {};
@@ -31,6 +32,7 @@ export function CustomSelect({
   minWidth = 'min-w-[110px]',
   alignRight = false,
   variant = 'default',
+  showCheckmark = true,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -153,14 +155,14 @@ export function CustomSelect({
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-5 py-2.5 min-h-[40px] rounded-xl text-xs font-medium transition-colors text-left cursor-pointer capitalize ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2 min-h-[36px] rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
                     isSelected
-                      ? 'bg-[#14B8A6] text-[#091512] font-semibold'
-                      : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
+                      ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
+                      : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]/70'
                   }`}
                 >
                   <span className="truncate">{opt.label}</span>
-                  {isSelected && <Check className="w-3.5 h-3.5 ml-3 text-[#091512] shrink-0" />}
+                  {showCheckmark && isSelected && <Check className="w-3.5 h-3.5 ml-3 text-[#14B8A6] shrink-0" />}
                 </button>
               );
             })}
@@ -170,10 +172,10 @@ export function CustomSelect({
       )
     : null;
 
-  const isBorderless = variant === 'borderless';
+  const isInline = variant === 'inline' || variant === 'borderless' || variant === 'compact';
 
   return (
-    <div ref={containerRef} className={`relative inline-block text-left ${!isBorderless && minWidth.includes('w-full') ? 'w-full' : ''}`}>
+    <div ref={containerRef} className="relative inline-block text-left">
       <button
         ref={buttonRef}
         type="button"
@@ -182,12 +184,12 @@ export function CustomSelect({
         aria-label={ariaLabel}
         aria-expanded={isOpen}
         className={
-          isBorderless
-            ? `flex items-center gap-1.5 py-1 text-sm font-medium text-[#F5F7F6] hover:text-[#F5F7F6]/80 transition-colors cursor-pointer group outline-none focus:outline-none bg-transparent border-none ${className}`
+          isInline
+            ? `flex items-center gap-1.5 px-2 py-1 text-xs sm:text-sm font-medium text-[#F5F7F6] hover:bg-[#1A1D1D]/50 rounded-lg transition-colors cursor-pointer group outline-none focus:outline-none bg-transparent border-none ${className}`
             : `flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] text-xs font-medium text-[#F5F7F6] transition-colors cursor-pointer group ${minWidth} ${className}`
         }
       >
-        <span className="truncate tracking-wide pr-0.5">{selectedOption.label}</span>
+        <span className="truncate tracking-wide pr-0.5">{selectedOption?.label || value}</span>
         <ChevronDown
           className={`w-3.5 h-3.5 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-transform duration-200 shrink-0 ${
             isOpen ? 'rotate-180 text-[#14B8A6]' : ''

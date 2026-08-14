@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, AlertCircle, Plus, Trash2, Globe, Sparkles, Link2, ExternalLink } from 'lucide-react';
+import { X, Loader2, AlertCircle, Plus, Trash2, Globe, Upload, Link2, ExternalLink } from 'lucide-react';
 import { 
   type SubscriptionRow, 
   type SubscriptionInsert,
@@ -129,15 +129,6 @@ export default function SubscriptionModal({
   const handleNameChange = (val: string) => {
     setName(val);
     if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
-
-    // Automatic provider website URL population
-    if (!isUserEditedUrl) {
-      const knownManage = getKnownProviderManagementUrl(val);
-      const knownWebsite = getKnownProviderWebsite(val);
-      if (knownManage || knownWebsite) {
-        setProviderUrl(knownManage || knownWebsite || '');
-      }
-    }
   };
 
   const handleUrlChange = (val: string) => {
@@ -283,10 +274,10 @@ export default function SubscriptionModal({
               <button
                 type="button"
                 onClick={() => setIsReceiptModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-[#14B8A6]/15 hover:bg-[#14B8A6]/25 text-[#14B8A6] border border-[#14B8A6]/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[38px]"
+                className="px-3 py-2 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[38px]"
                 title="Import details from subscription receipt"
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#14B8A6]" />
+                <Upload className="w-3.5 h-3.5 text-[#94A3B8]" />
                 <span className="hidden sm:inline">Import Receipt</span>
                 <span className="sm:hidden">Import</span>
               </button>
@@ -487,7 +478,7 @@ export default function SubscriptionModal({
                 <button
                   type="button"
                   onClick={handleAddAccountLink}
-                  className="px-3 py-1.5 rounded-lg bg-[#14B8A6]/15 hover:bg-[#14B8A6]/25 text-[#14B8A6] border border-[#14B8A6]/30 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  className="text-xs font-semibold text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5 text-[#14B8A6]" />
                   <span>Add account link</span>
@@ -604,14 +595,14 @@ export default function SubscriptionModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full sm:w-auto px-5 py-3 rounded-full min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+                className="w-full sm:w-auto px-5 py-3 rounded-xl min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full sm:w-auto px-6 py-3 rounded-full min-h-[44px] bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                disabled={loading || !name.trim() || !price.trim() || isNaN(parseFloat(price)) || parseFloat(price) <= 0 || !nextBillingDate}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl min-h-[44px] bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>

@@ -113,7 +113,7 @@ export default function SubscriptionNotesModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-full border border-[#1A1D1D] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border border-[#1A1D1D] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -121,7 +121,7 @@ export default function SubscriptionNotesModal({
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2.5 rounded-full bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -129,10 +129,7 @@ export default function SubscriptionNotesModal({
                   <span>Saving...</span>
                 </>
               ) : (
-                <>
-                  <Save className="w-4 h-4 text-[#091512]" />
-                  <span>Save Notes</span>
-                </>
+                <span>Save Notes</span>
               )}
             </button>
           </div>

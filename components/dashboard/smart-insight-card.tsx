@@ -281,56 +281,50 @@ export function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
   return (
     <div
       onClick={() => setIsOpen((prev) => !prev)}
-      className="p-4 sm:p-5 md:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] cursor-pointer transition-all duration-300 hover:border-[#14B8A6]/40 select-none"
+      className="py-3 px-1 border-t border-[#1A1D1D]/50 cursor-pointer select-none group"
     >
-      {/* Header Row: Always displays 💡 "Smart Insight" Title + Short 1-Sentence Preview (when Collapsed) + Chevron */}
+      {/* Header Row: Displays "Smart Insight" Label + Insight Preview + Chevron */}
       <div className="flex items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1 overflow-hidden">
-          <div className="w-9 h-9 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-center shrink-0">
-            <Lightbulb className="w-5 h-5 text-[#14B8A6]" />
-          </div>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+          <Lightbulb className="w-4 h-4 text-[#14B8A6] shrink-0" />
 
           <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 overflow-hidden">
-            <h3 className="text-base sm:text-[17px] font-semibold text-[#F5F7F6] tracking-tight shrink-0">
-              Smart Insight
-            </h3>
+            <span className="text-xs sm:text-sm font-semibold text-[#F5F7F6] shrink-0">
+              Smart Insight:
+            </span>
 
-            {/* Collapsed One-Sentence Preview (Without Category Name) */}
+            {/* Collapsed Preview */}
             {!isOpen && (
-              <span className="text-xs sm:text-[14px] text-[#94A3B8] min-w-0 flex-1 block leading-tight truncate sm:whitespace-normal">
+              <span className="text-xs text-[#94A3B8] min-w-0 flex-1 block leading-tight truncate">
                 {selectedInsight.preview}
               </span>
             )}
           </div>
         </div>
 
-        {/* Animated Chevron ▼ / ▲ */}
-        <div className="w-8 h-8 rounded-lg bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-center shrink-0 ml-auto">
-          <ChevronDown
-            className={`w-4 h-4 text-[#94A3B8] transition-transform duration-300 ${
-              isOpen ? 'rotate-180 text-[#F5F7F6]' : ''
-            }`}
-          />
-        </div>
+        {/* Chevron Indicator */}
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-transform duration-200 shrink-0 ml-auto ${
+            isOpen ? 'rotate-180 text-[#14B8A6]' : ''
+          }`}
+        />
       </div>
 
       {/* Expanded Accordion Body */}
       <div
-        className={`grid transition-all duration-300 ease-in-out ${
+        className={`grid transition-all duration-200 ease-in-out ${
           isOpen
-            ? 'grid-rows-[1fr] opacity-100 mt-4 sm:mt-5 pt-4 sm:pt-5 border-t border-[#1A1D1D]'
+            ? 'grid-rows-[1fr] opacity-100 mt-2.5 pt-2.5 border-t border-[#1A1D1D]/40'
             : 'grid-rows-[0fr] opacity-0 mt-0 pt-0 border-t-0'
         }`}
       >
         <div className="overflow-hidden">
-          <div className="pl-0 sm:pl-[50px] space-y-3 pt-0.5">
-            {/* Clean Heading (e.g. "Spending Trend") without duplicate icon or purple badge */}
-            <h4 className="text-sm sm:text-[16px] font-semibold text-[#F5F7F6] tracking-tight">
+          <div className="space-y-1.5 pt-0.5">
+            <h4 className="text-xs font-semibold text-[#F5F7F6]">
               {selectedInsight.title}
             </h4>
 
-            {/* Conversational Friendly Assistant Advice */}
-            <p className="text-xs sm:text-[15px] text-[#94A3B8] leading-relaxed sm:leading-[26px] max-w-3xl font-normal">
+            <p className="text-xs text-[#94A3B8] leading-relaxed max-w-3xl font-normal">
               <span className="text-[#F5F7F6] font-medium">
                 {selectedInsight.observation}{' '}
               </span>

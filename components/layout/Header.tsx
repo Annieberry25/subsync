@@ -13,7 +13,7 @@ interface HeaderProps {
 export default function Header({ onMobileMenuToggle, hasUnreadNotifications }: HeaderProps) {
   const pathname = usePathname();
   const { unreadCount } = useInbox();
-  const showUnreadDot = unreadCount > 0 || Boolean(hasUnreadNotifications);
+  const showUnreadDot = unreadCount > 0;
   const isInboxRoute = pathname.startsWith('/inbox');
 
   return (
@@ -43,7 +43,7 @@ export default function Header({ onMobileMenuToggle, hasUnreadNotifications }: H
           >
             <Bell className="w-5 h-5 text-[#94A3B8]" />
             {showUnreadDot && (
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#14B8A6] animate-pulse" />
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#14B8A6]" />
             )}
           </Link>
         )}

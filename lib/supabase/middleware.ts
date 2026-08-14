@@ -40,14 +40,16 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup');
 
+  const isCallbackRoute = request.nextUrl.pathname.startsWith('/auth');
+
   // If user is not logged in and trying to access protected routes
-  if (!user && !isAuthPage) {
+  if (!user && !isAuthPage && !isCallbackRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  // If user is logged in and trying to access /login, redirect to Dashboard
+  // If user is logged in and trying to access /login or /signup, redirect to Dashboard
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/';

@@ -103,7 +103,7 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
           </p>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="divide-y divide-[#1A1D1D]/60">
           {displayItems.map(({ sub, diffDays }) => {
             const status = getRenewalStatus(diffDays);
             const price = Number(sub.price) || 0;
@@ -113,27 +113,27 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
             return (
               <div
                 key={sub.id}
-                className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl gap-2.5 sm:gap-4 cursor-default"
+                className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center py-3.5 px-1 gap-2.5 sm:gap-4 cursor-default"
               >
                 {/* 1. Service Logo + Name + Plan */}
                 <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
-                  <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-10 h-10 rounded-xl shrink-0" />
+                  <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-9 h-9 rounded-xl shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">
+                    <span className="text-sm font-semibold text-[#F5F7F6] block">
                       {sub.name}
                     </span>
-                    <span className="text-xs sm:text-[14px] text-[#94A3B8] block mt-0.5">
+                    <span className="text-xs text-[#94A3B8] block mt-0.5">
                       {planName}
                     </span>
                   </div>
                 </div>
 
-                {/* 2 & 3: Mobile sub-row (flex justify-between) / Desktop grid cells (sm:contents) */}
-                <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D] gap-2">
+                {/* 2 & 3: Mobile sub-row / Desktop grid cells */}
+                <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]/60 gap-2">
                   {/* 2. Renewal Status */}
                   <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
                     <span
-                      className="text-xs sm:text-sm font-semibold"
+                      className="text-xs sm:text-sm font-medium"
                       style={{ color: status.color }}
                     >
                       {status.text}
@@ -142,10 +142,10 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
 
                   {/* 3. Single-line Price */}
                   <div className="text-right min-w-0 shrink-0 justify-self-end">
-                    <span className="text-base sm:text-[20px] font-bold text-[#F5F7F6]">
+                    <span className="text-base sm:text-lg font-bold text-[#F5F7F6]">
                       {formatCurrency(price, sub.currency || 'USD')}
                     </span>
-                    <span className="text-xs sm:text-[15px] font-normal text-[#94A3B8]">
+                    <span className="text-xs font-normal text-[#94A3B8]">
                       {cycleSuffix}
                     </span>
                   </div>

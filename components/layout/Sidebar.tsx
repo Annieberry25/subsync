@@ -17,7 +17,7 @@ import {
   Trash2,
   RotateCcw,
   Zap,
-  Crown,
+  ArrowUpCircle,
   ChevronDown,
   ChevronRight,
   LogOut,
@@ -99,8 +99,8 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
   const avatarUrl = user?.user_metadata?.avatar_url;
   const effectiveFullName = contextFullName?.trim() || user?.user_metadata?.full_name?.trim();
-  const effectiveEmail = contextEmail || user?.email || 'saysay@example.com';
-  const userName = effectiveFullName || (effectiveEmail ? effectiveEmail.split('@')[0] : 'Say Say');
+  const effectiveEmail = contextEmail || user?.email || '';
+  const userName = effectiveFullName || (effectiveEmail ? effectiveEmail.split('@')[0] : 'User');
 
   const getInitials = (name?: string): string | null => {
     if (!name || !name.trim()) return null;
@@ -111,7 +111,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const initials = getInitials(effectiveFullName || (user ? '' : 'Say Say'));
+  const initials = getInitials(effectiveFullName || userName);
 
   const content = (
     <div className="flex flex-col justify-between h-full bg-[#000000] overflow-y-auto">
@@ -175,20 +175,18 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                         const isSubActive =
                           pathname === sub.href ||
                           (sub.href === '/history/all' && (pathname === '/history' || pathname === '/history/'));
-                        const SubIcon = sub.icon;
 
                         return (
                           <Link
                             key={sub.href}
                             href={sub.href}
                             onClick={onMobileClose}
-                            className={`flex items-center gap-2.5 px-3 py-2 min-h-[38px] rounded-lg text-xs transition-all ${
+                            className={`flex items-center px-3 py-2 min-h-[38px] rounded-lg text-xs transition-all ${
                               isSubActive
                                 ? 'bg-[#14B8A6]/15 text-[#14B8A6] font-semibold'
                                 : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                             }`}
                           >
-                            <SubIcon className={`w-3.5 h-3.5 ${isSubActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
                             <span>{sub.name}</span>
                           </Link>
                         );
@@ -228,25 +226,8 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         </nav>
       </div>
 
-      {/* Sidebar Footer: Upgrade Card & User Profile */}
+      {/* Sidebar Footer: User Profile */}
       <div className="px-3 pt-2 pb-5 space-y-3 mt-auto">
-        {/* Go Premium Card */}
-        <div className="p-2.5 rounded-xl border border-[#1A1D1D] bg-[#0B0D0D] space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <Crown className="w-3.5 h-3.5 text-[#14B8A6] shrink-0" />
-            <span className="font-medium text-[#94A3B8] text-[11px] tracking-tight">Go Premium</span>
-          </div>
-          <p className="text-[11px] text-[#94A3B8] leading-snug font-normal">
-            Unlock advanced analytics & savings insights.
-          </p>
-          <button
-            type="button"
-            className="w-full py-1.5 px-3 bg-[#14B8A6] hover:opacity-90 text-[#091512] text-[11px] font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center min-h-[36px]"
-          >
-            Upgrade Now
-          </button>
-        </div>
-
         {/* User Profile Section with Expandable Account Menu */}
         <div className="relative" ref={profileMenuRef}>
           {/* SaaS Style Account Popover Menu */}
@@ -274,6 +255,18 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               >
                 <HelpCircle className="w-4 h-4 text-[#94A3B8]" />
                 <span>Help</span>
+              </Link>
+
+              <Link
+                href="/settings?section=plan"
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  onMobileClose?.();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
+              >
+                <ArrowUpCircle className="w-4 h-4 text-[#94A3B8]" />
+                <span>Upgrade Plan</span>
               </Link>
 
               <div className="border-t border-[#1A1D1D]/70 my-1 pt-1">

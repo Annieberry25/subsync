@@ -34,6 +34,8 @@ export default function SubscriptionManager() {
   const paramHighlight = searchParams.get('highlight');
   const paramCategory = searchParams.get('category');
   const paramStatus = searchParams.get('status');
+  const paramLinked = searchParams.get('linked');
+  const paramEmail = searchParams.get('email');
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +74,8 @@ export default function SubscriptionManager() {
     }
   });
 
+
+
   const handleSaveReminder = (subId: string, data: { timing: string; method: string; note?: string }) => {
     const updated = {
       ...reminders,
@@ -98,7 +102,6 @@ export default function SubscriptionManager() {
     } catch {
       // Ignore storage errors
     }
-    toast.info(`Dismissed payment reminder for ${sub.name}.`, 'Reminder Dismissed');
   };
 
   // Filter & Search State
@@ -366,42 +369,31 @@ export default function SubscriptionManager() {
           </div>
         )
       ) : (
-        <div className="p-16 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] text-center flex flex-col items-center justify-center space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6]">
-            {hasActiveFilters ? <XCircle className="w-8 h-8 text-[#F59E0B]" /> : <CreditCard className="w-8 h-8 text-[#14B8A6]" />}
-          </div>
-          <div className="max-w-xs space-y-1">
-            <h3 className="text-base font-bold text-[#F5F7F6]">
+        <div className="py-20 sm:py-28 min-h-[320px] rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] text-center flex flex-col items-center justify-center space-y-2">
+          <div className="max-w-sm space-y-1">
+            <h3 className="text-sm sm:text-base font-medium text-[#F5F7F6]/80">
               {hasActiveFilters ? 'No matching subscriptions' : 'No subscriptions added yet'}
             </h3>
-            <p className="text-xs text-[#94A3B8]">
+            <p className="text-xs text-[#94A3B8]/60">
               {hasActiveFilters
                 ? 'No subscriptions match your current search terms or filter criteria.'
                 : 'Track your recurring Netflix, Spotify, or software subscriptions in one place.'}
             </p>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
-            {hasActiveFilters ? (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="px-5 py-2.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#F5F7F6] text-xs font-semibold border border-[#1A1D1D] transition-all cursor-pointer"
-              >
-                Clear All Filters
-              </button>
-            ) : (
+          {!hasActiveFilters && (
+            <div className="pt-1">
               <button
                 type="button"
                 onClick={() => {
                   setIsAddPathModalOpen(true);
                 }}
-                className="px-6 py-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold transition-all cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold transition-all cursor-pointer"
               >
                 Add Your First Subscription
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
