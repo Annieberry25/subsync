@@ -8,24 +8,27 @@ export async function GET(request: Request) {
   const nextParam = requestUrl.searchParams.get('next');
   const safePath = getSafeRedirectUrl(nextParam);
 
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  const isLocalEnv = process.env.NODE_ENV === 'development';
+
+  let baseOrigin: string;
+  if (isLocalEnv) {
+    baseOrigin = requestUrl.origin;
+  } else if (forwardedHost) {
+    baseOrigin = `${forwardedProto}://${forwardedHost}`;
+  } else {
+    baseOrigin = getSiteUrl();
+  }
+
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      const forwardedHost = request.headers.get('x-forwarded-host');
-      const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-
-      if (isLocalEnv) {
-        return NextResponse.redirect(new URL(safePath, requestUrl.origin));
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`${forwardedProto}://${forwardedHost}${safePath}`);
-      } else {
-        return NextResponse.redirect(new URL(safePath, getSiteUrl()));
-      }
+      return NextResponse.redirect(new URL(safePath, baseOrigin));
     }
   }
 
-  return NextResponse.redirect(new URL('/login?error=Could%20not%20authenticate', getSiteUrl()));
+  return NextResponse.redirect(new URL('/login?error=Could%20not%20authenticate', baseOrigin));
 }

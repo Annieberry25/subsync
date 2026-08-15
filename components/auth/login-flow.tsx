@@ -13,7 +13,7 @@ import {
   RememberedAccount,
 } from '@/lib/auth/remembered-accounts';
 import { RememberedAccountChooser } from './remembered-account-chooser';
-import { getAuthCallbackUrl } from '@/lib/utils/url-utils';
+import { getSiteUrl, getAuthCallbackUrl } from '@/lib/utils/url-utils';
 
 export function LoginFlow() {
   const [step, setStep] = useState<'chooser' | 'email' | 'password' | 'otp'>('email');
@@ -118,7 +118,7 @@ export function LoginFlow() {
     setLoading(true);
     try {
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/login`,
+        redirectTo: `${getSiteUrl()}/login`,
       });
       if (resetErr) throw resetErr;
       setSuccess(`Password reset instructions sent to ${email.trim()}.`);
