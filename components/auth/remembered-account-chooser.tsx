@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { X, ChevronRight, Zap } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { RememberedAccount } from '@/lib/auth/remembered-accounts';
 import { Button } from '@/components/ui/button';
 
 interface RememberedAccountChooserProps {
   accounts: RememberedAccount[];
   onSelectAccount: (account: RememberedAccount) => void;
-  onRemoveAccount: (email: string) => void;
+  onRemoveAccount?: (email: string) => void;
   onUseAnotherAccount: () => void;
 }
 
@@ -91,18 +91,6 @@ export function RememberedAccountChooser({
 
             <div className="flex items-center gap-1.5 shrink-0">
               <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:translate-x-0.5 transition-all" />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveAccount(account.email);
-                }}
-                aria-label={`Remove ${account.email} from saved accounts`}
-                title="Remove account from device"
-                className="p-1 rounded-full text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 transition-colors cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
             </div>
           </div>
         ))}
