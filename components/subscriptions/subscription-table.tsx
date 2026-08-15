@@ -262,16 +262,28 @@ export default function SubscriptionTable({
               const statusDotStyle = statusDotColors[sub.status] || statusDotColors.active;
               const planName = getPlanName(sub);
 
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const rawNextDate = new Date(sub.next_billing_date);
-              const nextDate = !isNaN(rawNextDate.getTime())
-                ? new Date(rawNextDate.getFullYear(), rawNextDate.getMonth(), rawNextDate.getDate())
-                : today;
+              const now = new Date();
+              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+              const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
+                if (!dateStr) return null;
+                const parts = dateStr.split('T')[0].split('-');
+                if (parts.length === 3) {
+                  const y = parseInt(parts[0], 10);
+                  const m = parseInt(parts[1], 10) - 1;
+                  const d = parseInt(parts[2], 10);
+                  if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m, d);
+                }
+                const parsed = new Date(dateStr);
+                return isNaN(parsed.getTime()) ? null : parsed;
+              };
+
+              const rawNextDateObj = parseLocalDate(sub.next_billing_date);
+              const nextDate = rawNextDateObj || today;
               const diffTime = nextDate.getTime() - today.getTime();
               const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
-              const formattedDate = !isNaN(rawNextDate.getTime())
-                ? rawNextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              const formattedDate = rawNextDateObj
+                ? rawNextDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                 : sub.next_billing_date;
 
               const isHighlighted = sub.id === highlightedSubId;
@@ -317,7 +329,9 @@ export default function SubscriptionTable({
 
                   {/* Next Billing */}
                   <td className="py-4 px-4 whitespace-nowrap text-xs sm:text-sm text-[#94A3B8]">
-                    {diffDays <= 0 ? (
+                    {diffDays < 0 ? (
+                      <span className="text-[#D9363E] font-bold">Overdue ({Math.abs(diffDays)}d)</span>
+                    ) : diffDays === 0 ? (
                       <span className="text-[#D9363E] font-bold">Due today</span>
                     ) : (
                       <span>{formattedDate} <span className="text-[11px] text-[#94A3B8]">({diffDays}d)</span></span>

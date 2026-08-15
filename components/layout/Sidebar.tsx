@@ -52,7 +52,7 @@ interface SidebarProps {
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { fullName: contextFullName, email: contextEmail } = useUserSettings();
+  const { fullName: contextFullName, email: contextEmail, isPlus } = useUserSettings();
   const { unreadCount } = useInbox();
   const [user, setUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -119,10 +119,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         {/* Brand Logo & Mobile Close */}
         <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-[#121414]">
           <Link href="/" onClick={onMobileClose} className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-xl bg-[#000000] border border-[#1A1D1D] flex items-center justify-center text-[#14B8A6] shrink-0">
-              <Zap className="w-4 h-4 fill-[#14B8A6] text-[#14B8A6]" />
-            </div>
-            <span className="font-bold text-lg text-[#14B8A6] tracking-tight">SubSync</span>
+            <span className="font-bold text-lg text-[#14B8A6] tracking-tight">SubHalt</span>
           </Link>
 
           {onMobileClose && (
@@ -153,16 +150,16 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                     aria-expanded={isHistoryOpen}
                     className={`w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors cursor-pointer ${
                       isParentActive
-                        ? 'bg-[#14B8A6]/15 text-[#14B8A6] font-semibold border border-[#1A1D1D]'
+                        ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#1A1D1D]'
                         : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className={`w-4 h-4 ${isParentActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
+                      <Icon className={`w-4 h-4 ${isParentActive ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'}`} />
                       <span>History</span>
                     </div>
                     {isHistoryOpen ? (
-                      <ChevronDown className="w-4 h-4 text-[#14B8A6]" />
+                      <ChevronDown className="w-4 h-4 text-[#F5F7F6]" />
                     ) : (
                       <ChevronRight className="w-4 h-4 text-[#94A3B8]" />
                     )}
@@ -183,7 +180,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                             onClick={onMobileClose}
                             className={`flex items-center px-3 py-2 min-h-[38px] rounded-lg text-xs transition-all ${
                               isSubActive
-                                ? 'bg-[#14B8A6]/15 text-[#14B8A6] font-semibold'
+                                ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
                                 : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                             }`}
                           >
@@ -207,12 +204,12 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 onClick={onMobileClose}
                 className={`flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors ${
                   isActive
-                    ? 'bg-[#14B8A6]/15 text-[#14B8A6] font-semibold border border-[#1A1D1D]'
+                    ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#1A1D1D]'
                     : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'}`} />
                   <span>{item.name}</span>
                 </div>
                 {item.name === 'Inbox' && unreadCount > 0 && (
@@ -258,7 +255,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               </Link>
 
               <Link
-                href="/settings?section=plan"
+                href={`/plans?from=${encodeURIComponent(pathname)}`}
                 onClick={() => {
                   setShowProfileMenu(false);
                   onMobileClose?.();
@@ -291,7 +288,11 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             aria-label="User profile options"
             aria-expanded={showProfileMenu}
-            className="w-full flex items-center justify-between p-2.5 rounded-xl border border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#14B8A6] transition-colors text-left group cursor-pointer"
+            className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-colors text-left group cursor-pointer ${
+              showProfileMenu
+                ? 'border-[#3F3F46] bg-[#121414]'
+                : 'border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#3F3F46] hover:bg-[#121414]'
+            }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
               {avatarUrl ? (
@@ -299,15 +300,11 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 <img
                   src={avatarUrl}
                   alt={userName}
-                  className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#14B8A6]/30"
+                  className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#14B8A6]/40"
                 />
-              ) : initials ? (
-                <div className="w-8 h-8 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] text-xs font-bold shrink-0">
-                  {initials}
-                </div>
               ) : (
-                <div className="w-8 h-8 rounded-full bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] shrink-0">
-                  <UserIcon className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] text-xs font-bold shrink-0">
+                  {initials || (userName ? userName.slice(0, 2).toUpperCase() : 'SU')}
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -319,7 +316,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 </span>
               </div>
             </div>
-            <ChevronDown className={`w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-transform duration-200 shrink-0 ml-1 ${showProfileMenu ? 'rotate-180 text-[#14B8A6]' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-transform duration-200 shrink-0 ml-1 ${showProfileMenu ? 'rotate-180 text-[#F5F7F6]' : ''}`} />
           </button>
         </div>
       </div>

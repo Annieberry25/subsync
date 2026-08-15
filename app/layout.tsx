@@ -9,7 +9,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "SubSync - Subscription Manager",
+  title: "SubHalt - Subscription Manager",
   description: "Track, manage, and optimize all your recurring subscriptions seamlessly.",
 };
 

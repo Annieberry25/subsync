@@ -13,7 +13,7 @@ interface HeaderProps {
 export default function Header({ onMobileMenuToggle, hasUnreadNotifications }: HeaderProps) {
   const pathname = usePathname();
   const { unreadCount } = useInbox();
-  const showUnreadDot = unreadCount > 0;
+  const showUnreadDot = Boolean(hasUnreadNotifications || unreadCount > 0);
   const isInboxRoute = pathname.startsWith('/inbox');
 
   return (
@@ -32,19 +32,17 @@ export default function Header({ onMobileMenuToggle, hasUnreadNotifications }: H
         )}
       </div>
 
-      {/* Right: Functional Notification Icon connecting to Inbox (Hidden on Inbox routes) */}
+      {/* Right: Functional Notification Icon connecting to Inbox (Hidden on Inbox routes and when there are no unread notifications) */}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        {!isInboxRoute && (
+        {!isInboxRoute && showUnreadDot && (
           <Link
             href="/inbox"
-            aria-label={showUnreadDot ? `Notifications (${unreadCount} unread items)` : 'Notifications (Inbox)'}
-            title={showUnreadDot ? `Inbox (${unreadCount} unread items)` : 'Inbox'}
+            aria-label={`Notifications (${unreadCount} unread items)`}
+            title={`Inbox (${unreadCount} unread items)`}
             className="relative p-2 text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] transition-colors cursor-pointer rounded-xl flex items-center justify-center min-h-[44px] min-w-[44px]"
           >
             <Bell className="w-5 h-5 text-[#94A3B8]" />
-            {showUnreadDot && (
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#14B8A6]" />
-            )}
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#14B8A6]" />
           </Link>
         )}
       </div>

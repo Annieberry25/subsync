@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Search, ShieldCheck, ExternalLink, ArrowLeft, Link2 } from 'lucide-react';
+import { X, Search, ShieldCheck, ExternalLink, ArrowLeft, Link2, CheckCircle2 } from 'lucide-react';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { getKnownProviderWebsite, getKnownProviderManagementUrl } from '@/lib/services/subscription-service';
-import type { SubscriptionInsert } from '@/lib/services/subscription-service';
+import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
 import { useToast } from '@/lib/hooks/use-toast';
 
 interface LinkSubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSelectReceiptFlow?: (providerName: string) => void;
   onConfirmLinkedData?: (data: Partial<Omit<SubscriptionInsert, 'user_id'>>) => void;
+  onSelectExistingDetails?: (subscription: SubscriptionRow) => void;
+  existingSubscriptions?: SubscriptionRow[];
 }
 
 const POPULAR_PROVIDERS = [
@@ -23,20 +26,23 @@ const POPULAR_PROVIDERS = [
   { name: 'GitHub Pro', category: 'Software' as const, defaultPrice: 4.00, currency: 'USD', cycle: 'monthly' as const },
   { name: 'Amazon Prime', category: 'Streaming' as const, defaultPrice: 14.99, currency: 'USD', cycle: 'monthly' as const },
   { name: 'YouTube Premium', category: 'Streaming' as const, defaultPrice: 13.99, currency: 'USD', cycle: 'monthly' as const },
-  { name: 'Disney+', category: 'Streaming' as const, defaultPrice: 13.99, currency: 'USD', cycle: 'monthly' as const },
+  { name: 'Disney+', category: 'Streaming' as const, defaultPrice: 13.99, currency: 'USD', cycle: 'yearly' as const },
   { name: 'PlayStation Plus', category: 'Gaming' as const, defaultPrice: 79.99, currency: 'USD', cycle: 'yearly' as const },
 ];
 
 export default function LinkSubscriptionModal({
   isOpen,
   onClose,
+  onSelectReceiptFlow,
   onConfirmLinkedData,
+  onSelectExistingDetails,
+  existingSubscriptions,
 }: LinkSubscriptionModalProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<typeof POPULAR_PROVIDERS[number] | null>(null);
   const [customProviderName, setCustomProviderName] = useState('');
-  const [step, setStep] = useState<'select' | 'manage'>('select');
+  const [step, setStep] = useState<'select' | 'manage' | 'confirm_subscribed' | 'no_existing'>('select');
 
   if (!isOpen) return null;
 
@@ -69,25 +75,38 @@ export default function LinkSubscriptionModal({
 
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
     toast.success(`Opened ${activeName} subscription management page in a new tab.`, 'Page Opened');
+    
+    // Transition to confirmation state AFTER opening provider page
+    setStep('confirm_subscribed');
   };
 
-  const handleAddManually = () => {
-    if (onConfirmLinkedData && activeName) {
-      const nextBilling = new Date();
-      nextBilling.setMonth(nextBilling.getMonth() + 1);
+  const handleTrackPortfolio = () => {
+    if (!activeName) return;
 
-      onConfirmLinkedData({
-        name: activeName,
-        price: selectedProvider ? selectedProvider.defaultPrice : 9.99,
-        currency: selectedProvider ? selectedProvider.currency : 'USD',
-        billing_cycle: selectedProvider ? selectedProvider.cycle : 'monthly',
-        category: selectedProvider ? selectedProvider.category : 'Utilities',
-        status: 'active',
-        next_billing_date: nextBilling.toISOString().split('T')[0],
-        provider_url: getKnownProviderManagementUrl(activeName) || getKnownProviderWebsite(activeName) || null,
-      });
+    const matchingSub = existingSubscriptions?.find(
+      (sub) =>
+        sub.name.toLowerCase().trim().includes(activeName.toLowerCase().trim()) ||
+        activeName.toLowerCase().trim().includes(sub.name.toLowerCase().trim())
+    );
+
+    if (matchingSub && onSelectExistingDetails) {
+      onSelectExistingDetails(matchingSub);
+      onClose();
+    } else {
+      setStep('no_existing');
     }
-    onClose();
+  };
+
+  const handleYesSubscribed = () => {
+    if (onSelectReceiptFlow && activeName) {
+      onSelectReceiptFlow(activeName);
+    } else if (onConfirmLinkedData && activeName) {
+      handleTrackPortfolio();
+    }
+  };
+
+  const handleNotYet = () => {
+    setStep('manage');
   };
 
   return (
@@ -102,7 +121,7 @@ export default function LinkSubscriptionModal({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-xl bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
       >
-        {/* Header */}
+        {/* Header (Exact Match to User Screenshot) */}
         <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
           <div className="flex items-center gap-3">
             {step !== 'select' && (
@@ -210,13 +229,13 @@ export default function LinkSubscriptionModal({
             <div className="py-2.5 text-xs text-[#94A3B8] flex items-start gap-2.5">
               <ShieldCheck className="w-4 h-4 text-[#94A3B8] shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                SubSync opens official subscription management pages directly in a new browser tab. SubSync never asks for or stores your provider credentials.
+                SubHalt opens official subscription management pages directly in a new browser tab. SubHalt never asks for or stores your provider credentials.
               </p>
             </div>
           </div>
         )}
 
-        {/* STEP 2: PROVIDER DIRECT MANAGEMENT SCREEN */}
+        {/* STEP 2: PROVIDER DIRECT MANAGEMENT SCREEN (Exact Match to User Screenshot) */}
         {step === 'manage' && (
           <div className="space-y-5 overflow-y-auto pr-1 flex-1 text-center py-4">
             <div className="space-y-1.5 max-w-sm mx-auto">
@@ -238,15 +257,82 @@ export default function LinkSubscriptionModal({
                 <ExternalLink className="w-3.5 h-3.5 text-[#091512]" />
               </button>
 
-              {onConfirmLinkedData && (
-                <button
-                  type="button"
-                  onClick={handleAddManually}
-                  className="w-full h-10 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
-                >
-                  Track {activeName} in SubSync Portfolio
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleTrackPortfolio}
+                className="w-full h-10 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
+              >
+                Track {activeName} in SubHalt Portfolio
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: CONFIRMATION STATE (Triggered AFTER user clicks Open Provider) */}
+        {step === 'confirm_subscribed' && (
+          <div className="space-y-5 overflow-y-auto pr-1 flex-1 text-center py-4">
+            <div className="space-y-1.5 max-w-sm mx-auto">
+              <h3 className="text-lg font-bold text-[#F5F7F6]">
+                Did you just subscribe?
+              </h3>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                If you just created this subscription, let&apos;s add it to SubHalt.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2.5 max-w-sm mx-auto">
+              <button
+                type="button"
+                onClick={handleYesSubscribed}
+                className="w-full h-11 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4 text-[#091512]" />
+                <span>Yes, I subscribed</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNotYet}
+                className="w-full h-10 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
+              >
+                <span>Not yet</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: NO EXISTING ACTIVE SUBSCRIPTION FOUND */}
+        {step === 'no_existing' && (
+          <div className="space-y-5 overflow-y-auto pr-1 flex-1 text-center py-4">
+            <div className="space-y-1.5 max-w-sm mx-auto">
+              <h3 className="text-lg font-bold text-[#F5F7F6]">
+                No Active {activeName} Subscription
+              </h3>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                Your subscription will appear here once you have an active {activeName} subscription.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2.5 max-w-sm mx-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSelectReceiptFlow && activeName) {
+                    onSelectReceiptFlow(activeName);
+                  }
+                }}
+                className="w-full h-11 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <span>Import {activeName} Receipt</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep('select')}
+                className="w-full h-10 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
+              >
+                Back to Provider List
+              </button>
             </div>
           </div>
         )}

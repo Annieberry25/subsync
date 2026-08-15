@@ -103,24 +103,24 @@ export default function PaymentReminderModal({
       >
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center shrink-0">
-              <Bell className="w-5 h-5 text-[#F59E0B]" />
-            </div>
-            <div>
-              <h2 id="reminder-modal-title" className="text-[28px] font-bold text-[#F5F7F6] tracking-tight leading-[36px]">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center shrink-0">
+                <Bell className="w-4 h-4 text-[#94A3B8]" />
+              </div>
+              <h2 id="reminder-modal-title" className="text-lg font-bold text-[#F5F7F6] tracking-tight">
                 Payment Reminder
               </h2>
-              <p className="text-[15px] text-[#94A3B8] mt-0.5 leading-[22px]">
-                Choose when you&apos;d like to be reminded before renewal.
-              </p>
             </div>
+            <p className="text-xs text-[#94A3B8] leading-relaxed">
+              Choose when you&apos;d like to be reminded before renewal.
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-9 h-9 min-h-[40px] min-w-[40px] rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
+            className="w-8 h-8 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D] shrink-0 mt-0.5"
           >
             <X className="w-4 h-4" />
           </button>
@@ -139,13 +139,9 @@ export default function PaymentReminderModal({
                     key={choice.id}
                     type="button"
                     onClick={() => setTiming(choice.id)}
-                    className={`px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-between border transition-colors text-left cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#1A1D1D] text-[#F5F7F6] border-[#14B8A6] font-semibold'
-                        : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
-                    }`}
+                    className="px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-between border border-[#1A1D1D] bg-[#0D0F0F] hover:bg-[#1A1D1D] transition-colors text-left cursor-pointer"
                   >
-                    <span>{choice.label}</span>
+                    <span className={isSelected ? 'text-[#F5F7F6] font-medium' : 'text-[#94A3B8]'}>{choice.label}</span>
                     {isSelected && <Check className="w-4 h-4 text-[#14B8A6] shrink-0 ml-2" />}
                   </button>
                 );
@@ -176,9 +172,9 @@ export default function PaymentReminderModal({
                     key={choice.id}
                     type="button"
                     onClick={() => setMethod(choice.id)}
-                    className={`px-2.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-center text-center border transition-colors cursor-pointer ${
+                    className={`px-2.5 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-center text-center border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-[#1A1D1D] text-[#F5F7F6] border-[#14B8A6] font-semibold'
+                        ? 'bg-[#14B8A6] text-[#091512] font-semibold border-[#14B8A6] shadow-sm shadow-[#14B8A6]/10'
                         : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
                     }`}
                   >

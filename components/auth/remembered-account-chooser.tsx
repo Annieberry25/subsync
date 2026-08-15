@@ -38,10 +38,7 @@ export function RememberedAccountChooser({
     <div>
       {/* 1. Logo/brand */}
       <div className="flex flex-col items-center justify-center space-y-2 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center text-[#14B8A6] shrink-0 shadow-sm">
-          <Zap className="w-5 h-5 fill-current text-[#14B8A6]" />
-        </div>
-        <span className="text-base font-bold text-[#F5F7F6] tracking-tight">SubSync</span>
+        <span className="text-xl font-bold text-[#14B8A6] tracking-tight">SubHalt</span>
       </div>
 
       {/* 2. Header text */}

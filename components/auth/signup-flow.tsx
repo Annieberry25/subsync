@@ -7,6 +7,7 @@ import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowLeft, AtSign, Zap } from '
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { saveRememberedAccount } from '@/lib/auth/remembered-accounts';
+import { getAuthCallbackUrl } from '@/lib/utils/url-utils';
 
 export function SignupFlow() {
   const [step, setStep] = useState<'email' | 'password' | 'otp' | 'username'>('email');
@@ -213,7 +214,7 @@ export function SignupFlow() {
       const { error: oauthErr } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/`,
+          redirectTo: getAuthCallbackUrl(),
         },
       });
 
@@ -259,15 +260,12 @@ export function SignupFlow() {
         <div>
           {/* Logo/brand */}
           <div className="flex flex-col items-center justify-center space-y-2 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center text-[#14B8A6] shrink-0 shadow-sm">
-              <Zap className="w-5 h-5 fill-current text-[#14B8A6]" />
-            </div>
-            <span className="text-base font-bold text-[#F5F7F6] tracking-tight">SubSync</span>
+            <span className="text-xl font-bold text-[#14B8A6] tracking-tight">SubHalt</span>
           </div>
 
           {/* Heading */}
           <h1 className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight text-center">
-            Create your SubSync account
+            Create your SubHalt account
           </h1>
 
           {/* Description */}
@@ -602,7 +600,7 @@ export function SignupFlow() {
           </h1>
 
           <p className="text-xs sm:text-sm text-[#94A3B8] text-center mt-1.5 mb-7">
-            Select a username for your profile inside SubSync. (Login remains email-based).
+            Select a username for your profile inside SubHalt. (Login remains email-based).
           </p>
 
           <form onSubmit={handleUsernameSetup} className="space-y-4">

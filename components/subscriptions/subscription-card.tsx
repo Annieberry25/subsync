@@ -56,19 +56,29 @@ export default function SubscriptionCard({
   const accountLinks = parseAccountLinks(subscription);
 
   // Calculate days until next renewal cleanly
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const rawNextDate = new Date(subscription.next_billing_date);
-  const nextDate = !isNaN(rawNextDate.getTime())
-    ? new Date(rawNextDate.getFullYear(), rawNextDate.getMonth(), rawNextDate.getDate())
-    : today;
+  const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
+    if (!dateStr) return null;
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m, d);
+    }
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
 
+  const rawNextDateObj = parseLocalDate(subscription.next_billing_date);
+  const nextDate = rawNextDateObj || today;
   const diffTime = nextDate.getTime() - today.getTime();
   const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
 
-  const formattedDate = !isNaN(rawNextDate.getTime())
-    ? rawNextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const formattedDate = rawNextDateObj
+    ? rawNextDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : subscription.next_billing_date;
 
   const hasReminder = Boolean((reminderInfo && !reminderInfo.dismissed) || (diffDays <= 7 && subscription.status === 'active'));
@@ -343,7 +353,9 @@ export default function SubscriptionCard({
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
           <span className="text-[#94A3B8]">
-            {diffDays <= 0 ? (
+            {diffDays < 0 ? (
+              <strong className="text-[#D9363E] font-semibold">Overdue ({Math.abs(diffDays)}d)</strong>
+            ) : diffDays === 0 ? (
               <strong className="text-[#D9363E] font-semibold">Due today</strong>
             ) : (
               <>

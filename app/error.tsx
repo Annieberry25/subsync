@@ -12,7 +12,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('SubSync Application Error:', error);
+    console.error('SubHalt Application Error:', error);
   }, [error]);
 
   return (

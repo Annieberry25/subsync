@@ -151,6 +151,11 @@ export function ServiceIcon({
   className = 'w-10 h-10',
   providerUrl,
 }: ServiceIconProps) {
+  const norm = name.toLowerCase().trim();
+  if (norm === 'subhalt') {
+    return null;
+  }
+
   const [hasError, setHasError] = useState(false);
 
   const domain = resolveBrandDomain(name, providerUrl);
@@ -162,8 +167,6 @@ export function ServiceIcon({
 
   const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN || DEFAULT_LOGO_DEV_TOKEN;
   const logoUrl = `https://img.logo.dev/${domain}?token=${token}&size=128&fallback=monogram`;
-
-  const norm = name.toLowerCase().trim();
   const initials = getProviderInitials(name);
 
   // If Logo.dev fails to load image, render SubSync styled initial fallback

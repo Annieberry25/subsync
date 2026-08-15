@@ -175,7 +175,7 @@ export function CustomSelect({
   const isInline = variant === 'inline' || variant === 'borderless' || variant === 'compact';
 
   return (
-    <div ref={containerRef} className="relative inline-block text-left">
+    <div ref={containerRef} className={`relative text-left ${className.includes('w-full') ? 'w-full' : 'inline-block'}`}>
       <button
         ref={buttonRef}
         type="button"

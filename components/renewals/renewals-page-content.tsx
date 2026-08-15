@@ -30,15 +30,15 @@ function getRenewalStatus(diffDays: number) {
     };
   }
   if (diffDays === 0) {
-    return { text: 'Today', color: '#F59E0B' };
+    return { text: 'Due today', color: '#D9363E' };
   }
   if (diffDays === 1) {
-    return { text: 'Tomorrow', color: '#F59E0B' };
+    return { text: 'In 1 day', color: '#D9363E' };
   }
-  if (diffDays <= 7) {
-    return { text: `In ${diffDays} days`, color: '#F59E0B' };
+  if (diffDays <= 4) {
+    return { text: `In ${diffDays} days`, color: '#D9363E' };
   }
-  return { text: `In ${diffDays} days`, color: '#14B8A6' };
+  return { text: `In ${diffDays} days`, color: '#94A3B8' };
 }
 
 function getCycleSuffix(billingCycle?: string): string {

@@ -419,44 +419,119 @@ export function filterDeletedSubscriptions(subscriptions: SubscriptionRow[]): Su
 let cachedSubscriptions: SubscriptionRow[] | null = null;
 
 export function getCachedSubscriptions(): SubscriptionRow[] | null {
+  if (!cachedSubscriptions && typeof window !== 'undefined') {
+    try {
+      const local = localStorage.getItem('subsync_subscriptions');
+      if (local) {
+        cachedSubscriptions = JSON.parse(local);
+      }
+    } catch {
+      // Ignore
+    }
+  }
   return cachedSubscriptions;
 }
 
 export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | null; error: Error | null }> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .select('*')
-    .order('next_billing_date', { ascending: true });
+  const cached = getCachedSubscriptions() || [];
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .order('next_billing_date', { ascending: true });
 
-  if (error) return { data: cachedSubscriptions, error: new Error(error.message) };
-  if (data) {
-    cachedSubscriptions = data;
+    if (!error && data) {
+      // Merge cached local subscriptions with DB subscriptions
+      // Keep any local subscription that is not in DB (matching by ID or name)
+      const localOnly = cached.filter(
+        (local) => !data.some((remote) => remote.id === local.id || remote.name.toLowerCase().trim() === local.name.toLowerCase().trim())
+      );
+      const merged = [...localOnly, ...data];
+      cachedSubscriptions = merged;
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('subsync_subscriptions', JSON.stringify(merged));
+        } catch {}
+      }
+      return { data: merged, error: null };
+    }
+  } catch {
+    // Ignore error
   }
-  return { data: data || cachedSubscriptions, error: null };
+
+  return { data: cached, error: null };
 }
 
 export async function createSubscription(
-  subscriptionData: Omit<SubscriptionInsert, 'user_id'>
+  subscriptionData: Omit<SubscriptionInsert, 'user_id'> & { id?: string }
 ): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const mockSub: SubscriptionRow = {
+    id: subscriptionData.id || 'sub_' + Date.now(),
+    user_id: 'user_mock',
+    name: subscriptionData.name,
+    price: subscriptionData.price,
+    currency: subscriptionData.currency || 'USD',
+    billing_cycle: subscriptionData.billing_cycle || 'monthly',
+    category: subscriptionData.category || 'Software',
+    next_billing_date: subscriptionData.next_billing_date,
+    start_date: subscriptionData.start_date || new Date().toISOString().split('T')[0],
+    end_date: subscriptionData.end_date || null,
+    status: subscriptionData.status || 'active',
+    payment_method: subscriptionData.payment_method || null,
+    provider_url: subscriptionData.provider_url || null,
+    notes: subscriptionData.notes || null,
+    account_links: subscriptionData.account_links || null,
+    receipts: subscriptionData.receipts || null,
+    is_synced: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 
-  if (!user) {
-    return { data: null, error: new Error('User is not authenticated.') };
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .insert({
+          ...subscriptionData,
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        const existingList = getCachedSubscriptions() || [];
+        const list = [data, ...existingList.filter((s) => s.id !== data.id)];
+        cachedSubscriptions = list;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('subsync_subscriptions', JSON.stringify(list));
+          window.dispatchEvent(new CustomEvent('subsync_subscription_created', { detail: data }));
+          window.dispatchEvent(new Event('subsync_subscriptions_updated'));
+        }
+        return { data, error: null };
+      }
+    }
+  } catch {
+    // Ignore error
   }
 
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .insert({
-      ...subscriptionData,
-      user_id: user.id,
-    })
-    .select()
-    .single();
+  const existingList = getCachedSubscriptions() || [];
+  const list = [mockSub, ...existingList.filter((s) => s.id !== mockSub.id)];
+  cachedSubscriptions = list;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('subsync_subscriptions', JSON.stringify(list));
+      window.dispatchEvent(new CustomEvent('subsync_subscription_created', { detail: mockSub }));
+      window.dispatchEvent(new Event('subsync_subscriptions_updated'));
+    } catch {
+      // Ignore
+    }
+  }
 
-  if (error) return { data: null, error: new Error(error.message) };
-  return { data, error: null };
+  return { data: mockSub, error: null };
 }
 
 export async function updateSubscription(

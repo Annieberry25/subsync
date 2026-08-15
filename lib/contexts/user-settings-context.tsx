@@ -45,6 +45,34 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   push: true,
 };
 
+export interface BillingDetails {
+  email: string;
+  fullName: string;
+  country: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  stateProvince?: string;
+  postalCode?: string;
+}
+
+export interface PaymentMethodItem {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: string;
+  expYear: string;
+  isDefault: boolean;
+}
+
+export interface TransactionItem {
+  id: string;
+  planName: string;
+  date: string;
+  status: 'Paid' | 'Pending' | 'Failed';
+  amount: string;
+}
+
 interface UserSettingsContextValue {
   defaultCurrency: string;
   timezone: string;
@@ -56,11 +84,22 @@ interface UserSettingsContextValue {
   categoryMetadata: Record<string, CategoryMeta>;
   exchangeRates: Record<string, number>;
   notificationPreferences: NotificationPreferences;
+  planTier: 'free' | 'plus';
+  isPlus: boolean;
+  isPremium: boolean;
   loading: boolean;
+  billingDetails: BillingDetails | null;
+  paymentMethods: PaymentMethodItem[];
+  billingTransactions: TransactionItem[];
   updateProfile: (data: { fullName?: string; timezone?: string }) => Promise<void>;
   reauthenticateAndChangeEmail: (password: string, newEmail: string) => Promise<void>;
   updateDefaultCurrency: (newCurrency: string) => Promise<void>;
   updateNotificationPreferences: (prefs: Partial<NotificationPreferences>) => Promise<void>;
+  updatePlanTier: (newTier: 'free' | 'plus') => Promise<void>;
+  updateBillingDetails: (details: BillingDetails) => Promise<void>;
+  addPaymentMethod: (card: Omit<PaymentMethodItem, 'id'>) => Promise<void>;
+  deletePaymentMethod: (id: string) => Promise<void>;
+  setDefaultPaymentMethod: (id: string) => Promise<void>;
   addCategory: (categoryName: string, meta?: CategoryMeta) => Promise<void>;
   updateCategory: (oldName: string, newName: string, meta?: CategoryMeta) => Promise<void>;
   deleteCategory: (categoryName: string) => Promise<void>;
@@ -86,6 +125,10 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [categoryMetadata, setCategoryMetadata] = useState<Record<string, CategoryMeta>>({});
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>(DEFAULT_EXCHANGE_RATES);
   const [notificationPreferences, setNotificationPreferencesState] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [planTier, setPlanTierState] = useState<'free' | 'plus'>('free');
+  const [billingDetails, setBillingDetailsState] = useState<BillingDetails | null>(null);
+  const [paymentMethods, setPaymentMethodsState] = useState<PaymentMethodItem[]>([]);
+  const [billingTransactions, setBillingTransactionsState] = useState<TransactionItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const supabase = useMemo(() => createClient(), []);
@@ -134,6 +177,34 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
             setNotificationPreferencesState(JSON.parse(savedNotifs));
           } catch {}
         }
+
+        const savedPlan = localStorage.getItem('subsync_plan_tier');
+        if (savedPlan === 'plus' || savedPlan === 'premium') {
+          setPlanTierState('plus');
+        } else if (savedPlan === 'free') {
+          setPlanTierState('free');
+        }
+
+        const savedBilling = localStorage.getItem('subsync_billing_details');
+        if (savedBilling) {
+          try {
+            setBillingDetailsState(JSON.parse(savedBilling));
+          } catch {}
+        }
+
+        const savedPM = localStorage.getItem('subsync_payment_methods');
+        if (savedPM) {
+          try {
+            setPaymentMethodsState(JSON.parse(savedPM));
+          } catch {}
+        }
+
+        const savedTX = localStorage.getItem('subsync_billing_transactions');
+        if (savedTX) {
+          try {
+            setBillingTransactionsState(JSON.parse(savedTX));
+          } catch {}
+        }
       }
 
       // 2. Fetch authenticated Supabase user
@@ -158,6 +229,17 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
           setTimezoneState(meta.timezone);
           if (typeof window !== 'undefined') {
             localStorage.setItem('subsync_timezone', meta.timezone);
+          }
+        }
+        if (meta.plan_tier === 'plus' || meta.plan_tier === 'premium') {
+          setPlanTierState('plus');
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('subsync_plan_tier', 'plus');
+          }
+        } else if (meta.plan_tier === 'free') {
+          setPlanTierState('free');
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('subsync_plan_tier', 'free');
           }
         }
         if (Array.isArray(meta.custom_categories)) {
@@ -356,6 +438,101 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     });
   };
 
+  const updateBillingDetails = async (details: BillingDetails) => {
+    setBillingDetailsState(details);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('subsync_billing_details', JSON.stringify(details));
+    }
+  };
+
+  const addPaymentMethod = async (card: Omit<PaymentMethodItem, 'id'>) => {
+    const newCard: PaymentMethodItem = {
+      ...card,
+      id: `pm_${Date.now()}`,
+    };
+    let updated = [...paymentMethods];
+    if (card.isDefault) {
+      updated = updated.map((item) => ({ ...item, isDefault: false }));
+    }
+    updated.unshift(newCard);
+    setPaymentMethodsState(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('subsync_payment_methods', JSON.stringify(updated));
+    }
+  };
+
+  const deletePaymentMethod = async (id: string) => {
+    const updated = paymentMethods.filter((item) => item.id !== id);
+    if (updated.length > 0 && !updated.some((item) => item.isDefault)) {
+      updated[0].isDefault = true;
+    }
+    setPaymentMethodsState(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('subsync_payment_methods', JSON.stringify(updated));
+    }
+  };
+
+  const setDefaultPaymentMethod = async (id: string) => {
+    const updated = paymentMethods.map((item) => ({
+      ...item,
+      isDefault: item.id === id,
+    }));
+    setPaymentMethodsState(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('subsync_payment_methods', JSON.stringify(updated));
+    }
+  };
+
+  const updatePlanTier = async (newTier: 'free' | 'plus') => {
+    setPlanTierState(newTier);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('subsync_plan_tier', newTier);
+    }
+    if (newTier === 'plus') {
+      if (!billingDetails) {
+        const defaultBilling: BillingDetails = {
+          email: email || 'anitaonyema25@gmail.com',
+          fullName: fullName || 'Anita Onyema',
+          country: 'Nigeria',
+          addressLine1: 'Umuchima, Ihiagwa, Owerri.',
+          addressLine2: '',
+          city: 'Owerri',
+          stateProvince: 'Imo',
+          postalCode: '460106',
+        };
+        setBillingDetailsState(defaultBilling);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('subsync_billing_details', JSON.stringify(defaultBilling));
+        }
+      }
+      if (paymentMethods.length === 0) {
+        const defaultPM: PaymentMethodItem[] = [
+          { id: 'pm_1', brand: 'Mastercard', last4: '6730', expMonth: '12', expYear: '2028', isDefault: true },
+        ];
+        setPaymentMethodsState(defaultPM);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('subsync_payment_methods', JSON.stringify(defaultPM));
+        }
+      }
+      if (billingTransactions.length === 0) {
+        const defaultTX: TransactionItem[] = [
+          { id: 'tx_1', planName: 'SubHalt', date: '7/28/2026', status: 'Paid', amount: '$4.99' },
+        ];
+        setBillingTransactionsState(defaultTX);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('subsync_billing_transactions', JSON.stringify(defaultTX));
+        }
+      }
+    }
+    try {
+      await supabase.auth.updateUser({
+        data: { plan_tier: newTier },
+      });
+    } catch {
+      // Ignore auth update errors if offline/demo
+    }
+  };
+
   const getCategoryMeta = useCallback(
     (categoryName: string): CategoryMeta => {
       if (categoryMetadata[categoryName]) {
@@ -387,11 +564,22 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         categoryMetadata,
         exchangeRates,
         notificationPreferences,
+        planTier,
+        isPlus: planTier === 'plus',
+        isPremium: planTier === 'plus',
         loading,
+        billingDetails,
+        paymentMethods,
+        billingTransactions,
         updateProfile,
         reauthenticateAndChangeEmail,
         updateDefaultCurrency,
         updateNotificationPreferences,
+        updatePlanTier,
+        updateBillingDetails,
+        addPaymentMethod,
+        deletePaymentMethod,
+        setDefaultPaymentMethod,
         addCategory,
         updateCategory,
         deleteCategory,

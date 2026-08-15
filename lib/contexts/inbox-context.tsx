@@ -69,8 +69,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const [archivedIds, setArchivedIds] = useState<string[]>([]);
   const [favouritedIds, setFavouritedIds] = useState<string[]>([]);
 
-  // Load persisted user inbox data on mount
-  useEffect(() => {
+  const refreshFromStorage = useCallback(() => {
+    if (typeof window === 'undefined') return;
     try {
       const storedItems = localStorage.getItem(ITEMS_STORAGE_KEY);
       const storedMeta = localStorage.getItem(OVERRIDES_STORAGE_KEY);
@@ -94,6 +94,23 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Load persisted user inbox data on mount & listen for storage updates
+  useEffect(() => {
+    refreshFromStorage();
+
+    const handleUpdate = () => {
+      refreshFromStorage();
+    };
+
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('subsync_inbox_updated', handleUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('subsync_inbox_updated', handleUpdate);
+    };
+  }, [refreshFromStorage]);
+
   const saveState = useCallback((newItems: InboxItem[], newArchived?: string[], newFavourited?: string[]) => {
     setRawItems(newItems);
     const activeArchived = newArchived !== undefined ? newArchived : archivedIds;
@@ -106,6 +123,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           OVERRIDES_STORAGE_KEY,
           JSON.stringify({ archivedIds: activeArchived, favouritedIds: activeFavourited })
         );
+        window.dispatchEvent(new Event('subsync_inbox_updated'));
       } catch {
         // Ignore storage errors
       }
@@ -120,16 +138,81 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       isRead: false,
     };
 
-    setRawItems((prev) => {
-      const updated = [newItem, ...prev];
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
-        } catch {}
-      }
-      return updated;
-    });
+    let currentItems: InboxItem[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(ITEMS_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) currentItems = parsed;
+        }
+      } catch {}
+    }
+
+    // Deduplicate: check if an identical inbox notice for this subscription already exists
+    const existingIndex = currentItems.findIndex(
+      (i) =>
+        i.type === item.type &&
+        i.subscriptionName?.toLowerCase().trim() === item.subscriptionName?.toLowerCase().trim() &&
+        i.title.toLowerCase().trim() === item.title.toLowerCase().trim()
+    );
+
+    let updated: InboxItem[];
+    if (existingIndex >= 0) {
+      const existing = currentItems[existingIndex];
+      const updatedItem: InboxItem = {
+        ...existing,
+        ...item,
+        date: new Date().toISOString(),
+        isRead: false, // Re-open notice as unread if event re-fires
+      };
+      updated = [
+        updatedItem,
+        ...currentItems.filter((_, idx) => idx !== existingIndex),
+      ];
+    } else {
+      updated = [newItem, ...currentItems.filter((i) => i.id !== newItem.id)];
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+    }
+
+    setRawItems(updated);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('subsync_inbox_updated'));
+    }
   }, []);
+
+  // Listen for subscription creation events from subscription service & auto-create Inbox message/notification
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleSubCreated = (e: Event) => {
+      const customEvt = e as CustomEvent<{ name?: string; price?: number; currency?: string }>;
+      const sub = customEvt.detail;
+      if (!sub || !sub.name) return;
+
+      addInboxItem({
+        type: 'plan_update',
+        title: `${sub.name} Subscription Active`,
+        description: `You subscribed to ${sub.name}. Your ${sub.name} plan is now active and will renew according to your selected billing cycle.`,
+        actionType: 'view',
+        actionLabel: 'View subscription',
+        subscriptionName: sub.name,
+        subscriptionPrice: sub.price,
+        currency: sub.currency || 'USD',
+      });
+    };
+
+    window.addEventListener('subsync_subscription_created', handleSubCreated);
+    return () => {
+      window.removeEventListener('subsync_subscription_created', handleSubCreated);
+    };
+  }, [addInboxItem]);
 
   const markAsRead = useCallback(
     (id: string) => {
@@ -138,6 +221,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+            window.dispatchEvent(new Event('subsync_inbox_updated'));
           } catch {}
         }
         return updated;
@@ -153,6 +237,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+            window.dispatchEvent(new Event('subsync_inbox_updated'));
           } catch {}
         }
         return updated;
@@ -167,6 +252,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+          window.dispatchEvent(new Event('subsync_inbox_updated'));
         } catch {}
       }
       return updated;

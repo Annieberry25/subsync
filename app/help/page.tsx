@@ -25,10 +25,10 @@ const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'getting-started',
     category: 'Overview',
-    title: 'Getting started with SubSync',
+    title: 'Getting started with SubHalt',
     description: 'Learn how to set up your subscription dashboard, configure currency, and track recurring bills.',
     paragraphs: [
-      'SubSync helps you consolidate and manage all your recurring software, streaming, utility, and personal subscriptions in one centralized dashboard.',
+      'SubHalt helps you consolidate and manage all your recurring software, streaming, utility, and personal subscriptions in one centralized dashboard.',
       'To get the most out of your dashboard, we recommend completing these initial setup steps:',
     ],
     subheading: 'Key setup actions',
@@ -39,7 +39,7 @@ const HELP_TOPICS: HelpTopic[] = [
       'Add custom subscriptions — Manually input offline or custom recurring plans.',
     ],
     additionalParagraph:
-      'Once configured, SubSync will automatically calculate your monthly commitment and schedule payment notifications.',
+      'Once configured, SubHalt will automatically calculate your monthly commitment and schedule payment notifications.',
   },
   {
     id: 'adding-subscriptions',
@@ -47,7 +47,7 @@ const HELP_TOPICS: HelpTopic[] = [
     title: 'Adding subscriptions — three-path flow',
     description: 'Explore the three ways to add subscriptions: Link Subscription, Import Receipt, or Add Manually.',
     paragraphs: [
-      'When you tap "Add Subscription", SubSync presents three flexible entry paths tailored to different service types and integration options:',
+      'When you tap "Add Subscription", SubHalt presents three flexible entry paths tailored to different service types and integration options:',
     ],
     subheading: 'Available entry methods',
     bullets: [
@@ -62,9 +62,9 @@ const HELP_TOPICS: HelpTopic[] = [
     id: 'linking-subscription',
     category: 'Subscription Management',
     title: 'Linking a subscription provider',
-    description: 'How authorized provider links work and why SubSync never stores your account passwords.',
+    description: 'How authorized provider links work and why SubHalt never stores your account passwords.',
     paragraphs: [
-      'Link Subscription uses official OAuth 2.0 and provider-authorized connection frameworks. SubSync redirects you directly to the service provider to grant read-only access.',
+      'Link Subscription uses official OAuth 2.0 and provider-authorized connection frameworks. SubHalt redirects you directly to the service provider to grant read-only access.',
       'We never ask for, view, or store your provider account passwords or payment credentials.',
     ],
     subheading: 'How connection works',
@@ -116,7 +116,7 @@ const HELP_TOPICS: HelpTopic[] = [
     title: 'Renewal dates and payment reminders',
     description: 'Set custom lead times for payment reminders so you never miss a renewal or trial expiration.',
     paragraphs: [
-      'Next renewal dates power SubSync\'s automated payment notification system, ensuring you are never surprised by unexpected renewals or expired trial periods.',
+      'Next renewal dates power SubHalt\'s automated payment notification system, ensuring you are never surprised by unexpected renewals or expired trial periods.',
     ],
     subheading: 'Configuring reminder lead times',
     bullets: [
@@ -148,7 +148,7 @@ const HELP_TOPICS: HelpTopic[] = [
     title: 'Receipts and supporting payment records',
     description: 'Attach multiple receipts and confirmation invoices to your existing subscriptions.',
     paragraphs: [
-      'SubSync allows you to attach multiple invoices, receipt images, or confirmation documents to any subscription record regardless of how it was created.',
+      'SubHalt allows you to attach multiple invoices, receipt images, or confirmation documents to any subscription record regardless of how it was created.',
     ],
     subheading: 'Managing stored records',
     bullets: [
@@ -163,7 +163,7 @@ const HELP_TOPICS: HelpTopic[] = [
     title: 'Family subscriptions & multiple linked accounts',
     description: 'Manage multiple personal or family accounts under a single paid subscription record.',
     paragraphs: [
-      'SubSync supports tracking family plans or shared multi-seat subscriptions under a single billing record without inflating your cost totals.',
+      'SubHalt supports tracking family plans or shared multi-seat subscriptions under a single billing record without inflating your cost totals.',
     ],
     subheading: 'Multi-account features',
     bullets: [
@@ -175,16 +175,15 @@ const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'plans-and-billing',
     category: 'Billing',
-    title: 'SubSync plans & Free vs Premium tier',
-    description: 'Understand feature availability across Free, Premium, and Family plans.',
+    title: 'SubHalt plans & Free vs Plus tier',
+    description: 'Understand feature availability across Free ($0/mo, 2 subscription limit) and Plus ($4.99/mo, unlimited subscriptions) plans.',
     paragraphs: [
-      'SubSync offers tiers designed for individual budget tracking, power managers, and family households.',
+      'SubHalt offers Free and Plus plan tiers designed for individual tracking and power subscription management.',
     ],
     subheading: 'Plan tier breakdown',
     bullets: [
-      'Free Plan — Full portfolio tracking, manual entry, receipt parsing, and core analytics.',
-      'Premium Plan — Automated bank synchronization, priority receipt parsing, and ad-free experience.',
-      'Family Plan — Multi-user workspace sharing, aggregated household reporting, and priority support.',
+      'Free Plan ($0/month) — Track up to 2 subscriptions with full core functionality (provider link, receipt import, manual entry, renewal dates, basic reminders, basic Smart Insights).',
+      'Plus Plan ($4.99/month) — Unlimited subscriptions. Includes Everything in Free, plus advanced reminder controls, advanced Smart Insights, export subscription data (CSV/JSON), and family/shared subscription features.',
     ],
   },
   {
@@ -208,7 +207,7 @@ const HELP_TOPICS: HelpTopic[] = [
     title: 'Configuring notification preferences',
     description: 'Toggle in-app inbox alerts, email digests, SMS, and push notifications.',
     paragraphs: [
-      'Customize how and when SubSync communicates upcoming renewals and portfolio summaries.',
+      'Customize how and when SubHalt communicates upcoming renewals and portfolio summaries.',
     ],
     subheading: 'Supported notification channels',
     bullets: [
@@ -223,13 +222,13 @@ const HELP_TOPICS: HelpTopic[] = [
     title: 'Privacy, data export & local storage',
     description: 'Export your subscription portfolio data or clear local browser cache anytime.',
     paragraphs: [
-      'Your subscription data belongs entirely to you. SubSync adheres to strict privacy-first data handling principles.',
+      'Your subscription data belongs entirely to you. SubHalt adheres to strict privacy-first data handling principles.',
     ],
     subheading: 'Data ownership tools',
     bullets: [
       'Portfolio Export — Download a full JSON or CSV export of all your subscription records.',
       'Cache Control — Clear local browser storage and cached preferences with one click.',
-      'Data Privacy — SubSync never sells your personal subscription data to third parties.',
+      'Data Privacy — SubHalt never sells your personal subscription data to third parties.',
     ],
   },
 ];
@@ -268,7 +267,7 @@ export default function HelpPage() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">Help Center</h1>
             <p className="text-xs sm:text-sm text-[#94A3B8] mt-0.5">
-              Find answers, guides, and instructions for managing your subscriptions in SubSync.
+              Find answers, guides, and instructions for managing your subscriptions in SubHalt.
             </p>
           </div>
         </div>
@@ -421,7 +420,7 @@ export default function HelpPage() {
         </div>
 
         <a
-          href="mailto:support@subsync.app"
+          href="mailto:support@subhalt.app"
           className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer shrink-0"
         >
           Contact Support

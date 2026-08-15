@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, FileText, Upload, CheckCircle2, Sparkles } from 'lucide-react';
+import { X, FileText, Upload, CheckCircle2, Sparkles, ArrowLeft } from 'lucide-react';
 
 export interface ExtractedReceiptData {
   name: string;
@@ -11,16 +11,19 @@ export interface ExtractedReceiptData {
   billingCycle: 'monthly' | 'yearly' | 'weekly' | 'quarterly';
   category: 'Streaming' | 'Software' | 'Utilities' | 'Fitness' | 'Finance' | 'Education' | 'Gaming' | 'Other';
   nextBillingDate: string;
+  trialEndDate?: string;
   providerUrl?: string;
 }
 
 interface ReceiptImportModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCancel?: () => void;
   onConfirm: (extracted: ExtractedReceiptData) => void;
+  initialProviderName?: string;
 }
 
-export function parseReceiptText(text: string): ExtractedReceiptData {
+export function parseReceiptText(text: string, initialProviderName?: string): ExtractedReceiptData {
   const normText = text.toLowerCase();
   
   // Extract Provider Name
@@ -32,7 +35,13 @@ export function parseReceiptText(text: string): ExtractedReceiptData {
   else if (normText.includes('amazon') || normText.includes('prime')) name = 'Amazon Prime';
   else if (normText.includes('chatgpt') || normText.includes('openai')) name = 'ChatGPT Plus';
   else if (normText.includes('youtube')) name = 'YouTube Premium';
-  else {
+  else if (normText.includes('disney')) name = 'Disney+';
+  else if (normText.includes('google')) name = 'Google One';
+  else if (normText.includes('apple')) name = 'Apple';
+  else if (normText.includes('playstation')) name = 'PlayStation Plus';
+  else if (initialProviderName) {
+    name = initialProviderName;
+  } else {
     const firstLine = text.split('\n')[0]?.trim() || '';
     name = firstLine.replace(/receipt|invoice|confirmation|subscription|order|#/gi, '').trim() || '';
   }
@@ -60,15 +69,16 @@ export function parseReceiptText(text: string): ExtractedReceiptData {
 
   // Extract Category
   let category: 'Streaming' | 'Software' | 'Utilities' | 'Fitness' | 'Finance' | 'Education' | 'Gaming' | 'Other' = 'Streaming';
-  if (normText.includes('software') || normText.includes('adobe') || normText.includes('github')) category = 'Software';
-  else if (normText.includes('streaming') || normText.includes('netflix') || normText.includes('spotify')) category = 'Streaming';
-  else if (normText.includes('utility') || normText.includes('storage') || normText.includes('icloud')) category = 'Utilities';
+  if (normText.includes('software') || normText.includes('adobe') || normText.includes('github') || normText.includes('chatgpt')) category = 'Software';
+  else if (normText.includes('streaming') || normText.includes('netflix') || normText.includes('spotify') || normText.includes('youtube') || normText.includes('disney')) category = 'Streaming';
+  else if (normText.includes('utility') || normText.includes('storage') || normText.includes('icloud') || normText.includes('google one')) category = 'Utilities';
+  else if (normText.includes('game') || normText.includes('gaming') || normText.includes('playstation') || normText.includes('xbox')) category = 'Gaming';
 
   // Extract Renewal Date
   let nextBillingDate = '';
-  const dateMatch = text.match(/20\d{2}[-/.]\d{2}[-/.]\d{2}/);
-  if (dateMatch) {
-    nextBillingDate = dateMatch[0].replace(/\./g, '-');
+  const dateMatches = text.match(/20\d{2}[-/.]\d{2}[-/.]\d{2}/g);
+  if (dateMatches && dateMatches.length > 0) {
+    nextBillingDate = dateMatches[0].replace(/\./g, '-');
   } else {
     const monthMatch = text.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}),?\s+(20\d{2})/i);
     if (monthMatch) {
@@ -84,11 +94,22 @@ export function parseReceiptText(text: string): ExtractedReceiptData {
     }
   }
 
+  // Extract Trial / End Date if trial mentioned
+  let trialEndDate = '';
+  if (normText.includes('trial') || normText.includes('free trial') || normText.includes('end date')) {
+    const trialMatch = text.match(/(?:trial|end date|until|renews on)[\s:]*(20\d{2}[-/.]\d{2}[-/.]\d{2})/i);
+    if (trialMatch && trialMatch[1]) {
+      trialEndDate = trialMatch[1].replace(/\./g, '-');
+    } else if (dateMatches && dateMatches.length > 1) {
+      trialEndDate = dateMatches[1].replace(/\./g, '-');
+    }
+  }
+
   // Extract Plan
   let plan = '';
-  const planMatch = text.match(/plan:\s*([^\n\r]+)/i);
-  if (planMatch && planMatch[1]) {
-    plan = planMatch[1].trim();
+  const planMatch = text.match(/plan:\s*([^\n\r]+)/i) || text.match(/(premium|standard|basic|pro|family|individual|plus|ultra)\s+plan/i);
+  if (planMatch) {
+    plan = planMatch[1] ? planMatch[1].trim() : planMatch[0].trim();
   }
 
   // Extract Website
@@ -106,6 +127,7 @@ export function parseReceiptText(text: string): ExtractedReceiptData {
     billingCycle,
     category,
     nextBillingDate,
+    trialEndDate: trialEndDate || undefined,
     providerUrl,
   };
 }
@@ -113,7 +135,9 @@ export function parseReceiptText(text: string): ExtractedReceiptData {
 export default function ReceiptImportModal({
   isOpen,
   onClose,
+  onCancel,
   onConfirm,
+  initialProviderName,
 }: ReceiptImportModalProps) {
   const [receiptText, setReceiptText] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
@@ -135,8 +159,9 @@ export default function ReceiptImportModal({
   };
 
   const handleAnalyze = () => {
-    if (!receiptText.trim()) return;
-    const extracted = parseReceiptText(receiptText.trim());
+    const textToParse = receiptText.trim() || (initialProviderName ? `Receipt for ${initialProviderName}` : '');
+    if (!textToParse) return;
+    const extracted = parseReceiptText(textToParse, initialProviderName);
     setReviewData(extracted);
   };
 
@@ -163,16 +188,29 @@ export default function ReceiptImportModal({
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
-          <div>
-            <h2 id="receipt-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">
-              Import Subscription Receipt
-            </h2>
-            <p className="text-xs text-[#94A3B8] mt-0.5">Extract provider details from receipt files or text confirmation</p>
+          <div className="flex items-center gap-3">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                aria-label="Go back"
+                className="w-8 h-8 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
+            <div>
+              <h2 id="receipt-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">
+                Import Subscription Receipt
+              </h2>
+              <p className="text-xs text-[#94A3B8] mt-0.5">Extract provider details from receipt files or text confirmation</p>
+            </div>
           </div>
+
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close import receipt modal"
+            aria-label="Close modal"
             className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
           >
             <X className="w-4 h-4" />
@@ -283,12 +321,26 @@ export default function ReceiptImportModal({
                     <span className="text-[#F5F7F6] font-semibold text-xs mt-0.5 block">{reviewData.category}</span>
                   </div>
 
-                  {reviewData.plan && (
-                    <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
-                      <span className="text-[#94A3B8] block text-[11px]">Detected Plan</span>
-                      <span className="text-[#F5F7F6] font-semibold text-xs mt-0.5 block">{reviewData.plan}</span>
-                    </div>
-                  )}
+                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                    <span className="text-[#94A3B8] block text-[11px]">Plan / Tier</span>
+                    <input
+                      type="text"
+                      value={reviewData.plan || ''}
+                      onChange={(e) => setReviewData({ ...reviewData, plan: e.target.value })}
+                      placeholder="e.g. Premium, Family, Basic"
+                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
+                    />
+                  </div>
+
+                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                    <span className="text-[#94A3B8] block text-[11px]">Trial / End Date (Optional)</span>
+                    <input
+                      type="date"
+                      value={reviewData.trialEndDate || ''}
+                      onChange={(e) => setReviewData({ ...reviewData, trialEndDate: e.target.value })}
+                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -307,14 +359,6 @@ export default function ReceiptImportModal({
 
         {/* Modal Actions */}
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1A1D1D] shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-
           {!reviewData ? (
             <button
               type="button"

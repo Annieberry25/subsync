@@ -2,15 +2,18 @@
 
 import { use, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Inbox, Bell, Calendar, CreditCard, DollarSign } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Inbox, Bell, Calendar, CreditCard, DollarSign, ChevronRight } from 'lucide-react';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
+import { fetchSubscriptions } from '@/lib/services/subscription-service';
 
 interface InboxDetailContentProps {
   params: Promise<{ id: string }>;
 }
 
 export default function InboxDetailContent({ params }: InboxDetailContentProps) {
+  const router = useRouter();
   const resolvedParams = use(params);
   const messageId = resolvedParams.id;
   const { getItemById, markAsRead } = useInbox();
@@ -59,6 +62,19 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
       </div>
     );
   }
+
+  const handleViewSubscription = async () => {
+    if (!item.subscriptionName) return;
+    const { data: subs } = await fetchSubscriptions();
+    const match = subs?.find(
+      (s) => s.name.toLowerCase().trim() === item.subscriptionName?.toLowerCase().trim()
+    );
+    if (match) {
+      router.push(`/subscriptions?highlight=${match.id}&detail=true`);
+    } else {
+      router.push(`/subscriptions?highlight=SubHalt&detail=true`);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-4xl min-h-[85vh] pb-32 w-full max-w-full overflow-x-hidden">
@@ -114,12 +130,22 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
               <div className="flex items-center gap-2 font-semibold">
                 <span>{item.subscriptionName}</span>
               </div>
-              {item.subscriptionPrice !== undefined && (
-                <div className="flex items-center gap-1 text-[#14B8A6] font-bold">
-                  <DollarSign className="w-3.5 h-3.5" />
-                  <span>{formatCurrency(item.subscriptionPrice, item.currency || 'USD')}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-3">
+                {item.subscriptionPrice !== undefined && (
+                  <div className="flex items-center gap-1 text-[#14B8A6] font-bold">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    <span>{formatCurrency(item.subscriptionPrice, item.currency || 'USD')}</span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleViewSubscription}
+                  className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center gap-1 min-h-[34px] whitespace-nowrap"
+                >
+                  <span>View subscription</span>
+                  <ChevronRight className="w-3.5 h-3.5 opacity-80" />
+                </button>
+              </div>
             </div>
           </div>
         )}

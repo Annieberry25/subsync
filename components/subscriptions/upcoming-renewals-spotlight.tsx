@@ -26,23 +26,16 @@ function getPlanName(sub: SubscriptionRow): string {
 }
 
 function getRenewalStatus(diffDays: number) {
-  if (diffDays < 0) {
-    const days = Math.abs(diffDays);
-    return {
-      text: days === 1 ? 'Overdue by 1 day' : `Overdue by ${days} days`,
-      color: '#D9363E',
-    };
-  }
   if (diffDays === 0) {
-    return { text: 'Today', color: '#F59E0B' };
+    return { text: 'Due today', color: '#D9363E' };
   }
   if (diffDays === 1) {
-    return { text: 'Tomorrow', color: '#F59E0B' };
+    return { text: 'In 1 day', color: '#D9363E' };
   }
-  if (diffDays <= 7) {
-    return { text: `In ${diffDays} days`, color: '#F59E0B' };
+  if (diffDays <= 4) {
+    return { text: `In ${diffDays} days`, color: '#D9363E' };
   }
-  return { text: `In ${diffDays} days`, color: '#14B8A6' };
+  return { text: `In ${diffDays} days`, color: '#94A3B8' };
 }
 
 function getCycleSuffix(billingCycle?: string): string {
@@ -67,7 +60,7 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
       const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
       return { sub, diffDays };
     })
-    .filter(({ diffDays }) => diffDays <= 30)
+    .filter(({ diffDays }) => diffDays >= 0 && diffDays <= 10)
     .sort((a, b) => a.diffDays - b.diffDays);
 
   const displayItems = upcomingList.slice(0, 3);
@@ -95,10 +88,10 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
       {/* List Container / Empty State */}
       {displayItems.length === 0 ? (
         <div className="p-6 text-center bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl">
-          <p className="text-base font-semibold text-[#F5F7F6]">
-            No renewals in the next 30 days.
+          <p className="text-sm sm:text-base font-medium text-[#F5F7F6]/80">
+            No renewals in the next 10 days.
           </p>
-          <p className="text-sm text-[#94A3B8] mt-1">
+          <p className="text-xs text-[#94A3B8]/60 mt-1">
             You&apos;re all caught up.
           </p>
         </div>

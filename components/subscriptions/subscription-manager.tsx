@@ -24,11 +24,14 @@ import PaymentReminderModal from './payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
+import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import UpgradeModal from './upgrade-modal';
 
 import { useSearchParams } from 'next/navigation';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
+  const { isPlus, isPremium } = useUserSettings();
   const searchParams = useSearchParams();
 
   const paramHighlight = searchParams.get('highlight');
@@ -50,6 +53,7 @@ export default function SubscriptionManager() {
 
   // Add Subscription Three Path Entry Modal State
   const [isAddPathModalOpen, setIsAddPathModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [prefillData, setPrefillData] = useState<Partial<Omit<SubscriptionInsert, 'user_id'>> | null>(null);
 
   // Notes Modal state
@@ -61,9 +65,11 @@ export default function SubscriptionManager() {
   const [returnToDetailSub, setReturnToDetailSub] = useState<SubscriptionRow | null>(null);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
+  const [deleteReturnToDetailSub, setDeleteReturnToDetailSub] = useState<SubscriptionRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [reminderSubscription, setReminderSubscription] = useState<SubscriptionRow | null>(null);
+  const [reminderReturnToDetailSub, setReminderReturnToDetailSub] = useState<SubscriptionRow | null>(null);
   const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>(() => {
     if (typeof window === 'undefined') return {};
     try {
@@ -117,6 +123,23 @@ export default function SubscriptionManager() {
     if (paramHighlight) setHighlightedSubId(paramHighlight);
   }, [paramCategory, paramStatus, paramHighlight]);
 
+  // Open detail view modal if search parameter detail=true is specified
+  useEffect(() => {
+    if (paramHighlight && searchParams.get('detail') === 'true' && !loading && subscriptions.length > 0) {
+      const decodedParam = decodeURIComponent(paramHighlight).toLowerCase().trim();
+      const match = subscriptions.find(
+        (s) =>
+          s.id === paramHighlight ||
+          s.name.toLowerCase().trim() === paramHighlight.toLowerCase().trim() ||
+          s.name.toLowerCase().trim() === decodedParam
+      );
+      if (match) {
+        setSelectedDetailSub(match);
+        setIsDetailOpen(true);
+      }
+    }
+  }, [paramHighlight, searchParams, loading, subscriptions]);
+
   // Scroll into view & highlight effect
   useEffect(() => {
     if (highlightedSubId && !loading && subscriptions.length > 0) {
@@ -152,6 +175,12 @@ export default function SubscriptionManager() {
 
   useEffect(() => {
     let active = true;
+    const handleUpdate = () => {
+      fetchSubscriptions().then(({ data }) => {
+        if (active && data) setSubscriptions(data);
+      });
+    };
+
     fetchSubscriptions().then(({ data, error: err }) => {
       if (!active) return;
       if (err) {
@@ -161,8 +190,14 @@ export default function SubscriptionManager() {
       }
       setLoading(false);
     });
+
+    window.addEventListener('subsync_subscriptions_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
     return () => {
       active = false;
+      window.removeEventListener('subsync_subscriptions_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
     };
   }, []);
 
@@ -173,6 +208,10 @@ export default function SubscriptionManager() {
       if (err) throw err;
       toast.success('Subscription updated successfully.', 'Changes Saved');
     } else {
+      if (!isPlus && activeSubscriptions.length >= 2) {
+        setIsUpgradeModalOpen(true);
+        return;
+      }
       const { error: err } = await createSubscription(data);
       if (err) throw err;
       toast.success('New subscription added to your portfolio.', 'Subscription Created');
@@ -204,6 +243,7 @@ export default function SubscriptionManager() {
     } else {
       toast.success(`Moved "${deletingSubscription.name}" to History → Deleted.`, 'Subscription Moved to Deleted');
       setDeletingSubscription(null);
+      setDeleteReturnToDetailSub(null);
       await loadData();
     }
   };
@@ -288,7 +328,11 @@ export default function SubscriptionManager() {
           <button
             type="button"
             onClick={() => {
-              setIsAddPathModalOpen(true);
+              if (!isPlus && activeSubscriptions.length >= 2) {
+                setIsUpgradeModalOpen(true);
+              } else {
+                setIsAddPathModalOpen(true);
+              }
             }}
             className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
           >
@@ -386,7 +430,11 @@ export default function SubscriptionManager() {
               <button
                 type="button"
                 onClick={() => {
-                  setIsAddPathModalOpen(true);
+                  if (!isPlus && activeSubscriptions.length >= 2) {
+                    setIsUpgradeModalOpen(true);
+                  } else {
+                    setIsAddPathModalOpen(true);
+                  }
                 }}
                 className="px-6 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold transition-all cursor-pointer"
               >
@@ -401,6 +449,11 @@ export default function SubscriptionManager() {
       <AddSubscriptionModal
         isOpen={isAddPathModalOpen}
         onClose={() => setIsAddPathModalOpen(false)}
+        existingSubscriptions={activeSubscriptions}
+        onSelectExistingDetails={(sub) => {
+          setSelectedDetailSub(sub);
+          setIsDetailOpen(true);
+        }}
         onSelectManual={(prefill) => {
           if (prefill) {
             setEditingSubscription({
@@ -443,8 +496,14 @@ export default function SubscriptionManager() {
           setEditingSubscription(item);
           setIsModalOpen(true);
         }}
-        onDeleteRequest={(item) => setDeletingSubscription(item)}
-        onPaymentReminderRequest={(item) => setReminderSubscription(item)}
+        onDeleteRequest={(item) => {
+          setDeleteReturnToDetailSub(item);
+          setDeletingSubscription(item);
+        }}
+        onPaymentReminderRequest={(item) => {
+          setReminderReturnToDetailSub(item);
+          setReminderSubscription(item);
+        }}
       />
 
       {/* Subscription Form Modal */}
@@ -475,7 +534,14 @@ export default function SubscriptionManager() {
       {/* Confirm Delete Dialog */}
       <ConfirmDialog
         isOpen={!!deletingSubscription}
-        onClose={() => setDeletingSubscription(null)}
+        onClose={() => {
+          if (deleteReturnToDetailSub) {
+            setSelectedDetailSub(deleteReturnToDetailSub);
+            setIsDetailOpen(true);
+            setDeleteReturnToDetailSub(null);
+          }
+          setDeletingSubscription(null);
+        }}
         onConfirm={handleConfirmDelete}
         loading={deleteLoading}
         title={`Move "${deletingSubscription?.name}" to Deleted?`}
@@ -487,7 +553,14 @@ export default function SubscriptionManager() {
       {/* Payment Reminder Modal */}
       <PaymentReminderModal
         isOpen={!!reminderSubscription}
-        onClose={() => setReminderSubscription(null)}
+        onClose={() => {
+          setReminderSubscription(null);
+          if (reminderReturnToDetailSub) {
+            setSelectedDetailSub(reminderReturnToDetailSub);
+            setIsDetailOpen(true);
+            setReminderReturnToDetailSub(null);
+          }
+        }}
         onSave={(data) => {
           if (reminderSubscription) {
             handleSaveReminder(reminderSubscription.id, data);
@@ -495,6 +568,12 @@ export default function SubscriptionManager() {
         }}
         subscriptionName={reminderSubscription?.name || ''}
         nextBillingDate={reminderSubscription?.next_billing_date}
+      />
+
+      {/* Premium Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
       />
     </div>
   );

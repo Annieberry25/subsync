@@ -10,6 +10,7 @@ export interface ToastItem {
   title?: string;
   message: string;
   duration?: number;
+  shakeKey?: number;
 }
 
 interface ToastContextValue {
@@ -28,25 +29,61 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const timeoutsRef = useState(() => new Map<string, NodeJS.Timeout>())[0];
 
   const removeToast = useCallback((id: string) => {
+    const existingTimeout = timeoutsRef.get(id);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      timeoutsRef.delete(id);
+    }
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  }, [timeoutsRef]);
 
   const addToast = useCallback(
     ({ type, title, message, duration = 4000 }: Omit<ToastItem, 'id'>) => {
-      const id = Math.random().toString(36).substring(2, 9);
-      const newToast: ToastItem = { id, type, title, message, duration };
+      setToasts((prev) => {
+        const existingIndex = prev.findIndex(
+          (t) => t.type === type && t.title === title && t.message === message
+        );
 
-      setToasts((prev) => [...prev, newToast]);
+        if (existingIndex !== -1) {
+          const existing = prev[existingIndex];
+          const prevTimeout = timeoutsRef.get(existing.id);
+          if (prevTimeout) {
+            clearTimeout(prevTimeout);
+          }
 
-      if (duration > 0) {
-        setTimeout(() => {
-          removeToast(id);
-        }, duration);
-      }
+          if (duration > 0) {
+            const newTimeout = setTimeout(() => {
+              removeToast(existing.id);
+            }, duration);
+            timeoutsRef.set(existing.id, newTimeout);
+          }
+
+          const updated = [...prev];
+          updated[existingIndex] = {
+            ...existing,
+            duration,
+            shakeKey: Date.now(),
+          };
+          return updated;
+        }
+
+        const id = Math.random().toString(36).substring(2, 9);
+        const newToast: ToastItem = { id, type, title, message, duration, shakeKey: 0 };
+
+        if (duration > 0) {
+          const newTimeout = setTimeout(() => {
+            removeToast(id);
+          }, duration);
+          timeoutsRef.set(id, newTimeout);
+        }
+
+        return [...prev, newToast];
+      });
     },
-    [removeToast]
+    [removeToast, timeoutsRef]
   );
 
   const toast = {

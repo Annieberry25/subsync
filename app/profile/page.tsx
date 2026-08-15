@@ -11,10 +11,9 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle2,
-  Palette,
-  Sparkles,
   ArrowLeft,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { ChangeEmailModal } from '@/components/settings/change-email-modal';
@@ -35,6 +34,7 @@ export default function ProfilePage() {
     fullName: initialFullName,
     email,
     lastNameChange,
+    isPlus,
     loading: settingsLoading,
     updateProfile,
   } = useUserSettings();
@@ -223,9 +223,20 @@ export default function ProfilePage() {
           </div>
 
           <div className="space-y-3 text-center sm:text-left flex-1 min-w-0">
-            <div>
-              <h2 className="text-lg font-bold text-[#F5F7F6]">{fullName || 'SubSync User'}</h2>
-              <p className="text-xs text-[#94A3B8]">{email || 'user@example.com'}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1A1D1D]/80 pb-3">
+              <div>
+                <h2 className="text-lg font-bold text-[#F5F7F6]">{fullName || 'SubHalt User'}</h2>
+                <p className="text-xs text-[#94A3B8]">{email || 'user@example.com'}</p>
+              </div>
+
+              <div className="flex items-center gap-2.5 justify-center sm:justify-end">
+                <Link
+                  href={`/plans?from=${encodeURIComponent('/profile')}`}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-1 transition-opacity cursor-pointer shadow-sm"
+                >
+                  <span>{isPlus ? 'Manage Plan' : 'Upgrade Plan'}</span>
+                </Link>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">

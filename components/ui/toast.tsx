@@ -11,10 +11,10 @@ const icons = {
 };
 
 const styles = {
-  success: 'border-[#14B8A6]/30 text-[#14B8A6]',
-  error: 'border-rose-500/30 text-rose-400',
-  info: 'border-[#14B8A6]/30 text-[#14B8A6]',
-  warning: 'border-amber-500/30 text-amber-400',
+  success: 'border-[#14B8A6]/40 text-[#14B8A6]',
+  error: 'border-rose-500/40 text-rose-400',
+  info: 'border-[#14B8A6]/40 text-[#14B8A6]',
+  warning: 'border-amber-500/40 text-amber-400',
 };
 
 export function ToastContainer() {
@@ -35,23 +35,30 @@ export function ToastContainer() {
           <div
             key={toast.id}
             role="alert"
-            className={`pointer-events-auto glass-panel flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl border shadow-2xl transition-all animate-in slide-in-from-bottom-5 fade-in duration-200 ${styles[toast.type]}`}
+            className="pointer-events-auto transition-all duration-200"
           >
-            <IconComponent className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              {toast.title && (
-                <h4 className="text-xs font-bold subsync-heading mb-0.5 leading-tight">{toast.title}</h4>
-              )}
-              <p className="text-xs subsync-subtitle font-medium leading-relaxed break-words">{toast.message}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => removeToast(toast.id)}
-              aria-label="Close notification"
-              className="text-env-muted hover:text-env-heading transition-colors p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl hover:bg-env-button-sec shrink-0 cursor-pointer"
+            <div
+              key={toast.shakeKey || 'initial'}
+              className={`flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl border bg-black/10 backdrop-blur-sm shadow-xl transition-all ${
+                toast.shakeKey ? 'animate-subtle-shake' : 'animate-in slide-in-from-bottom-5 fade-in duration-200'
+              } ${styles[toast.type]}`}
             >
-              <X className="w-4 h-4" />
-            </button>
+              <IconComponent className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                {toast.title && (
+                  <h4 className="text-xs font-bold subsync-heading mb-0.5 leading-tight">{toast.title}</h4>
+                )}
+                <p className="text-xs subsync-subtitle font-medium leading-relaxed break-words">{toast.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeToast(toast.id)}
+                aria-label="Close notification"
+                className="text-current opacity-70 hover:opacity-100 transition-opacity p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl hover:bg-white/10 shrink-0 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         );
       })}

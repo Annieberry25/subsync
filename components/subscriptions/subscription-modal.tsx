@@ -85,22 +85,9 @@ export default function SubscriptionModal({
       setEndDate(initialData.end_date || '');
       setNextBillingDate(initialData.next_billing_date);
       
-      const knownManage = getKnownProviderManagementUrl(initialData.name);
-      const knownWebsite = getKnownProviderWebsite(initialData.name);
-      
-      const normUrl = (u?: string | null) => u?.toLowerCase().trim().replace(/\/+$/, '') || '';
-      const currentUrlNorm = normUrl(initialData.provider_url);
-      const knownWebsiteNorm = normUrl(knownWebsite);
-      const knownManageNorm = normUrl(knownManage);
-
-      const isCustomUrl = Boolean(
-        currentUrlNorm &&
-        currentUrlNorm !== knownManageNorm &&
-        currentUrlNorm !== knownWebsiteNorm
-      );
-      const activeUrl = isCustomUrl ? initialData.provider_url! : (knownManage || knownWebsite || initialData.provider_url || '');
-      setProviderUrl(activeUrl);
-      setIsUserEditedUrl(isCustomUrl);
+      const actualProviderUrl = initialData.provider_url ? initialData.provider_url.trim() : '';
+      setProviderUrl(actualProviderUrl);
+      setIsUserEditedUrl(Boolean(actualProviderUrl));
       
       setAccountLinks(parseAccountLinks(initialData));
       setNotes(cleanNotesUserText(initialData.notes));
@@ -156,14 +143,9 @@ export default function SubscriptionModal({
   const handleConfirmReceiptData = (extracted: ExtractedReceiptData) => {
     if (extracted.name) {
       setName(extracted.name);
-      const knownManage = getKnownProviderManagementUrl(extracted.name);
-      const knownWebsite = getKnownProviderWebsite(extracted.name);
       if (extracted.providerUrl) {
         setProviderUrl(extracted.providerUrl);
         setIsUserEditedUrl(true);
-      } else if (knownManage || knownWebsite) {
-        setProviderUrl(knownManage || knownWebsite || '');
-        setIsUserEditedUrl(false);
       }
     }
     if (extracted.price) setPrice(extracted.price);
@@ -172,7 +154,14 @@ export default function SubscriptionModal({
     if (extracted.category) setCategory(extracted.category);
     if (extracted.nextBillingDate) setNextBillingDate(extracted.nextBillingDate);
 
-    toast.success(`Extracted information for ${extracted.name} applied to form.`, 'Receipt Imported');
+    let addedNotes = '';
+    if (extracted.plan) addedNotes += `Plan: ${extracted.plan}\n`;
+    if (extracted.trialEndDate) addedNotes += `Trial End Date: ${extracted.trialEndDate}\n`;
+    if (addedNotes) {
+      setNotes((prev) => (prev ? `${prev}\n${addedNotes.trim()}` : addedNotes.trim()));
+    }
+
+    toast.success(`Extracted information for ${extracted.name || 'subscription'} applied to form.`, 'Receipt Imported');
   };
 
   const setQuickDate = (monthsToAdd: number) => {
@@ -294,10 +283,10 @@ export default function SubscriptionModal({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-1.5 flex-1 min-h-0 pb-2">
+          <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-7 overflow-y-auto pr-1.5 flex-1 min-h-0 pb-3">
             {/* Name */}
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-[#94A3B8] block">Subscription Name *</label>
+            <div className="space-y-2">
+              <label className="text-[13px] font-medium text-[#94A3B8] block">Subscription Name</label>
               <div className="flex items-center gap-2.5">
                 <ServiceIcon name={name || 'Subscription'} category={category} providerUrl={providerUrl} className="w-11 h-11 rounded-xl shrink-0" />
                 <input
@@ -319,9 +308,9 @@ export default function SubscriptionModal({
             </div>
 
             {/* Price & Currency & Billing Cycle */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">Price *</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Price</label>
                 <input
                   type="number"
                   step="0.01"
@@ -340,7 +329,7 @@ export default function SubscriptionModal({
                 )}
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Currency</label>
                 <select
                   value={currency}
@@ -354,8 +343,8 @@ export default function SubscriptionModal({
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">Cycle *</label>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Cycle</label>
                 <select
                   value={billingCycle}
                   onChange={(e) => setBillingCycle(e.target.value as typeof billingCycles[number])}
@@ -370,8 +359,8 @@ export default function SubscriptionModal({
 
             {/* Category & Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">Category *</label>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Category</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as typeof categories[number])}
@@ -383,8 +372,8 @@ export default function SubscriptionModal({
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">Status *</label>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Status</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as typeof statuses[number])}
@@ -398,9 +387,11 @@ export default function SubscriptionModal({
             </div>
 
             {/* Optional Start Date & End Date Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">Start Date (Optional)</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#94A3B8] block">
+                  Start Date <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">(Optional)</span>
+                </label>
                 <input
                   type="date"
                   value={startDate}
@@ -409,8 +400,10 @@ export default function SubscriptionModal({
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">End Date (Optional)</label>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#94A3B8] block">
+                  End Date <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">(Optional)</span>
+                </label>
                 <input
                   type="date"
                   value={endDate}
@@ -422,9 +415,9 @@ export default function SubscriptionModal({
             </div>
 
             {/* Next Billing Date & Quick Presets (Contract & Renewal Section) */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">Next Billing / Renewal Date *</label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Next Billing / Renewal Date</label>
                 <div className="flex items-center gap-2 text-[11px]">
                   <button
                     type="button"
@@ -454,14 +447,14 @@ export default function SubscriptionModal({
             </div>
 
             {/* Provider Website Field */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-[#14B8A6]" />
-                <span>Provider Website / Account Link (Optional)</span>
+                <Globe className="w-3.5 h-3.5 text-[#94A3B8]" />
+                <span>Provider URL</span>
               </label>
               <input
                 type="url"
-                placeholder="https://www.provider.com/account"
+                placeholder=""
                 value={providerUrl}
                 onChange={(e) => handleUrlChange(e.target.value)}
                 className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
@@ -469,10 +462,10 @@ export default function SubscriptionModal({
             </div>
 
             {/* Subscription Accounts Section */}
-            <div className="space-y-4">
+            <div className="space-y-4 pt-1">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
-                  <Link2 className="w-3.5 h-3.5 text-[#14B8A6]" />
+                  <Link2 className="w-3.5 h-3.5 text-[#94A3B8]" />
                   <span>Subscription Accounts</span>
                 </label>
                 <button
@@ -486,7 +479,7 @@ export default function SubscriptionModal({
               </div>
 
               {accountLinks.length === 0 ? (
-                <div className="p-3 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-xs text-[#94A3B8]">
+                <div className="p-3.5 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-xs text-[#94A3B8]">
                   No account entries added yet. Click &quot;Add account link&quot; to configure your accounts.
                 </div>
               ) : (
@@ -510,7 +503,7 @@ export default function SubscriptionModal({
                       <div key={link.id} className="space-y-3 pt-2 pb-1 border-b border-[#1A1D1D]/40 last:border-b-0">
                         {/* Account Type Header with Delete Row Button */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="space-y-2 flex-1 min-w-0">
                             <label className="text-[13px] font-medium text-[#94A3B8] block">
                               Account Type {accountLinks.length > 1 ? `#${idx + 1}` : ''}
                             </label>
@@ -535,12 +528,12 @@ export default function SubscriptionModal({
                         </div>
 
                         {/* Account URL */}
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           <label className="text-[13px] font-medium text-[#94A3B8] block">Account URL</label>
                           <div className="flex items-center gap-2">
                             <input
                               type="url"
-                              placeholder="Account URL (optional)"
+                              placeholder=""
                               value={link.url || ''}
                               onChange={(e) => handleUpdateAccountLink(link.id, 'url', e.target.value)}
                               className="flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
@@ -579,8 +572,10 @@ export default function SubscriptionModal({
             </div>
 
             {/* Notes */}
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-[#94A3B8] block">Notes (Optional)</label>
+            <div className="space-y-2 pt-1">
+              <label className="text-[13px] font-medium text-[#94A3B8] block">
+                Notes <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">(Optional)</span>
+              </label>
               <textarea
                 rows={2}
                 placeholder="Additional renewal notes or plan tier details..."

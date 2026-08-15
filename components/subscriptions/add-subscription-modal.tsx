@@ -5,23 +5,48 @@ import { X } from 'lucide-react';
 import LinkSubscriptionModal from './link-subscription-modal';
 import ReceiptImportModal from './receipt-import-modal';
 import type { ExtractedReceiptData } from './receipt-import-modal';
-import type { SubscriptionInsert } from '@/lib/services/subscription-service';
+import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
 
 interface AddSubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectManual: (prefillData?: Partial<Omit<SubscriptionInsert, 'user_id'>>) => void;
+  onSelectExistingDetails?: (subscription: SubscriptionRow) => void;
+  existingSubscriptions?: SubscriptionRow[];
 }
 
 export default function AddSubscriptionModal({
   isOpen,
   onClose,
   onSelectManual,
+  onSelectExistingDetails,
+  existingSubscriptions,
 }: AddSubscriptionModalProps) {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptProviderName, setReceiptProviderName] = useState<string | undefined>(undefined);
 
   if (!isOpen) return null;
+
+  const handleExitAll = () => {
+    setIsLinkModalOpen(false);
+    setIsReceiptModalOpen(false);
+    setReceiptProviderName(undefined);
+    onClose();
+  };
+
+  const handleCancelReceipt = () => {
+    setIsReceiptModalOpen(false);
+    if (receiptProviderName) {
+      setIsLinkModalOpen(true);
+    }
+  };
+
+  const handleStartReceiptFromProvider = (providerName: string) => {
+    setIsLinkModalOpen(false);
+    setReceiptProviderName(providerName);
+    setIsReceiptModalOpen(true);
+  };
 
   const handleLinkSuccess = (data: Partial<Omit<SubscriptionInsert, 'user_id'>>) => {
     setIsLinkModalOpen(false);
@@ -34,6 +59,10 @@ export default function AddSubscriptionModal({
     onClose();
     
     // Map extracted receipt data to prefill form
+    let notes = '';
+    if (extracted.plan) notes += `Plan: ${extracted.plan}\n`;
+    if (extracted.trialEndDate) notes += `Trial End Date: ${extracted.trialEndDate}\n`;
+
     const prefill: Partial<Omit<SubscriptionInsert, 'user_id'>> = {
       name: extracted.name,
       price: extracted.price ? parseFloat(extracted.price) : undefined,
@@ -42,6 +71,7 @@ export default function AddSubscriptionModal({
       category: extracted.category || 'Streaming',
       next_billing_date: extracted.nextBillingDate,
       provider_url: extracted.providerUrl,
+      notes: notes.trim() || undefined,
     };
     onSelectManual(prefill);
   };
@@ -66,7 +96,7 @@ export default function AddSubscriptionModal({
                 Add Subscription
               </h2>
               <p className="text-xs sm:text-sm text-[#94A3B8] mt-0.5">
-                Choose how you want to add a subscription to SubSync.
+                Choose how you want to add a subscription to SubHalt.
               </p>
             </div>
 
@@ -80,17 +110,20 @@ export default function AddSubscriptionModal({
             </button>
           </div>
 
-          {/* Three Path Options Grid */}
+          {/* Three Path Options Grid (Restored Commit 65d8026 exact UI) */}
           <div className="grid grid-cols-1 gap-3.5">
-            {/* Path 1: Link Subscription */}
+            {/* Path 1: Link Subscription / Subscribe through Provider */}
             <button
               type="button"
-              onClick={() => setIsLinkModalOpen(true)}
+              onClick={() => {
+                setReceiptProviderName(undefined);
+                setIsLinkModalOpen(true);
+              }}
               className="p-4 sm:p-5 rounded-2xl bg-[#0D0F0F] hover:bg-[#141717] border border-[#1A1D1D] hover:border-[#14B8A6] transition-all duration-200 text-left group cursor-pointer shadow-sm hover:shadow-md"
             >
               <div className="w-full min-w-0">
                 <h3 className="text-sm sm:text-base font-bold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors">
-                  Link Subscription
+                  Subscribe through Provider
                 </h3>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   Connect a supported provider/account and import available subscription information.
@@ -101,7 +134,10 @@ export default function AddSubscriptionModal({
             {/* Path 2: Import Receipt */}
             <button
               type="button"
-              onClick={() => setIsReceiptModalOpen(true)}
+              onClick={() => {
+                setReceiptProviderName(undefined);
+                setIsReceiptModalOpen(true);
+              }}
               className="p-4 sm:p-5 rounded-2xl bg-[#0D0F0F] hover:bg-[#141717] border border-[#1A1D1D] hover:border-[#14B8A6] transition-all duration-200 text-left group cursor-pointer shadow-sm hover:shadow-md"
             >
               <div className="w-full min-w-0">
@@ -139,14 +175,24 @@ export default function AddSubscriptionModal({
       {/* Nested Flow Modals */}
       <LinkSubscriptionModal
         isOpen={isLinkModalOpen}
-        onClose={() => setIsLinkModalOpen(false)}
+        onClose={handleExitAll}
+        onSelectReceiptFlow={handleStartReceiptFromProvider}
         onConfirmLinkedData={handleLinkSuccess}
+        onSelectExistingDetails={(sub) => {
+          handleExitAll();
+          if (onSelectExistingDetails) {
+            onSelectExistingDetails(sub);
+          }
+        }}
+        existingSubscriptions={existingSubscriptions}
       />
 
       <ReceiptImportModal
         isOpen={isReceiptModalOpen}
-        onClose={() => setIsReceiptModalOpen(false)}
+        onClose={handleExitAll}
+        onCancel={handleCancelReceipt}
         onConfirm={handleReceiptConfirm}
+        initialProviderName={receiptProviderName}
       />
     </>
   );

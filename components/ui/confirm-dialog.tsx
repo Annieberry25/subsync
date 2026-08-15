@@ -93,7 +93,7 @@ export default function ConfirmDialog({
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${currentVariant.iconBg}`}>
               <Icon className="w-5 h-5" />
             </div>
-            <h3 id="confirm-dialog-title" className="text-[25px] font-bold text-[#F5F7F6] tracking-tight leading-[32px]">
+            <h3 id="confirm-dialog-title" className="text-base sm:text-lg font-bold text-[#F5F7F6] tracking-tight leading-snug">
               {title}
             </h3>
           </div>

@@ -32,6 +32,7 @@ import { AdBanner } from './ad-banner';
 import SubscriptionModal from '@/components/subscriptions/subscription-modal';
 import PaymentReminderModal from '@/components/subscriptions/payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
+import UpgradeModal from '@/components/subscriptions/upgrade-modal';
 
 import {
   DollarSign,
@@ -52,7 +53,7 @@ function renderFormattedCurrency(amount: number, currency = 'USD') {
 
 export default function DashboardV2() {
   const { toast } = useToast();
-  const { defaultCurrency, exchangeRates } = useUserSettings();
+  const { defaultCurrency, exchangeRates, isPlus, isPremium } = useUserSettings();
 
   const initialCache = getCachedSubscriptions();
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initialCache || []);
@@ -61,6 +62,7 @@ export default function DashboardV2() {
 
   // Modal & Dialog states
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
@@ -113,6 +115,10 @@ export default function DashboardV2() {
       if (err) throw err;
       toast.success('Subscription updated successfully.', 'Changes Saved');
     } else {
+      if (!isPlus && activeSubscriptions.length >= 2) {
+        setIsUpgradeModalOpen(true);
+        return;
+      }
       const { error: err } = await createSubscription(data);
       if (err) throw err;
       toast.success('New subscription added to your portfolio.', 'Subscription Created');
@@ -177,21 +183,18 @@ export default function DashboardV2() {
   const renewalSemantic = useMemo(() => {
     if (overdueCount > 0) {
       return {
-        iconColor: 'text-[#D9363E]',
         textColor: 'text-[#D9363E]',
-        label: overdueCount === 1 ? 'Overdue subscription' : 'Overdue subscriptions',
+        label: overdueCount === 1 ? '1 overdue subscription' : `${overdueCount} overdue subscriptions`,
       };
     }
     if (renewingThisWeek > 0) {
       return {
-        iconColor: 'text-[#F59E0B]',
-        textColor: 'text-[#F59E0B]',
+        textColor: 'text-[#94A3B8]',
         label: renewingThisWeek === 1 ? 'Subscription due' : 'Subscriptions due',
       };
     }
     return {
-      iconColor: 'text-[#6F7787]',
-      textColor: 'text-[#A1AAB8]',
+      textColor: 'text-[#94A3B8]',
       label: 'Subscriptions due',
     };
   }, [overdueCount, renewingThisWeek]);
@@ -276,7 +279,7 @@ export default function DashboardV2() {
                 {activeCount}
               </div>
               <span
-                className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#14B8A6]"
+                className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]"
               >
                 Active & trial subscriptions
               </span>
@@ -356,6 +359,11 @@ export default function DashboardV2() {
         }}
         subscriptionName={reminderSubscription?.name || ''}
         nextBillingDate={reminderSubscription?.next_billing_date}
+      />
+
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
       />
     </div>
   );

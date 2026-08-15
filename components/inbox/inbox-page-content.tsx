@@ -104,20 +104,11 @@ export default function InboxPageContent() {
         );
 
         if (match) {
-          if (item.actionType === 'view' || item.actionType === 'review') {
-            setSelectedSub(match);
-            setIsDetailOpen(true);
-            return;
-          }
-          if (item.actionType === 'manage' || item.actionType === 'update_payment') {
-            if (item.providerUrl) {
-              window.open(item.providerUrl, '_blank', 'noopener,noreferrer');
-            } else {
-              setSelectedSub(match);
-              setIsDetailOpen(true);
-            }
-            return;
-          }
+          router.push(`/subscriptions?highlight=${match.id}&detail=true`);
+          return;
+        } else {
+          router.push(`/subscriptions?highlight=SubHalt&detail=true`);
+          return;
         }
       }
 
