@@ -1,0 +1,1 @@
+export const FREE_SUBSCRIPTION_LIMIT = 3;

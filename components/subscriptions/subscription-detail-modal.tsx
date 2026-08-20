@@ -22,6 +22,7 @@ interface SubscriptionDetailModalProps {
   onDeleteRequest: (subscription: SubscriptionRow) => void;
   onPaymentReminderRequest: (subscription: SubscriptionRow) => void;
   onRestoreRequest?: (subscription: SubscriptionRow) => void;
+  onCancellationAssistance?: (subscription: SubscriptionRow) => void;
 }
 
 function calculateAnnualCost(price: number, billingCycle: string): number {
@@ -47,6 +48,7 @@ export default function SubscriptionDetailModal({
   onDeleteRequest,
   onPaymentReminderRequest,
   onRestoreRequest,
+  onCancellationAssistance,
 }: SubscriptionDetailModalProps) {
   const { toast } = useToast();
 
@@ -379,6 +381,19 @@ export default function SubscriptionDetailModal({
                 >
                   Manage Subscription
                 </button>
+
+                {onCancellationAssistance && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onCancellationAssistance(subscription);
+                    }}
+                    className="text-[#14B8A6] hover:text-[#2DD4BF] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
+                  >
+                    Cancellation Intelligence
+                  </button>
+                )}
 
                 <button
                   type="button"

@@ -257,7 +257,7 @@ export default function SubscriptionTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1A1D1D] text-xs sm:text-sm">
-            {subscriptions.map((sub) => {
+            {subscriptions.map((sub, index) => {
               const formattedPrice = formatCurrency(Number(sub.price), sub.currency);
               const statusDotStyle = statusDotColors[sub.status] || statusDotColors.active;
               const planName = getPlanName(sub);
@@ -313,7 +313,7 @@ export default function SubscriptionTable({
                   </td>
 
                   {/* Plan */}
-                  <td className="py-4 px-4 whitespace-nowrap text-[#94A3B8] font-medium text-xs sm:text-sm">
+                  <td className="py-4 px-4 whitespace-nowrap font-medium text-xs sm:text-sm text-[#94A3B8]">
                     {planName}
                   </td>
 

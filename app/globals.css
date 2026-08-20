@@ -327,9 +327,23 @@ button.btn-pill {
   80% { transform: translateX(3px); }
 }
 
-.animate-subtle-shake {
-  animation: subtleShake 350ms ease-in-out forwards;
+
+/* Custom Subtle Dark Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
 }
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #242828;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #14B8A6;
+}
+
 
 
 

@@ -72,11 +72,11 @@ export default function RenewalsPageContent() {
     };
   }, [subscriptions.length]);
 
-  const upcomingRenewals = useMemo(() => {
+  const { overdueList, upcomingRenewals } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return filterActiveSubscriptions(subscriptions)
+    const allMapped = filterActiveSubscriptions(subscriptions)
       .filter((sub) => sub.status === 'active' || sub.status === 'trial')
       .map((sub) => {
         const nextDate = new Date(sub.next_billing_date);
@@ -84,9 +84,17 @@ export default function RenewalsPageContent() {
         const diffTime = nextDate.getTime() - today.getTime();
         const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
         return { sub, diffDays };
-      })
-      .filter(({ diffDays }) => diffDays <= 30)
+      });
+
+    const overdue = allMapped
+      .filter(({ diffDays }) => diffDays < 0)
       .sort((a, b) => a.diffDays - b.diffDays);
+
+    const upcoming = allMapped
+      .filter(({ diffDays }) => diffDays >= 0 && diffDays <= 30)
+      .sort((a, b) => a.diffDays - b.diffDays);
+
+    return { overdueList: overdue, upcomingRenewals: upcoming };
   }, [subscriptions]);
 
   return (
@@ -114,74 +122,134 @@ export default function RenewalsPageContent() {
         </div>
       )}
 
-      {/* Renewal Rows Container */}
+      {/* Overdue & Renewal Rows Container */}
       {loading && subscriptions.length === 0 ? (
         <div className="space-y-4">
           <SubscriptionCardSkeleton />
           <SubscriptionCardSkeleton />
           <SubscriptionCardSkeleton />
         </div>
-      ) : upcomingRenewals.length === 0 ? (
-        <div className="p-6 sm:p-8 text-center bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px]">
-          <p className="text-base font-semibold text-[#F5F7F6]">
-            No renewals in the next 30 days.
-          </p>
-          <p className="text-sm text-[#94A3B8] mt-1">
-            You&apos;re all caught up.
-          </p>
-        </div>
       ) : (
-        <div className="bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px] space-y-3.5 p-4 sm:p-6">
-          <div className="space-y-2.5">
-            {upcomingRenewals.map(({ sub, diffDays }) => {
-              const status = getRenewalStatus(diffDays);
-              const price = Number(sub.price) || 0;
-              const cycleSuffix = getCycleSuffix(sub.billing_cycle);
-              const planName = getPlanName(sub);
+        <div className="space-y-6">
+          {/* Overdue Subscriptions Section */}
+          {overdueList.length > 0 && (
+            <div className="bg-[#0B0D0D] border border-[#D9363E]/30 rounded-[20px] p-4 sm:p-6 space-y-3.5 shadow-sm">
+              <div className="flex items-center gap-2 border-b border-[#D9363E]/20 pb-3">
+                <AlertCircle className="w-5 h-5 text-[#D9363E]" />
+                <h2 className="text-base sm:text-lg font-bold text-[#D9363E]">
+                  Overdue Subscriptions ({overdueList.length})
+                </h2>
+              </div>
+              <div className="space-y-2.5">
+                {overdueList.map(({ sub, diffDays }) => {
+                  const status = getRenewalStatus(diffDays);
+                  const price = Number(sub.price) || 0;
+                  const cycleSuffix = getCycleSuffix(sub.billing_cycle);
+                  const planName = getPlanName(sub);
 
-              return (
-                <div
-                  key={sub.id}
-                  className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl transition-colors cursor-default gap-2.5 sm:gap-4 w-full"
-                >
-                  {/* 1. Service Logo + Name + Plan */}
-                  <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
-                    <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-10 h-10 rounded-xl shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">
-                        {sub.name}
-                      </span>
-                      <span className="text-xs sm:text-[14px] text-[#94A3B8] block mt-0.5">
-                        {planName}
-                      </span>
-                    </div>
-                  </div>
+                  return (
+                    <div
+                      key={sub.id}
+                      className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#0D0F0F] border border-[#D9363E]/20 rounded-2xl transition-colors cursor-default gap-2.5 sm:gap-4 w-full"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
+                        <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-10 h-10 rounded-xl shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">
+                            {sub.name}
+                          </span>
+                          <span className="text-xs sm:text-[14px] text-[#94A3B8] block mt-0.5">
+                            {planName}
+                          </span>
+                        </div>
+                      </div>
 
-                  {/* 2 & 3: Mobile sub-row (flex justify-between) / Desktop grid cells (sm:contents) */}
-                  <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D] gap-2">
-                    {/* 2. Renewal Status */}
-                    <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
-                      <span
-                        className="text-xs sm:text-sm font-semibold"
-                        style={{ color: status.color }}
-                      >
-                        {status.text}
-                      </span>
-                    </div>
+                      <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D] gap-2">
+                        <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
+                          <span className="text-xs sm:text-sm font-bold text-[#D9363E]">
+                            Overdue ({Math.abs(diffDays)}d)
+                          </span>
+                        </div>
 
-                    {/* 3. Single-line Price */}
-                    <div className="text-right min-w-0 shrink-0 justify-self-end">
-                      <span className="text-base sm:text-[20px] font-bold text-[#F5F7F6]">
-                        {formatCurrency(price, sub.currency || 'USD')}
-                      </span>
-                      <span className="text-xs sm:text-[15px] font-normal text-[#94A3B8]">
-                        {cycleSuffix}
-                      </span>
+                        <div className="text-right min-w-0 shrink-0 justify-self-end">
+                          <span className="text-base sm:text-[20px] font-bold text-[#F5F7F6]">
+                            {formatCurrency(price, sub.currency || 'USD')}
+                          </span>
+                          <span className="text-xs sm:text-[15px] font-normal text-[#94A3B8]">
+                            {cycleSuffix}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming Renewals Section */}
+          <div className="bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px] space-y-3.5 p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-bold text-[#F5F7F6] tracking-tight border-b border-[#1A1D1D] pb-3">
+              Upcoming Renewals (Next 30 Days)
+            </h2>
+            {upcomingRenewals.length === 0 ? (
+              <div className="p-6 text-center">
+                <p className="text-sm font-medium text-[#F5F7F6]/80">
+                  No upcoming renewals in the next 30 days.
+                </p>
+                <p className="text-xs text-[#94A3B8]/60 mt-1">
+                  You&apos;re all caught up.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {upcomingRenewals.map(({ sub, diffDays }) => {
+                  const status = getRenewalStatus(diffDays);
+                  const price = Number(sub.price) || 0;
+                  const cycleSuffix = getCycleSuffix(sub.billing_cycle);
+                  const planName = getPlanName(sub);
+
+                  return (
+                    <div
+                      key={sub.id}
+                      className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl transition-colors cursor-default gap-2.5 sm:gap-4 w-full"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
+                        <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-10 h-10 rounded-xl shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">
+                            {sub.name}
+                          </span>
+                          <span className="text-xs sm:text-[14px] text-[#94A3B8] block mt-0.5">
+                            {planName}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D] gap-2">
+                        <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
+                          <span
+                            className="text-xs sm:text-sm font-semibold"
+                            style={{ color: status.color }}
+                          >
+                            {status.text}
+                          </span>
+                        </div>
+
+                        <div className="text-right min-w-0 shrink-0 justify-self-end">
+                          <span className="text-base sm:text-[20px] font-bold text-[#F5F7F6]">
+                            {formatCurrency(price, sub.currency || 'USD')}
+                          </span>
+                          <span className="text-xs sm:text-[15px] font-normal text-[#94A3B8]">
+                            {cycleSuffix}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

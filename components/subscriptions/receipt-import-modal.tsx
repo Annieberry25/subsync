@@ -18,6 +18,7 @@ export interface ExtractedReceiptData {
 interface ReceiptImportModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onBack?: () => void;
   onCancel?: () => void;
   onConfirm: (extracted: ExtractedReceiptData) => void;
   initialProviderName?: string;
@@ -135,6 +136,7 @@ export function parseReceiptText(text: string, initialProviderName?: string): Ex
 export default function ReceiptImportModal({
   isOpen,
   onClose,
+  onBack,
   onCancel,
   onConfirm,
   initialProviderName,
@@ -189,10 +191,18 @@ export default function ReceiptImportModal({
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
           <div className="flex items-center gap-3">
-            {onCancel && (
+            {(onBack || onCancel) && (
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={() => {
+                  if (reviewData) {
+                    setReviewData(null);
+                  } else if (onBack) {
+                    onBack();
+                  } else if (onCancel) {
+                    onCancel();
+                  }
+                }}
                 aria-label="Go back"
                 className="w-8 h-8 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
               >

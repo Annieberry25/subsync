@@ -10,6 +10,7 @@ import { useToast } from '@/lib/hooks/use-toast';
 interface LinkSubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onBack?: () => void;
   onSelectReceiptFlow?: (providerName: string) => void;
   onConfirmLinkedData?: (data: Partial<Omit<SubscriptionInsert, 'user_id'>>) => void;
   onSelectExistingDetails?: (subscription: SubscriptionRow) => void;
@@ -33,6 +34,7 @@ const POPULAR_PROVIDERS = [
 export default function LinkSubscriptionModal({
   isOpen,
   onClose,
+  onBack,
   onSelectReceiptFlow,
   onConfirmLinkedData,
   onSelectExistingDetails,
@@ -124,14 +126,26 @@ export default function LinkSubscriptionModal({
         {/* Header (Exact Match to User Screenshot) */}
         <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
           <div className="flex items-center gap-3">
-            {step !== 'select' && (
+            {step !== 'select' ? (
               <button
                 type="button"
                 onClick={() => setStep('select')}
+                aria-label="Back to provider list"
                 className="w-8 h-8 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
+            ) : (
+              onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  aria-label="Back to Add Subscription menu"
+                  className="w-8 h-8 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              )
             )}
             <div>
               <h2 id="link-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight flex items-center gap-2">

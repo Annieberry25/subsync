@@ -106,9 +106,128 @@ export interface Database {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+          referencedColumns: ["id"]
+          }
+        ]
+      }
+      bill_payments: {
+        Row: {
+          id: string
+          user_id: string
+          category: string
+          custom_category: string | null
+          provider_name: string
+          amount: number
+          currency: string
+          payment_date: string
+          country: string | null
+          region: string | null
+          city: string | null
+          payment_frequency: 'one_time' | 'monthly' | 'yearly' | 'weekly' | 'quarterly' | 'custom' | null
+          is_recurring: boolean
+          notes: string | null
+          receipts: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
+          source: 'manual' | 'receipt_scan' | 'email_discovered'
+          provider_reference: string | null
+          official_provider_url: string | null
+          status: 'paid' | 'pending' | 'overdue'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          category: string
+          custom_category?: string | null
+          provider_name: string
+          amount: number
+          currency?: string
+          payment_date?: string
+          country?: string | null
+          region?: string | null
+          city?: string | null
+          payment_frequency?: 'one_time' | 'monthly' | 'yearly' | 'weekly' | 'quarterly' | 'custom' | null
+          is_recurring?: boolean
+          notes?: string | null
+          receipts?: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
+          source?: 'manual' | 'receipt_scan' | 'email_discovered'
+          provider_reference?: string | null
+          official_provider_url?: string | null
+          status?: 'paid' | 'pending' | 'overdue'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          category?: string
+          custom_category?: string | null
+          provider_name?: string
+          amount?: number
+          currency?: string
+          payment_date?: string
+          country?: string | null
+          region?: string | null
+          city?: string | null
+          payment_frequency?: 'one_time' | 'monthly' | 'yearly' | 'weekly' | 'quarterly' | 'custom' | null
+          is_recurring?: boolean
+          notes?: string | null
+          receipts?: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
+          source?: 'manual' | 'receipt_scan' | 'email_discovered'
+          provider_reference?: string | null
+          official_provider_url?: string | null
+          status?: 'paid' | 'pending' | 'overdue'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bill_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           }
         ]
+      }
+      bill_providers: {
+        Row: {
+          id: string
+          name: string
+          category: string
+          country: string
+          region: string | null
+          official_website: string | null
+          official_payment_url: string | null
+          verification_status: 'verified' | 'user_submitted' | 'unverified'
+          supported_regions: string[] | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          category: string
+          country?: string
+          region?: string | null
+          official_website?: string | null
+          official_payment_url?: string | null
+          verification_status?: 'verified' | 'user_submitted' | 'unverified'
+          supported_regions?: string[] | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          category?: string
+          country?: string
+          region?: string | null
+          official_website?: string | null
+          official_payment_url?: string | null
+          verification_status?: 'verified' | 'user_submitted' | 'unverified'
+          supported_regions?: string[] | null
+          created_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {

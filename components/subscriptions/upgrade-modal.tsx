@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { X, Check } from 'lucide-react';
+import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useInbox } from '@/lib/contexts/inbox-context';
@@ -18,7 +19,7 @@ interface UpgradeModalProps {
 export default function UpgradeModal({
   isOpen,
   onClose,
-  title = "You’ve reached your 2-subscription limit.",
+  title = `You’ve reached your ${FREE_SUBSCRIPTION_LIMIT}-subscription limit.`,
   description = "Upgrade to Plus to track unlimited subscriptions.",
 }: UpgradeModalProps) {
   const { updatePlanTier } = useUserSettings();
@@ -109,7 +110,7 @@ export default function UpgradeModal({
               <div className="flex items-baseline justify-between border-b border-[#1A1D1D] pb-3">
                 <div>
                   <h3 className="text-base font-semibold text-[#F5F7F6]">Free</h3>
-                  <p className="text-[11px] text-[#94A3B8] mt-0.5">Track up to 2 subscriptions</p>
+                  <p className="text-[11px] text-[#94A3B8] mt-0.5">Track up to {FREE_SUBSCRIPTION_LIMIT} subscriptions</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xl font-bold text-[#F5F7F6]">$0</span>
@@ -130,7 +131,7 @@ export default function UpgradeModal({
                 <ul className="space-y-2 text-xs text-[#94A3B8]">
                   <li className="flex items-start gap-2">
                     <Check className="w-3.5 h-3.5 text-[#14B8A6] shrink-0 mt-0.5" />
-                    <span>Track up to 2 active subscriptions</span>
+                    <span>Track up to {FREE_SUBSCRIPTION_LIMIT} active subscriptions</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-3.5 h-3.5 text-[#14B8A6] shrink-0 mt-0.5" />

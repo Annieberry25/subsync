@@ -25,12 +25,14 @@ import {
   X,
   Inbox as InboxIcon,
   Clock,
-  HelpCircle
+  HelpCircle,
+  Receipt
 } from 'lucide-react';
 
 export const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard },
+  { name: 'Bills & Payments', href: '/bills', icon: Receipt },
   { name: 'Inbox', href: '/inbox', icon: InboxIcon },
   { name: 'History', href: '/history', icon: HistoryIcon },
   { name: 'Export & Analytics', href: '/export', icon: Download },

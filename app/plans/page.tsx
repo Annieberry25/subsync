@@ -8,6 +8,7 @@ import { useToast } from '@/lib/hooks/use-toast';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { recordActivity } from '@/lib/services/activity-service';
 import { createSubscription } from '@/lib/services/subscription-service';
+import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import { MastercardIcon } from '@/components/ui/card-icons';
 
 function PlansContent() {
@@ -156,7 +157,7 @@ function PlansContent() {
                   </button>
                 )}
                 <p className="text-xs text-[#94A3B8] text-center">
-                  Track up to 2 active subscriptions.
+                  Track up to {FREE_SUBSCRIPTION_LIMIT} active subscriptions.
                 </p>
               </div>
 
@@ -165,7 +166,7 @@ function PlansContent() {
                 <ul className="space-y-3.5 text-sm text-[#94A3B8]">
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-[#14B8A6] shrink-0 mt-0.5" />
-                    <span>Track up to 2 active subscriptions</span>
+                    <span>Track up to {FREE_SUBSCRIPTION_LIMIT} active subscriptions</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-[#14B8A6] shrink-0 mt-0.5" />

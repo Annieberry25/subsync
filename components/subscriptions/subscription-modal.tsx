@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, AlertCircle, Plus, Trash2, Globe, Upload, Link2, ExternalLink } from 'lucide-react';
+import { X, Loader2, AlertCircle, Plus, Trash2, Globe, Upload, Link2, ExternalLink, ArrowLeft } from 'lucide-react';
 import { 
   type SubscriptionRow, 
   type SubscriptionInsert,
@@ -21,6 +21,7 @@ import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onBack?: () => void;
   onSave: (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => Promise<void>;
   initialData?: SubscriptionRow | null;
 }
@@ -34,6 +35,7 @@ const ACCOUNT_TYPES = ['Personal', 'Family', 'Work', 'Main Account', 'Other'] as
 export default function SubscriptionModal({
   isOpen,
   onClose,
+  onBack,
   onSave,
   initialData,
 }: SubscriptionModalProps) {
@@ -254,6 +256,16 @@ export default function SubscriptionModal({
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
             <div className="flex items-center gap-3">
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  aria-label="Back to Add Subscription menu"
+                  className="w-8 h-8 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              )}
               <h2 id="modal-title" className="text-2xl sm:text-[28px] font-bold text-[#F5F7F6] tracking-tight leading-tight">
                 {initialData ? 'Edit Subscription' : 'Add New Subscription'}
               </h2>
@@ -586,7 +598,16 @@ export default function SubscriptionModal({
             </div>
 
             {/* Form Actions */}
-            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4 border-t border-[#1A1D1D] shrink-0">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1A1D1D] shrink-0">
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="w-full sm:w-auto px-4 py-3 rounded-xl min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+                >
+                  ← Back
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onClose}

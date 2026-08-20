@@ -176,13 +176,13 @@ const HELP_TOPICS: HelpTopic[] = [
     id: 'plans-and-billing',
     category: 'Billing',
     title: 'SubHalt plans & Free vs Plus tier',
-    description: 'Understand feature availability across Free ($0/mo, 2 subscription limit) and Plus ($4.99/mo, unlimited subscriptions) plans.',
+    description: 'Understand feature availability across Free ($0/mo, 3 subscription limit) and Plus ($4.99/mo, unlimited subscriptions) plans.',
     paragraphs: [
       'SubHalt offers Free and Plus plan tiers designed for individual tracking and power subscription management.',
     ],
     subheading: 'Plan tier breakdown',
     bullets: [
-      'Free Plan ($0/month) — Track up to 2 subscriptions with full core functionality (provider link, receipt import, manual entry, renewal dates, basic reminders, basic Smart Insights).',
+      'Free Plan ($0/month) — Track up to 3 subscriptions with full core functionality (provider link, receipt import, manual entry, renewal dates, basic reminders, basic Smart Insights).',
       'Plus Plan ($4.99/month) — Unlimited subscriptions. Includes Everything in Free, plus advanced reminder controls, advanced Smart Insights, export subscription data (CSV/JSON), and family/shared subscription features.',
     ],
   },

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, CreditCard, AlertCircle, XCircle, LayoutGrid, List } from 'lucide-react';
+import { Plus, CreditCard, AlertCircle, XCircle, LayoutGrid, List, Mail, UploadCloud, Forward } from 'lucide-react';
+import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import { 
   fetchSubscriptions, 
   createSubscription, 
@@ -26,12 +27,15 @@ import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import UpgradeModal from './upgrade-modal';
+import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
+import { ReceiptExtractionModal } from './receipt-extraction-modal';
+import { EmailForwardingModal } from '@/components/integrations/email-forwarding-modal';
 
 import { useSearchParams } from 'next/navigation';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
-  const { isPlus, isPremium } = useUserSettings();
+  const { isPlus, isPremium, isGmailConnected } = useUserSettings();
   const searchParams = useSearchParams();
 
   const paramHighlight = searchParams.get('highlight');
@@ -44,6 +48,10 @@ export default function SubscriptionManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isForwardingModalOpen, setIsForwardingModalOpen] = useState(false);
+
   // View Mode: 'table' (default list/table) or 'grid' (cards)
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
@@ -51,7 +59,7 @@ export default function SubscriptionManager() {
   const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Add Subscription Three Path Entry Modal State
+  // Add Subscription Modal State
   const [isAddPathModalOpen, setIsAddPathModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [prefillData, setPrefillData] = useState<Partial<Omit<SubscriptionInsert, 'user_id'>> | null>(null);
@@ -208,7 +216,7 @@ export default function SubscriptionManager() {
       if (err) throw err;
       toast.success('Subscription updated successfully.', 'Changes Saved');
     } else {
-      if (!isPlus && activeSubscriptions.length >= 2) {
+      if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
         setIsUpgradeModalOpen(true);
         return;
       }
@@ -327,13 +335,7 @@ export default function SubscriptionManager() {
 
           <button
             type="button"
-            onClick={() => {
-              if (!isPlus && activeSubscriptions.length >= 2) {
-                setIsUpgradeModalOpen(true);
-              } else {
-                setIsAddPathModalOpen(true);
-              }
-            }}
+            onClick={() => setIsAddPathModalOpen(true)}
             className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
           >
             <Plus className="w-4 h-4 text-[#091512]" />
@@ -350,7 +352,52 @@ export default function SubscriptionManager() {
         </div>
       )}
 
-      {/* 2. SEARCH AND FILTERS BAR */}
+      {/* 2. AUTO-DISCOVERY & IMPORT BAR */}
+      {!loading && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-wrap items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs sm:text-sm font-semibold text-[#F5F7F6]">Auto-Discovery & Import:</span>
+            {isGmailConnected ? (
+              <span className="px-2.5 py-0.5 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] border border-[#14B8A6]/20 text-xs font-semibold">
+                Gmail Sync Active
+              </span>
+            ) : (
+              <span className="text-xs text-[#94A3B8]">Connect sources to automatically find receipts</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsGmailModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-[#121414] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] hover:border-[#3F3F46] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Mail className="w-3.5 h-3.5 text-[#14B8A6]" />
+              <span>{isGmailConnected ? 'Gmail Settings' : 'Connect Gmail'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsReceiptModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-[#121414] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] hover:border-[#3F3F46] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <UploadCloud className="w-3.5 h-3.5 text-[#14B8A6]" />
+              <span>Upload Receipt</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsForwardingModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-[#121414] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] hover:border-[#3F3F46] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Forward className="w-3.5 h-3.5 text-[#14B8A6]" />
+              <span>Email Forwarding</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 3. SEARCH AND FILTERS BAR */}
       <SubscriptionFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -429,13 +476,7 @@ export default function SubscriptionManager() {
             <div className="pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  if (!isPlus && activeSubscriptions.length >= 2) {
-                    setIsUpgradeModalOpen(true);
-                  } else {
-                    setIsAddPathModalOpen(true);
-                  }
-                }}
+                onClick={() => setIsAddPathModalOpen(true)}
                 className="px-6 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold transition-all cursor-pointer"
               >
                 Add Your First Subscription
@@ -449,12 +490,14 @@ export default function SubscriptionManager() {
       <AddSubscriptionModal
         isOpen={isAddPathModalOpen}
         onClose={() => setIsAddPathModalOpen(false)}
+        onRequireUpgrade={() => setIsUpgradeModalOpen(true)}
         existingSubscriptions={activeSubscriptions}
         onSelectExistingDetails={(sub) => {
           setSelectedDetailSub(sub);
           setIsDetailOpen(true);
         }}
         onSelectManual={(prefill) => {
+          setIsAddPathModalOpen(false);
           if (prefill) {
             setEditingSubscription({
               id: '',
@@ -481,6 +524,8 @@ export default function SubscriptionManager() {
           setIsModalOpen(true);
         }}
       />
+
+
 
       {/* Subscription Detail View Modal */}
       <SubscriptionDetailModal
@@ -519,6 +564,15 @@ export default function SubscriptionManager() {
             setReturnToDetailSub(null);
           }
         }}
+        onBack={
+          !editingSubscription?.id
+            ? () => {
+                setIsModalOpen(false);
+                setEditingSubscription(null);
+                setIsAddPathModalOpen(true);
+              }
+            : undefined
+        }
         onSave={handleSave}
         initialData={editingSubscription}
       />
@@ -574,6 +628,25 @@ export default function SubscriptionManager() {
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
+      />
+
+      {/* Auto-Discovery & Import Modals */}
+      <GmailConnectModal
+        isOpen={isGmailModalOpen}
+        onClose={() => setIsGmailModalOpen(false)}
+        onSuccess={loadData}
+      />
+
+      <ReceiptExtractionModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        onSuccess={loadData}
+      />
+
+      <EmailForwardingModal
+        isOpen={isForwardingModalOpen}
+        onClose={() => setIsForwardingModalOpen(false)}
+        onSuccess={loadData}
       />
     </div>
   );

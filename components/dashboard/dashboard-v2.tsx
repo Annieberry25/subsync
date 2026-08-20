@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
+import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import {
   fetchSubscriptions,
   getCachedSubscriptions,
@@ -34,6 +36,11 @@ import PaymentReminderModal from '@/components/subscriptions/payment-reminder-mo
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import UpgradeModal from '@/components/subscriptions/upgrade-modal';
 
+import { SubHaltAIAssistant } from '@/components/ai/subhalt-ai-assistant';
+import { SavingsRecommendations } from '@/components/ai/savings-recommendations';
+import { CancellationIntelligenceModal } from '@/components/ai/cancellation-intelligence-modal';
+import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
+
 import {
   DollarSign,
   Calendar,
@@ -64,6 +71,9 @@ export default function DashboardV2() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
+
+  const [cancellationSub, setCancellationSub] = useState<SubscriptionRow | null>(null);
+  const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -115,7 +125,7 @@ export default function DashboardV2() {
       if (err) throw err;
       toast.success('Subscription updated successfully.', 'Changes Saved');
     } else {
-      if (!isPlus && activeSubscriptions.length >= 2) {
+      if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
         setIsUpgradeModalOpen(true);
         return;
       }
@@ -200,16 +210,49 @@ export default function DashboardV2() {
   }, [overdueCount, renewingThisWeek]);
 
   return (
-    <div className="animate-page-transition space-y-4 sm:space-y-5 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12 overflow-x-hidden">
+    <div className="animate-page-transition space-y-5 sm:space-y-6 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12 overflow-x-hidden">
       {/* 0. SPONSOR ADVERTISEMENT (Restrained Top Strip) */}
       {!loading && <AdBanner planTier="free" />}
 
-      {/* 1. HEADER SECTION */}
-      <div className="mb-2 sm:mb-4">
+      {/* 1. HEADER SECTION (Greeting) */}
+      <div>
         <PersonalizedHeader
           renewingThisWeekCount={renewingThisWeek}
         />
       </div>
+
+      {/* 2. SUBHALT AI ASSISTANT PROACTIVE BANNER (FLOATING WITH BREATHING ROOM) */}
+      {!loading && (
+        <div className="py-0.5">
+          <SubHaltAIAssistant
+            subscriptions={subscriptions}
+            onViewSubscription={(sub) => setSelectedDetailSub(sub)}
+          />
+        </div>
+      )}
+
+      {/* 3. OVERDUE SUBSCRIPTIONS ALERT BANNER (FULL-WIDTH CONTAINER WITH BREATHING ROOM) */}
+      {!loading && overdueCount > 0 && (
+        <div className="p-4 rounded-2xl bg-[#D9363E]/10 border border-[#D9363E]/30 flex items-center justify-between gap-4 text-xs sm:text-sm text-[#F5F7F6]">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-[#D9363E] shrink-0" />
+            <div>
+              <strong className="text-[#D9363E] font-semibold block">
+                {overdueCount} {overdueCount === 1 ? 'subscription is' : 'subscriptions are'} overdue
+              </strong>
+              <span className="text-[#94A3B8] text-xs">
+                Overdue subscriptions are separated from upcoming renewals.
+              </span>
+            </div>
+          </div>
+          <Link
+            href="/renewals"
+            className="px-3.5 py-1.5 rounded-xl bg-[#D9363E]/20 hover:bg-[#D9363E]/30 text-[#D9363E] font-semibold text-xs transition-colors shrink-0 cursor-pointer border border-[#D9363E]/30"
+          >
+            View Overdue
+          </Link>
+        </div>
+      )}
 
       {/* ERROR BANNER */}
       {error && (
@@ -259,10 +302,8 @@ export default function DashboardV2() {
               <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
                 {renewingThisWeek}
               </div>
-              <span
-                className={`block mt-1 text-xs sm:text-[13px] font-normal leading-tight ${renewalSemantic.textColor}`}
-              >
-                {renewalSemantic.label}
+              <span className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]">
+                Due in next 7 days
               </span>
             </div>
           </div>
@@ -314,17 +355,27 @@ export default function DashboardV2() {
         />
       )}
 
-      {/* 4. SPENDING BY CATEGORY */}
-      {!loading && <CategoryBreakdownCard subscriptions={activeSubscriptions} />}
+      {/* 4. FINANCIAL OVERVIEW: SAVINGS RECOMMENDATIONS & SPENDING BY CATEGORY */}
+      {!loading && (
+        <SavingsRecommendations
+          subscriptions={subscriptions}
+          activeSubscriptions={activeSubscriptions}
+          onReviewSubscription={(sub) => setSelectedDetailSub(sub)}
+          onSeeSavings={(sub) => setCancellationSub(sub)}
+          onAskSubHalt={(q) => {
+            window.dispatchEvent(new CustomEvent('subsync_open_ask_modal', { detail: { question: q } }));
+          }}
+        />
+      )}
 
-      {/* 5. MOST EXPENSIVE PLAN */}
+      {/* 6. MOST EXPENSIVE PLAN */}
       {!loading && (
         <MostExpensivePlanCard
           subscriptions={activeSubscriptions}
         />
       )}
 
-      {/* 6. SMART INSIGHT */}
+      {/* 7. SMART INSIGHT */}
       {!loading && <SmartInsightCard subscriptions={activeSubscriptions} />}
 
       {/* Modals & Dialogs */}
@@ -364,6 +415,36 @@ export default function DashboardV2() {
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
+      />
+
+      <CancellationIntelligenceModal
+        isOpen={!!cancellationSub}
+        onClose={() => setCancellationSub(null)}
+        subscription={cancellationSub}
+        onStatusUpdated={loadData}
+      />
+
+      <SubscriptionDetailModal
+        isOpen={!!selectedDetailSub}
+        onClose={() => setSelectedDetailSub(null)}
+        subscription={selectedDetailSub}
+        onEdit={(sub: SubscriptionRow) => {
+          setSelectedDetailSub(null);
+          setEditingSubscription(sub);
+          setIsModalOpen(true);
+        }}
+        onDeleteRequest={(sub: SubscriptionRow) => {
+          setSelectedDetailSub(null);
+          setDeletingSubscription(sub);
+        }}
+        onPaymentReminderRequest={(sub: SubscriptionRow) => {
+          setSelectedDetailSub(null);
+          setReminderSubscription(sub);
+        }}
+        onCancellationAssistance={(sub: SubscriptionRow) => {
+          setSelectedDetailSub(null);
+          setCancellationSub(sub);
+        }}
       />
     </div>
   );

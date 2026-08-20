@@ -87,6 +87,8 @@ interface UserSettingsContextValue {
   planTier: 'free' | 'plus';
   isPlus: boolean;
   isPremium: boolean;
+  assistantName: string;
+  isGmailConnected: boolean;
   loading: boolean;
   billingDetails: BillingDetails | null;
   paymentMethods: PaymentMethodItem[];
@@ -96,6 +98,8 @@ interface UserSettingsContextValue {
   updateDefaultCurrency: (newCurrency: string) => Promise<void>;
   updateNotificationPreferences: (prefs: Partial<NotificationPreferences>) => Promise<void>;
   updatePlanTier: (newTier: 'free' | 'plus') => Promise<void>;
+  updateAssistantName: (name: string) => void;
+  setIsGmailConnected: (connected: boolean) => void;
   updateBillingDetails: (details: BillingDetails) => Promise<void>;
   addPaymentMethod: (card: Omit<PaymentMethodItem, 'id'>) => Promise<void>;
   deletePaymentMethod: (id: string) => Promise<void>;
@@ -126,6 +130,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>(DEFAULT_EXCHANGE_RATES);
   const [notificationPreferences, setNotificationPreferencesState] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
   const [planTier, setPlanTierState] = useState<'free' | 'plus'>('free');
+  const [assistantName, setAssistantNameState] = useState<string>('SubHalt Assistant');
+  const [isGmailConnected, setIsGmailConnectedState] = useState<boolean>(false);
   const [billingDetails, setBillingDetailsState] = useState<BillingDetails | null>(null);
   const [paymentMethods, setPaymentMethodsState] = useState<PaymentMethodItem[]>([]);
   const [billingTransactions, setBillingTransactionsState] = useState<TransactionItem[]>([]);
@@ -183,6 +189,16 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
           setPlanTierState('plus');
         } else if (savedPlan === 'free') {
           setPlanTierState('free');
+        }
+
+        const savedAssistant = localStorage.getItem('subhalt_assistant_name');
+        if (savedAssistant && savedAssistant.trim()) {
+          setAssistantNameState(savedAssistant.trim());
+        }
+
+        const savedGmail = localStorage.getItem('subhalt_gmail_connected');
+        if (savedGmail === 'true') {
+          setIsGmailConnectedState(true);
         }
 
         const savedBilling = localStorage.getItem('subsync_billing_details');
@@ -551,6 +567,22 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     return Array.from(new Set(combined));
   }, [customCategories]);
 
+  const updateAssistantName = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setAssistantNameState(trimmed);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('subhalt_assistant_name', trimmed);
+    }
+  };
+
+  const setIsGmailConnected = (connected: boolean) => {
+    setIsGmailConnectedState(connected);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('subhalt_gmail_connected', connected ? 'true' : 'false');
+    }
+  };
+
   return (
     <UserSettingsContext.Provider
       value={{
@@ -567,6 +599,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         planTier,
         isPlus: planTier === 'plus',
         isPremium: planTier === 'plus',
+        assistantName,
+        isGmailConnected,
         loading,
         billingDetails,
         paymentMethods,
@@ -576,6 +610,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         updateDefaultCurrency,
         updateNotificationPreferences,
         updatePlanTier,
+        updateAssistantName,
+        setIsGmailConnected,
         updateBillingDetails,
         addPaymentMethod,
         deletePaymentMethod,

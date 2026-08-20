@@ -8,6 +8,7 @@ import { PieChart, Tag } from 'lucide-react';
 
 interface CategoryBreakdownCardProps {
   subscriptions: SubscriptionRow[];
+  isEmbedded?: boolean;
 }
 
 // SubSync Design System: Teal-Green & Near-Black Palette
@@ -17,7 +18,7 @@ const chartColorPalette = [
   { stroke: '#6B7280', dot: 'bg-[#6B7280]' }, // Muted Neutral
 ];
 
-export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardProps) {
+export function CategoryBreakdownCard({ subscriptions, isEmbedded = false }: CategoryBreakdownCardProps) {
   const { defaultCurrency, exchangeRates } = useUserSettings();
 
   const breakdown = calculateCategoryBreakdown(subscriptions, defaultCurrency, exchangeRates);
@@ -33,7 +34,7 @@ export function CategoryBreakdownCard({ subscriptions }: CategoryBreakdownCardPr
   let accumulatedPercentage = 0;
 
   return (
-    <div className="p-4 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-4 sm:space-y-6">
+    <div className={isEmbedded ? "space-y-4 sm:space-y-6" : "p-4 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-4 sm:space-y-6"}>
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">

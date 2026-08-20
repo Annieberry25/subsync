@@ -5,12 +5,14 @@ import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
 
 interface PersonalizedHeaderProps {
   onRefresh?: () => void;
   onAddSubscription?: () => void;
   loading?: boolean;
   renewingThisWeekCount?: number;
+  onAskSubHalt?: () => void;
 }
 
 function getGreeting() {
@@ -32,6 +34,7 @@ function getFormattedDateString() {
 
 export function PersonalizedHeader({
   renewingThisWeekCount = 0,
+  onAskSubHalt,
 }: PersonalizedHeaderProps) {
   const { fullName: contextFullName, email: contextEmail } = useUserSettings();
   const [user, setUser] = useState<User | null>(null);
@@ -66,7 +69,7 @@ export function PersonalizedHeader({
   const displayName = getDisplayName();
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
       <h1 className="sr-only">Dashboard</h1>
       {/* Left: Greeting + Subtitle */}
       <div>
@@ -82,7 +85,7 @@ export function PersonalizedHeader({
 
       {/* Right: Date */}
       <div className="text-left sm:text-right shrink-0">
-        <span className="text-xs sm:text-sm md:text-[15px] font-medium text-[#94A3B8] leading-normal sm:leading-[34px] block">
+        <span className="text-xs sm:text-sm font-medium text-[#94A3B8] block">
           {formattedDate}
         </span>
       </div>
