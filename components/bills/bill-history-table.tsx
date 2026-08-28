@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Filter, ShieldCheck, ExternalLink, FileText, Trash2, Edit3, Eye, ArrowUpDown, Tag, Calendar } from 'lucide-react';
+import { Search, Filter, ShieldCheck, ExternalLink, FileText, Trash2, Edit3, Eye, ArrowUpDown, Tag, Calendar, Loader2 } from 'lucide-react';
 import type { BillPayment, BillFilterOptions } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { formatCurrencyAmount, convertAmount, SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { filterBillPayments } from '@/lib/services/bills-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { getVerifiedProvider } from '@/lib/constants/verified-providers';
 
 interface BillHistoryTableProps {
@@ -14,6 +14,7 @@ interface BillHistoryTableProps {
   onSelectBill: (bill: BillPayment) => void;
   onEditBill: (bill: BillPayment) => void;
   onDeleteBill: (id: string) => void;
+  deletingId?: string | null;
   selectedCategory?: string;
   onSelectCategory?: (category: string) => void;
 }
@@ -23,15 +24,16 @@ export default function BillHistoryTable({
   onSelectBill,
   onEditBill,
   onDeleteBill,
+  deletingId,
   selectedCategory = 'All',
   onSelectCategory,
 }: BillHistoryTableProps) {
-  const { defaultCurrency, exchangeRates } = useUserSettings();
+  const { defaultCurrency, exchangeRates } = useCurrency();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currencyFilter, setCurrencyFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState<any>('all');
-  const [sortBy, setSortBy] = useState<any>('date_desc');
+  const [statusFilter, setStatusFilter] = useState<BillFilterOptions['status']>('all');
+  const [sortBy, setSortBy] = useState<BillFilterOptions['sortBy']>('date_desc');
 
   // Filtered bills
   const filteredBills = useMemo(() => {
@@ -100,7 +102,7 @@ export default function BillHistoryTable({
             {/* Sort Select */}
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => setSortBy(e.target.value as BillFilterOptions['sortBy'])}
               className="px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
             >
               <option value="date_desc">Newest First</option>
@@ -232,10 +234,16 @@ export default function BillHistoryTable({
                         <button
                           type="button"
                           onClick={() => onDeleteBill(bill.id)}
-                          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          disabled={deletingId === bill.id}
+                          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-50"
                           title="Delete"
+                          aria-label="Delete payment record"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          {deletingId === bill.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -310,9 +318,10 @@ export default function BillHistoryTable({
                     <button
                       type="button"
                       onClick={() => onDeleteBill(bill.id)}
-                      className="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 font-medium"
+                      disabled={deletingId === bill.id}
+                      className="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 font-medium disabled:opacity-50"
                     >
-                      Delete
+                      {deletingId === bill.id ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </div>

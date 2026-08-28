@@ -3,8 +3,9 @@ import type { Metadata } from 'next';
 import BillsManager from '@/components/bills/bills-manager';
 
 export const metadata: Metadata = {
-  title: 'Bills & Payments — SubHalt',
-  description: 'Track, organize, and analyze utility bills, mobile data, rent, and custom recurring payments in SubHalt.',
+  title: 'Bills',
+  description: 'Track and manage your utility and recurring bills with SubHalt.',
+  alternates: { canonical: '/bills' },
 };
 
 export default function BillsPage() {

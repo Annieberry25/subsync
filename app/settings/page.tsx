@@ -1,4 +1,5 @@
 'use client';
+import { safeRemoveItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -27,27 +28,29 @@ import {
   ArrowLeft,
   ChevronRight,
   MoreVertical,
+  type LucideIcon,
 } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useTheme } from '@/lib/hooks/use-theme';
+import { useTheme, type Theme } from '@/lib/hooks/use-theme';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import {
   fetchSubscriptions,
-  deleteSubscription,
   type SubscriptionRow,
 } from '@/lib/services/subscription-service';
-import ConfirmDialog from '@/components/ui/confirm-dialog';
+import { AddPaymentModal } from '@/components/settings/add-payment-modal';
 import { LegalModal } from '@/components/settings/legal-modal';
 import { ChangeEmailModal } from '@/components/settings/change-email-modal';
 import { EditBillingModal } from '@/components/settings/edit-billing-modal';
-import { AddPaymentModal } from '@/components/settings/add-payment-modal';
 import { CategoryManager } from '@/components/settings/category-manager';
+import { DeleteAccountModal } from '@/components/settings/delete-account-modal';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { CardIcon } from '@/components/ui/card-icons';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 
 type SettingsSection = 'account' | 'plan' | 'preferences' | 'privacy' | 'help';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.com';
 
 function SettingsContent() {
   const router = useRouter();
@@ -94,7 +97,6 @@ function SettingsContent() {
 
   // Account Deletion States
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Privacy & Data states
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
@@ -125,28 +127,15 @@ function SettingsContent() {
     }
   };
 
-  const handleConfirmDeleteAccount = async () => {
-    setDeletingAccount(true);
+  const handleAccountDeleted = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: subs } = await supabase.from('subscriptions').select('id');
-        if (subs && subs.length > 0) {
-          await Promise.all(subs.map((s) => deleteSubscription(s.id)));
-        }
-        await supabase.from('profiles').delete().eq('id', user.id);
-      }
-
       await supabase.auth.signOut();
-      if (typeof window !== 'undefined') {
-        localStorage.clear();
-      }
-
       router.push('/login');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete account.';
-      toast.error(msg, 'Account Deletion Error');
-      setDeletingAccount(false);
+      router.refresh();
+    } catch {
+      // If signOut fails, still attempt navigation to login
+      router.push('/login');
+      router.refresh();
     }
   };
 
@@ -168,12 +157,12 @@ function SettingsContent() {
 
   const handleClearCache = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('subsync_reminders');
+      safeRemoveItem('subsync_reminders');
       toast.success('Local cache & reminder preferences purged.', 'Cache Cleared');
     }
   };
 
-  const sectionsList: { id: SettingsSection; label: string; icon: any; description: string }[] = [
+  const sectionsList: { id: SettingsSection; label: string; icon: LucideIcon; description: string }[] = [
     { id: 'account', label: 'Account', icon: User, description: 'Profile info, authentication, and security' },
     { id: 'plan', label: 'Plan & Billing', icon: ArrowUpCircle, description: 'Current plan & billing controls' },
     { id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Currency, theme, notifications & categories' },
@@ -297,15 +286,11 @@ function SettingsContent() {
       </div>
 
       {/* Modals & Dialogs */}
-      <ConfirmDialog
+      {/* Account Deletion (re-auth protected) */}
+      <DeleteAccountModal
         isOpen={isDeleteAccountOpen}
         onClose={() => setIsDeleteAccountOpen(false)}
-        onConfirm={handleConfirmDeleteAccount}
-        loading={deletingAccount}
-        title="Permanently Delete Account?"
-        description="Are you sure you want to delete your SubHalt account? All subscription records and custom settings will be purged immediately. This action cannot be undone."
-        confirmText="Yes, Delete My Account"
-        variant="danger"
+        onDeleted={handleAccountDeleted}
       />
 
       <LegalModal
@@ -342,8 +327,8 @@ function SettingsContent() {
           start_date: '2026-08-15',
           end_date: null,
           status: 'active',
-          payment_method: 'Mastercard •••• 6730',
-          provider_url: 'https://subhalt.com',
+          payment_method: 'Card',
+          provider_url: SITE_URL,
           notes: 'SubHalt subscription auto-renews monthly at $4.99.',
           account_links: null,
           receipts: null,
@@ -421,13 +406,13 @@ function SettingsContent() {
                 <div>
                   <span className="text-xs text-[#94A3B8] block mb-1">Billing email</span>
                   <span className="text-sm font-medium text-[#F5F7F6]">
-                    {billingDetails?.email || email || 'anitaonyema25@gmail.com'}
+                    {billingDetails?.email || email || 'Not set'}
                   </span>
                 </div>
                 <div className="pt-3 border-t border-[#1A1D1D]/70">
                   <span className="text-xs text-[#94A3B8] block mb-1">Name</span>
                   <span className="text-sm font-medium text-[#F5F7F6]">
-                    {billingDetails?.fullName || fullName || 'Anita Onyema'}
+                    {billingDetails?.fullName || fullName || 'Not set'}
                   </span>
                 </div>
                 <div className="pt-3 border-t border-[#1A1D1D]/70">
@@ -483,6 +468,7 @@ function SettingsContent() {
                           onClick={() => deletePaymentMethod(pm.id)}
                           className="text-[#94A3B8] hover:text-[#D9363E] text-xs transition-colors p-1 cursor-pointer"
                           title="Remove payment method"
+                          aria-label="Remove payment method"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -651,7 +637,7 @@ function SettingsContent() {
             <CustomSelect
               options={[{ value: 'system', label: 'System' }]}
               value={theme || 'system'}
-              onChange={(val) => setTheme(val as any)}
+              onChange={(val) => setTheme(val as Theme)}
               ariaLabel="Appearance theme"
               variant="inline"
               showCheckmark={false}

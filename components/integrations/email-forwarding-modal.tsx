@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Forward, Copy, Check, Info, ArrowRight, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import { createSubscription, fetchSubscriptions, filterActiveSubscriptions } from '@/lib/services/subscription-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { usePlan } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { useToast } from '@/lib/hooks/use-toast';
 
@@ -17,11 +17,18 @@ interface EmailForwardingModalProps {
 }
 
 export function EmailForwardingModal({ isOpen, onClose, onBack, onSuccess, onRequireUpgrade }: EmailForwardingModalProps) {
-  const { isPlus } = useUserSettings();
+  const { isPlus } = usePlan();
   const { addInboxItem } = useInbox();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const userForwardingAddress = 'receipts+user_8921@subhalt.app';
 
@@ -31,7 +38,7 @@ export function EmailForwardingModal({ isOpen, onClose, onBack, onSuccess, onReq
     navigator.clipboard.writeText(userForwardingAddress);
     setCopied(true);
     toast.success('Forwarding address copied to clipboard.', 'Copied');
-    setTimeout(() => setCopied(false), 2000);
+    timerRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
   const handleSimulateForwardedReceipt = async () => {

@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 export interface CurrencyOption {
   code: string;
   symbol: string;
@@ -78,14 +81,14 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 export async function fetchExchangeRates(): Promise<Record<string, number>> {
   if (typeof window !== 'undefined') {
     try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
+      const cached = safeGetItem(CACHE_KEY);
+      const cachedTime = safeGetItem(CACHE_TIME_KEY);
       if (cached && cachedTime && Date.now() - Number(cachedTime) < ONE_HOUR_MS) {
         const parsed = JSON.parse(cached);
         return { ...DEFAULT_EXCHANGE_RATES, ...parsed };
       }
-    } catch {
-      // Fall through on cache error
+    } catch (err) {
+      logger.warn('[currency-service] Exchange rate cache read error', { message: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -99,17 +102,19 @@ export async function fetchExchangeRates(): Promise<Record<string, number>> {
         const mergedRates = { ...DEFAULT_EXCHANGE_RATES, ...data.rates };
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(mergedRates));
-            localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-          } catch {
-            // Ignore storage errors
+            safeSetItem(CACHE_KEY, JSON.stringify(mergedRates));
+            safeSetItem(CACHE_TIME_KEY, Date.now().toString());
+          } catch (err) {
+            logger.warn('[currency-service] Exchange rate cache write error', { message: err instanceof Error ? err.message : String(err) });
           }
         }
         return mergedRates;
       }
+    } else {
+      logger.warn('[currency-service] Exchange rate fetch returned non-OK status', { status: response.status });
     }
-  } catch {
-    // Fail safely and return default exchange rates
+  } catch (err) {
+    logger.error('[currency-service] Exchange rate fetch failed, using defaults', err);
   }
 
   return DEFAULT_EXCHANGE_RATES;

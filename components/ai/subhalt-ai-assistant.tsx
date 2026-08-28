@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Eye, HelpCircle, Bell } from 'lucide-react';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import React, { useState, memo } from 'react';
+import { X, Eye, HelpCircle, Bell, Sparkles } from 'lucide-react';
+import { useSettings, useCurrency } from '@/lib/contexts/user-settings-context';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
@@ -13,11 +13,13 @@ interface SubHaltAIAssistantProps {
   onAskSubHalt?: (question?: string) => void;
 }
 
-export function SubHaltAIAssistant({
+export const SubHaltAIAssistant = memo(function SubHaltAIAssistant({
   subscriptions,
   onViewSubscription,
+  onAskSubHalt,
 }: SubHaltAIAssistantProps) {
-  const { assistantName, defaultCurrency } = useUserSettings();
+  const { assistantName } = useSettings();
+  const { defaultCurrency } = useCurrency();
   const [isDismissed, setIsDismissed] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [isReminded, setIsReminded] = useState(false);
@@ -48,6 +50,7 @@ export function SubHaltAIAssistant({
         <button
           type="button"
           onClick={() => setIsDismissed(true)}
+          aria-label="Dismiss notification"
           className="text-[#94A3B8] hover:text-[#F5F7F6] p-1 rounded-lg hover:bg-[#1A1D1D] transition-colors cursor-pointer"
           title="Dismiss notification"
         >
@@ -115,8 +118,17 @@ export function SubHaltAIAssistant({
           >
             <span>Remind me later</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => onAskSubHalt?.()}
+            className="px-3 py-1.5 rounded-lg bg-[#1A1D1D] hover:bg-[#262929] text-[#14B8A6] text-xs font-semibold border border-[#14B8A6]/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Ask SubHalt</span>
+          </button>
         </div>
       </div>
     </div>
   );
-}
+});

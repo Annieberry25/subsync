@@ -66,11 +66,16 @@ export default function RenewalsPageContent() {
         setSubscriptions(data);
       }
       setLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setLoading(false);
     });
     return () => {
       active = false;
     };
-  }, [subscriptions.length]);
+    // Run once on mount; refresh is triggered explicitly elsewhere.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { overdueList, upcomingRenewals } = useMemo(() => {
     const today = new Date();

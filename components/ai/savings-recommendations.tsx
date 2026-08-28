@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { PiggyBank, Eye, HelpCircle, ArrowRight, ShieldAlert, Sparkles } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { formatCurrency, getNormalizedMonthlyPrice } from '@/lib/utils/metrics-utils';
 import { CategoryBreakdownCard } from '@/components/dashboard/category-breakdown-card';
 import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
@@ -16,14 +16,14 @@ interface SavingsRecommendationsProps {
   onAskSubHalt: (question: string) => void;
 }
 
-export function SavingsRecommendations({
+export const SavingsRecommendations = memo(function SavingsRecommendations({
   subscriptions,
   activeSubscriptions,
   onReviewSubscription,
   onSeeSavings,
   onAskSubHalt,
 }: SavingsRecommendationsProps) {
-  const { defaultCurrency } = useUserSettings();
+  const { defaultCurrency } = useCurrency();
 
   const activeSubs = activeSubscriptions || subscriptions.filter(
     (s) => s.status === 'active' || s.status === 'trial'
@@ -54,7 +54,7 @@ export function SavingsRecommendations({
   }
 
   // 2. Approaching renewal within 7 days
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const weekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const renewalNear = activeSubs.find((s) => {
     const d = new Date(s.next_billing_date);
@@ -175,4 +175,4 @@ export function SavingsRecommendations({
       </div>
     </div>
   );
-}
+});

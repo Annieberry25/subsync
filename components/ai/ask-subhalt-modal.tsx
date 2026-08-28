@@ -1,12 +1,15 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, CornerDownLeft, User, ArrowRight } from 'lucide-react';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { X, Send, User, ExternalLink } from 'lucide-react';
+import { useSettings, useCurrency } from '@/lib/contexts/user-settings-context';
 import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
 import {
   fetchSubscriptions,
   getCachedSubscriptions,
   type SubscriptionRow,
 } from '@/lib/services/subscription-service';
+import { logger } from '@/lib/logger';
 import {
   calculateMonthlySpend,
   calculateAnnualSpend,
@@ -29,19 +32,50 @@ interface ChatMessage {
   text: string;
   timestamp: string;
   relatedSubs?: SubscriptionRow[];
-  actionLabel?: string;
-  onAction?: () => void;
+  sources?: { title: string; uri: string }[];
+}
+
+interface AiSource {
+  title: string;
+  uri: string;
 }
 
 const PRESET_QUESTIONS = [
   'How much am I spending every month?',
   'Which subscriptions increased in price?',
-  'What subscriptions am I not using?',
   'What renews next?',
+  'How much did I pay on bills this month?',
+  'Which bill providers am I using most?',
   'Find subscriptions I could cancel.',
   'How much could I save?',
-  'Show me my software subscriptions.',
+  'Are there any outages affecting my electricity provider?',
 ];
+
+async function askSubHaltApi(params: {
+  question: string;
+  history: { role: 'user' | 'assistant'; text: string }[];
+}): Promise<{ answer: string; sources: AiSource[]; configured: boolean }> {
+  const res = await fetch('/api/ai/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+
+  const json = (await res.json().catch(() => null)) as
+    | { configured?: boolean; answer?: string; sources?: AiSource[]; error?: string }
+    | null;
+
+  if (!res.ok || !json) {
+    const message = json?.error || 'The assistant could not reach the AI service.';
+    throw new Error(message);
+  }
+
+  return {
+    answer: json.answer || '',
+    sources: Array.isArray(json.sources) ? json.sources : [],
+    configured: Boolean(json.configured),
+  };
+}
 
 export function AskSubHaltModal({
   isOpen,
@@ -50,12 +84,15 @@ export function AskSubHaltModal({
   initialQuestion,
   onSelectSubscription,
 }: AskSubHaltModalProps) {
-  const { assistantName, defaultCurrency, exchangeRates } = useUserSettings();
+  const { assistantName } = useSettings();
+  const { defaultCurrency, exchangeRates } = useCurrency();
   const [internalSubs, setInternalSubs] = useState<SubscriptionRow[]>(providedSubs || getCachedSubscriptions() || []);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputQuery, setInputQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<{ role: 'user' | 'assistant'; text: string }[]>([]);
 
   useEffect(() => {
     if (providedSubs) {
@@ -63,6 +100,8 @@ export function AskSubHaltModal({
     } else if (isOpen) {
       fetchSubscriptions().then(({ data }) => {
         if (data) setInternalSubs(data);
+      }).catch(() => {
+        // Keep internalSubs empty on failure; chat still works with no data.
       });
     }
   }, [providedSubs, isOpen]);
@@ -78,15 +117,17 @@ export function AskSubHaltModal({
       const welcomeMessage: ChatMessage = {
         id: 'welcome',
         sender: 'assistant',
-        text: `Hello! I'm ${assistantName}, your subscription management intelligence layer. Ask me anything about your active subscriptions, monthly spending, or potential savings.`,
+        text: `Hello! I'm ${assistantName}, your finance assistant for SubHalt. I can help you understand what you're spending on subscriptions and bills, remind you about renewals and due payments, find savings, and look up current news about any service or provider you deal with. What would you like to know?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages([welcomeMessage]);
+      historyRef.current = [];
 
       if (initialQuestion) {
         handleProcessQuestion(initialQuestion);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -95,10 +136,18 @@ export function AskSubHaltModal({
 
   if (!isOpen) return null;
 
-  const generateAnswer = (question: string): { responseText: string; related?: SubscriptionRow[] } => {
+  // Match subscriptions mentioned in the answer so the UI can offer related chips.
+  const findRelatedSubs = (answerText: string): SubscriptionRow[] => {
+    if (!answerText) return [];
+    const lower = answerText.toLowerCase();
+    const matched = allSubs.filter((s) => s.name.toLowerCase().length > 2 && lower.includes(s.name.toLowerCase()));
+    return matched.slice(0, 4);
+  };
+
+  // Offline fallback used when the AI service is not configured or unreachable.
+  const getOfflineAnswer = (question: string): { responseText: string; related?: SubscriptionRow[] } => {
     const qLower = question.toLowerCase().trim();
 
-    // 1. Monthly spending query
     if (qLower.includes('spending every month') || qLower.includes('how much am i spending') || qLower.includes('monthly spend')) {
       const monthlyTotal = calculateMonthlySpend(activeSubs, defaultCurrency, exchangeRates);
       const annualTotal = calculateAnnualSpend(activeSubs);
@@ -108,7 +157,6 @@ export function AskSubHaltModal({
       };
     }
 
-    // 2. Price increase query
     if (qLower.includes('increased in price') || qLower.includes('price increase') || qLower.includes('changed price')) {
       const priceChanges = activeSubs.filter(
         (s: SubscriptionRow) => (s.notes && s.notes.toLowerCase().includes('price')) || s.price > 15
@@ -125,23 +173,17 @@ export function AskSubHaltModal({
       };
     }
 
-    // 3. Not using / paused / trial query
-    if (qLower.includes('not using') || qLower.includes('unused') || qLower.includes('idle')) {
-      const pausedOrTrial = allSubs.filter(
-        (s: SubscriptionRow) => s.status === 'paused' || s.status === 'trial'
+    if (qLower.includes('cancel') || qLower.includes('save') || qLower.includes('could i save')) {
+      const potential = calculatePotentialSavings(allSubs, defaultCurrency, exchangeRates);
+      const candidates = allSubs.filter(
+        (s: SubscriptionRow) => s.status === 'paused' || s.status === 'trial' || s.price >= 20
       );
-      if (pausedOrTrial.length > 0) {
-        return {
-          responseText: `You have ${pausedOrTrial.length} subscription${pausedOrTrial.length === 1 ? '' : 's'} that may be low-usage, paused, or currently on a trial: ${pausedOrTrial.map((s: SubscriptionRow) => s.name).join(', ')}.`,
-          related: pausedOrTrial,
-        };
-      }
       return {
-        responseText: `All ${activeSubs.length} active subscriptions have registered account activity within the past billing cycle.`,
+        responseText: `Based on your portfolio analysis, you could save up to ${formatCurrency(potential > 0 ? potential : 45.0, defaultCurrency)}/month by optimizing trial periods and reviewing high-cost plans.`,
+        related: candidates.slice(0, 3),
       };
     }
 
-    // 4. Renews next query
     if (qLower.includes('renews next') || qLower.includes('upcoming renewal') || qLower.includes('next billing')) {
       const sortedByNext = [...activeSubs].sort(
         (a, b) => new Date(a.next_billing_date).getTime() - new Date(b.next_billing_date).getTime()
@@ -161,19 +203,6 @@ export function AskSubHaltModal({
       };
     }
 
-    // 5. Find subscriptions to cancel / how much could I save
-    if (qLower.includes('cancel') || qLower.includes('save') || qLower.includes('could i save')) {
-      const potential = calculatePotentialSavings(allSubs, defaultCurrency, exchangeRates);
-      const candidates = allSubs.filter(
-        (s: SubscriptionRow) => s.status === 'paused' || s.status === 'trial' || s.price >= 20
-      );
-      return {
-        responseText: `Based on your portfolio analysis, you could save up to ${formatCurrency(potential > 0 ? potential : 45.0, defaultCurrency)}/month by optimizing trial periods and reviewing high-cost plans.`,
-        related: candidates.slice(0, 3),
-      };
-    }
-
-    // 6. Software subscriptions query
     if (qLower.includes('software') || qLower.includes('tools') || qLower.includes('apps')) {
       const softwareSubs = activeSubs.filter(
         (s) => s.category.toLowerCase() === 'software' || s.category.toLowerCase() === 'utilities'
@@ -190,44 +219,85 @@ export function AskSubHaltModal({
       };
     }
 
-    // Generic contextual fallback
     return {
-      responseText: `I've analyzed your ${activeSubs.length} active subscriptions. Total monthly expenditure is ${formatCurrency(calculateMonthlySpend(activeSubs, defaultCurrency, exchangeRates), defaultCurrency)}. If you need specific details about renewals, price changes, or cancellation routes, let me know!`,
+      responseText: `I've analyzed your ${activeSubs.length} active subscriptions. Total monthly expenditure is ${formatCurrency(calculateMonthlySpend(activeSubs, defaultCurrency, exchangeRates), defaultCurrency)}. If you need specifics about renewals, price changes, cancellations, bills, or current news about a provider, let me know!`,
       related: activeSubs.slice(0, 3),
     };
   };
 
-  const handleProcessQuestion = (questionText: string) => {
+  async function handleProcessQuestion(questionText: string) {
     if (!questionText.trim()) return;
 
+    const trimmed = questionText.trim();
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
-      text: questionText.trim(),
+      text: trimmed,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
+    historyRef.current = [...historyRef.current, { role: 'user', text: trimmed }];
     setInputQuery('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const { responseText, related } = generateAnswer(questionText);
-      const assistantMsg: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        sender: 'assistant',
-        text: responseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        relatedSubs: related,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setIsTyping(false);
-    }, 400);
-  };
+    let responseText = '';
+    let sources: AiSource[] = [];
+    let related: SubscriptionRow[] = [];
+
+    try {
+      const result = await askSubHaltApi({
+        question: trimmed,
+        history: historyRef.current.slice(-10),
+      });
+
+      if (result.configured && result.answer) {
+        responseText = result.answer;
+        sources = result.sources;
+        setIsOffline(false);
+      } else {
+        // AI not configured — degrade to local intelligence so chat still works.
+        setIsOffline(true);
+        const offline = getOfflineAnswer(trimmed);
+        responseText = offline.responseText;
+        related = offline.related || [];
+      }
+    } catch (err) {
+      logger.warn('[ai] chat API failed, using offline fallback', {
+        message: err instanceof Error ? err.message : String(err),
+      });
+      setIsOffline(true);
+      const offline = getOfflineAnswer(trimmed);
+      responseText = offline.responseText;
+      related = offline.related || [];
+    }
+
+    if (!related || related.length === 0) {
+      related = findRelatedSubs(responseText);
+    }
+
+    const assistantMsg: ChatMessage = {
+      id: `assistant-${Date.now()}`,
+      sender: 'assistant',
+      text: responseText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      relatedSubs: related,
+      sources,
+    };
+
+    setMessages((prev) => [...prev, assistantMsg]);
+    historyRef.current = [...historyRef.current, { role: 'assistant', text: responseText }];
+    setIsTyping(false);
+  }
 
   return (
     <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-2xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl flex flex-col h-[620px] max-h-[90vh] overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ask SubHalt assistant"
+        className="w-full max-w-2xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl flex flex-col h-[620px] max-h-[90vh] overflow-hidden"
+      >
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between bg-[#000000]">
           <div className="flex items-center gap-3">
@@ -237,7 +307,7 @@ export function AskSubHaltModal({
                 Ask {assistantName}
               </h3>
               <p className="text-[11px] text-[#94A3B8]">
-                Contextual Subscription Intelligence
+                Connected to your subscriptions & bills
               </p>
             </div>
           </div>
@@ -245,6 +315,7 @@ export function AskSubHaltModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close chat"
             className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
           >
             <X className="w-4.5 h-4.5" />
@@ -261,12 +332,34 @@ export function AskSubHaltModal({
               key={q}
               type="button"
               onClick={() => handleProcessQuestion(q)}
-              className="px-2.5 py-1 rounded-lg bg-[#121414] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] hover:border-[#3F3F46] text-xs transition-colors shrink-0 cursor-pointer"
+              disabled={isTyping}
+              className="px-2.5 py-1 rounded-lg bg-[#121414] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] hover:border-[#3F3F46] text-xs transition-colors shrink-0 cursor-pointer disabled:opacity-50"
             >
               {q}
             </button>
           ))}
         </div>
+
+        {/* Offline mode notice */}
+        {isOffline && (
+          <div className="px-4 py-2 bg-[#1A1508]/80 border-b border-[#3F3F46]/30 flex items-center justify-between gap-3">
+            <p className="text-[11px] text-[#FBBF24] flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FBBF24] shrink-0" />
+              <span>
+                Offline mode — answering from local data. Add a <span className="font-semibold">GEMINI_API_KEY</span>{' '}
+                to enable live AI answers &amp; web search.
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsOffline(false)}
+              aria-label="Dismiss offline mode notice"
+              className="text-[#FBBF24]/70 hover:text-[#FBBF24] shrink-0 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Chat History Messages Stream */}
         <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-[#0B0D0D]">
@@ -315,6 +408,29 @@ export function AskSubHaltModal({
                   </div>
                 )}
 
+                {/* Web sources cited by the model */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="pt-2 border-t border-[#1A1D1D]/70 space-y-1.5">
+                    <span className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider block">
+                      Sources:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.sources.map((s, i) => (
+                        <a
+                          key={`${s.uri}-${i}`}
+                          href={s.uri}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2 py-1 rounded-md bg-[#1A1D1D] hover:bg-[#262929] text-[#14B8A6] border border-[#3F3F46]/40 text-[11px] font-medium inline-flex items-center gap-1 max-w-[220px] truncate"
+                        >
+                          <span className="truncate">{s.title}</span>
+                          <ExternalLink className="w-3 h-3 shrink-0" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <span
                   className={`text-[9px] block mt-1 ${
                     msg.sender === 'user' ? 'text-[#091512]/70 text-right' : 'text-[#94A3B8]'
@@ -337,7 +453,7 @@ export function AskSubHaltModal({
               <SubHaltAvatar size="md" className="animate-pulse" />
               <div className="bg-[#121414] border border-[#1A1D1D] rounded-2xl rounded-tl-none px-4 py-2.5 text-xs text-[#94A3B8] flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6] animate-ping" />
-                <span>{assistantName} is calculating...</span>
+                <span>{assistantName} is thinking...</span>
               </div>
             </div>
           )}
@@ -358,12 +474,12 @@ export function AskSubHaltModal({
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
-              placeholder={`Ask ${assistantName} about your subscriptions...`}
+              placeholder={`Ask ${assistantName} about your subscriptions, bills, or current news...`}
               className="flex-1 bg-[#121414] border border-[#1A1D1D] focus:border-[#14B8A6] rounded-xl px-3.5 py-2.5 text-xs text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none transition-colors"
             />
             <button
               type="submit"
-              disabled={!inputQuery.trim()}
+              disabled={!inputQuery.trim() || isTyping}
               className="px-4 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] disabled:opacity-40 disabled:cursor-not-allowed text-[#091512] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <span>Ask</span>

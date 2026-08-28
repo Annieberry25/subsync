@@ -1,9 +1,10 @@
 'use client';
 
+import { memo } from 'react';
 import { calculateCategoryBreakdown } from '@/lib/utils/analytics-utils';
 import { calculateMonthlySpend, formatCurrency } from '@/lib/utils/metrics-utils';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { PieChart, Tag } from 'lucide-react';
 
 interface CategoryBreakdownCardProps {
@@ -18,8 +19,8 @@ const chartColorPalette = [
   { stroke: '#6B7280', dot: 'bg-[#6B7280]' }, // Muted Neutral
 ];
 
-export function CategoryBreakdownCard({ subscriptions, isEmbedded = false }: CategoryBreakdownCardProps) {
-  const { defaultCurrency, exchangeRates } = useUserSettings();
+export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subscriptions, isEmbedded = false }: CategoryBreakdownCardProps) {
+  const { defaultCurrency, exchangeRates } = useCurrency();
 
   const breakdown = calculateCategoryBreakdown(subscriptions, defaultCurrency, exchangeRates);
   const totalMonthlySpend = calculateMonthlySpend(subscriptions, defaultCurrency, exchangeRates);
@@ -151,4 +152,4 @@ export function CategoryBreakdownCard({ subscriptions, isEmbedded = false }: Cat
       )}
     </div>
   );
-}
+});

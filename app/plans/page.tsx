@@ -3,18 +3,19 @@
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, X, Loader2, CreditCard, ShieldCheck } from 'lucide-react';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { usePlan } from '@/lib/contexts/user-settings-context';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { recordActivity } from '@/lib/services/activity-service';
 import { createSubscription } from '@/lib/services/subscription-service';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
-import { MastercardIcon } from '@/components/ui/card-icons';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.com';
 
 function PlansContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isPlus, updatePlanTier } = useUserSettings();
+  const { isPlus, updatePlanTier } = usePlan();
   const { toast } = useToast();
   const { addInboxItem } = useInbox();
 
@@ -47,8 +48,8 @@ function PlansContent() {
         next_billing_date: '2026-09-15',
         start_date: new Date().toISOString().split('T')[0],
         status: 'active',
-        payment_method: 'Mastercard •••• 6730',
-        provider_url: 'https://subhalt.com',
+        payment_method: 'Card',
+        provider_url: SITE_URL,
         notes: 'SubHalt subscription auto-renews monthly at $4.99.',
       });
 
@@ -272,6 +273,9 @@ function PlansContent() {
       {isCheckoutOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm subscription payment"
             className="w-full max-w-md bg-[#0F1111] border border-[#1A1D1D] rounded-2xl p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-200 relative text-[#F5F7F6]"
             onClick={(e) => e.stopPropagation()}
           >
@@ -283,6 +287,7 @@ function PlansContent() {
               <button
                 type="button"
                 onClick={() => setIsCheckoutOpen(false)}
+                aria-label="Close checkout"
                 className="text-[#94A3B8] hover:text-[#F5F7F6] p-1 rounded-lg hover:bg-[#1A1D1D] cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -301,18 +306,18 @@ function PlansContent() {
               </div>
             </div>
 
-            {/* Card Information */}
+            {/* Payment Details */}
             <div className="space-y-3">
               <span className="text-xs font-medium text-[#94A3B8] block">Payment Details</span>
               <div className="p-3.5 rounded-xl bg-[#141617] border border-[#232628] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <MastercardIcon className="w-8 h-5 shrink-0" />
+                  <div className="w-8 h-5 shrink-0 rounded bg-[#1A1D1D] border border-[#232628]" />
                   <div>
-                    <span className="text-xs font-semibold text-[#F5F7F6] block">Mastercard</span>
-                    <span className="text-xs text-[#94A3B8]">•••• 6730</span>
+                    <span className="text-xs font-semibold text-[#F5F7F6] block">Card</span>
+                    <span className="text-xs text-[#94A3B8]">•••• •••• •••• ••••</span>
                   </div>
                 </div>
-                <span className="text-[11px] text-[#94A3B8]">Expires 12/28</span>
+                <span className="text-[11px] text-[#94A3B8]">Verified</span>
               </div>
             </div>
 

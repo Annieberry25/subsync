@@ -3,7 +3,7 @@
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Zap, PieChart, Building2, CreditCard, ArrowRight } from 'lucide-react';
 import type { BillSpendingSummary } from '@/lib/types/bills.types';
 import { formatCurrencyAmount } from '@/lib/services/currency-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 
 interface BillSpendingSummaryProps {
   summary: BillSpendingSummary;
@@ -14,7 +14,7 @@ export default function BillSpendingSummaryComponent({
   summary,
   onFilterCategory,
 }: BillSpendingSummaryProps) {
-  const { defaultCurrency } = useUserSettings();
+  const { defaultCurrency } = useCurrency();
 
   const formattedTotalThisMonth = formatCurrencyAmount(summary.totalThisMonth, defaultCurrency);
   const formattedPrevMonth = formatCurrencyAmount(summary.previousMonthTotal, defaultCurrency);

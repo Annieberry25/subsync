@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/client';
+import { logger } from '@/lib/logger';
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 import type { Database } from '@/lib/types/database.types';
 import type {
   BillPayment,
@@ -145,7 +147,7 @@ const INITIAL_DEMO_BILLS: BillPayment[] = [
   },
 ];
 
-function transformRowToBill(row: any): BillPayment {
+function transformRowToBill(row: BillPaymentRow): BillPayment {
   return {
     id: row.id,
     userId: row.user_id,
@@ -174,7 +176,7 @@ function transformRowToBill(row: any): BillPayment {
 function getLocalBills(): BillPayment[] {
   if (typeof window === 'undefined') return INITIAL_DEMO_BILLS;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = safeGetItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -182,7 +184,7 @@ function getLocalBills(): BillPayment[] {
       }
     }
     // Initialize demo seed
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DEMO_BILLS));
+    safeSetItem(STORAGE_KEY, JSON.stringify(INITIAL_DEMO_BILLS));
     return INITIAL_DEMO_BILLS;
   } catch {
     return INITIAL_DEMO_BILLS;
@@ -193,18 +195,20 @@ function setLocalBills(bills: BillPayment[]) {
   cachedBills = bills;
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(bills));
+      safeSetItem(STORAGE_KEY, JSON.stringify(bills));
       window.dispatchEvent(new Event('subsync_bills_updated'));
-    } catch {
-      // Ignore
+    } catch (err) {
+      logger.warn('[bills-service] setLocalBills localStorage write failed', { message: err instanceof Error ? err.message : String(err) });
     }
   }
 }
 
 export async function fetchBillPayments(): Promise<{ data: BillPayment[]; error: Error | null }> {
+  let isAuthenticated = false;
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    isAuthenticated = Boolean(user);
 
     if (user) {
       const { data, error } = await supabase
@@ -214,24 +218,54 @@ export async function fetchBillPayments(): Promise<{ data: BillPayment[]; error:
 
       if (!error && data) {
         const transformed = data.map(transformRowToBill);
-        const local = getLocalBills().filter((b) => b.userId === 'demo_user' || !data.some((d) => d.id === b.id));
+        const local = getLocalBills().filter((b) => b.userId !== 'demo_user' && !data.some((d) => d.id === b.id));
         const merged = [...transformed, ...local];
         cachedBills = merged;
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-          } catch {}
+            safeSetItem(STORAGE_KEY, JSON.stringify(merged));
+          } catch {
+            logger.warn('[bills-service] fetchBillPayments localStorage write failed');
+          }
         }
         return { data: merged, error: null };
       }
+      if (error) {
+        logger.warn('[bills-service] fetchBillPayments DB error, using cache', { message: error.message });
+      }
     }
-  } catch {
-    // Fall back to local
+  } catch (err) {
+    logger.error('[bills-service] fetchBillPayments exception, using cache', err);
   }
 
   const local = getLocalBills();
-  cachedBills = local;
-  return { data: local, error: null };
+  const data = isAuthenticated ? local.filter((b) => b.userId !== 'demo_user') : local;
+  cachedBills = data;
+  return { data, error: null };
+}
+
+export function toBillPaymentInsert(
+  billData: Partial<BillPayment>
+): Omit<BillPaymentInsert, 'user_id'> & { custom_category?: string | null } {
+  const payload: Partial<BillPaymentInsert> & { custom_category?: string | null } = {};
+  if (billData.category !== undefined) payload.category = billData.category;
+  if (billData.customCategory !== undefined) payload.custom_category = billData.customCategory;
+  if (billData.providerName !== undefined) payload.provider_name = billData.providerName;
+  if (billData.amount !== undefined) payload.amount = billData.amount;
+  if (billData.currency !== undefined) payload.currency = billData.currency;
+  if (billData.paymentDate !== undefined) payload.payment_date = billData.paymentDate;
+  if (billData.country !== undefined) payload.country = billData.country;
+  if (billData.region !== undefined) payload.region = billData.region;
+  if (billData.city !== undefined) payload.city = billData.city;
+  if (billData.paymentFrequency !== undefined) payload.payment_frequency = billData.paymentFrequency;
+  if (billData.isRecurring !== undefined) payload.is_recurring = billData.isRecurring;
+  if (billData.notes !== undefined) payload.notes = billData.notes;
+  if (billData.receipts !== undefined) payload.receipts = billData.receipts;
+  if (billData.providerReference !== undefined) payload.provider_reference = billData.providerReference;
+  if (billData.officialProviderUrl !== undefined) payload.official_provider_url = billData.officialProviderUrl;
+  if (billData.status !== undefined) payload.status = billData.status;
+  if (billData.source !== undefined) payload.source = billData.source;
+  return payload as Omit<BillPaymentInsert, 'user_id'> & { custom_category?: string | null };
 }
 
 export async function createBillPayment(
@@ -261,7 +295,7 @@ export async function createBillPayment(
           payment_frequency: billData.payment_frequency || null,
           is_recurring: billData.is_recurring ?? false,
           notes: billData.notes || null,
-          receipts: billData.receipts as any || [],
+          receipts: billData.receipts || [],
           source: billData.source || 'manual',
           provider_reference: billData.provider_reference || null,
           official_provider_url: officialUrl,
@@ -277,9 +311,14 @@ export async function createBillPayment(
         setLocalBills(updated);
         return { data: bill, error: null };
       }
+      if (error) {
+        logger.warn('[bills-service] createBillPayment DB error, persisting locally', { message: error.message });
+      }
+    } else {
+      logger.warn('[bills-service] createBillPayment called without authenticated user');
     }
-  } catch {
-    // Ignore error
+  } catch (err) {
+    logger.error('[bills-service] createBillPayment exception, persisting locally', err);
   }
 
   // Fallback local storage creation
@@ -298,7 +337,7 @@ export async function createBillPayment(
     paymentFrequency: billData.payment_frequency || null,
     isRecurring: billData.is_recurring ?? false,
     notes: billData.notes || null,
-    receipts: (billData.receipts as any) || [],
+    receipts: billData.receipts || [],
     source: billData.source || 'manual',
     providerReference: billData.provider_reference || null,
     officialProviderUrl: officialUrl,
@@ -323,7 +362,7 @@ export async function updateBillPayment(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
-      const payload: any = {};
+      const payload: BillPaymentUpdate = {};
       if (updates.category !== undefined) payload.category = updates.category;
       if (updates.customCategory !== undefined) payload.custom_category = updates.customCategory;
       if (updates.providerName !== undefined) payload.provider_name = updates.providerName;
@@ -355,9 +394,14 @@ export async function updateBillPayment(
         setLocalBills(list);
         return { data: updatedBill, error: null };
       }
+      if (error) {
+        logger.warn('[bills-service] updateBillPayment DB error, updating locally', { message: error.message });
+      }
+    } else {
+      logger.warn('[bills-service] updateBillPayment called without authenticated user');
     }
-  } catch {
-    // Ignore error
+  } catch (err) {
+    logger.error('[bills-service] updateBillPayment exception, updating locally', err);
   }
 
   const existing = getLocalBills();
@@ -384,9 +428,11 @@ export async function deleteBillPayment(id: string): Promise<{ error: Error | nu
       if (error) {
         return { error: new Error(error.message) };
       }
+    } else {
+      logger.warn('[bills-service] deleteBillPayment called without authenticated user');
     }
-  } catch {
-    // Ignore error
+  } catch (err) {
+    logger.error('[bills-service] deleteBillPayment exception, deleting locally', err);
   }
 
   const existing = getLocalBills();

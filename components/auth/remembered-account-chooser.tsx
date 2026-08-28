@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronRight } from 'lucide-react';
 import { RememberedAccount } from '@/lib/auth/remembered-accounts';
 import { Button } from '@/components/ui/button';
@@ -67,11 +68,13 @@ export function RememberedAccountChooser({
           >
             <div className="flex items-center gap-3 min-w-0">
               {account.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={account.avatarUrl}
                   alt={getLabel(account)}
+                  width={36}
+                  height={36}
                   className="w-9 h-9 rounded-full object-cover border border-[#1A1D1D] shrink-0"
+                  unoptimized
                 />
               ) : (
                 <div className="w-9 h-9 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/30 text-[#14B8A6] font-bold text-xs flex items-center justify-center shrink-0">

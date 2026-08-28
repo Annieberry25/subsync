@@ -22,8 +22,9 @@ import {
   updateBillPayment,
   deleteBillPayment,
   calculateBillSpendingSummary,
+  toBillPaymentInsert,
 } from '@/lib/services/bills-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { usePlan, useCurrency } from '@/lib/contexts/user-settings-context';
 import { getPlanLimits } from '@/lib/constants/plan-limits';
 import { useToast } from '@/lib/hooks/use-toast';
 import BillSpendingSummaryComponent from './bill-spending-summary';
@@ -33,13 +34,15 @@ import ReceiptScanModal from './receipt-scan-modal';
 import BillDetailModal from './bill-detail-modal';
 
 export default function BillsManager() {
-  const { planTier, defaultCurrency, exchangeRates } = useUserSettings();
+  const { planTier } = usePlan();
+  const { defaultCurrency, exchangeRates } = useCurrency();
   const { toast } = useToast();
 
   const [bills, setBills] = useState<BillPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [visibleCountBills, setVisibleCountBills] = useState(20);
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -48,6 +51,7 @@ export default function BillsManager() {
   const [selectedBill, setSelectedBill] = useState<BillPayment | null>(null);
   const [editingBill, setEditingBill] = useState<BillPayment | null>(null);
   const [showLimitWarning, setShowLimitWarning] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const limits = useMemo(() => getPlanLimits(planTier), [planTier]);
 
@@ -73,6 +77,9 @@ export default function BillsManager() {
   const summary = useMemo(() => {
     return calculateBillSpendingSummary(bills, defaultCurrency, exchangeRates);
   }, [bills, defaultCurrency, exchangeRates]);
+
+  const paginatedBills = useMemo(() => bills.slice(0, visibleCountBills), [bills, visibleCountBills]);
+  const hasMoreBills = bills.length > visibleCountBills;
 
   const handleOpenAdd = () => {
     if (bills.length >= limits.maxBills) {
@@ -101,7 +108,7 @@ export default function BillsManager() {
         loadBills();
       }
     } else {
-      const { error } = await createBillPayment(billData as any);
+      const { error } = await createBillPayment(toBillPaymentInsert(billData));
       if (error) {
         toast.error(error.message, 'Error saving bill');
       } else {
@@ -147,6 +154,7 @@ export default function BillsManager() {
   };
 
   const handleDelete = async (id: string) => {
+    setDeletingId(id);
     const { error } = await deleteBillPayment(id);
     if (error) {
       toast.error(error.message, 'Error deleting record');
@@ -154,6 +162,7 @@ export default function BillsManager() {
       toast.success('Payment record deleted', 'Record Removed');
       loadBills();
     }
+    setDeletingId(null);
   };
 
   return (
@@ -276,7 +285,7 @@ export default function BillsManager() {
             </h3>
 
             <BillHistoryTable
-              bills={bills}
+              bills={paginatedBills}
               onSelectBill={(b) => {
                 setSelectedBill(b);
                 setIsDetailModalOpen(true);
@@ -285,10 +294,21 @@ export default function BillsManager() {
                 setEditingBill(b);
                 setIsAddModalOpen(true);
               }}
-              onDeleteBill={handleDelete}
+              onDeleteBill={handleDelete} deletingId={deletingId}
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
             />
+            {hasMoreBills && (
+              <div className="flex justify-center pt-6">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCountBills((c) => c + 20)}
+                  className="px-6 py-2.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-semibold border border-[#1A1D1D] cursor-pointer transition-colors"
+                >
+                  Load More
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -297,7 +317,7 @@ export default function BillsManager() {
       {activeTab === 'history' && (
         <div className="animate-in fade-in duration-200">
           <BillHistoryTable
-            bills={bills}
+            bills={paginatedBills}
             onSelectBill={(b) => {
               setSelectedBill(b);
               setIsDetailModalOpen(true);
@@ -310,6 +330,17 @@ export default function BillsManager() {
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
           />
+          {hasMoreBills && (
+            <div className="flex justify-center pt-6">
+              <button
+                type="button"
+                onClick={() => setVisibleCountBills((c) => c + 20)}
+                className="px-6 py-2.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-semibold border border-[#1A1D1D] cursor-pointer transition-colors"
+              >
+                Load More
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -343,7 +374,7 @@ export default function BillsManager() {
           setEditingBill(b);
           setIsAddModalOpen(true);
         }}
-        onDelete={handleDelete}
+        onDelete={handleDelete} deletingId={deletingId}
       />
 
       {/* Free Plan Limit Reached Warning Modal */}

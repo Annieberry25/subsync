@@ -1,4 +1,5 @@
 'use client';
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, CreditCard, AlertCircle, XCircle, LayoutGrid, List, Mail, UploadCloud, Forward } from 'lucide-react';
@@ -25,7 +26,7 @@ import PaymentReminderModal from './payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import UpgradeModal from './upgrade-modal';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
 import { ReceiptExtractionModal } from './receipt-extraction-modal';
@@ -35,7 +36,8 @@ import { useSearchParams } from 'next/navigation';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
-  const { isPlus, isPremium, isGmailConnected } = useUserSettings();
+  const { isPlus, isPremium } = usePlan();
+  const { isGmailConnected } = useSettings();
   const searchParams = useSearchParams();
 
   const paramHighlight = searchParams.get('highlight');
@@ -81,7 +83,7 @@ export default function SubscriptionManager() {
   const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>(() => {
     if (typeof window === 'undefined') return {};
     try {
-      const saved = localStorage.getItem('subsync_reminders');
+      const saved = safeGetItem('subsync_reminders');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -97,7 +99,7 @@ export default function SubscriptionManager() {
     };
     setReminders(updated);
     try {
-      localStorage.setItem('subsync_reminders', JSON.stringify(updated));
+      safeSetItem('subsync_reminders', JSON.stringify(updated));
     } catch {
       // Ignore storage errors
     }
@@ -112,7 +114,7 @@ export default function SubscriptionManager() {
     };
     setReminders(updated);
     try {
-      localStorage.setItem('subsync_reminders', JSON.stringify(updated));
+      safeSetItem('subsync_reminders', JSON.stringify(updated));
     } catch {
       // Ignore storage errors
     }
@@ -186,7 +188,7 @@ export default function SubscriptionManager() {
     const handleUpdate = () => {
       fetchSubscriptions().then(({ data }) => {
         if (active && data) setSubscriptions(data);
-      });
+      }).catch(() => {});
     };
 
     fetchSubscriptions().then(({ data, error: err }) => {
@@ -196,6 +198,9 @@ export default function SubscriptionManager() {
       } else if (data) {
         setSubscriptions(data);
       }
+      setLoading(false);
+    }).catch(() => {
+      if (!active) return;
       setLoading(false);
     });
 
@@ -295,8 +300,30 @@ export default function SubscriptionManager() {
 
   const hasActiveFilters = searchQuery !== '' || selectedCategory !== 'All' || selectedStatus !== 'All';
 
+  const PAGE_SIZE = 20;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const paginatedSubscriptions = useMemo(
+    () => filteredSubscriptions.slice(0, visibleCount),
+    [filteredSubscriptions, visibleCount]
+  );
+  const hasMore = filteredSubscriptions.length > visibleCount;
+
+  const handleSelectSubscription = useCallback((item: SubscriptionRow) => {
+    setSelectedDetailSub(item);
+    setIsDetailOpen(true);
+  }, []);
+
+  const handleEditSubscription = useCallback((item: SubscriptionRow) => {
+    setEditingSubscription(item);
+    setIsModalOpen(true);
+  }, []);
+
+  const handleDeleteRequest = useCallback((item: SubscriptionRow) => {
+    setDeletingSubscription(item);
+  }, []);
+
   return (
-    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-72 sm:pb-80">
+    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-12 sm:pb-16">
       {/* 1. PAGE HEADER (Primary Action: Add Subscription & View Switcher) */}
       <div className="flex items-center justify-between sm:justify-end gap-4">
         <h1 className="sr-only">Subscriptions</h1>
@@ -418,39 +445,41 @@ export default function SubscriptionManager() {
         </div>
       ) : filteredSubscriptions.length > 0 ? (
         viewMode === 'table' ? (
-          <SubscriptionTable
-            subscriptions={filteredSubscriptions}
-            highlightedSubId={highlightedSubId}
-            onSelectSubscription={(item) => {
-              setSelectedDetailSub(item);
-              setIsDetailOpen(true);
-            }}
-            onEdit={(item) => {
-              setEditingSubscription(item);
-              setIsModalOpen(true);
-            }}
-            onDeleteRequest={(item) => setDeletingSubscription(item)}
-            onPaymentReminderRequest={(item) => setReminderSubscription(item)}
-            onOpenNotes={(item) => setNotesSub(item)}
-            reminders={reminders}
+          <>
+            <SubscriptionTable
+              subscriptions={paginatedSubscriptions}
+              highlightedSubId={highlightedSubId}
+              onSelectSubscription={handleSelectSubscription}
+              onEdit={handleEditSubscription}
+              onDeleteRequest={handleDeleteRequest}
+              onPaymentReminderRequest={(item) => setReminderSubscription(item)}
+              onOpenNotes={(item) => setNotesSub(item)}
+              reminders={reminders}
             onDismissReminder={handleDismissReminder}
           />
+          {hasMore && (
+            <div className="flex justify-center pt-6">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="px-6 py-2.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-semibold border border-[#1A1D1D] cursor-pointer transition-colors"
+              >
+                Load More
+              </button>
+            </div>
+          )}
+          </>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSubscriptions.map((sub) => (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedSubscriptions.map((sub) => (
               <SubscriptionCard
                 key={sub.id}
                 subscription={sub}
                 isHighlighted={sub.id === highlightedSubId}
-                onViewDetails={(item) => {
-                  setSelectedDetailSub(item);
-                  setIsDetailOpen(true);
-                }}
-                onEdit={(item) => {
-                  setEditingSubscription(item);
-                  setIsModalOpen(true);
-                }}
-                onDeleteRequest={(item) => setDeletingSubscription(item)}
+                onViewDetails={handleSelectSubscription}
+                onEdit={handleEditSubscription}
+                onDeleteRequest={handleDeleteRequest}
                 onPaymentReminderRequest={(item) => setReminderSubscription(item)}
                 onOpenNotes={(item) => setNotesSub(item)}
                 reminderInfo={reminders[sub.id] || null}
@@ -458,6 +487,18 @@ export default function SubscriptionManager() {
               />
             ))}
           </div>
+          {hasMore && (
+            <div className="flex justify-center pt-6">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="px-6 py-2.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-semibold border border-[#1A1D1D] cursor-pointer transition-colors"
+              >
+                Load More
+              </button>
+            </div>
+          )}
+          </>
         )
       ) : (
         <div className="py-20 sm:py-28 min-h-[320px] rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] text-center flex flex-col items-center justify-center space-y-2">
@@ -505,9 +546,9 @@ export default function SubscriptionManager() {
               name: prefill.name || '',
               price: prefill.price || 0,
               currency: prefill.currency || 'USD',
-              billing_cycle: (prefill.billing_cycle as any) || 'monthly',
-              category: (prefill.category as any) || 'Streaming',
-              status: (prefill.status as any) || 'active',
+              billing_cycle: prefill.billing_cycle || 'monthly',
+              category: prefill.category || 'Streaming',
+              status: prefill.status || 'active',
               start_date: prefill.start_date || null,
               end_date: prefill.end_date || null,
               next_billing_date: prefill.next_billing_date || new Date().toISOString().split('T')[0],

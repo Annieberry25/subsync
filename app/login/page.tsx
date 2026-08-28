@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
 import AuthForm from '@/components/auth/auth-form';
+
+export const metadata: Metadata = {
+  title: 'Log in',
+  description: 'Log in to SubHalt to manage your subscriptions and bills.',
+  alternates: { canonical: '/login' },
+};
 
 export default function LoginPage() {
   return (

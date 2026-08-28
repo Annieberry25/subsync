@@ -9,7 +9,7 @@ import { calculateMonthlySpend, formatCurrency } from '@/lib/utils/metrics-utils
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { AnalyticsChartSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { usePlan } from '@/lib/contexts/user-settings-context';
 import UpgradeModal from '@/components/subscriptions/upgrade-modal';
 import { 
   Download, 
@@ -33,7 +33,7 @@ const chartColorPalette = [
 
 export default function ExportPage() {
   const { toast } = useToast();
-  const { isPlus, isPremium } = useUserSettings();
+  const { isPlus, isPremium } = usePlan();
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +66,9 @@ export default function ExportPage() {
       } else if (data) {
         setSubscriptions(data);
       }
+      setLoading(false);
+    }).catch(() => {
+      if (!active) return;
       setLoading(false);
     });
     return () => {

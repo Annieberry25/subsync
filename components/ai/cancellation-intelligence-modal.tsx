@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, ExternalLink, Calendar, ShieldAlert, CheckCircle, Clock, ArrowRight } from 'lucide-react';
+import { X, ExternalLink, Calendar, ShieldAlert, CheckCircle, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import {
   getKnownProviderManagementUrl,
   updateSubscription,
   type SubscriptionRow,
 } from '@/lib/services/subscription-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { formatCurrency, getNormalizedMonthlyPrice } from '@/lib/utils/metrics-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useInbox } from '@/lib/contexts/inbox-context';
@@ -25,7 +25,7 @@ export function CancellationIntelligenceModal({
   subscription,
   onStatusUpdated,
 }: CancellationIntelligenceModalProps) {
-  const { defaultCurrency } = useUserSettings();
+  const { defaultCurrency } = useCurrency();
   const { toast } = useToast();
   const { addInboxItem } = useInbox();
   const [updating, setUpdating] = useState(false);
@@ -73,7 +73,12 @@ export function CancellationIntelligenceModal({
 
   return (
     <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cancellation intelligence"
+        className="w-full max-w-lg bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden"
+      >
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between bg-[#000000]">
           <div className="flex items-center gap-3">
@@ -93,6 +98,7 @@ export function CancellationIntelligenceModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close modal"
             className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
           >
             <X className="w-4.5 h-4.5" />
@@ -165,9 +171,10 @@ export function CancellationIntelligenceModal({
                 type="button"
                 onClick={() => handleUpdateStatus('canceled')}
                 disabled={updating}
-                className="px-3.5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
+                className="px-3.5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
-                Confirm Canceled
+                {updating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Confirm Canceled</span>
               </button>
             </div>
           </div>

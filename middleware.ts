@@ -1,7 +1,14 @@
-import { type NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 import { updateSession } from '@/lib/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
+  // Apply rate limiting to all requests (except static assets, which don't match anyway)
+  const ip = getClientIp(request);
+  if (!rateLimit(ip)) {
+    return new NextResponse('Too Many Requests', { status: 429 });
+  }
+
   return await updateSession(request);
 }
 

@@ -484,9 +484,9 @@ export function LoginFlow() {
 
           {/* Footer: Terms of Use | Privacy Policy */}
           <div className="text-center mt-8 pt-4 border-t border-[#1A1D1D]/50 text-[11px] text-[#94A3B8] flex items-center justify-center gap-3">
-            <span className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</a>
             <span className="text-[#1A1D1D]">|</span>
-            <span className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
           </div>
         </div>
       )}
@@ -575,9 +575,9 @@ export function LoginFlow() {
 
           {/* Footer: Terms of Use | Privacy Policy */}
           <div className="text-center mt-8 pt-4 border-t border-[#1A1D1D]/50 text-[11px] text-[#94A3B8] flex items-center justify-center gap-3">
-            <span className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</a>
             <span className="text-[#1A1D1D]">|</span>
-            <span className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
           </div>
         </div>
       )}

@@ -413,6 +413,7 @@ export function SignupFlow() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-describedby={password.length > 0 ? 'signup-password-hint' : undefined}
                   placeholder=""
                   className="w-full px-4 pr-10 py-2.5 text-xs sm:text-sm rounded-xl bg-[#000000] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]/60 transition-colors h-10.5 sm:h-11"
                 />
@@ -428,7 +429,7 @@ export function SignupFlow() {
               </div>
               {/* Subtle validation message directly under password field */}
               {password.length > 0 && (
-                <p className={`text-xs mt-1 transition-colors ${isReqMet ? 'text-[#14B8A6] font-medium' : 'text-[#94A3B8]'}`}>
+                <p id="signup-password-hint" className={`text-xs mt-1 transition-colors ${isReqMet ? 'text-[#14B8A6] font-medium' : 'text-[#94A3B8]'}`}>
                   {isReqMet ? '✓ Password requirements met' : 'At least 6 characters and 1 number or hyphen'}
                 </p>
               )}
@@ -480,9 +481,9 @@ export function SignupFlow() {
 
           {/* Footer: Terms of Use | Privacy Policy */}
           <div className="text-center mt-8 pt-4 border-t border-[#1A1D1D]/50 text-[11px] text-[#94A3B8] flex items-center justify-center gap-3">
-            <span className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</a>
             <span className="text-[#1A1D1D]">|</span>
-            <span className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
           </div>
         </div>
       )}
@@ -585,9 +586,9 @@ export function SignupFlow() {
 
           {/* Footer: Terms of Use | Privacy Policy */}
           <div className="text-center mt-8 pt-4 border-t border-[#1A1D1D]/50 text-[11px] text-[#94A3B8] flex items-center justify-center gap-3">
-            <span className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</a>
             <span className="text-[#1A1D1D]">|</span>
-            <span className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
           </div>
         </div>
       )}

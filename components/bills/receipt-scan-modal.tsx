@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Upload, FileText, CheckCircle2, Sparkles, AlertCircle, Edit3, ArrowRight, Camera } from 'lucide-react';
 import type { ExtractedBillReceiptData } from '@/lib/types/bills.types';
 import { parseBillReceiptText } from '@/lib/services/bill-receipt-parser';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 
 interface ReceiptScanModalProps {
   isOpen: boolean;
@@ -19,13 +19,20 @@ export default function ReceiptScanModal({
   onClose,
   onConfirm,
 }: ReceiptScanModalProps) {
-  const { defaultCurrency } = useUserSettings();
+  const { defaultCurrency } = useCurrency();
 
   const [step, setStep] = useState<'upload' | 'confirm'>('upload');
   const [fileName, setFileName] = useState<string>('');
   const [pastedText, setPastedText] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   // Extracted Form State for Step 2 ("Here's what we found")
   const [extractedData, setExtractedData] = useState<ExtractedBillReceiptData>({
@@ -79,7 +86,7 @@ export default function ReceiptScanModal({
     setIsAnalyzing(true);
     setErrorMsg('');
 
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       try {
         const parsed = parseBillReceiptText(textToParse, fName);
         setExtractedData({
@@ -88,7 +95,7 @@ export default function ReceiptScanModal({
           fileName: fName || fileName || 'receipt_scanned.pdf',
         });
         setStep('confirm');
-      } catch (err: any) {
+      } catch {
         setErrorMsg('Could not parse receipt text. Please try entering details manually.');
       } finally {
         setIsAnalyzing(false);
@@ -118,8 +125,8 @@ export default function ReceiptScanModal({
     try {
       await onConfirm(extractedData);
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to save confirmed payment.');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to save confirmed payment.');
     } finally {
       setIsAnalyzing(false);
     }

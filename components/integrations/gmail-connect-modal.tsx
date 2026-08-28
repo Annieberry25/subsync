@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ArrowLeft } from 'lucide-react';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import { createSubscription, fetchSubscriptions, filterActiveSubscriptions, type SubscriptionRow } from '@/lib/services/subscription-service';
@@ -24,7 +24,8 @@ const MOCK_DISCOVERED_SUBS = [
 ];
 
 export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequireUpgrade }: GmailConnectModalProps) {
-  const { isGmailConnected, setIsGmailConnected, isPlus } = useUserSettings();
+  const { isGmailConnected, setIsGmailConnected } = useSettings();
+  const { isPlus } = usePlan();
   const { addInboxItem } = useInbox();
   const { toast } = useToast();
 
@@ -33,12 +34,19 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
     MOCK_DISCOVERED_SUBS.map((s) => s.name)
   );
   const [importing, setImporting] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
   const handleStartOAuth = () => {
     setStep('scanning');
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       setStep('results');
     }, 1800);
   };
@@ -69,8 +77,16 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
         name: item.name,
         price: item.price,
         currency: item.currency,
-        billing_cycle: item.billing_cycle as any,
-        category: item.category as any,
+        billing_cycle: item.billing_cycle as 'monthly' | 'yearly' | 'weekly' | 'quarterly' | 'custom',
+        category: item.category as
+          | 'Streaming'
+          | 'Software'
+          | 'Utilities'
+          | 'Fitness'
+          | 'Finance'
+          | 'Education'
+          | 'Gaming'
+          | 'Other',
         next_billing_date: nextMonth.toISOString().split('T')[0],
         start_date: today.toISOString().split('T')[0],
         status: 'active',
@@ -105,7 +121,12 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
 
   return (
     <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Connect Gmail"
+        className="w-full max-w-lg bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden"
+      >
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between bg-[#000000]">
           <div className="flex items-center gap-3">

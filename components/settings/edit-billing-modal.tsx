@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { useUserSettings, type BillingDetails } from '@/lib/contexts/user-settings-context';
+import { useSettings, type BillingDetails } from '@/lib/contexts/user-settings-context';
 import { CustomSelect } from '@/components/ui/custom-select';
 
 interface EditBillingModalProps {
@@ -11,7 +11,7 @@ interface EditBillingModalProps {
 }
 
 export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
-  const { billingDetails, updateBillingDetails } = useUserSettings();
+  const { billingDetails, updateBillingDetails } = useSettings();
 
   const [formData, setFormData] = useState<BillingDetails>({
     email: '',
@@ -88,7 +88,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
               required
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="anitaonyema25@gmail.com"
+              placeholder="you@example.com"
               className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
@@ -101,7 +101,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
               required
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-              placeholder="Anita Onyema"
+              placeholder="Your full name"
               className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>

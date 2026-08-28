@@ -10,7 +10,8 @@ import {
   AlertCircle,
   Clock,
   SlidersHorizontal,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from 'lucide-react';
 import { 
   fetchSubscriptions, 
@@ -306,6 +307,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
   const [activityFilter, setActivityFilter] = useState<string>('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [visibleCountActivities, setVisibleCountActivities] = useState(50);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -330,6 +332,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
   // Permanent Delete Confirm Dialog State
   const [permDeletingSub, setPermDeletingSub] = useState<SubscriptionRow | null>(null);
   const [permDeleteLoading, setPermDeleteLoading] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -356,13 +359,21 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
     return activities.filter((act) => act.type === activityFilter);
   }, [activities, activityFilter]);
 
+  const paginatedActivities = useMemo(
+    () => filteredActivities.slice(0, visibleCountActivities),
+    [filteredActivities, visibleCountActivities]
+  );
+  const hasMoreActivities = filteredActivities.length > visibleCountActivities;
+
   const selectedOption = useMemo(
     () => ACTIVITY_FILTER_OPTIONS.find((opt) => opt.value === activityFilter) || ACTIVITY_FILTER_OPTIONS[0],
     [activityFilter]
   );
 
   const handleRestore = async (sub: SubscriptionRow) => {
+    setRestoringId(sub.id);
     const { error: err } = await restoreSubscription(sub.id);
+    setRestoringId(null);
     if (err) {
       toast.error(err.message, 'Restore Failed');
     } else {
@@ -534,17 +545,30 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
 
                 {/* Activity Feed List - Clean Dense Vertical List */}
                 {filteredActivities.length > 0 ? (
-                  <div className="space-y-0.5 py-1">
-                    {filteredActivities.map((act) => (
-                      <ActivityMessageItem
-                        key={act.id}
-                        activity={act}
-                        onClick={() => {
-                          setSelectedActivity(act);
-                        }}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="space-y-0.5 py-1">
+                      {paginatedActivities.map((act) => (
+                        <ActivityMessageItem
+                          key={act.id}
+                          activity={act}
+                          onClick={() => {
+                            setSelectedActivity(act);
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {hasMoreActivities && (
+                      <div className="flex justify-center pt-6">
+                        <button
+                          type="button"
+                          onClick={() => setVisibleCountActivities((c) => c + 50)}
+                          className="px-6 py-2.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-semibold border border-[#1A1D1D] cursor-pointer transition-colors"
+                        >
+                          Load More
+                        </button>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="py-20 sm:py-28 min-h-[320px] text-center flex flex-col items-center justify-center space-y-1.5">
                     <div className="max-w-xs space-y-1">
@@ -621,9 +645,14 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                             <button
                               type="button"
                               onClick={() => handleRestore(sub)}
-                              className="flex-1 py-2 px-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-xs font-semibold text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                              disabled={restoringId === sub.id}
+                              className="flex-1 py-2 px-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-xs font-semibold text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
                             >
-                              <RotateCcw className="w-3.5 h-3.5 text-[#091512]" />
+                              {restoringId === sub.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />
+                              ) : (
+                                <RotateCcw className="w-3.5 h-3.5 text-[#091512]" />
+                              )}
                               <span>Restore</span>
                             </button>
                           </div>
@@ -746,9 +775,14 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                         <button
                           type="button"
                           onClick={() => handleRestore(sub)}
-                          className="flex-1 py-2 px-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-xs font-semibold text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                          disabled={restoringId === sub.id}
+                          className="flex-1 py-2 px-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-xs font-semibold text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
                         >
-                          <RotateCcw className="w-3.5 h-3.5 text-[#091512]" />
+                          {restoringId === sub.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />
+                          ) : (
+                            <RotateCcw className="w-3.5 h-3.5 text-[#091512]" />
+                          )}
                           <span>Restore</span>
                         </button>
                       </div>

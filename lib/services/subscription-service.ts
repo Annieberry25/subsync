@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/client';
+import { logger } from '@/lib/logger';
 import type { Database } from '@/lib/types/database.types';
 
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 export type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row'];
 export type SubscriptionInsert = Database['public']['Tables']['subscriptions']['Insert'];
 export type SubscriptionUpdate = Database['public']['Tables']['subscriptions']['Update'];
@@ -305,7 +307,7 @@ export function parseAttachedReceipts(subscription: SubscriptionRow | null | und
 export function parseAccountLinks(subscription: SubscriptionRow | null | undefined): AccountLink[] {
   if (!subscription) return [];
 
-  const processLinks = (links: any[]): AccountLink[] => {
+  const processLinks = (links: NonNullable<SubscriptionRow['account_links']>): AccountLink[] => {
     return links
       .filter((link) => link && (link.label || link.url || link.email))
       .map((link, idx) => ({
@@ -421,7 +423,7 @@ let cachedSubscriptions: SubscriptionRow[] | null = null;
 export function getCachedSubscriptions(): SubscriptionRow[] | null {
   if (!cachedSubscriptions && typeof window !== 'undefined') {
     try {
-      const local = localStorage.getItem('subsync_subscriptions');
+      const local = safeGetItem('subsync_subscriptions');
       if (local) {
         cachedSubscriptions = JSON.parse(local);
       }
@@ -451,13 +453,16 @@ export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | 
       cachedSubscriptions = merged;
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem('subsync_subscriptions', JSON.stringify(merged));
+          safeSetItem('subsync_subscriptions', JSON.stringify(merged));
         } catch {}
       }
       return { data: merged, error: null };
     }
-  } catch {
-    // Ignore error
+    if (error) {
+      logger.warn('[subscription-service] fetchSubscriptions DB error, using cache', { message: error.message });
+    }
+  } catch (err) {
+    logger.error('[subscription-service] fetchSubscriptions exception, using cache', err);
   }
 
   return { data: cached, error: null };
@@ -507,15 +512,20 @@ export async function createSubscription(
         const list = [data, ...existingList.filter((s) => s.id !== data.id)];
         cachedSubscriptions = list;
         if (typeof window !== 'undefined') {
-          localStorage.setItem('subsync_subscriptions', JSON.stringify(list));
+          safeSetItem('subsync_subscriptions', JSON.stringify(list));
           window.dispatchEvent(new CustomEvent('subsync_subscription_created', { detail: data }));
           window.dispatchEvent(new Event('subsync_subscriptions_updated'));
         }
         return { data, error: null };
       }
+      if (error) {
+        logger.warn('[subscription-service] createSubscription DB error, persisting locally', { message: error.message });
+      }
+    } else {
+      logger.warn('[subscription-service] createSubscription called without authenticated user');
     }
-  } catch {
-    // Ignore error
+  } catch (err) {
+    logger.error('[subscription-service] createSubscription exception, persisting locally', err);
   }
 
   const existingList = getCachedSubscriptions() || [];
@@ -523,7 +533,7 @@ export async function createSubscription(
   cachedSubscriptions = list;
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem('subsync_subscriptions', JSON.stringify(list));
+      safeSetItem('subsync_subscriptions', JSON.stringify(list));
       window.dispatchEvent(new CustomEvent('subsync_subscription_created', { detail: mockSub }));
       window.dispatchEvent(new Event('subsync_subscriptions_updated'));
     } catch {
@@ -577,7 +587,7 @@ export async function archiveSubscription(id: string): Promise<{ data: Subscript
   const userNotes = cleanNotesUserText(sub.notes);
   const historyMetadata: HistoryStateMetadata = {
     state: 'archived',
-    previousStatus: sub.status as any,
+    previousStatus: sub.status,
     archivedAt: new Date().toISOString(),
   };
 
@@ -602,7 +612,7 @@ export async function softDeleteSubscription(id: string): Promise<{ data: Subscr
   const userNotes = cleanNotesUserText(sub.notes);
   const historyMetadata: HistoryStateMetadata = {
     state: 'deleted',
-    previousStatus: sub.status as any,
+    previousStatus: sub.status,
     deletedAt: new Date().toISOString(),
   };
 
@@ -616,7 +626,7 @@ export const RESTORED_STORAGE_KEY = 'subsync_restored_history';
 export function getRestoredHistory(): RestoredHistoryRecord[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(RESTORED_STORAGE_KEY);
+    const raw = safeGetItem(RESTORED_STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -628,7 +638,7 @@ export function addRestoredHistoryRecord(record: RestoredHistoryRecord): void {
   try {
     const current = getRestoredHistory();
     const updated = [record, ...current];
-    localStorage.setItem(RESTORED_STORAGE_KEY, JSON.stringify(updated));
+    safeSetItem(RESTORED_STORAGE_KEY, JSON.stringify(updated));
   } catch {
     // Ignore storage errors
   }
