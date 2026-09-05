@@ -46,7 +46,7 @@ export default function Header({ onMobileMenuToggle, hasUnreadNotifications, onO
           >
             <SubHaltAvatar size="sm" />
             <span className="hidden sm:inline">Ask SubHalt Assistant</span>
-            <span className="sm:hidden">Ask AI</span>
+            <span className="sm:hidden">Ask SubHalt</span>
           </button>
         )}
 

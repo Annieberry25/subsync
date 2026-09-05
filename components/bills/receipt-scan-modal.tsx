@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Upload, FileText, CheckCircle2, Sparkles, AlertCircle, Edit3, ArrowRight, Camera } from 'lucide-react';
+import { X, Upload, CheckCircle2, Sparkles, AlertCircle, Edit3, ArrowRight } from 'lucide-react';
 import type { ExtractedBillReceiptData } from '@/lib/types/bills.types';
 import { parseBillReceiptText } from '@/lib/services/bill-receipt-parser';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import ProviderLogo from './provider-logo';
 
 interface ReceiptScanModalProps {
   isOpen: boolean;
@@ -127,9 +128,9 @@ export default function ReceiptScanModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden my-8">
+      <div className="relative w-full max-w-xl bg-[#090C0B] border border-[#161F1D] rounded-2xl shadow-2xl overflow-hidden my-8">
         {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-[#1A1D1D] flex items-center justify-between bg-[#0F1111]">
+        <div className="px-6 py-5 border-b border-[#161F1D] flex items-center justify-between bg-[#0B0F0D]">
           <div>
             <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-[#14B8A6]" />
@@ -144,7 +145,7 @@ export default function ReceiptScanModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -163,7 +164,7 @@ export default function ReceiptScanModal({
           {step === 'upload' && (
             <div className="space-y-4">
               {/* File Upload Zone */}
-              <div className="relative border-2 border-dashed border-[#1A1D1D] hover:border-[#14B8A6] rounded-2xl p-6 text-center transition-all bg-[#000000] group cursor-pointer">
+              <div className="relative border-2 border-dashed border-[#161F1D] hover:border-[#14B8A6] rounded-2xl p-6 text-center transition-all bg-[#050706] group cursor-pointer">
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf,text/plain"
@@ -193,16 +194,16 @@ export default function ReceiptScanModal({
                   value={pastedText}
                   onChange={(e) => setPastedText(e.target.value)}
                   placeholder="Paste your billing email snippet, token sms, or invoice text here (e.g. 'Ikeja Electric prepaid token ₦25,000 paid on 20 Aug 2026')..."
-                  className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
+                  className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-3 border-t border-[#1A1D1D] flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-[#161F1D] flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl border border-[#1A1D1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -210,7 +211,7 @@ export default function ReceiptScanModal({
                   type="button"
                   onClick={handleAnalyzePastedText}
                   disabled={isAnalyzing}
-                  className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isAnalyzing ? (
                     <span>Extracting...</span>
@@ -238,12 +239,15 @@ export default function ReceiptScanModal({
                 <label className="block text-xs font-semibold text-[#F5F7F6] mb-1">
                   Provider / Merchant Name
                 </label>
-                <input
-                  type="text"
-                  value={extractedData.providerName}
-                  onChange={(e) => setExtractedData({ ...extractedData, providerName: e.target.value })}
-                  className="w-full px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:border-[#14B8A6]"
-                />
+                <div className="flex items-center gap-2">
+                  <ProviderLogo name={extractedData.providerName} size="md" />
+                  <input
+                    type="text"
+                    value={extractedData.providerName}
+                    onChange={(e) => setExtractedData({ ...extractedData, providerName: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] focus:border-[#14B8A6]"
+                  />
+                </div>
               </div>
 
               {/* Category */}
@@ -255,7 +259,7 @@ export default function ReceiptScanModal({
                   <select
                     value={extractedData.category}
                     onChange={(e) => setExtractedData({ ...extractedData, category: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6]"
+                    className="w-full px-3 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6]"
                   >
                     {STANDARD_BILL_CATEGORIES.map((c) => (
                       <option key={c} value={c}>
@@ -275,7 +279,7 @@ export default function ReceiptScanModal({
                       value={extractedData.customCategory || ''}
                       onChange={(e) => setExtractedData({ ...extractedData, customCategory: e.target.value })}
                       placeholder="e.g. Water, Security..."
-                      className="w-full px-3 py-2 bg-[#000000] border border-[#14B8A6]/60 rounded-xl text-xs text-[#F5F7F6]"
+                      className="w-full px-3 py-2 bg-[#050706] border border-[#14B8A6]/60 rounded-xl text-xs text-[#F5F7F6]"
                     />
                   </div>
                 )}
@@ -292,7 +296,7 @@ export default function ReceiptScanModal({
                     step="any"
                     value={extractedData.amount || ''}
                     onChange={(e) => setExtractedData({ ...extractedData, amount: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6]"
+                    className="w-full px-3 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6]"
                   />
                 </div>
 
@@ -303,7 +307,7 @@ export default function ReceiptScanModal({
                   <select
                     value={extractedData.currency}
                     onChange={(e) => setExtractedData({ ...extractedData, currency: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6]"
+                    className="w-full px-3 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6]"
                   >
                     {SUPPORTED_CURRENCIES.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -324,7 +328,7 @@ export default function ReceiptScanModal({
                     type="date"
                     value={extractedData.paymentDate}
                     onChange={(e) => setExtractedData({ ...extractedData, paymentDate: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6]"
+                    className="w-full px-3 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6]"
                   />
                 </div>
 
@@ -337,17 +341,17 @@ export default function ReceiptScanModal({
                     value={extractedData.providerReference || ''}
                     onChange={(e) => setExtractedData({ ...extractedData, providerReference: e.target.value })}
                     placeholder="Ref or Txn ID"
-                    className="w-full px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6]"
+                    className="w-full px-3 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6]"
                   />
                 </div>
               </div>
 
               {/* Footer Confirmation Buttons */}
-              <div className="pt-3 border-t border-[#1A1D1D] flex items-center justify-between">
+              <div className="pt-3 border-t border-[#161F1D] flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setStep('upload')}
-                  className="px-3.5 py-2 rounded-xl border border-[#1A1D1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Re-scan File</span>
@@ -364,7 +368,7 @@ export default function ReceiptScanModal({
                   <button
                     type="button"
                     onClick={handleSaveConfirmed}
-                    className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                    className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Confirm & Save</span>

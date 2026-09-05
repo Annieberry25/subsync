@@ -61,14 +61,25 @@ export interface BillPayment {
   updatedAt: string;
 }
 
+export type CancellationCapability = 'automatic' | 'assisted' | 'manual' | 'unsupported';
+export type PaymentFlowType = 'redirect' | 'account_portal' | 'topup';
+
 export interface VerifiedProvider {
   id?: string;
   name: string;
   category: string;
   country: string;
   region?: string | null;
+  logoUrl?: string | null;
+  domain?: string | null;
+  description?: string | null;
   officialWebsite?: string | null;
   officialPaymentUrl?: string | null;
+  supportedPaymentFlow?: PaymentFlowType;
+  cancellationCapability?: CancellationCapability;
+  cancellationUrl?: string | null;
+  cancellationSteps?: string[] | null;
+  status?: 'active' | 'inactive';
   verificationStatus: 'verified' | 'user_submitted' | 'unverified';
   supportedRegions?: string[] | null;
 }
@@ -118,6 +129,7 @@ export interface BillSpendingSummary {
 
 export interface BillFilterOptions {
   searchQuery?: string;
+  country?: string;
   category?: string;
   providerName?: string;
   currency?: string;

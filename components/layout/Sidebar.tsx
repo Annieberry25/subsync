@@ -16,8 +16,6 @@ import {
   Archive,
   Trash2,
   RotateCcw,
-  Zap,
-  ArrowUpCircle,
   ChevronDown,
   ChevronRight,
   LogOut,
@@ -26,7 +24,8 @@ import {
   Inbox as InboxIcon,
   Clock,
   HelpCircle,
-  Receipt
+  Receipt,
+  Send
 } from 'lucide-react';
 
 export const navItems = [
@@ -37,6 +36,11 @@ export const navItems = [
   { name: 'History', href: '/history', icon: HistoryIcon },
   { name: 'Export & Analytics', href: '/export', icon: Download },
   { name: 'Settings', href: '/settings', icon: Settings },
+];
+
+export const billsSubItems = [
+  { name: 'Pay a Bill', href: '/bills/pay', icon: Send },
+  { name: 'Payment History', href: '/bills/history', icon: HistoryIcon },
 ];
 
 export const historySubItems = [
@@ -54,15 +58,24 @@ interface SidebarProps {
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { fullName: contextFullName, email: contextEmail, isPlus } = useUserSettings();
+  const { fullName: contextFullName, email: contextEmail } = useUserSettings();
   const { unreadCount } = useInbox();
   const [user, setUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
+  const isBillsRoute = pathname.startsWith('/bills');
+  const [isBillsOpen, setIsBillsOpen] = useState(isBillsRoute);
+
   const isHistoryRoute = pathname.startsWith('/history');
   const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryRoute);
+
+  useEffect(() => {
+    if (isBillsRoute) {
+      setIsBillsOpen(true);
+    }
+  }, [isBillsRoute]);
 
   useEffect(() => {
     if (isHistoryRoute) {
@@ -139,6 +152,70 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
         {/* Navigation Items */}
         <nav className="px-3 pt-4 pb-4 space-y-1" aria-label="Main Navigation">
           {navItems.map((item) => {
+            // 1. Bills & Payments Accordion Parent
+            if (item.name === 'Bills & Payments') {
+              const isParentActive = pathname.startsWith('/bills');
+              const Icon = item.icon;
+
+              return (
+                <div key={item.name} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBillsOpen(!isBillsOpen);
+                      if (!pathname.startsWith('/bills')) {
+                        router.push('/bills/pay');
+                      }
+                    }}
+                    aria-label="Toggle Bills & Payments submenu"
+                    aria-expanded={isBillsOpen}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors cursor-pointer ${
+                      isParentActive
+                        ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#1A1D1D]'
+                        : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-4 h-4 ${isParentActive ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'}`} />
+                      <span>Bills & Payments</span>
+                    </div>
+                    {isBillsOpen ? (
+                      <ChevronDown className="w-4 h-4 text-[#F5F7F6]" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-[#94A3B8]" />
+                    )}
+                  </button>
+
+                  {/* Submenu Children: Pay a Bill & Payment History ONLY */}
+                  {isBillsOpen && (
+                    <div className="pl-4 space-y-1 border-l border-[#1A1D1D] ml-5 my-1">
+                      {billsSubItems.map((sub) => {
+                        const isSubActive =
+                          pathname === sub.href ||
+                          (sub.href === '/bills/pay' && (pathname === '/bills' || pathname === '/bills/'));
+
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            onClick={onMobileClose}
+                            className={`flex items-center px-3 py-2 min-h-[38px] rounded-lg text-xs transition-all ${
+                              isSubActive
+                                ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
+                                : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
+                            }`}
+                          >
+                            <span>{sub.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // 2. History Accordion Parent
             if (item.name === 'History') {
               const isParentActive = pathname.startsWith('/history');
               const Icon = item.icon;
@@ -196,6 +273,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
               );
             }
 
+            // 3. Regular Navigation Items (Dashboard, Subscriptions, Inbox, etc.)
             const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
             const Icon = item.icon;
 
@@ -227,9 +305,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
 
       {/* Sidebar Footer: User Profile */}
       <div className="px-3 pt-2 pb-5 space-y-3 mt-auto">
-        {/* User Profile Section with Expandable Account Menu */}
         <div className="relative" ref={profileMenuRef}>
-          {/* SaaS Style Account Popover Menu */}
           {showProfileMenu && (
             <div className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-[#0F1111] border border-[#1A1D1D] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5">
               <Link
@@ -264,7 +340,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
               >
-                <ArrowUpCircle className="w-4 h-4 text-[#94A3B8]" />
+                <LogOut className="w-4 h-4 text-[#94A3B8]" />
                 <span>Upgrade Plan</span>
               </Link>
 
@@ -284,7 +360,6 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
             </div>
           )}
 
-          {/* User Profile Card Button */}
           <button
             type="button"
             onClick={() => setShowProfileMenu(!showProfileMenu)}

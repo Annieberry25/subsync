@@ -1,18 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Check, ShieldCheck, Link as LinkIcon, Paperclip, AlertCircle, Building2, Globe, MapPin, Tag } from 'lucide-react';
-import type { BillPayment, BillFrequency, StandardBillCategory } from '@/lib/types/bills.types';
+import { X, Check, ShieldCheck, AlertCircle, Building2, Globe, MapPin } from 'lucide-react';
+import type { BillPayment, BillFrequency } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { searchVerifiedProviders, getVerifiedProvider } from '@/lib/constants/verified-providers';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import ProviderLogo from './provider-logo';
 
 interface BillModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (billData: Partial<BillPayment>) => Promise<void>;
   initialData?: BillPayment | null;
+  prefillData?: {
+    providerName?: string;
+    category?: string;
+    country?: string;
+    amount?: number;
+    currency?: string;
+    officialUrl?: string;
+  } | null;
   defaultCategory?: string;
 }
 
@@ -21,6 +30,7 @@ export default function BillModal({
   onClose,
   onSave,
   initialData,
+  prefillData,
   defaultCategory,
 }: BillModalProps) {
   const { defaultCurrency } = useUserSettings();
@@ -66,6 +76,22 @@ export default function BillModal({
       setProviderReference(initialData.providerReference || '');
       setOfficialProviderUrl(initialData.officialProviderUrl || '');
       setStatus(initialData.status || 'paid');
+    } else if (prefillData) {
+      setCategory(prefillData.category || defaultCategory || 'Electricity');
+      setCustomCategory('');
+      setProviderName(prefillData.providerName || '');
+      setAmount(prefillData.amount ? String(prefillData.amount) : '');
+      setCurrency(prefillData.currency || defaultCurrency || 'NGN');
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setCountry(prefillData.country || 'Nigeria');
+      setRegion('');
+      setCity('');
+      setPaymentFrequency('one_time');
+      setIsRecurring(false);
+      setNotes('');
+      setProviderReference('');
+      setOfficialProviderUrl(prefillData.officialUrl || '');
+      setStatus('paid');
     } else {
       setCategory(defaultCategory || 'Electricity');
       setCustomCategory('');
@@ -84,7 +110,7 @@ export default function BillModal({
       setStatus('paid');
     }
     setErrorMsg('');
-  }, [initialData, defaultCategory, defaultCurrency, isOpen]);
+  }, [initialData, prefillData, defaultCategory, defaultCurrency, isOpen]);
 
   // Check verified provider whenever providerName changes
   useEffect(() => {
@@ -174,10 +200,10 @@ export default function BillModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-[#090C0B] border border-[#161F1D] rounded-2xl shadow-2xl overflow-hidden my-8">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-[#1A1D1D] flex items-center justify-between bg-[#0F1111]">
+        <div className="px-6 py-5 border-b border-[#161F1D] flex items-center justify-between bg-[#0B0F0D]">
           <div>
             <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight flex items-center gap-2">
               <Building2 className="w-5 h-5 text-[#14B8A6]" />
@@ -190,7 +216,7 @@ export default function BillModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -216,7 +242,10 @@ export default function BillModal({
                 </span>
               )}
             </label>
-            <div className="relative">
+            <div className="flex items-center gap-2">
+              {providerName.trim() ? (
+                <ProviderLogo name={providerName} officialUrl={officialProviderUrl} size="md" />
+              ) : null}
               <input
                 type="text"
                 required
@@ -227,14 +256,14 @@ export default function BillModal({
                 }}
                 onFocus={() => setShowSuggestions(true)}
                 placeholder="e.g. Ikeja Electric, Spectranet, MTN, Landlord Rent..."
-                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />
             </div>
 
             {/* Suggestions Dropdown */}
             {showSuggestions && providerSuggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-[#121414] border border-[#1A1D1D] rounded-xl shadow-xl z-20 overflow-hidden max-h-48 overflow-y-auto">
-                <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-[#64748B] bg-[#0B0D0D]">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-[#090C0B] border border-[#161F1D] rounded-xl shadow-xl z-20 overflow-hidden max-h-48 overflow-y-auto">
+                <div className="px-3 py-1.5 text-[10px] uppercase font-bold text-[#64748B] bg-[#050706]">
                   Verified Provider Suggestions
                 </div>
                 {providerSuggestions.map((sug) => (
@@ -242,13 +271,13 @@ export default function BillModal({
                     key={sug.name}
                     type="button"
                     onClick={() => handleSelectSuggestion(sug)}
-                    className="w-full px-3 py-2 text-left hover:bg-[#1A1D1D] flex items-center justify-between transition-colors text-xs text-[#F5F7F6]"
+                    className="w-full px-3 py-2 text-left hover:bg-[#121917] flex items-center justify-between transition-colors text-xs text-[#F5F7F6]"
                   >
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#14B8A6]" />
+                      <ProviderLogo name={sug.name} officialUrl={sug.officialPaymentUrl} size="sm" />
                       <span className="font-medium">{sug.name}</span>
                     </div>
-                    <span className="text-[10px] text-[#94A3B8] px-2 py-0.5 rounded bg-[#1A1D1D]">
+                    <span className="text-[10px] text-[#94A3B8] px-2 py-0.5 rounded bg-[#161F1D]">
                       {sug.category}
                     </span>
                   </button>
@@ -266,7 +295,7 @@ export default function BillModal({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
               >
                 {STANDARD_BILL_CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
@@ -288,7 +317,7 @@ export default function BillModal({
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value)}
                   placeholder="e.g. Water, Waste Collection, Security, Gym..."
-                  className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#14B8A6]/60 rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                  className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#14B8A6]/60 rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 />
               </div>
             )}
@@ -308,7 +337,7 @@ export default function BillModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="25000.00"
-                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />
             </div>
             <div>
@@ -318,7 +347,7 @@ export default function BillModal({
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
               >
                 {SUPPORTED_CURRENCIES.map((c) => (
                   <option key={c.code} value={c.code}>
@@ -340,7 +369,7 @@ export default function BillModal({
                 required
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />
             </div>
 
@@ -351,7 +380,7 @@ export default function BillModal({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as any)}
-                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
               >
                 <option value="paid">Paid</option>
                 <option value="pending">Pending</option>
@@ -361,7 +390,7 @@ export default function BillModal({
           </div>
 
           {/* Location Fields: Country, Region, City */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 border-t border-[#1A1D1D]/60">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 border-t border-[#161F1D]">
             <div>
               <label className="block text-xs font-semibold text-[#F5F7F6] mb-1.5 flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-[#94A3B8]" />
@@ -372,7 +401,7 @@ export default function BillModal({
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 placeholder="e.g. Nigeria"
-                className="w-full px-3.5 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
+                className="w-full px-3.5 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
               />
             </div>
 
@@ -386,7 +415,7 @@ export default function BillModal({
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 placeholder="e.g. Lagos, Abuja, Oyo..."
-                className="w-full px-3.5 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
+                className="w-full px-3.5 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
               />
             </div>
 
@@ -399,13 +428,13 @@ export default function BillModal({
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="e.g. Ikeja, Lekki, Owerri..."
-                className="w-full px-3.5 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
+                className="w-full px-3.5 py-2 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
               />
             </div>
           </div>
 
           {/* Payment Frequency / Recurring toggle */}
-          <div className="p-4 rounded-xl bg-[#000000] border border-[#1A1D1D] space-y-3">
+          <div className="p-4 rounded-xl bg-[#050706] border border-[#161F1D] space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-semibold text-[#F5F7F6] block">Recurring Payment</span>
@@ -420,14 +449,14 @@ export default function BillModal({
             </div>
 
             {isRecurring && (
-              <div className="pt-2 border-t border-[#1A1D1D]">
+              <div className="pt-2 border-t border-[#161F1D]">
                 <label className="block text-xs font-semibold text-[#F5F7F6] mb-1.5">
                   Frequency
                 </label>
                 <select
                   value={paymentFrequency}
                   onChange={(e) => setPaymentFrequency(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-[#0D0F0F] border border-[#1A1D1D] rounded-lg text-xs text-[#F5F7F6]"
+                  className="w-full px-3 py-2 bg-[#090C0B] border border-[#161F1D] rounded-lg text-xs text-[#F5F7F6]"
                 >
                   <option value="monthly">Monthly</option>
                   <option value="yearly">Yearly</option>
@@ -450,7 +479,7 @@ export default function BillModal({
                 value={providerReference}
                 onChange={(e) => setProviderReference(e.target.value)}
                 placeholder="e.g. IKEDC-94827103"
-                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
+                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
               />
             </div>
 
@@ -464,7 +493,7 @@ export default function BillModal({
                 value={officialProviderUrl}
                 onChange={(e) => setOfficialProviderUrl(e.target.value)}
                 placeholder="https://..."
-                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
+                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
               />
             </div>
           </div>
@@ -479,23 +508,23 @@ export default function BillModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add optional notes (e.g. Prepaid token number, meter ID, reference details)..."
-              className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
+              className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
             />
           </div>
 
           {/* Footer Buttons */}
-          <div className="pt-3 border-t border-[#1A1D1D] flex items-center justify-end gap-3">
+          <div className="pt-3 border-t border-[#161F1D] flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-[#1A1D1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {submitting ? (
                 <span>Saving...</span>
