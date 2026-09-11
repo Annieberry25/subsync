@@ -1,4 +1,5 @@
 'use client';
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
@@ -28,7 +29,7 @@ export interface InboxItem {
   subscriptionPrice?: number;
   currency?: string;
   providerUrl?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface InboxContextType {
@@ -72,8 +73,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const refreshFromStorage = useCallback(() => {
     if (typeof window === 'undefined') return;
     try {
-      const storedItems = localStorage.getItem(ITEMS_STORAGE_KEY);
-      const storedMeta = localStorage.getItem(OVERRIDES_STORAGE_KEY);
+      const storedItems = safeGetItem(ITEMS_STORAGE_KEY);
+      const storedMeta = safeGetItem(OVERRIDES_STORAGE_KEY);
 
       if (storedItems) {
         const parsedItems: InboxItem[] = JSON.parse(storedItems);
@@ -118,8 +119,8 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(newItems));
-        localStorage.setItem(
+        safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(newItems));
+        safeSetItem(
           OVERRIDES_STORAGE_KEY,
           JSON.stringify({ archivedIds: activeArchived, favouritedIds: activeFavourited })
         );
@@ -141,7 +142,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     let currentItems: InboxItem[] = [];
     if (typeof window !== 'undefined') {
       try {
-        const stored = localStorage.getItem(ITEMS_STORAGE_KEY);
+        const stored = safeGetItem(ITEMS_STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) currentItems = parsed;
@@ -176,7 +177,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
     if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+        safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
       } catch {}
     }
 
@@ -220,7 +221,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         const updated = prev.map((item) => (item.id === id ? { ...item, isRead: true } : item));
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+            safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
             window.dispatchEvent(new Event('subsync_inbox_updated'));
           } catch {}
         }
@@ -236,7 +237,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
         const updated = prev.map((item) => (item.id === id ? { ...item, isRead: false } : item));
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+            safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
             window.dispatchEvent(new Event('subsync_inbox_updated'));
           } catch {}
         }
@@ -251,7 +252,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       const updated = prev.map((item) => ({ ...item, isRead: true }));
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
+          safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
           window.dispatchEvent(new Event('subsync_inbox_updated'));
         } catch {}
       }

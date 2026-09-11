@@ -1,4 +1,5 @@
 'use client';
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
@@ -22,7 +23,7 @@ import {
 } from '@/lib/utils/metrics-utils';
 import { MetricCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency, usePlan } from '@/lib/contexts/user-settings-context';
 
 import { PersonalizedHeader } from './personalized-header';
 import { UpcomingRenewalsSpotlight } from '@/components/subscriptions/upcoming-renewals-spotlight';
@@ -60,7 +61,8 @@ function renderFormattedCurrency(amount: number, currency = 'USD') {
 
 export default function DashboardV2() {
   const { toast } = useToast();
-  const { defaultCurrency, exchangeRates, isPlus, isPremium } = useUserSettings();
+  const { defaultCurrency, exchangeRates } = useCurrency();
+  const { isPlus, isPremium } = usePlan();
 
   const initialCache = getCachedSubscriptions();
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initialCache || []);
@@ -82,7 +84,7 @@ export default function DashboardV2() {
   const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>(() => {
     if (typeof window === 'undefined') return {};
     try {
-      const saved = localStorage.getItem('subsync_reminders');
+      const saved = safeGetItem('subsync_reminders');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -113,11 +115,33 @@ export default function DashboardV2() {
         setSubscriptions(data);
       }
       setLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setLoading(false);
     });
     return () => {
       active = false;
     };
-  }, [subscriptions.length]);
+    // Run once on mount; refresh handled via the sync action rather than
+    // re-fetching in response to subscription length changes (avoids fetch loops).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleViewSubscription = useCallback((sub: SubscriptionRow) => {
+    setSelectedDetailSub(sub);
+  }, []);
+
+  const handleReviewSubscription = useCallback((sub: SubscriptionRow) => {
+    setSelectedDetailSub(sub);
+  }, []);
+
+  const handleSeeSavings = useCallback((sub: SubscriptionRow) => {
+    setCancellationSub(sub);
+  }, []);
+
+  const handleAskSubHalt = useCallback((q?: string) => {
+    window.dispatchEvent(new CustomEvent('subsync_open_ask_modal', { detail: { question: q } }));
+  }, []);
 
   const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
     if (id) {
@@ -159,7 +183,7 @@ export default function DashboardV2() {
     };
     setReminders(updated);
     try {
-      localStorage.setItem('subsync_reminders', JSON.stringify(updated));
+      safeSetItem('subsync_reminders', JSON.stringify(updated));
     } catch {
       // Ignore storage errors
     }
@@ -226,7 +250,8 @@ export default function DashboardV2() {
         <div className="py-0.5">
           <SubHaltAIAssistant
             subscriptions={subscriptions}
-            onViewSubscription={(sub) => setSelectedDetailSub(sub)}
+            onViewSubscription={handleViewSubscription}
+            onAskSubHalt={handleAskSubHalt}
           />
         </div>
       )}
@@ -360,11 +385,9 @@ export default function DashboardV2() {
         <SavingsRecommendations
           subscriptions={subscriptions}
           activeSubscriptions={activeSubscriptions}
-          onReviewSubscription={(sub) => setSelectedDetailSub(sub)}
-          onSeeSavings={(sub) => setCancellationSub(sub)}
-          onAskSubHalt={(q) => {
-            window.dispatchEvent(new CustomEvent('subsync_open_ask_modal', { detail: { question: q } }));
-          }}
+          onReviewSubscription={handleReviewSubscription}
+          onSeeSavings={handleSeeSavings}
+          onAskSubHalt={handleAskSubHalt}
         />
       )}
 

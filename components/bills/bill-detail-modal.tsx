@@ -1,9 +1,9 @@
 'use client';
 
-import { X, ExternalLink, ShieldCheck, Calendar, MapPin, Tag, FileText, Trash2, Edit3, Info } from 'lucide-react';
+import { X, ExternalLink, ShieldCheck, Calendar, MapPin, Tag, FileText, Trash2, Edit3, Info, Loader2 } from 'lucide-react';
 import type { BillPayment } from '@/lib/types/bills.types';
 import { formatCurrencyAmount, convertAmount } from '@/lib/services/currency-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { getVerifiedProvider } from '@/lib/constants/verified-providers';
 import ProviderLogo from './provider-logo';
 
@@ -13,6 +13,7 @@ interface BillDetailModalProps {
   onClose: () => void;
   onEdit: (bill: BillPayment) => void;
   onDelete: (id: string) => void;
+  deletingId?: string | null;
 }
 
 export default function BillDetailModal({
@@ -21,8 +22,9 @@ export default function BillDetailModal({
   onClose,
   onEdit,
   onDelete,
+  deletingId,
 }: BillDetailModalProps) {
-  const { defaultCurrency, exchangeRates } = useUserSettings();
+  const { defaultCurrency, exchangeRates } = useCurrency();
 
   if (!isOpen || !bill) return null;
 
@@ -216,9 +218,14 @@ export default function BillDetailModal({
                 onClose();
                 onDelete(bill.id);
               }}
-              className="px-3.5 py-2 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+              disabled={deletingId === bill.id}
+              className="px-3.5 py-2 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              <Trash2 className="w-4 h-4" />
+              {deletingId === bill.id ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
               <span>Delete Record</span>
             </button>
 

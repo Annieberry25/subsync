@@ -1,36 +1,22 @@
-'use client';
+﻿'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Filter, Trash2, Edit3, FileText, Globe } from 'lucide-react';
-import type { BillPayment } from '@/lib/types/bills.types';
+import { Search, Filter, ShieldCheck, ExternalLink, FileText, Trash2, Edit3, Eye, ArrowUpDown, Tag, Calendar, Loader2 } from 'lucide-react';
+import type { BillPayment, BillFilterOptions } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
-import { formatCurrencyAmount, SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
+import { formatCurrencyAmount, convertAmount, SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { filterBillPayments } from '@/lib/services/bills-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
-import { SUPPORTED_COUNTRIES } from '@/lib/constants/country-architecture';
-import ProviderLogo from './provider-logo';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
+import { getVerifiedProvider } from '@/lib/constants/verified-providers';
 
 interface BillHistoryTableProps {
   bills: BillPayment[];
   onSelectBill: (bill: BillPayment) => void;
   onEditBill: (bill: BillPayment) => void;
   onDeleteBill: (id: string) => void;
+  deletingId?: string | null;
   selectedCategory?: string;
   onSelectCategory?: (category: string) => void;
-  limitDisplayCount?: number;
-  onViewAll?: () => void;
-}
-
-function formatDateShort(dateStr: string): string {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    const month = d.toLocaleDateString('en-US', { month: 'short' });
-    const day = d.getDate();
-    return `${month} ${day}`;
-  } catch {
-    return dateStr;
-  }
 }
 
 export default function BillHistoryTable({
@@ -38,109 +24,58 @@ export default function BillHistoryTable({
   onSelectBill,
   onEditBill,
   onDeleteBill,
+  deletingId,
   selectedCategory = 'All',
   onSelectCategory,
-  limitDisplayCount,
-  onViewAll,
 }: BillHistoryTableProps) {
-  const { defaultCurrency } = useUserSettings();
+  const { defaultCurrency, exchangeRates } = useCurrency();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [countryFilter, setCountryFilter] = useState('All');
-  const [providerFilter, setProviderFilter] = useState('All');
   const [currencyFilter, setCurrencyFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState<any>('all');
-  const [sortBy, setSortBy] = useState<any>('date_desc');
-  const [showFilters, setShowFilters] = useState(false);
-
-  // Extract unique list of provider names from bills
-  const uniqueProviders = useMemo(() => {
-    const set = new Set<string>();
-    for (const b of bills) {
-      if (b.providerName) set.add(b.providerName);
-    }
-    return Array.from(set).sort();
-  }, [bills]);
+  const [statusFilter, setStatusFilter] = useState<BillFilterOptions['status']>('all');
+  const [sortBy, setSortBy] = useState<BillFilterOptions['sortBy']>('date_desc');
 
   // Filtered bills
   const filteredBills = useMemo(() => {
-    let result = filterBillPayments(bills, {
+    return filterBillPayments(bills, {
       searchQuery,
       category: selectedCategory,
       currency: currencyFilter,
       status: statusFilter,
       sortBy,
     });
+  }, [bills, searchQuery, selectedCategory, currencyFilter, statusFilter, sortBy]);
 
-    if (countryFilter && countryFilter !== 'All') {
-      result = result.filter((b) => (b.country || '').toLowerCase() === countryFilter.toLowerCase());
-    }
-
-    if (providerFilter && providerFilter !== 'All') {
-      result = result.filter((b) => b.providerName === providerFilter);
-    }
-
-    return result;
-  }, [bills, searchQuery, selectedCategory, countryFilter, providerFilter, currencyFilter, statusFilter, sortBy]);
-
-  const displayedBills = limitDisplayCount
-    ? filteredBills.slice(0, limitDisplayCount)
-    : filteredBills;
+  // Unique list of providers for filter
+  const uniqueProviders = useMemo(() => {
+    const set = new Set(bills.map((b) => b.providerName));
+    return Array.from(set);
+  }, [bills]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Search & Filter Toolbar */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
+      <div className="p-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Search Bar */}
           <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search payments or providers..."
-              className="w-full pl-9 pr-3 py-2 bg-[#090C0B] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors min-h-[40px]"
+              placeholder="Search payments by provider, reference, notes, location..."
+              className="w-full pl-10 pr-4 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
 
-          {/* Filter Toggle Button */}
-          <button
-            type="button"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`px-3 py-2 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer min-h-[40px] shrink-0 ${
-              showFilters || selectedCategory !== 'All' || countryFilter !== 'All' || providerFilter !== 'All' || currencyFilter !== 'All'
-                ? 'bg-[#14B8A6]/10 border-[#14B8A6]/40 text-[#14B8A6]'
-                : 'bg-[#090C0B] border-[#161F1D] text-[#94A3B8] hover:text-[#F5F7F6]'
-            }`}
-          >
-            <Filter className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Filter</span>
-          </button>
-        </div>
-
-        {/* Expandable Filters Drawer */}
-        {showFilters && (
-          <div className="p-3 rounded-xl bg-[#070A09] border border-[#161F1D] flex flex-wrap items-center gap-2 animate-in fade-in duration-150">
-            {/* Country Select */}
-            <select
-              value={countryFilter}
-              onChange={(e) => setCountryFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#090C0B] border border-[#161F1D] rounded-lg text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
-            >
-              <option value="All">All Countries</option>
-              {SUPPORTED_COUNTRIES.map((c) => (
-                <option key={c.code} value={c.name}>
-                  {c.flag} {c.name}
-                </option>
-              ))}
-            </select>
-
+          {/* Quick Filter Selectors */}
+          <div className="flex flex-wrap items-center gap-2">
             {/* Category Select */}
             <select
               value={selectedCategory}
               onChange={(e) => onSelectCategory?.(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#090C0B] border border-[#161F1D] rounded-lg text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
+              className="px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
             >
               <option value="All">All Categories</option>
               {STANDARD_BILL_CATEGORIES.map((c) => (
@@ -150,25 +85,11 @@ export default function BillHistoryTable({
               ))}
             </select>
 
-            {/* Provider Select */}
-            <select
-              value={providerFilter}
-              onChange={(e) => setProviderFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#090C0B] border border-[#161F1D] rounded-lg text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
-            >
-              <option value="All">All Providers</option>
-              {uniqueProviders.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-
             {/* Currency Select */}
             <select
               value={currencyFilter}
               onChange={(e) => setCurrencyFilter(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#090C0B] border border-[#161F1D] rounded-lg text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
+              className="px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
             >
               <option value="All">All Currencies</option>
               {SUPPORTED_CURRENCIES.map((c) => (
@@ -181,8 +102,8 @@ export default function BillHistoryTable({
             {/* Sort Select */}
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#090C0B] border border-[#161F1D] rounded-lg text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
+              onChange={(e) => setSortBy(e.target.value as BillFilterOptions['sortBy'])}
+              className="px-3 py-2 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
             >
               <option value="date_desc">Newest First</option>
               <option value="date_asc">Oldest First</option>
@@ -191,96 +112,216 @@ export default function BillHistoryTable({
               <option value="provider_asc">Provider A-Z</option>
             </select>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Payment Cards List (Mobile-first fintech layout) */}
-      <div className="space-y-2">
-        {displayedBills.length > 0 ? (
-          displayedBills.map((bill) => {
-            const formattedAmount = formatCurrencyAmount(bill.amount, bill.currency || defaultCurrency);
-            const catDisplay =
-              bill.category === 'Other' && bill.customCategory
-                ? bill.customCategory
-                : bill.category;
-            const dateDisplay = formatDateShort(bill.paymentDate);
-            const hasAttachedReceipt = bill.receipts && bill.receipts.length > 0;
+      {/* Desktop Table View */}
+      <div className="hidden md:block rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] overflow-hidden">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-[#1A1D1D] bg-[#0F1111] text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider">
+              <th className="py-3.5 px-4">Provider / Biller</th>
+              <th className="py-3.5 px-4">Category</th>
+              <th className="py-3.5 px-4">Date</th>
+              <th className="py-3.5 px-4">Original Amount</th>
+              <th className="py-3.5 px-4">Converted Total</th>
+              <th className="py-3.5 px-4">Receipt</th>
+              <th className="py-3.5 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#1A1D1D]/70 text-xs">
+            {filteredBills.length > 0 ? (
+              filteredBills.map((bill) => {
+                const verified = getVerifiedProvider(bill.providerName);
+                const isVerified = Boolean(verified);
+                const originalFormatted = formatCurrencyAmount(bill.amount, bill.currency);
+                const convertedDisplay = convertAmount(bill.amount, bill.currency, defaultCurrency, exchangeRates);
+                const convertedFormatted = formatCurrencyAmount(convertedDisplay, defaultCurrency);
+                const isDifferentCurrency = (bill.currency || 'NGN').toUpperCase() !== (defaultCurrency || 'USD').toUpperCase();
+
+                return (
+                  <tr
+                    key={bill.id}
+                    className="hover:bg-[#121414] transition-colors group cursor-pointer"
+                    onClick={() => onSelectBill(bill)}
+                  >
+                    {/* Provider Name */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-[#14B8A6]/10 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] font-bold text-xs shrink-0">
+                          {bill.providerName.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors">
+                              {bill.providerName}
+                            </span>
+                            {isVerified && (
+                              <span title="Verified Biller">
+                                <ShieldCheck className="w-3.5 h-3.5 text-[#14B8A6]" />
+                              </span>
+                            )}
+                          </div>
+                          {bill.providerReference && (
+                            <span className="text-[10px] text-[#64748B] block font-mono">
+                              {bill.providerReference}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Category */}
+                    <td className="py-3.5 px-4">
+                      <span className="px-2.5 py-1 rounded-md bg-[#1A1D1D] text-[#94A3B8] font-medium text-[11px]">
+                        {bill.category === 'Other' && bill.customCategory ? bill.customCategory : bill.category}
+                      </span>
+                    </td>
+
+                    {/* Date */}
+                    <td className="py-3.5 px-4 text-[#94A3B8]">
+                      {bill.paymentDate}
+                    </td>
+
+                    {/* Original Amount */}
+                    <td className="py-3.5 px-4 font-semibold text-[#F5F7F6]">
+                      {originalFormatted}
+                    </td>
+
+                    {/* Converted Display Amount */}
+                    <td className="py-3.5 px-4 text-[#94A3B8]">
+                      {isDifferentCurrency ? (
+                        <span>{convertedFormatted}</span>
+                      ) : (
+                        <span className="text-[#64748B]">—</span>
+                      )}
+                    </td>
+
+                    {/* Receipt Indicator */}
+                    <td className="py-3.5 px-4">
+                      {bill.receipts && bill.receipts.length > 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-[#14B8A6] font-medium">
+                          <FileText className="w-3.5 h-3.5" />
+                          Attached
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-[#64748B]">None</span>
+                      )}
+                    </td>
+
+                    {/* Action Buttons */}
+                    <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {bill.officialProviderUrl && (
+                          <a
+                            href={bill.officialProviderUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#14B8A6] hover:bg-[#1A1D1D] transition-colors"
+                            title="Visit Official Provider Portal"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onEditBill(bill)}
+                          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+                          title="Edit"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteBill(bill.id)}
+                          disabled={deletingId === bill.id}
+                          className="p-1.5 rounded-lg text-[#94A3B8] hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-50"
+                          title="Delete"
+                          aria-label="Delete payment record"
+                        >
+                          {deletingId === bill.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-[#94A3B8]">
+                  <p className="text-sm font-semibold">No payment records found.</p>
+                  <p className="text-xs text-[#64748B] mt-1">
+                    Try adjusting your filters or click &quot;Add Bill or Payment&quot; above.
+                  </p>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Card List View (< md screens) */}
+      <div className="md:hidden space-y-3">
+        {filteredBills.length > 0 ? (
+          filteredBills.map((bill) => {
+            const verified = getVerifiedProvider(bill.providerName);
+            const isVerified = Boolean(verified);
+            const originalFormatted = formatCurrencyAmount(bill.amount, bill.currency);
 
             return (
               <div
                 key={bill.id}
                 onClick={() => onSelectBill(bill)}
-                className="p-3.5 rounded-2xl bg-[#090C0B] hover:bg-[#0E1412] active:bg-[#121A18] border border-[#161F1D] hover:border-[#222B28] flex items-center justify-between gap-3 transition-all cursor-pointer min-h-[56px] shadow-sm"
+                className="p-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-3 active:bg-[#121414] transition-colors cursor-pointer"
               >
-                {/* Left: Reusable Provider Logo Component & Details */}
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <ProviderLogo
-                    name={bill.providerName}
-                    officialUrl={bill.officialProviderUrl}
-                    size="md"
-                  />
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-xs sm:text-sm text-[#F5F7F6] truncate">
-                        {bill.providerName}
-                      </span>
-                      {hasAttachedReceipt && (
-                        <span className="p-0.5 text-[#94A3B8]" title="Receipt attached">
-                          <FileText className="w-3.5 h-3.5" />
-                        </span>
-                      )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-[#14B8A6]/10 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] font-bold text-xs shrink-0">
+                      {bill.providerName.slice(0, 2).toUpperCase()}
                     </div>
-
-                    <div className="text-[11px] text-[#94A3B8] truncate flex items-center gap-1 mt-0.5">
-                      {bill.country && <span>{bill.country} · </span>}
-                      <span>{catDisplay}</span>
-                      <span>·</span>
-                      <span>{dateDisplay}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="font-semibold text-xs text-[#F5F7F6] truncate">
+                          {bill.providerName}
+                        </span>
+                        {isVerified && <ShieldCheck className="w-3.5 h-3.5 text-[#14B8A6] shrink-0" />}
+                      </div>
+                      <span className="text-[10px] text-[#94A3B8] block">
+                        {bill.category === 'Other' && bill.customCategory ? bill.customCategory : bill.category}
+                      </span>
                     </div>
                   </div>
+
+                  <span className="text-sm font-bold text-[#F5F7F6]">
+                    {originalFormatted}
+                  </span>
                 </div>
 
-                {/* Right: Price & Actions */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="text-right">
-                    <span className="text-xs sm:text-sm font-bold text-[#F5F7F6] block tracking-tight">
-                      {formattedAmount}
-                    </span>
-                    {bill.status === 'pending' && (
-                      <span className="text-[9px] text-amber-400 font-semibold uppercase tracking-wider block">
-                        Pending
-                      </span>
-                    )}
-                    {bill.status === 'overdue' && (
-                      <span className="text-[9px] text-red-400 font-semibold uppercase tracking-wider block">
-                        Overdue
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between text-[11px] text-[#94A3B8] pt-2 border-t border-[#1A1D1D]">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-[#14B8A6]" />
+                    {bill.paymentDate}
+                  </span>
 
-                  <div className="flex items-center gap-1 border-l border-[#161F1D] pl-2 hidden sm:flex">
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditBill(bill);
-                      }}
-                      className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors"
-                      title="Edit Payment"
+                      onClick={() => onEditBill(bill)}
+                      className="px-2.5 py-1 rounded-lg bg-[#1A1D1D] text-[#F5F7F6] font-medium"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      Edit
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteBill(bill.id);
-                      }}
-                      className="p-1.5 rounded-lg text-[#94A3B8] hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      title="Delete Payment"
+                      onClick={() => onDeleteBill(bill.id)}
+                      disabled={deletingId === bill.id}
+                      className="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 font-medium disabled:opacity-50"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      {deletingId === bill.id ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </div>
@@ -288,27 +329,11 @@ export default function BillHistoryTable({
             );
           })
         ) : (
-          <div className="p-8 rounded-2xl bg-[#090C0B] border border-[#161F1D] text-center text-[#94A3B8] space-y-1">
-            <p className="text-xs font-semibold text-[#F5F7F6]">No payment records found.</p>
-            <p className="text-[11px] text-[#94A3B8]">
-              Click &quot;Pay a Bill&quot; or &quot;Add payment manually&quot; to record your payments.
-            </p>
+          <div className="p-8 text-center bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl text-[#94A3B8]">
+            <p className="text-sm font-semibold">No payment records found.</p>
           </div>
         )}
       </div>
-
-      {/* View All Payments Footer Button */}
-      {limitDisplayCount && filteredBills.length > limitDisplayCount && onViewAll && (
-        <div className="pt-2 text-center">
-          <button
-            type="button"
-            onClick={onViewAll}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#090C0B] hover:bg-[#121917] text-[#14B8A6] border border-[#161F1D] hover:border-[#14B8A6]/40 text-xs font-semibold transition-colors cursor-pointer min-h-[44px]"
-          >
-            View all payments ({filteredBills.length}) →
-          </button>
-        </div>
-      )}
     </div>
   );
 }

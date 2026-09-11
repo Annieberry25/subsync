@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
-import { X, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Check, Loader2 } from 'lucide-react';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { usePlan } from '@/lib/contexts/user-settings-context';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { recordActivity } from '@/lib/services/activity-service';
 import { createSubscription } from '@/lib/services/subscription-service';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.com';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -22,13 +24,15 @@ export default function UpgradeModal({
   title = `You’ve reached your ${FREE_SUBSCRIPTION_LIMIT}-subscription limit.`,
   description = "Upgrade to Plus to track unlimited subscriptions.",
 }: UpgradeModalProps) {
-  const { updatePlanTier } = useUserSettings();
+  const { updatePlanTier } = usePlan();
   const { toast } = useToast();
   const { addInboxItem } = useInbox();
+  const [processing, setProcessing] = useState(false);
 
   if (!isOpen) return null;
 
   const handleUpgrade = async () => {
+    setProcessing(true);
     try {
       await createSubscription({
         name: 'SubHalt',
@@ -39,8 +43,8 @@ export default function UpgradeModal({
         next_billing_date: '2026-09-15',
         start_date: new Date().toISOString().split('T')[0],
         status: 'active',
-        payment_method: 'Mastercard •••• 6730',
-        provider_url: 'https://subhalt.com',
+        payment_method: 'Card',
+        provider_url: SITE_URL,
         notes: 'SubHalt subscription auto-renews monthly at $4.99.',
       });
 
@@ -67,8 +71,10 @@ export default function UpgradeModal({
       });
 
       toast.success('Your workspace has been upgraded to SubHalt Plus!', 'Subscribed to Plus');
+      setProcessing(false);
       onClose();
     } catch {
+      setProcessing(false);
       toast.error('Failed to update plan. Please try again.', 'Upgrade Failed');
     }
   };
@@ -168,9 +174,11 @@ export default function UpgradeModal({
               <button
                 type="button"
                 onClick={handleUpgrade}
-                className="w-full py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-opacity cursor-pointer shadow-sm text-center"
+                disabled={processing}
+                className="w-full py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-opacity cursor-pointer shadow-sm text-center flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
-                Upgrade to Plus
+                {processing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Upgrade to Plus</span>
               </button>
 
               <div className="space-y-2 pt-1">

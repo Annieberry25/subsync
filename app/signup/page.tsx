@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
 import AuthForm from '@/components/auth/auth-form';
+
+export const metadata: Metadata = {
+  title: 'Create your account',
+  description: 'Sign up for SubHalt to track and optimize your recurring subscriptions.',
+  alternates: { canonical: '/signup' },
+};
 
 export default function SignupPage() {
   return (

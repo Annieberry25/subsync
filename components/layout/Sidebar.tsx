@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { 
   LayoutDashboard, 
@@ -58,7 +59,8 @@ interface SidebarProps {
 export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { fullName: contextFullName, email: contextEmail } = useUserSettings();
+const { fullName: contextFullName, email: contextEmail } = useAuth();
+  const { isPlus } = usePlan();
   const { unreadCount } = useInbox();
   const [user, setUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -107,7 +109,11 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
   }, [showProfileMenu]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Continue to redirect even if signOut fails; session cookies will still be cleared client-side.
+    }
     router.push('/login');
     router.refresh();
   };
@@ -351,6 +357,7 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
                     setShowProfileMenu(false);
                     handleSignOut();
                   }}
+                  aria-label="Log out"
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-[#94A3B8]" />
@@ -373,11 +380,13 @@ export default function Sidebar({ isMobileOpen = false, onMobileClose }: Sidebar
           >
             <div className="flex items-center gap-2.5 min-w-0">
               {avatarUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
+                <Image
                   src={avatarUrl}
                   alt={userName}
+                  width={32}
+                  height={32}
                   className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#14B8A6]/40"
+                  unoptimized
                 />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] text-xs font-bold shrink-0">

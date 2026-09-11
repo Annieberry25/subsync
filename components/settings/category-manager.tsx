@@ -27,9 +27,10 @@ import {
   Sparkles,
   Tag,
   Folder,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react';
-import { useUserSettings, BUILT_IN_CATEGORIES } from '@/lib/contexts/user-settings-context';
+import { useCategories, BUILT_IN_CATEGORIES } from '@/lib/contexts/user-settings-context';
 import { useToast } from '@/lib/hooks/use-toast';
 import {
   updateSubscription,
@@ -127,7 +128,7 @@ export function CategoryManager({
     updateCategory,
     deleteCategory,
     getCategoryMeta,
-  } = useUserSettings();
+  } = useCategories();
 
   // Editor State
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -137,6 +138,7 @@ export function CategoryManager({
   const [formName, setFormName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('Tag');
   const [selectedColor, setSelectedColor] = useState('#14B8A6');
+  const [submitting, setSubmitting] = useState(false);
 
   // Deletion States
   const [deletingCategoryName, setDeletingCategoryName] = useState<string | null>(null);
@@ -178,10 +180,11 @@ export function CategoryManager({
       return;
     }
 
+    setSubmitting(true);
     try {
       if (editingCategoryName) {
         // Updating Existing Category
-        const isBuiltIn = BUILT_IN_CATEGORIES.includes(editingCategoryName as any);
+        const isBuiltIn = BUILT_IN_CATEGORIES.includes(editingCategoryName as (typeof BUILT_IN_CATEGORIES)[number]);
 
         if (
           !isBuiltIn &&
@@ -202,7 +205,7 @@ export function CategoryManager({
           const affected = subscriptions.filter((s) => s.category === editingCategoryName);
           if (affected.length > 0) {
             await Promise.all(
-              affected.map((s) => updateSubscription(s.id, { category: trimmed as any }))
+              affected.map((s) => updateSubscription(s.id, { category: trimmed as (typeof BUILT_IN_CATEGORIES)[number] }))
             );
             await onSubscriptionsUpdated();
           }
@@ -227,6 +230,8 @@ export function CategoryManager({
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save category.';
       toast.error(msg, 'Category Error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -239,7 +244,7 @@ export function CategoryManager({
     try {
       if (affected.length > 0) {
         await Promise.all(
-          affected.map((s) => updateSubscription(s.id, { category: reassignCategoryTarget as any }))
+          affected.map((s) => updateSubscription(s.id, { category: reassignCategoryTarget as (typeof BUILT_IN_CATEGORIES)[number] }))
         );
         await onSubscriptionsUpdated();
       }
@@ -373,9 +378,10 @@ export function CategoryManager({
             </button>
             <button
               type="submit"
-              disabled={!formName.trim()}
-              className="h-8.5 px-4 rounded-xl text-xs font-semibold text-[#091512] bg-[#14B8A6] hover:opacity-90 transition-colors flex items-center justify-center cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!formName.trim() || submitting}
+              className="h-8.5 px-4 rounded-xl text-xs font-semibold text-[#091512] bg-[#14B8A6] hover:opacity-90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
             >
+              {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>{editingCategoryName ? 'Save Changes' : 'Create Category'}</span>
             </button>
           </div>
@@ -385,7 +391,7 @@ export function CategoryManager({
       {/* CATEGORY LIST GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
         {allCategories.map((cat) => {
-          const isBuiltIn = BUILT_IN_CATEGORIES.includes(cat as any);
+          const isBuiltIn = BUILT_IN_CATEGORIES.includes(cat as (typeof BUILT_IN_CATEGORIES)[number]);
           const count = subscriptions.filter((s) => s.category === cat).length;
           const meta = getCategoryMeta(cat);
 

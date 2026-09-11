@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, UploadCloud, FileText, CheckCircle2, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency, useCategories, BUILT_IN_CATEGORIES } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { createSubscription } from '@/lib/services/subscription-service';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -34,7 +34,8 @@ const SAMPLE_EXTRACTED: ExtractedReceiptData = {
 };
 
 export function ReceiptExtractionModal({ isOpen, onClose, onSuccess }: ReceiptExtractionModalProps) {
-  const { defaultCurrency, allCategories } = useUserSettings();
+  const { defaultCurrency } = useCurrency();
+  const { allCategories } = useCategories();
   const { addInboxItem } = useInbox();
   const { toast } = useToast();
 
@@ -42,13 +43,20 @@ export function ReceiptExtractionModal({ isOpen, onClose, onSuccess }: ReceiptEx
   const [file, setFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<ExtractedReceiptData>(SAMPLE_EXTRACTED);
   const [saving, setSaving] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
   const handleSimulateUpload = (selectedFile?: File) => {
     if (selectedFile) setFile(selectedFile);
     setStep('extracting');
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       setStep('review');
     }, 1500);
   };
@@ -63,7 +71,7 @@ export function ReceiptExtractionModal({ isOpen, onClose, onSuccess }: ReceiptEx
       price: formData.amount,
       currency: formData.currency,
       billing_cycle: formData.billingFrequency,
-      category: formData.category as any,
+      category: formData.category as (typeof BUILT_IN_CATEGORIES)[number],
       next_billing_date: formData.renewalDate,
       start_date: today,
       status: 'active',
@@ -230,7 +238,7 @@ export function ReceiptExtractionModal({ isOpen, onClose, onSuccess }: ReceiptEx
                   <label className="text-[#94A3B8] block mb-1 font-medium">Billing Frequency</label>
                   <select
                     value={formData.billingFrequency}
-                    onChange={(e) => setFormData({ ...formData, billingFrequency: e.target.value as any })}
+                    onChange={(e) => setFormData({ ...formData, billingFrequency: e.target.value as 'monthly' | 'yearly' | 'quarterly' })}
                     className="w-full bg-[#121414] border border-[#1A1D1D] rounded-xl px-3 py-2 text-[#F5F7F6] focus:outline-none"
                   >
                     <option value="monthly">Monthly</option>

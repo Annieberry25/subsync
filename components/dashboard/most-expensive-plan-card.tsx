@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import {
   getMostExpensiveSubscriptions,
@@ -17,7 +18,7 @@ interface MostExpensivePlanCardProps {
   onEdit?: (subscription: SubscriptionRow) => void;
 }
 
-export function MostExpensivePlanCard({ subscriptions }: MostExpensivePlanCardProps) {
+export const MostExpensivePlanCard = memo(function MostExpensivePlanCard({ subscriptions }: MostExpensivePlanCardProps) {
   const topSubscriptions = getMostExpensiveSubscriptions(subscriptions);
   const totalMonthly = calculateMonthlySpend(subscriptions);
 
@@ -185,4 +186,4 @@ export function MostExpensivePlanCard({ subscriptions }: MostExpensivePlanCardPr
       </div>
     </div>
   );
-}
+});

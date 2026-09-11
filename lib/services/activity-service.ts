@@ -1,3 +1,4 @@
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 export type ActivityType =
   | 'added'
   | 'edited'
@@ -7,6 +8,8 @@ export type ActivityType =
   | 'restored'
   | 'reminder_sent'
   | 'updated';
+
+import { logger } from '@/lib/logger';
 
 export interface ActivityRecord {
   id: string;
@@ -18,7 +21,7 @@ export interface ActivityRecord {
   timestamp: string; // ISO String
   amount?: number;
   currency?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 const STORAGE_KEY = 'subsync_activity_log';
@@ -26,13 +29,14 @@ const STORAGE_KEY = 'subsync_activity_log';
 export function getActivityHistory(): ActivityRecord[] {
   if (typeof window === 'undefined') return [];
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = safeGetItem(STORAGE_KEY);
     if (!stored) {
       return [];
     }
     const parsed: ActivityRecord[] = JSON.parse(stored);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (err) {
+    logger.warn('[activity-service] getActivityHistory parse error', { message: err instanceof Error ? err.message : String(err) });
     return [];
   }
 }
@@ -48,9 +52,9 @@ export function recordActivity(record: Omit<ActivityRecord, 'id' | 'timestamp'>)
     try {
       const current = getActivityHistory();
       const updated = [newRecord, ...current];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {
-      // Ignore storage errors
+      safeSetItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (err) {
+      logger.warn('[activity-service] recordActivity storage error', { message: err instanceof Error ? err.message : String(err) });
     }
   }
 

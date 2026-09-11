@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
@@ -47,7 +48,7 @@ function getCycleSuffix(billingCycle?: string): string {
   return '/month';
 }
 
-export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRenewalsSpotlightProps) {
+export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRenewalsSpotlightProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -150,4 +151,4 @@ export function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRen
       )}
     </div>
   );
-}
+});

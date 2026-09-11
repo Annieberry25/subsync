@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 interface ServiceIconProps {
   name: string;
@@ -8,8 +9,6 @@ interface ServiceIconProps {
   className?: string;
   providerUrl?: string | null;
 }
-
-const DEFAULT_LOGO_DEV_TOKEN = 'pk_DjjLxkpaTgWW8UuIFUX1lQ';
 
 // Comprehensive dictionary mapping subscription service names to their primary domain names
 const BRAND_DOMAIN_MAP: Record<string, string> = {
@@ -159,15 +158,22 @@ export function ServiceIcon({
   const [hasError, setHasError] = useState(false);
 
   const domain = resolveBrandDomain(name, providerUrl);
-  
+  const initials = getProviderInitials(name);
+
   // Reset hasError if domain/name changes
   useEffect(() => {
     setHasError(false);
   }, [name, providerUrl]);
 
-  const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN || DEFAULT_LOGO_DEV_TOKEN;
+  const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
+  if (!token) {
+    return (
+      <div className={`${className} rounded-xl bg-[#000000] border border-[#1A1D1D] text-[#F5F7F6] flex items-center justify-center shrink-0`}>
+        <span className="font-bold text-xs">{initials}</span>
+      </div>
+    );
+  }
   const logoUrl = `https://img.logo.dev/${domain}?token=${token}&size=128&fallback=monogram`;
-  const initials = getProviderInitials(name);
 
   // If Logo.dev fails to load image, render SubSync styled initial fallback
   if (hasError) {
@@ -186,12 +192,15 @@ export function ServiceIcon({
 
   return (
     <div className={`${className} rounded-xl bg-[#000000] border border-[#1A1D1D] overflow-hidden flex items-center justify-center shrink-0 p-1`}>
-      <img
+      <Image
         src={logoUrl}
         alt={`${name} logo`}
+        width={128}
+        height={128}
         className="w-full h-full object-contain rounded-lg"
         onError={() => setHasError(true)}
         loading="lazy"
+        unoptimized
       />
     </div>
   );

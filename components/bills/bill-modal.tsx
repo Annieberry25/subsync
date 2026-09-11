@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Check, ShieldCheck, AlertCircle, Building2, Globe, MapPin } from 'lucide-react';
-import type { BillPayment, BillFrequency } from '@/lib/types/bills.types';
+import { X, Check, ShieldCheck, Link as LinkIcon, Paperclip, AlertCircle, Building2, Globe, MapPin, Tag } from 'lucide-react';
+import type { BillPayment, BillFrequency, StandardBillCategory, VerifiedProvider } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { searchVerifiedProviders, getVerifiedProvider } from '@/lib/constants/verified-providers';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 import ProviderLogo from './provider-logo';
 
 interface BillModalProps {
@@ -33,7 +33,7 @@ export default function BillModal({
   prefillData,
   defaultCategory,
 }: BillModalProps) {
-  const { defaultCurrency } = useUserSettings();
+  const { defaultCurrency } = useCurrency();
 
   const [category, setCategory] = useState<string>('Electricity');
   const [customCategory, setCustomCategory] = useState<string>('');
@@ -56,7 +56,7 @@ export default function BillModal({
   const [errorMsg, setErrorMsg] = useState('');
 
   // Provider autosuggest dropdown
-  const [providerSuggestions, setProviderSuggestions] = useState<any[]>([]);
+  const [providerSuggestions, setProviderSuggestions] = useState<VerifiedProvider[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export default function BillModal({
 
   if (!isOpen) return null;
 
-  const handleSelectSuggestion = (sug: any) => {
+  const handleSelectSuggestion = (sug: VerifiedProvider) => {
     setProviderName(sug.name);
     setCategory(sug.category);
     if (sug.officialPaymentUrl) {
@@ -192,16 +192,21 @@ export default function BillModal({
         source: initialData ? initialData.source : 'manual',
       });
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to save payment record.');
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to save payment record.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#090C0B] border border-[#161F1D] rounded-2xl shadow-2xl overflow-hidden my-8">
+<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Record or edit a bill"
+        className="relative w-full max-w-2xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden my-8"
+      >
         {/* Header */}
         <div className="px-6 py-5 border-b border-[#161F1D] flex items-center justify-between bg-[#0B0F0D]">
           <div>
@@ -216,7 +221,8 @@ export default function BillModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
+            aria-label="Close modal"
+            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -225,7 +231,7 @@ export default function BillModal({
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
           {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-xs">
+            <div id="bill-error" className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -250,6 +256,7 @@ export default function BillModal({
                 type="text"
                 required
                 value={providerName}
+                aria-describedby={errorMsg ? 'bill-error' : undefined}
                 onChange={(e) => {
                   setProviderName(e.target.value);
                   setShowSuggestions(true);
@@ -379,8 +386,8 @@ export default function BillModal({
               </label>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as any)}
-                className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+onChange={(e) => setStatus(e.target.value as 'paid' | 'pending' | 'overdue')}
+                className="w-full px-3.5 py-2.5 bg-[#000000] border border-[#1A1D1D] rounded-xl text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
               >
                 <option value="paid">Paid</option>
                 <option value="pending">Pending</option>
@@ -455,8 +462,8 @@ export default function BillModal({
                 </label>
                 <select
                   value={paymentFrequency}
-                  onChange={(e) => setPaymentFrequency(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-[#090C0B] border border-[#161F1D] rounded-lg text-xs text-[#F5F7F6]"
+                  onChange={(e) => setPaymentFrequency(e.target.value as BillFrequency)}
+                  className="w-full px-3 py-2 bg-[#0D0F0F] border border-[#1A1D1D] rounded-lg text-xs text-[#F5F7F6]"
                 >
                   <option value="monthly">Monthly</option>
                   <option value="yearly">Yearly</option>

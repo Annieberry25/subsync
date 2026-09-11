@@ -1,4 +1,5 @@
 'use client';
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
@@ -14,7 +15,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('subsync-theme') as Theme | null;
+      const saved = safeGetItem('subsync-theme') as Theme | null;
       if (saved === 'midnight') {
         return saved;
       }
@@ -45,7 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem('subsync-theme', newTheme);
+    safeSetItem('subsync-theme', newTheme);
     applyTheme(newTheme);
   };
 

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useAuth } from '@/lib/contexts/user-settings-context';
 import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
 
 interface PersonalizedHeaderProps {
@@ -32,11 +32,11 @@ function getFormattedDateString() {
   return `${weekday}, ${day} ${month} ${year}`;
 }
 
-export function PersonalizedHeader({
+export const PersonalizedHeader = memo(function PersonalizedHeader({
   renewingThisWeekCount = 0,
   onAskSubHalt,
 }: PersonalizedHeaderProps) {
-  const { fullName: contextFullName, email: contextEmail } = useUserSettings();
+  const { fullName: contextFullName, email: contextEmail } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [greeting] = useState<string>(getGreeting);
   const [formattedDate] = useState<string>(getFormattedDateString);
@@ -91,4 +91,4 @@ export function PersonalizedHeader({
       </div>
     </div>
   );
-}
+});

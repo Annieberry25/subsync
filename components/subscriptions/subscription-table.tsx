@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useEffect, useSyncExternalStore } from 'react';
+import { useRef, useState, useEffect, useSyncExternalStore, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, ChevronRight, Trash2 } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
@@ -39,7 +39,7 @@ function getPlanName(sub: SubscriptionRow): string {
 
 const emptySubscribe = () => () => {};
 
-export default function SubscriptionTable({
+function SubscriptionTable({
   subscriptions,
   highlightedSubId,
   onSelectSubscription,
@@ -241,6 +241,9 @@ export default function SubscriptionTable({
       )
     : null;
 
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
   return (
     <div className="w-full max-w-full overflow-hidden rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] shadow-sm">
       {/* Contained Horizontal Scroll Wrapper */}
@@ -261,9 +264,6 @@ export default function SubscriptionTable({
               const formattedPrice = formatCurrency(Number(sub.price), sub.currency);
               const statusDotStyle = statusDotColors[sub.status] || statusDotColors.active;
               const planName = getPlanName(sub);
-
-              const now = new Date();
-              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
               const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
                 if (!dateStr) return null;
@@ -365,3 +365,5 @@ export default function SubscriptionTable({
     </div>
   );
 }
+
+export default memo(SubscriptionTable);

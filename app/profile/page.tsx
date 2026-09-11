@@ -1,4 +1,5 @@
 'use client';
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -14,8 +15,9 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
 import { ChangeEmailModal } from '@/components/settings/change-email-modal';
 
 const AVATAR_ACCENT_COLORS = [
@@ -34,19 +36,19 @@ export default function ProfilePage() {
     fullName: initialFullName,
     email,
     lastNameChange,
-    isPlus,
     loading: settingsLoading,
     updateProfile,
-  } = useUserSettings();
+  } = useAuth();
+  const { isPlus } = usePlan();
 
   const [fullName, setFullName] = useState(initialFullName);
   const [bio, setBio] = useState(() => {
     if (typeof window === 'undefined') return '';
-    return localStorage.getItem('subsync_user_bio') || '';
+    return safeGetItem('subsync_user_bio') || '';
   });
   const [avatarColor, setAvatarColor] = useState(() => {
     if (typeof window === 'undefined') return '#14B8A6';
-    return localStorage.getItem('subsync_avatar_color') || '#14B8A6';
+    return safeGetItem('subsync_avatar_color') || '#14B8A6';
   });
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -146,8 +148,8 @@ export default function ProfilePage() {
       }
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('subsync_user_bio', bio.trim());
-        localStorage.setItem('subsync_avatar_color', avatarColor);
+        safeSetItem('subsync_user_bio', bio.trim());
+        safeSetItem('subsync_avatar_color', avatarColor);
       }
 
       toast.success('Your profile details have been saved.', 'Profile Saved');
@@ -167,6 +169,7 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={() => router.back()}
+            aria-label="Go back"
             className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -186,11 +189,13 @@ export default function ProfilePage() {
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-[#1A1D1D]">
           <div className="relative group">
             {avatarUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
+              <Image
                 src={avatarUrl}
                 alt={fullName || 'Avatar'}
+                width={112}
+                height={112}
                 className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 border-[#14B8A6] shadow-xl"
+                unoptimized
               />
             ) : (
               <div

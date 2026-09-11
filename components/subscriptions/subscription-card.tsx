@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useSyncExternalStore } from 'react';
+import { useState, useRef, useEffect, useSyncExternalStore, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, Link2, Trash2 } from 'lucide-react';
+import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, Link2, Trash2, Loader2 } from 'lucide-react';
 import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, parseAccountLinks, archiveSubscription } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -31,7 +31,7 @@ const statusDotColors: Record<string, string> = {
 
 const emptySubscribe = () => () => {};
 
-export default function SubscriptionCard({
+function SubscriptionCard({
   subscription,
   onEdit,
   onDeleteRequest,
@@ -45,6 +45,7 @@ export default function SubscriptionCard({
 }: SubscriptionCardProps) {
   const { toast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
 
@@ -56,7 +57,7 @@ export default function SubscriptionCard({
   const accountLinks = parseAccountLinks(subscription);
 
   // Calculate days until next renewal cleanly
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
@@ -178,8 +179,9 @@ export default function SubscriptionCard({
 
   const handleArchive = async () => {
     setMenuOpen(false);
+    setArchiving(true);
     if (onArchiveRequest) {
-      onArchiveRequest(subscription);
+      await onArchiveRequest(subscription);
     } else {
       const { error } = await archiveSubscription(subscription.id);
       if (error) {
@@ -188,6 +190,7 @@ export default function SubscriptionCard({
         toast.success(`Moved "${subscription.name}" to History → Archive.`, 'Subscription Archived');
       }
     }
+    setArchiving(false);
   };
 
   const handleDelete = () => {
@@ -266,10 +269,15 @@ export default function SubscriptionCard({
           <button
             type="button"
             onClick={handleArchive}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F59E0B] hover:bg-[#F59E0B]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            disabled={archiving}
+            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F59E0B] hover:bg-[#F59E0B]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer disabled:opacity-50"
             role="menuitem"
           >
-            <Archive className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
+            {archiving ? (
+              <Loader2 className="w-3.5 h-3.5 text-[#F59E0B] animate-spin shrink-0" />
+            ) : (
+              <Archive className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
+            )}
             <span>Archive Subscription</span>
           </button>
 
@@ -412,3 +420,5 @@ export default function SubscriptionCard({
     </div>
   );
 }
+
+export default memo(SubscriptionCard);

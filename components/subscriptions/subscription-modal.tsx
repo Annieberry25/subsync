@@ -32,6 +32,16 @@ const statuses = ['active', 'paused', 'canceled', 'trial'] as const;
 
 const ACCOUNT_TYPES = ['Personal', 'Family', 'Work', 'Main Account', 'Other'] as const;
 
+function formatDateInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+const MIN_DATE = '2000-01-01';
+const MAX_DATE = formatDateInput(new Date(new Date().getFullYear() + 10, 11, 31));
+
 export default function SubscriptionModal({
   isOpen,
   onClose,
@@ -306,13 +316,14 @@ export default function SubscriptionModal({
                   placeholder="e.g. Netflix, Spotify, GitHub Pro"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
+                  aria-describedby={fieldErrors.name ? 'sub-error' : undefined}
                   className={`flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none transition-colors ${
                     fieldErrors.name ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
                   }`}
                 />
               </div>
               {fieldErrors.name && (
-                <span className="text-[11px] text-[#D9363E] font-medium flex items-center gap-1">
+                <span id="sub-error" className="text-[11px] text-[#D9363E] font-medium flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" />
                   {fieldErrors.name}
                 </span>
@@ -407,6 +418,8 @@ export default function SubscriptionModal({
                 <input
                   type="date"
                   value={startDate}
+                  min={MIN_DATE}
+                  max={MAX_DATE}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 />
@@ -419,6 +432,8 @@ export default function SubscriptionModal({
                 <input
                   type="date"
                   value={endDate}
+                  min={MIN_DATE}
+                  max={MAX_DATE}
                   onChange={(e) => setEndDate(e.target.value)}
                   placeholder="No end date"
                   className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
@@ -450,6 +465,8 @@ export default function SubscriptionModal({
               <input
                 type="date"
                 value={nextBillingDate}
+                min={MIN_DATE}
+                max={MAX_DATE}
                 onChange={(e) => setNextBillingDate(e.target.value)}
                 className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />

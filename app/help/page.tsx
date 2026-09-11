@@ -260,6 +260,7 @@ export default function HelpPage() {
           <button
             type="button"
             onClick={() => router.back()}
+            aria-label="Go back"
             className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -279,6 +280,7 @@ export default function HelpPage() {
           <Search className="w-5 h-5 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            aria-label="Search help articles"
             placeholder="Search help topics (e.g. adding subscriptions, receipt import, renewal dates)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

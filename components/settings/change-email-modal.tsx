@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Mail, Lock, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, X, KeyRound } from 'lucide-react';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useAuth } from '@/lib/contexts/user-settings-context';
 
 interface ChangeEmailModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface ChangeEmailModalProps {
 }
 
 export function ChangeEmailModal({ isOpen, onClose }: ChangeEmailModalProps) {
-  const { email: currentEmail, reauthenticateAndChangeEmail } = useUserSettings();
+  const { email: currentEmail, reauthenticateAndChangeEmail } = useAuth();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [password, setPassword] = useState('');

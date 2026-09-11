@@ -4,7 +4,7 @@ import { Menu, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useInbox } from '@/lib/contexts/inbox-context';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useSettings } from '@/lib/contexts/user-settings-context';
 import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
 
 interface HeaderProps {
@@ -16,7 +16,7 @@ interface HeaderProps {
 export default function Header({ onMobileMenuToggle, hasUnreadNotifications, onOpenAskSubHalt }: HeaderProps) {
   const pathname = usePathname();
   const { unreadCount } = useInbox();
-  const { assistantName } = useUserSettings();
+  const { assistantName } = useSettings();
   const showUnreadDot = Boolean(hasUnreadNotifications || unreadCount > 0);
   const isInboxRoute = pathname.startsWith('/inbox');
 

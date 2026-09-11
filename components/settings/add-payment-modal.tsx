@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CreditCard, X, Loader2 } from 'lucide-react';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useSettings } from '@/lib/contexts/user-settings-context';
 import { CustomSelect } from '@/components/ui/custom-select';
 
 interface AddPaymentModalProps {
@@ -11,7 +11,7 @@ interface AddPaymentModalProps {
 }
 
 export function AddPaymentModal({ isOpen, onClose }: AddPaymentModalProps) {
-  const { addPaymentMethod } = useUserSettings();
+  const { addPaymentMethod } = useSettings();
 
   const [cardNumber, setCardNumber] = useState('');
   const [expMonth, setExpMonth] = useState('12');
@@ -97,7 +97,7 @@ export function AddPaymentModal({ isOpen, onClose }: AddPaymentModalProps) {
               required
               value={cardNumber}
               onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-              placeholder="5532 •••• •••• 6730"
+              placeholder="1234 5678 9012 3456"
               className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors font-mono"
             />
           </div>

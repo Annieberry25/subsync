@@ -180,15 +180,31 @@ export default function InboxPageContent() {
 
   const getStatusDot = (item: InboxItem) => {
     if (item.isRead) {
-      return <span className="w-2.5 h-2.5 rounded-full bg-[#1A1D1D] block mt-1.5 shrink-0" />;
+      return (
+        <span className="w-2.5 h-2.5 rounded-full bg-[#1A1D1D] block mt-1.5 shrink-0">
+          <span className="sr-only">Read</span>
+        </span>
+      );
     }
     if (item.type === 'failed_payment' || item.isUrgent) {
-      return <span className="w-2.5 h-2.5 rounded-full bg-[#D9363E] block mt-1.5 shrink-0" title="Urgent Notice" />;
+      return (
+        <span className="w-2.5 h-2.5 rounded-full bg-[#D9363E] block mt-1.5 shrink-0" title="Urgent Notice">
+          <span className="sr-only">Urgent notice</span>
+        </span>
+      );
     }
     if (item.type === 'trial_ending' || item.type === 'price_increase') {
-      return <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] block mt-1.5 shrink-0" title="Warning Notice" />;
+      return (
+        <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] block mt-1.5 shrink-0" title="Warning Notice">
+          <span className="sr-only">Warning notice</span>
+        </span>
+      );
     }
-    return <span className="w-2.5 h-2.5 rounded-full bg-[#14B8A6] block mt-1.5 shrink-0" title="Notice" />;
+    return (
+      <span className="w-2.5 h-2.5 rounded-full bg-[#14B8A6] block mt-1.5 shrink-0" title="Notice">
+        <span className="sr-only">Notice</span>
+      </span>
+    );
   };
 
   const isSecondaryActive = activeTab === 'marked_as_read' || activeTab === 'favourited' || activeTab === 'archived';

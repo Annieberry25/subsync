@@ -3,7 +3,7 @@
 import { TrendingUp, TrendingDown, Calendar, PieChart, Zap } from 'lucide-react';
 import type { BillSpendingSummary } from '@/lib/types/bills.types';
 import { formatCurrencyAmount } from '@/lib/services/currency-service';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
 
 interface CompactMonthlySummaryCardProps {
   summary: BillSpendingSummary;
@@ -13,7 +13,7 @@ interface CompactMonthlySummaryCardProps {
  * Compact Monthly Summary Card — placed directly below header on mobile and desktop.
  */
 export function CompactMonthlySummaryCard({ summary }: CompactMonthlySummaryCardProps) {
-  const { defaultCurrency } = useUserSettings();
+  const { defaultCurrency } = useCurrency();
 
   const formattedTotalThisMonth = formatCurrencyAmount(summary.totalThisMonth, defaultCurrency);
   const formattedPrevMonth = formatCurrencyAmount(summary.previousMonthTotal, defaultCurrency);
@@ -75,7 +75,7 @@ export function BillAnalyticsInsights({
   summary,
   onFilterCategory,
 }: BillAnalyticsInsightsProps) {
-  const { defaultCurrency } = useUserSettings();
+  const { defaultCurrency } = useCurrency();
 
   const formattedRecurring = formatCurrencyAmount(summary.recurringMonthlyTotal, defaultCurrency);
 

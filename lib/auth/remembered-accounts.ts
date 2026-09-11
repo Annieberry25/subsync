@@ -1,5 +1,7 @@
 'use client';
 
+import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
+
 export interface RememberedAccount {
   email: string;
   displayName?: string;
@@ -13,7 +15,7 @@ const STORAGE_KEY = 'subsync_remembered_accounts';
 export function getRememberedAccounts(): RememberedAccount[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeGetItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -43,7 +45,7 @@ export function saveRememberedAccount(account: Omit<RememberedAccount, 'lastUsed
       current.push(updatedAccount);
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+    safeSetItem(STORAGE_KEY, JSON.stringify(current));
   } catch {
     // Local storage fallback ignore
   }
@@ -54,7 +56,7 @@ export function removeRememberedAccount(email: string): RememberedAccount[] {
   try {
     const current = getRememberedAccounts();
     const filtered = current.filter((acc) => acc.email.toLowerCase() !== email.toLowerCase().trim());
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    safeSetItem(STORAGE_KEY, JSON.stringify(filtered));
     return filtered;
   } catch {
     return [];

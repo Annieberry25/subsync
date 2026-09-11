@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import {
   ChevronDown,
   Lightbulb,
@@ -38,7 +38,7 @@ interface SmartInsightCandidate {
  * 6. Vertical Spacing: Clean breathing room between title, heading, and advice text.
  * 7. Accordion Interaction: Smooth 200-300ms inline expansion toggle.
  */
-export function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
+export const SmartInsightCard = memo(function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const activeSubs = subscriptions.filter(
@@ -338,10 +338,7 @@ export function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
       </div>
     </div>
   );
-}
-
-
-
+});
 
 
 
