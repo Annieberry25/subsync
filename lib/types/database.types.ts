@@ -15,6 +15,8 @@ export interface Database {
           email: string
           full_name: string | null
           avatar_url: string | null
+          plan_tier: string
+          plan_expires_at: string | null
           created_at: string
           updated_at: string
         }
@@ -23,6 +25,8 @@ export interface Database {
           email: string
           full_name?: string | null
           avatar_url?: string | null
+          plan_tier?: string
+          plan_expires_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -31,10 +35,65 @@ export interface Database {
           email?: string
           full_name?: string | null
           avatar_url?: string | null
+          plan_tier?: string
+          plan_expires_at?: string | null
           created_at?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      plan_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          paystack_reference: string
+          plan: string
+          status: 'pending' | 'paid' | 'failed' | 'cancelled' | 'expired'
+          amount: number
+          currency: string
+          access_code: string | null
+          paid_at: string | null
+          expires_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          paystack_reference: string
+          plan?: string
+          status?: 'pending' | 'paid' | 'failed' | 'cancelled' | 'expired'
+          amount: number
+          currency?: string
+          access_code?: string | null
+          paid_at?: string | null
+          expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          paystack_reference?: string
+          plan?: string
+          status?: 'pending' | 'paid' | 'failed' | 'cancelled' | 'expired'
+          amount?: number
+          currency?: string
+          access_code?: string | null
+          paid_at?: string | null
+          expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'plan_subscriptions_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
       }
       subscriptions: {
         Row: {
@@ -229,18 +288,180 @@ export interface Database {
         }
         Relationships: []
       }
+      activity_log: {
+        Row: {
+          id: string
+          user_id: string
+          subscription_id: string | null
+          subscription_name: string | null
+          type: string
+          title: string
+          description: string | null
+          amount: number | null
+          currency: string | null
+          metadata: Json | null
+          timestamp: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          subscription_id?: string | null
+          subscription_name?: string | null
+          type: string
+          title: string
+          description?: string | null
+          amount?: number | null
+          currency?: string | null
+          metadata?: Json | null
+          timestamp?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          subscription_id?: string | null
+          subscription_name?: string | null
+          type?: string
+          title?: string
+          description?: string | null
+          amount?: number | null
+          currency?: string | null
+          metadata?: Json | null
+          timestamp?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      ai_conversations: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          messages: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title?: string
+          messages?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          messages?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inbox_items: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string
+          description: string | null
+          date: string
+          is_read: boolean
+          is_favourited: boolean
+          is_urgent: boolean
+          action_type: string | null
+          action_label: string | null
+          subscription_name: string | null
+          subscription_price: number | null
+          currency: string | null
+          provider_url: string | null
+          metadata: Json | null
+          archived_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title: string
+          description?: string | null
+          date?: string
+          is_read?: boolean
+          is_favourited?: boolean
+          is_urgent?: boolean
+          action_type?: string | null
+          action_label?: string | null
+          subscription_name?: string | null
+          subscription_price?: number | null
+          currency?: string | null
+          provider_url?: string | null
+          metadata?: Json | null
+          archived_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: string
+          title?: string
+          description?: string | null
+          date?: string
+          is_read?: boolean
+          is_favourited?: boolean
+          is_urgent?: boolean
+          action_type?: string | null
+          action_label?: string | null
+          subscription_name?: string | null
+          subscription_price?: number | null
+          currency?: string | null
+          provider_url?: string | null
+          metadata?: Json | null
+          archived_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_user_name: {
+        Args: {
+          p_full_name: string
+        }
+        Returns: Database['public']['CompositeTypes']['name_change_result']
+      }
+      check_rate_limit: {
+        Args: {
+          p_bucket_key: string
+          p_window_seconds?: number
+          p_max_requests?: number
+        }
+        Returns: Database['public']['CompositeTypes']['rate_limit_result']
+      }
     }
     Enums: {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      name_change_result: {
+        success: boolean
+        message: string | null
+        last_changed_at: string | null
+        next_allowed_at: string | null
+      }
+      rate_limit_result: {
+        allowed: boolean
+        retry_after_seconds: number
+        count: number
+        limit: number
+      }
     }
   }
 }

@@ -87,7 +87,7 @@ describe('SubscriptionModal', () => {
           start_date: null,
           end_date: null,
           payment_method: null,
-          provider_url: null,
+          provider_url: 'https://www.netflix.com',
           account_links: [],
         }),
         undefined

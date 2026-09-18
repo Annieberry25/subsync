@@ -70,20 +70,21 @@ const { fullName: contextFullName, email: contextEmail } = useAuth();
   const isBillsRoute = pathname.startsWith('/bills');
   const [isBillsOpen, setIsBillsOpen] = useState(isBillsRoute);
 
+  // Auto-expand nav when landing on the section (render-phase adjustment).
+  const [prevBillsRoute, setPrevBillsRoute] = useState(isBillsRoute);
+  if (isBillsRoute !== prevBillsRoute) {
+    setPrevBillsRoute(isBillsRoute);
+    if (isBillsRoute) setIsBillsOpen(true);
+  }
+
   const isHistoryRoute = pathname.startsWith('/history');
   const [isHistoryOpen, setIsHistoryOpen] = useState(isHistoryRoute);
 
-  useEffect(() => {
-    if (isBillsRoute) {
-      setIsBillsOpen(true);
-    }
-  }, [isBillsRoute]);
-
-  useEffect(() => {
-    if (isHistoryRoute) {
-      setIsHistoryOpen(true);
-    }
-  }, [isHistoryRoute]);
+  const [prevHistoryRoute, setPrevHistoryRoute] = useState(isHistoryRoute);
+  if (isHistoryRoute !== prevHistoryRoute) {
+    setPrevHistoryRoute(isHistoryRoute);
+    if (isHistoryRoute) setIsHistoryOpen(true);
+  }
 
   useEffect(() => {
     async function loadUser() {

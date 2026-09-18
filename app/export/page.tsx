@@ -24,7 +24,7 @@ import {
   Layers
 } from 'lucide-react';
 
-// SubSync Design System v1.1: Maximum 3 restrained colors per chart
+// SubHalt Design System v1.1: Maximum 3 restrained colors per chart
 const chartColorPalette = [
   { bar: 'bg-[#14B8A6]', dot: 'bg-[#14B8A6]' },
   { bar: 'bg-[#94A3B8]', dot: 'bg-[#94A3B8]' },

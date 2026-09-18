@@ -17,6 +17,12 @@ interface AddSubscriptionModalProps {
   onRequireUpgrade?: () => void;
 }
 
+function parsePriceSafely(raw?: string): number | undefined {
+  if (!raw) return undefined;
+  const match = raw.replace(/[,\s]/g, '').match(/\d+(?:\.\d+)?/);
+  return match ? parseFloat(match[0]) : undefined;
+}
+
 export default function AddSubscriptionModal({
   isOpen,
   onClose,
@@ -70,7 +76,7 @@ export default function AddSubscriptionModal({
 
     const prefill: Partial<Omit<SubscriptionInsert, 'user_id'>> = {
       name: extracted.name,
-      price: extracted.price ? parseFloat(extracted.price) : undefined,
+      price: parsePriceSafely(extracted.price),
       currency: extracted.currency || 'USD',
       billing_cycle: extracted.billingCycle || 'monthly',
       category: extracted.category || 'Streaming',

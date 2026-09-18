@@ -26,9 +26,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       setIsAskModalOpen(true);
     };
 
-    window.addEventListener('subsync_open_ask_modal', handleOpenAsk as EventListener);
+    window.addEventListener('subhalt_open_ask_modal', handleOpenAsk as EventListener);
     return () => {
-      window.removeEventListener('subsync_open_ask_modal', handleOpenAsk as EventListener);
+      window.removeEventListener('subhalt_open_ask_modal', handleOpenAsk as EventListener);
     };
   }, []);
 

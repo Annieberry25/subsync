@@ -7,7 +7,6 @@ import {
   type SubscriptionInsert,
   type AccountLink,
   getKnownProviderWebsite,
-  getKnownProviderManagementUrl,
   getKnownProviderAccountUrl,
   parseAccountLinks,
   cleanNotesUserText,
@@ -16,6 +15,7 @@ import {
 import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-modal';
 
 interface SubscriptionModalProps {
@@ -127,6 +127,18 @@ export default function SubscriptionModal({
 
   const handleNameChange = (val: string) => {
     setName(val);
+    if (!isUserEditedUrl) {
+      const knownWebsite = getKnownProviderWebsite(val);
+      setProviderUrl(knownWebsite || '');
+    }
+    const knownAccountUrl = getKnownProviderAccountUrl(val);
+    if (knownAccountUrl) {
+      setAccountLinks((prev) =>
+        prev.map((link) =>
+          link.url && link.url.trim() ? link : { ...link, url: knownAccountUrl }
+        )
+      );
+    }
     if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
   };
 
@@ -136,9 +148,10 @@ export default function SubscriptionModal({
   };
 
   const handleAddAccountLink = () => {
+    const knownAccountUrl = getKnownProviderAccountUrl(name);
     setAccountLinks((prev) => [
       ...prev,
-      { id: `link-${Date.now()}`, label: 'Personal', url: '' },
+      { id: `link-${Date.now()}`, label: 'Personal', url: knownAccountUrl || '' },
     ]);
   };
 
@@ -238,8 +251,8 @@ export default function SubscriptionModal({
       );
 
       toast.success(
-        initialData ? `Updated "${name}" successfully.` : `Added "${name}" subscription!`,
-        initialData ? 'Subscription Updated' : 'Subscription Created'
+        initialData?.id ? `Updated "${name}" successfully.` : `Added "${name}" subscription!`,
+        initialData?.id ? 'Subscription Updated' : 'Subscription Created'
       );
       onClose();
     } catch (err: unknown) {
@@ -277,7 +290,7 @@ export default function SubscriptionModal({
                 </button>
               )}
               <h2 id="modal-title" className="text-2xl sm:text-[28px] font-bold text-[#F5F7F6] tracking-tight leading-tight">
-                {initialData ? 'Edit Subscription' : 'Add New Subscription'}
+                {initialData?.id ? 'Edit Subscription' : 'Add New Subscription'}
               </h2>
             </div>
             
@@ -359,10 +372,11 @@ export default function SubscriptionModal({
                   onChange={(e) => setCurrency(e.target.value)}
                   className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 >
-                  <option value="USD" className="bg-[#0D0F0F] text-[#F5F7F6]">USD ($)</option>
-                  <option value="EUR" className="bg-[#0D0F0F] text-[#F5F7F6]">EUR (€)</option>
-                  <option value="GBP" className="bg-[#0D0F0F] text-[#F5F7F6]">GBP (£)</option>
-                  <option value="CAD" className="bg-[#0D0F0F] text-[#F5F7F6]">CAD ($)</option>
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code} className="bg-[#0D0F0F] text-[#F5F7F6]">
+                      {c.code} ({c.symbol})
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -643,7 +657,7 @@ export default function SubscriptionModal({
                     <span>Saving...</span>
                   </>
                 ) : (
-                  <span>{initialData ? 'Update Subscription' : 'Create Subscription'}</span>
+                  <span>{initialData?.id ? 'Update Subscription' : 'Create Subscription'}</span>
                 )}
               </button>
             </div>

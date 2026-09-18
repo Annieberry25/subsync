@@ -83,7 +83,7 @@ export default function SubscriptionManager() {
   const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>(() => {
     if (typeof window === 'undefined') return {};
     try {
-      const saved = safeGetItem('subsync_reminders');
+      const saved = safeGetItem('subhalt_reminders');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -99,7 +99,7 @@ export default function SubscriptionManager() {
     };
     setReminders(updated);
     try {
-      safeSetItem('subsync_reminders', JSON.stringify(updated));
+      safeSetItem('subhalt_reminders', JSON.stringify(updated));
     } catch {
       // Ignore storage errors
     }
@@ -114,7 +114,7 @@ export default function SubscriptionManager() {
     };
     setReminders(updated);
     try {
-      safeSetItem('subsync_reminders', JSON.stringify(updated));
+      safeSetItem('subhalt_reminders', JSON.stringify(updated));
     } catch {
       // Ignore storage errors
     }
@@ -127,28 +127,37 @@ export default function SubscriptionManager() {
   const [sortBy, setSortBy] = useState('next_billing_asc');
   const [highlightedSubId, setHighlightedSubId] = useState<string | null>(paramHighlight);
 
-  useEffect(() => {
+  // Sync URL params into filter state via render-phase adjustment (no effect).
+  const [prevParamState, setPrevParamState] = useState({
+    category: paramCategory,
+    status: paramStatus,
+    highlight: paramHighlight,
+  });
+  if (
+    paramCategory !== prevParamState.category ||
+    paramStatus !== prevParamState.status ||
+    paramHighlight !== prevParamState.highlight
+  ) {
+    setPrevParamState({ category: paramCategory, status: paramStatus, highlight: paramHighlight });
     if (paramCategory) setSelectedCategory(paramCategory);
     if (paramStatus) setSelectedStatus(paramStatus);
     if (paramHighlight) setHighlightedSubId(paramHighlight);
-  }, [paramCategory, paramStatus, paramHighlight]);
+  }
 
-  // Open detail view modal if search parameter detail=true is specified
-  useEffect(() => {
-    if (paramHighlight && searchParams.get('detail') === 'true' && !loading && subscriptions.length > 0) {
-      const decodedParam = decodeURIComponent(paramHighlight).toLowerCase().trim();
-      const match = subscriptions.find(
-        (s) =>
-          s.id === paramHighlight ||
-          s.name.toLowerCase().trim() === paramHighlight.toLowerCase().trim() ||
-          s.name.toLowerCase().trim() === decodedParam
-      );
-      if (match) {
-        setSelectedDetailSub(match);
-        setIsDetailOpen(true);
-      }
+  // Open detail view modal if search parameter detail=true is specified.
+  if (paramHighlight && searchParams.get('detail') === 'true' && !loading && subscriptions.length > 0 && !isDetailOpen) {
+    const decodedParam = decodeURIComponent(paramHighlight).toLowerCase().trim();
+    const match = subscriptions.find(
+      (s) =>
+        s.id === paramHighlight ||
+        s.name.toLowerCase().trim() === paramHighlight.toLowerCase().trim() ||
+        s.name.toLowerCase().trim() === decodedParam
+    );
+    if (match) {
+      setSelectedDetailSub(match);
+      setIsDetailOpen(true);
     }
-  }, [paramHighlight, searchParams, loading, subscriptions]);
+  }
 
   // Scroll into view & highlight effect
   useEffect(() => {
@@ -204,12 +213,12 @@ export default function SubscriptionManager() {
       setLoading(false);
     });
 
-    window.addEventListener('subsync_subscriptions_updated', handleUpdate);
+    window.addEventListener('subhalt_subscriptions_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
 
     return () => {
       active = false;
-      window.removeEventListener('subsync_subscriptions_updated', handleUpdate);
+      window.removeEventListener('subhalt_subscriptions_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
   }, []);
@@ -217,17 +226,25 @@ export default function SubscriptionManager() {
   // Handle Save (Create / Update)
   const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
     if (id) {
-      const { error: err } = await updateSubscription(id, data);
+      const { error: err, synced } = await updateSubscription(id, data);
       if (err) throw err;
-      toast.success('Subscription updated successfully.', 'Changes Saved');
+      if (synced) {
+        toast.success('Subscription updated successfully.', 'Changes Saved');
+      } else {
+        toast.warning('Saved on this device only — it will sync to your account when you are back online.', 'Offline Save');
+      }
     } else {
       if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
         setIsUpgradeModalOpen(true);
         return;
       }
-      const { error: err } = await createSubscription(data);
+      const { error: err, synced } = await createSubscription(data);
       if (err) throw err;
-      toast.success('New subscription added to your portfolio.', 'Subscription Created');
+      if (synced) {
+        toast.success('New subscription added to your portfolio.', 'Subscription Created');
+      } else {
+        toast.warning('Added on this device only — it will sync to your account when you are back online.', 'Offline Save');
+      }
     }
     await loadData();
   };
@@ -269,7 +286,7 @@ export default function SubscriptionManager() {
   };
 
   // Active Subscriptions
-  const activeSubscriptions = useMemo(() => filterActiveSubscriptions(subscriptions), [subscriptions]);
+  const activeSubscriptions = filterActiveSubscriptions(subscriptions);
 
   // Filter and Sort active subscriptions
   const filteredSubscriptions = useMemo(() => {

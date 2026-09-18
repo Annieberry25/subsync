@@ -84,7 +84,7 @@ export default function DashboardV2() {
   const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>(() => {
     if (typeof window === 'undefined') return {};
     try {
-      const saved = safeGetItem('subsync_reminders');
+      const saved = safeGetItem('subhalt_reminders');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -140,24 +140,33 @@ export default function DashboardV2() {
   }, []);
 
   const handleAskSubHalt = useCallback((q?: string) => {
-    window.dispatchEvent(new CustomEvent('subsync_open_ask_modal', { detail: { question: q } }));
+    window.dispatchEvent(new CustomEvent('subhalt_open_ask_modal', { detail: { question: q } }));
   }, []);
 
-  const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
+const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
     if (id) {
-      const { error: err } = await updateSubscription(id, data);
+      const { error: err, synced } = await updateSubscription(id, data);
       if (err) throw err;
-      toast.success('Subscription updated successfully.', 'Changes Saved');
+      if (synced) {
+        toast.success('Subscription updated successfully.', 'Changes Saved');
+      } else {
+        toast.warning('Saved on this device only — it will sync when you are back online.', 'Offline Save');
+      }
     } else {
       if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
         setIsUpgradeModalOpen(true);
         return;
       }
-      const { error: err } = await createSubscription(data);
+      const { error: err, synced } = await createSubscription(data);
       if (err) throw err;
-      toast.success('New subscription added to your portfolio.', 'Subscription Created');
+      if (synced) {
+        toast.success('New subscription added to your portfolio.', 'Subscription Created');
+      } else {
+        toast.warning('Added on this device only — it will sync when you are back online.', 'Offline Save');
+      }
     }
-    await loadData();
+    setIsModalOpen(false);
+    void loadData();
   };
 
   const handleConfirmDelete = async () => {
@@ -183,7 +192,7 @@ export default function DashboardV2() {
     };
     setReminders(updated);
     try {
-      safeSetItem('subsync_reminders', JSON.stringify(updated));
+      safeSetItem('subhalt_reminders', JSON.stringify(updated));
     } catch {
       // Ignore storage errors
     }
@@ -191,7 +200,7 @@ export default function DashboardV2() {
   };
 
   // Metrics with User Default Currency
-  const activeSubscriptions = useMemo(() => filterActiveSubscriptions(subscriptions), [subscriptions]);
+  const activeSubscriptions = filterActiveSubscriptions(subscriptions);
 
   const monthlySpend = useMemo(
     () => calculateMonthlySpend(activeSubscriptions, defaultCurrency, exchangeRates),

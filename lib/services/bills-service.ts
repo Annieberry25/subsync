@@ -16,136 +16,13 @@ import { getVerifiedProvider } from '@/lib/constants/verified-providers';
 
 export type BillPaymentRow = Database['public']['Tables']['bill_payments']['Row'];
 
-const STORAGE_KEY = 'subsync_bill_payments';
-let cachedBills: BillPayment[] | null = null;
+const STORAGE_KEY = 'subhalt_bill_payments';
 
-// Initial Mock Seed Payments for First-time users or offline demo
-const INITIAL_DEMO_BILLS: BillPayment[] = [
-  {
-    id: 'bill_demo_1',
-    userId: 'demo_user',
-    category: 'Electricity',
-    customCategory: null,
-    providerName: 'Ikeja Electric (IKEDC)',
-    amount: 25000,
-    currency: 'NGN',
-    paymentDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days ago
-    country: 'Nigeria',
-    region: 'Lagos',
-    city: 'Ikeja',
-    paymentFrequency: 'monthly',
-    isRecurring: true,
-    notes: 'August 2026 Prepaid Electricity Token',
-    receipts: [
-      {
-        id: 'rec_1',
-        fileName: 'IKEDC_Token_Receipt_Aug2026.pdf',
-        uploadDate: new Date().toISOString(),
-        price: 25000,
-        currency: 'NGN',
-        provider: 'Ikeja Electric (IKEDC)',
-      },
-    ],
-    source: 'receipt_scan',
-    providerReference: 'IKEDC-94827103',
-    officialProviderUrl: 'https://www.ikejaelectric.com/pay',
-    status: 'paid',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bill_demo_2',
-    userId: 'demo_user',
-    category: 'Internet',
-    customCategory: null,
-    providerName: 'Spectranet 4G LTE',
-    amount: 19500,
-    currency: 'NGN',
-    paymentDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    country: 'Nigeria',
-    region: 'Lagos',
-    city: 'Lekki',
-    paymentFrequency: 'monthly',
-    isRecurring: true,
-    notes: 'Unlimited Freedom Plan renewal',
-    receipts: [],
-    source: 'manual',
-    providerReference: 'SPEC-7739102',
-    officialProviderUrl: 'https://selfcare.spectranet.com.ng',
-    status: 'paid',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bill_demo_3',
-    userId: 'demo_user',
-    category: 'Airtime / Mobile Data',
-    customCategory: null,
-    providerName: 'MTN Nigeria',
-    amount: 5000,
-    currency: 'NGN',
-    paymentDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    country: 'Nigeria',
-    region: 'Lagos',
-    city: null,
-    paymentFrequency: 'monthly',
-    isRecurring: false,
-    notes: 'Monthly data bundle top-up',
-    receipts: [],
-    source: 'manual',
-    providerReference: 'MTN-882019',
-    officialProviderUrl: 'https://mymtn.com.ng',
-    status: 'paid',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bill_demo_4',
-    userId: 'demo_user',
-    category: 'Other',
-    customCategory: 'Water',
-    providerName: 'Lagos Water Corporation (LWC)',
-    amount: 8500,
-    currency: 'NGN',
-    paymentDate: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    country: 'Nigeria',
-    region: 'Lagos',
-    city: 'Victoria Island',
-    paymentFrequency: 'monthly',
-    isRecurring: true,
-    notes: 'Estate water utility charge',
-    receipts: [],
-    source: 'manual',
-    providerReference: 'LWC-30192',
-    officialProviderUrl: 'https://lagoswater.org/pay',
-    status: 'paid',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bill_demo_5',
-    userId: 'demo_user',
-    category: 'Software / Digital Services',
-    customCategory: null,
-    providerName: 'Amazon Web Services (AWS)',
-    amount: 45.0,
-    currency: 'USD',
-    paymentDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    country: 'Global',
-    region: null,
-    city: null,
-    paymentFrequency: 'monthly',
-    isRecurring: true,
-    notes: 'Cloud hosting & S3 storage',
-    receipts: [],
-    source: 'email_discovered',
-    providerReference: 'AWS-INV-99201',
-    officialProviderUrl: 'https://console.aws.amazon.com/billing/home',
-    status: 'paid',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const LOCAL_BILL_USER_ID = 'user_mock';
+
+export function isLocalOnlyBill(bill: Pick<BillPayment, 'userId'>): boolean {
+  return bill.userId === LOCAL_BILL_USER_ID;
+}
 
 function transformRowToBill(row: BillPaymentRow): BillPayment {
   return {
@@ -174,73 +51,125 @@ function transformRowToBill(row: BillPaymentRow): BillPayment {
 }
 
 function getLocalBills(): BillPayment[] {
-  if (typeof window === 'undefined') return INITIAL_DEMO_BILLS;
+  if (typeof window === 'undefined') return [];
   try {
     const stored = safeGetItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
-    // Initialize demo seed
-    safeSetItem(STORAGE_KEY, JSON.stringify(INITIAL_DEMO_BILLS));
-    return INITIAL_DEMO_BILLS;
   } catch {
-    return INITIAL_DEMO_BILLS;
+    // Ignore corrupt/legacy payloads — treat as empty.
   }
+  return [];
 }
 
 function setLocalBills(bills: BillPayment[]) {
-  cachedBills = bills;
   if (typeof window !== 'undefined') {
     try {
       safeSetItem(STORAGE_KEY, JSON.stringify(bills));
-      window.dispatchEvent(new Event('subsync_bills_updated'));
+      window.dispatchEvent(new Event('subhalt_bills_updated'));
     } catch (err) {
       logger.warn('[bills-service] setLocalBills localStorage write failed', { message: err instanceof Error ? err.message : String(err) });
     }
   }
 }
 
+/**
+ * Pushes locally-created (offline) bills into Supabase once a session exists and
+ * the DB is reachable. Successful pushes leave the cache; their canonical rows
+ * come back on the next fetch.
+ */
+export async function syncPendingBills(): Promise<number> {
+  const local = getLocalBills();
+  const pending = local.filter((b) => isLocalOnlyBill(b));
+  if (pending.length === 0) return 0;
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const syncedLocalIds = new Set<string>();
+  for (const bill of pending) {
+    const { error } = await supabase.from('bill_payments').insert({
+      user_id: user.id,
+      category: bill.category,
+      custom_category: bill.customCategory ?? null,
+      provider_name: bill.providerName,
+      amount: bill.amount,
+      currency: bill.currency || 'NGN',
+      payment_date: bill.paymentDate,
+      country: bill.country ?? 'Nigeria',
+      region: bill.region || null,
+      city: bill.city || null,
+      payment_frequency: bill.paymentFrequency ?? null,
+      is_recurring: bill.isRecurring ?? false,
+      notes: bill.notes || null,
+      receipts: bill.receipts || [],
+      source: bill.source,
+      provider_reference: bill.providerReference || null,
+      official_provider_url: bill.officialProviderUrl || null,
+      status: bill.status,
+    });
+
+    if (!error) {
+      syncedLocalIds.add(bill.id);
+    } else {
+      logger.warn('[bills-service] syncPendingBills insert failed', { message: error.message, id: bill.id });
+    }
+  }
+
+  if (syncedLocalIds.size > 0) {
+    setLocalBills(local.filter((b) => !syncedLocalIds.has(b.id)));
+  }
+  return syncedLocalIds.size;
+}
+
 export async function fetchBillPayments(): Promise<{ data: BillPayment[]; error: Error | null }> {
-  let isAuthenticated = false;
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    isAuthenticated = Boolean(user);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
+      // Reconcile offline-created rows first so the merge below starts clean.
+      if (getLocalBills().some((b) => isLocalOnlyBill(b))) {
+        await syncPendingBills();
+      }
+
       const { data, error } = await supabase
         .from('bill_payments')
         .select('*')
-        .order('payment_date', { ascending: false });
+        .order('payment_date', { ascending: false })
+        .limit(500);
 
       if (!error && data) {
         const transformed = data.map(transformRowToBill);
-        const local = getLocalBills().filter((b) => b.userId !== 'demo_user' && !data.some((d) => d.id === b.id));
+        // Keep any local (still-unsynced) rows that have no DB counterpart.
+        const remoteIds = new Set(data.map((d) => d.id));
+        const local = getLocalBills().filter((b) => !remoteIds.has(b.id));
         const merged = [...transformed, ...local];
-        cachedBills = merged;
-        if (typeof window !== 'undefined') {
-          try {
-            safeSetItem(STORAGE_KEY, JSON.stringify(merged));
-          } catch {
-            logger.warn('[bills-service] fetchBillPayments localStorage write failed');
-          }
-        }
+        setLocalBills(merged);
         return { data: merged, error: null };
       }
       if (error) {
+        const dbError = new Error(error.message);
         logger.warn('[bills-service] fetchBillPayments DB error, using cache', { message: error.message });
+        return { data: getLocalBills(), error: dbError };
       }
     }
   } catch (err) {
+    const dbError = err instanceof Error ? err : new Error(String(err));
     logger.error('[bills-service] fetchBillPayments exception, using cache', err);
+    return { data: getLocalBills(), error: dbError };
   }
 
-  const local = getLocalBills();
-  const data = isAuthenticated ? local.filter((b) => b.userId !== 'demo_user') : local;
-  cachedBills = data;
+  const data = getLocalBills();
   return { data, error: null };
 }
 
@@ -268,15 +197,23 @@ export function toBillPaymentInsert(
   return payload as Omit<BillPaymentInsert, 'user_id'> & { custom_category?: string | null };
 }
 
+export type BillWriteResult = {
+  data: BillPayment | null;
+  error: Error | null;
+  synced: boolean;
+};
+
 export async function createBillPayment(
   billData: Omit<BillPaymentInsert, 'user_id'> & { custom_category?: string | null }
-): Promise<{ data: BillPayment | null; error: Error | null }> {
+): Promise<BillWriteResult> {
   const verified = getVerifiedProvider(billData.provider_name);
   const officialUrl = verified?.officialPaymentUrl || billData.official_provider_url || null;
 
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
       const { data, error } = await supabase
@@ -309,22 +246,25 @@ export async function createBillPayment(
         const existing = getLocalBills();
         const updated = [bill, ...existing.filter((b) => b.id !== bill.id)];
         setLocalBills(updated);
-        return { data: bill, error: null };
+        return { data: bill, error: null, synced: true };
       }
       if (error) {
-        logger.warn('[bills-service] createBillPayment DB error, persisting locally', { message: error.message });
+        const dbError = new Error(error.message);
+        logger.warn('[bills-service] createBillPayment DB error', { message: error.message });
+        return { data: null, error: dbError, synced: false };
       }
     } else {
       logger.warn('[bills-service] createBillPayment called without authenticated user');
     }
   } catch (err) {
+    // Offline / unreachable: fall through to the local-save fallback below.
     logger.error('[bills-service] createBillPayment exception, persisting locally', err);
   }
 
-  // Fallback local storage creation
+  // Offline / storage-only fallback: persisted locally, flagged for later sync.
   const newBill: BillPayment = {
     id: `bill_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-    userId: 'demo_user',
+    userId: LOCAL_BILL_USER_ID,
     category: billData.category,
     customCategory: billData.custom_category || null,
     providerName: billData.provider_name,
@@ -350,16 +290,26 @@ export async function createBillPayment(
   const updated = [newBill, ...existing];
   setLocalBills(updated);
 
-  return { data: newBill, error: null };
+  return { data: newBill, error: null, synced: false };
 }
 
 export async function updateBillPayment(
   id: string,
   updates: Partial<BillPayment>
-): Promise<{ data: BillPayment | null; error: Error | null }> {
+): Promise<BillWriteResult> {
+  // Offline-created rows live only in the cache — update them locally.
+  const localRow = getLocalBills().find((b) => b.id === id && isLocalOnlyBill(b));
+  if (localRow) {
+    const updatedBill: BillPayment = { ...localRow, ...updates, updatedAt: new Date().toISOString() };
+    setLocalBills(getLocalBills().map((b) => (b.id === id ? updatedBill : b)));
+    return { data: updatedBill, error: null, synced: false };
+  }
+
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
       const payload: BillPaymentUpdate = {};
@@ -392,7 +342,7 @@ export async function updateBillPayment(
         const existing = getLocalBills();
         const list = existing.map((b) => (b.id === id ? updatedBill : b));
         setLocalBills(list);
-        return { data: updatedBill, error: null };
+        return { data: updatedBill, error: null, synced: true };
       }
       if (error) {
         logger.warn('[bills-service] updateBillPayment DB error, updating locally', { message: error.message });
@@ -401,6 +351,7 @@ export async function updateBillPayment(
       logger.warn('[bills-service] updateBillPayment called without authenticated user');
     }
   } catch (err) {
+    // Offline / unreachable: fall through to the local fallback below.
     logger.error('[bills-service] updateBillPayment exception, updating locally', err);
   }
 
@@ -415,30 +366,39 @@ export async function updateBillPayment(
   });
 
   setLocalBills(list);
-  return { data: updatedBill, error: null };
+  return { data: updatedBill, error: null, synced: false };
 }
 
-export async function deleteBillPayment(id: string): Promise<{ error: Error | null }> {
+export async function deleteBillPayment(id: string): Promise<{ error: Error | null; synced: boolean }> {
+  // Offline-created rows live only in the cache — remove them locally.
+  if (getLocalBills().some((b) => b.id === id && isLocalOnlyBill(b))) {
+    setLocalBills(getLocalBills().filter((b) => b.id !== id));
+    return { error: null, synced: false };
+  }
+
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
       const { error } = await supabase.from('bill_payments').delete().eq('id', id);
       if (error) {
-        return { error: new Error(error.message) };
+        const dbError = new Error(error.message);
+        logger.warn('[bills-service] deleteBillPayment DB error, deleting locally', { message: error.message });
+        return { error: dbError, synced: false };
       }
     } else {
       logger.warn('[bills-service] deleteBillPayment called without authenticated user');
     }
   } catch (err) {
+    // Offline / unreachable: fall through to the local fallback below.
     logger.error('[bills-service] deleteBillPayment exception, deleting locally', err);
   }
 
-  const existing = getLocalBills();
-  const list = existing.filter((b) => b.id !== id);
-  setLocalBills(list);
-  return { error: null };
+  setLocalBills(getLocalBills().filter((b) => b.id !== id));
+  return { error: null, synced: true };
 }
 
 /**

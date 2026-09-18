@@ -91,7 +91,7 @@ export const AVAILABLE_ICONS = [
 ];
 
 export const CATEGORY_COLORS = [
-  '#14B8A6', // SubSync Teal Accent
+  '#14B8A6', // SubHalt Teal Accent
   '#8B5CF6', // Purple
   '#EC4899', // Pink
   '#EF4444', // Red

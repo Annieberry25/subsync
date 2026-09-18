@@ -7,8 +7,7 @@ import {
   parseAccountLinks,
   parseAttachedReceipts,
   cleanNotesUserText,
-  getProviderWebsite,
-  getProviderManagementUrl
+  getKnownProviderManagementUrl
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -110,8 +109,10 @@ export default function SubscriptionDetailModal({
     : null;
 
   const handleManageWebsite = () => {
-    if (activeProviderUrl) {
-      window.open(activeProviderUrl, '_blank', 'noopener,noreferrer');
+    const knownManagementUrl = getKnownProviderManagementUrl(subscription.name);
+    const targetUrl = knownManagementUrl || activeProviderUrl;
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     } else {
       toast.error(
         'No website or management portal link is available for this subscription.',

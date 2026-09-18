@@ -6,6 +6,7 @@ import AuthForm from '@/components/auth/auth-form';
 
 const mocks = vi.hoisted(() => {
   const router = { push: vi.fn(), refresh: vi.fn() };
+  const loginFetch = vi.fn();
   const signInWithPassword = vi.fn();
   const signUp = vi.fn();
   const signInWithOtp = vi.fn();
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => {
   const resetPasswordForEmail = vi.fn();
   return {
     router,
+    loginFetch,
     signInWithPassword,
     signUp,
     auth: { signInWithPassword, signUp, signInWithOtp, verifyOtp, updateUser, resend, signInWithOAuth, resetPasswordForEmail },
@@ -38,10 +40,12 @@ vi.mock('@/lib/supabase/client', () => ({
 beforeEach(() => {
   window.localStorage.clear();
   vi.clearAllMocks();
-  mocks.signInWithPassword.mockResolvedValue({
-    data: { user: { email: 'user@example.com', user_metadata: {} } },
-    error: null,
+  mocks.loginFetch.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ success: true, user: { email: 'user@example.com', user_metadata: {} } }),
   });
+  vi.stubGlobal('fetch', mocks.loginFetch);
   mocks.signUp.mockResolvedValue({ data: { session: null, user: null }, error: null });
 });
 
@@ -85,7 +89,14 @@ describe('AuthForm', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     await waitFor(() =>
-      expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: 'user@example.com', password: 'secret123' })
+      expect(mocks.loginFetch).toHaveBeenCalledWith(
+        '/api/auth/login',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'user@example.com', password: 'secret123' }),
+        })
+      )
     );
     await waitFor(() => expect(mocks.router.push).toHaveBeenCalledWith('/'));
   });

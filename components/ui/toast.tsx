@@ -46,9 +46,9 @@ export function ToastContainer() {
               <IconComponent className="w-5 h-5 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 {toast.title && (
-                  <h4 className="text-xs font-bold subsync-heading mb-0.5 leading-tight">{toast.title}</h4>
+                  <h4 className="text-xs font-bold subhalt-heading mb-0.5 leading-tight">{toast.title}</h4>
                 )}
-                <p className="text-xs subsync-subtitle font-medium leading-relaxed break-words">{toast.message}</p>
+                <p className="text-xs subhalt-subtitle font-medium leading-relaxed break-words">{toast.message}</p>
               </div>
               <button
                 type="button"

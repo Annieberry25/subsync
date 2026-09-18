@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useSettings, type BillingDetails } from '@/lib/contexts/user-settings-context';
 import { CustomSelect } from '@/components/ui/custom-select';
@@ -26,11 +26,14 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
 
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  // Reset the form when billing details load or change (render-phase adjustment).
+  const [prevBillingDetails, setPrevBillingDetails] = useState<BillingDetails | null>(billingDetails);
+  if (billingDetails !== prevBillingDetails) {
+    setPrevBillingDetails(billingDetails);
     if (billingDetails) {
       setFormData(billingDetails);
     }
-  }, [billingDetails]);
+  }
 
   if (!isOpen) return null;
 

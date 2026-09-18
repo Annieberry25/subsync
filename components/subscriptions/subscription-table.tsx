@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useSyncExternalStore, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, ChevronRight, Trash2 } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { getProviderManagementUrl, archiveSubscription } from '@/lib/services/subscription-service';
+import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -171,7 +171,7 @@ function SubscriptionTable({
             type="button"
             onClick={() => {
               setActiveMenuSubId(null);
-              const targetUrl = getProviderManagementUrl(activeSubForMenu.name, activeSubForMenu.provider_url);
+              const targetUrl = getKnownProviderManagementUrl(activeSubForMenu.name) || getProviderManagementUrl(activeSubForMenu.name, activeSubForMenu.provider_url);
               if (targetUrl) {
                 window.open(targetUrl, '_blank', 'noopener,noreferrer');
               } else {

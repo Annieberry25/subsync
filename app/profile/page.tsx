@@ -1,7 +1,7 @@
 'use client';
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -29,6 +29,23 @@ const AVATAR_ACCENT_COLORS = [
   { hex: '#3B82F6', label: 'Blue' },
 ];
 
+// Cached wall-clock snapshot so the 30-day name-change lockout stays accurate
+// without impure Date.now() calls in render. getSnapshot MUST return a cached
+// value — returning a fresh Date.now() per call makes useSyncExternalStore see
+// a new snapshot on every render and loop until "Maximum update depth exceeded".
+let clockSnapshot = Date.now();
+function subscribeToClock(onChange: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const id = window.setInterval(() => {
+    clockSnapshot = Date.now();
+    onChange();
+  }, 60_000);
+  return () => window.clearInterval(id);
+}
+function getClockSnapshot(): number {
+  return clockSnapshot;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -42,13 +59,21 @@ export default function ProfilePage() {
   const { isPlus } = usePlan();
 
   const [fullName, setFullName] = useState(initialFullName);
+
+  // Keep the editable name in sync when the authenticated profile loads or changes
+  // (render-phase adjustment, the documented alternative to setState-in-effect).
+  const [prevInitialFullName, setPrevInitialFullName] = useState(initialFullName);
+  if (initialFullName !== prevInitialFullName) {
+    setPrevInitialFullName(initialFullName);
+    setFullName(initialFullName);
+  }
   const [bio, setBio] = useState(() => {
     if (typeof window === 'undefined') return '';
-    return safeGetItem('subsync_user_bio') || '';
+    return safeGetItem('subhalt_user_bio') || '';
   });
   const [avatarColor, setAvatarColor] = useState(() => {
     if (typeof window === 'undefined') return '#14B8A6';
-    return safeGetItem('subsync_avatar_color') || '#14B8A6';
+    return safeGetItem('subhalt_avatar_color') || '#14B8A6';
   });
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -57,10 +82,6 @@ export default function ProfilePage() {
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
 
   const supabase = createClient();
-
-  useEffect(() => {
-    setFullName(initialFullName);
-  }, [initialFullName]);
 
   useEffect(() => {
     async function fetchUserMeta() {
@@ -72,13 +93,17 @@ export default function ProfilePage() {
     fetchUserMeta();
   }, [supabase]);
 
+  // Wall-clock snapshot so the 30-day lockout stays accurate without impure
+  // Date.now() calls in render (cached snapshot updated by subscribeToClock).
+  const nowMs = useSyncExternalStore(subscribeToClock, getClockSnapshot, getClockSnapshot);
+
   // Calculate 30-day rate limit status for name changes
   let isLockedBy30Days = false;
   let nextAllowedDateString = '';
 
   if (lastNameChange) {
     const lastChangeDate = new Date(lastNameChange);
-    const diffMs = Date.now() - lastChangeDate.getTime();
+    const diffMs = nowMs - lastChangeDate.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
     if (diffDays < 30) {
@@ -148,8 +173,8 @@ export default function ProfilePage() {
       }
 
       if (typeof window !== 'undefined') {
-        safeSetItem('subsync_user_bio', bio.trim());
-        safeSetItem('subsync_avatar_color', avatarColor);
+        safeSetItem('subhalt_user_bio', bio.trim());
+        safeSetItem('subhalt_avatar_color', avatarColor);
       }
 
       toast.success('Your profile details have been saved.', 'Profile Saved');

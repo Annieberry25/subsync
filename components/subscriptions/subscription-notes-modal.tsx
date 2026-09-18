@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, FileText, Loader2, Save } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { cleanNotesUserText, parseAccountLinks, formatNotesWithAccountLinks, updateSubscription } from '@/lib/services/subscription-service';
@@ -23,13 +23,12 @@ export default function SubscriptionNotesModal({
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (subscription) {
-      setNotes(cleanNotesUserText(subscription.notes));
-    } else {
-      setNotes('');
-    }
-  }, [subscription]);
+  // Reset notes when a different subscription is opened (render-phase adjustment).
+  const [prevSubId, setPrevSubId] = useState<string | null>(subscription?.id ?? null);
+  if ((subscription?.id ?? null) !== prevSubId) {
+    setPrevSubId(subscription?.id ?? null);
+    setNotes(subscription ? cleanNotesUserText(subscription.notes) : '');
+  }
 
   if (!isOpen || !subscription) return null;
 

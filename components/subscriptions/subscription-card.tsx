@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useSyncExternalStore, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, Link2, Trash2, Loader2 } from 'lucide-react';
-import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, parseAccountLinks, archiveSubscription } from '@/lib/services/subscription-service';
+import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, getKnownProviderManagementUrl, parseAccountLinks, archiveSubscription } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -21,7 +21,7 @@ interface SubscriptionCardProps {
   isHighlighted?: boolean;
 }
 
-// SubSync Design System status dots (Strictly green, amber, red, neutral)
+// SubHalt Design System status dots (Strictly green, amber, red, neutral)
 const statusDotColors: Record<string, string> = {
   active: 'bg-[#14B8A6]',
   trial: 'bg-[#F59E0B]',
@@ -164,7 +164,7 @@ function SubscriptionCard({
 
   const handleManageSubscription = () => {
     setMenuOpen(false);
-    const targetUrl = getProviderManagementUrl(subscription.name, subscription.provider_url);
+    const targetUrl = getKnownProviderManagementUrl(subscription.name) || getProviderManagementUrl(subscription.name, subscription.provider_url);
     if (targetUrl) {
       window.open(targetUrl, '_blank', 'noopener,noreferrer');
     } else {

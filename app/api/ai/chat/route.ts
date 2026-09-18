@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth/access';
 import { getAiAnswer, type AiChatHistoryItem } from '@/lib/ai/server';
 import { buildAiUserContext, renderUserContext } from '@/lib/ai/context';
 import { logger } from '@/lib/logger';
@@ -13,9 +14,7 @@ const MAX_BILLS = 300;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser(supabase);
 
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

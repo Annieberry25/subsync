@@ -652,7 +652,7 @@ export function getCatalogProviders(country: string, category?: string, includeS
  */
 export function searchProviderCatalog(query: string, country?: string): ExtendedVerifiedProvider[] {
   const normQuery = (query || '').toLowerCase().trim();
-  let list = country ? getCatalogProviders(country) : PROVIDER_CATALOG;
+  const list = country ? getCatalogProviders(country) : PROVIDER_CATALOG;
 
   if (!normQuery) return list;
 

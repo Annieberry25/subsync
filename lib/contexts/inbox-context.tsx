@@ -1,5 +1,8 @@
 'use client';
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
+import { createClient } from '@/lib/supabase/client';
+import { logger } from '@/lib/logger';
+import type { Json, Database } from '@/lib/types/database.types';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
@@ -32,6 +35,9 @@ export interface InboxItem {
   metadata?: Record<string, unknown>;
 }
 
+type InboxItemDbRow = Database['public']['Tables']['inbox_items']['Row'];
+type InboxItemDbUpdate = Database['public']['Tables']['inbox_items']['Update'];
+
 interface InboxContextType {
   items: InboxItem[];
   archivedItems: InboxItem[];
@@ -54,68 +60,83 @@ interface InboxContextType {
 
 export const INITIAL_INBOX_ITEMS: InboxItem[] = [];
 
-const ITEMS_STORAGE_KEY = 'subsync_inbox_items_v10';
-const OVERRIDES_STORAGE_KEY = 'subsync_inbox_user_overrides_v10';
+const ITEMS_STORAGE_KEY = 'subhalt_inbox_items_v10';
+const OVERRIDES_STORAGE_KEY = 'subhalt_inbox_user_overrides_v10';
 
-interface UserState {
-  items: InboxItem[];
-  archivedIds: string[];
-  favouritedIds: string[];
+function generateInboxId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `inbox-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+}
+
+function readItemsFromStorage(): InboxItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = safeGetItem(ITEMS_STORAGE_KEY);
+    if (stored) {
+      const parsed: InboxItem[] = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    logger.warn('[inbox-context] readItemsFromStorage parse error', { message: err instanceof Error ? err.message : String(err) });
+  }
+  return [];
+}
+
+function readOverridesFromStorage(): { archivedIds: string[]; favouritedIds: string[] } {
+  if (typeof window === 'undefined') return { archivedIds: [], favouritedIds: [] };
+  try {
+    const storedMeta = safeGetItem(OVERRIDES_STORAGE_KEY);
+    if (storedMeta) {
+      const parsedMeta = JSON.parse(storedMeta);
+      if (parsedMeta && typeof parsedMeta === 'object') {
+        return {
+          archivedIds: Array.isArray(parsedMeta.archivedIds) ? parsedMeta.archivedIds : [],
+          favouritedIds: Array.isArray(parsedMeta.favouritedIds) ? parsedMeta.favouritedIds : [],
+        };
+      }
+    }
+  } catch (err) {
+    logger.warn('[inbox-context] readOverridesFromStorage parse error', { message: err instanceof Error ? err.message : String(err) });
+  }
+  return { archivedIds: [], favouritedIds: [] };
+}
+
+function dbRowToItem(row: InboxItemDbRow): InboxItem {
+  return {
+    id: row.id,
+    type: row.type as InboxItemType,
+    title: row.title,
+    description: row.description ?? '',
+    date: row.date,
+    isRead: row.is_read,
+    isFavourited: row.is_favourited,
+    isUrgent: row.is_urgent,
+    actionType: (row.action_type as ActionType | null) ?? undefined,
+    actionLabel: row.action_label ?? undefined,
+    subscriptionName: row.subscription_name ?? undefined,
+    subscriptionPrice: row.subscription_price ?? undefined,
+    currency: row.currency ?? undefined,
+    providerUrl: row.provider_url ?? undefined,
+    metadata: (row.metadata as Record<string, unknown> | null) ?? undefined,
+  };
 }
 
 const InboxContext = createContext<InboxContextType | undefined>(undefined);
 
 export function InboxProvider({ children }: { children: React.ReactNode }) {
-  const [rawItems, setRawItems] = useState<InboxItem[]>([]);
-  const [archivedIds, setArchivedIds] = useState<string[]>([]);
-  const [favouritedIds, setFavouritedIds] = useState<string[]>([]);
+  const supabase = useMemo(() => createClient(), []);
 
-  const refreshFromStorage = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const storedItems = safeGetItem(ITEMS_STORAGE_KEY);
-      const storedMeta = safeGetItem(OVERRIDES_STORAGE_KEY);
+  const [rawItems, setRawItems] = useState<InboxItem[]>(readItemsFromStorage);
 
-      if (storedItems) {
-        const parsedItems: InboxItem[] = JSON.parse(storedItems);
-        if (Array.isArray(parsedItems)) {
-          setRawItems(parsedItems);
-        }
-      }
+  const initialOverrides = useMemo(() => readOverridesFromStorage(), []);
+  const [archivedIds, setArchivedIds] = useState<string[]>(initialOverrides.archivedIds);
+  const [favouritedIds, setFavouritedIds] = useState<string[]>(initialOverrides.favouritedIds);
 
-      if (storedMeta) {
-        const parsedMeta = JSON.parse(storedMeta);
-        if (parsedMeta && typeof parsedMeta === 'object') {
-          if (Array.isArray(parsedMeta.archivedIds)) setArchivedIds(parsedMeta.archivedIds);
-          if (Array.isArray(parsedMeta.favouritedIds)) setFavouritedIds(parsedMeta.favouritedIds);
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }, []);
-
-  // Load persisted user inbox data on mount & listen for storage updates
-  useEffect(() => {
-    refreshFromStorage();
-
-    const handleUpdate = () => {
-      refreshFromStorage();
-    };
-
-    window.addEventListener('storage', handleUpdate);
-    window.addEventListener('subsync_inbox_updated', handleUpdate);
-
-    return () => {
-      window.removeEventListener('storage', handleUpdate);
-      window.removeEventListener('subsync_inbox_updated', handleUpdate);
-    };
-  }, [refreshFromStorage]);
-
-  const saveState = useCallback((newItems: InboxItem[], newArchived?: string[], newFavourited?: string[]) => {
-    setRawItems(newItems);
-    const activeArchived = newArchived !== undefined ? newArchived : archivedIds;
-    const activeFavourited = newFavourited !== undefined ? newFavourited : favouritedIds;
+  const persistCache = useCallback((newItems: InboxItem[], newArchived?: string[], newFavourited?: string[]) => {
+    const activeArchived = newArchived ?? archivedIds;
+    const activeFavourited = newFavourited ?? favouritedIds;
 
     if (typeof window !== 'undefined') {
       try {
@@ -124,69 +145,214 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
           OVERRIDES_STORAGE_KEY,
           JSON.stringify({ archivedIds: activeArchived, favouritedIds: activeFavourited })
         );
-        window.dispatchEvent(new Event('subsync_inbox_updated'));
-      } catch {
-        // Ignore storage errors
+        window.dispatchEvent(new Event('subhalt_inbox_updated'));
+      } catch (err) {
+        logger.warn('[inbox-context] persistCache storage error', { message: err instanceof Error ? err.message : String(err) });
       }
     }
   }, [archivedIds, favouritedIds]);
 
-  const addInboxItem = useCallback((item: Omit<InboxItem, 'id' | 'date' | 'isRead'>) => {
-    const newItem: InboxItem = {
-      ...item,
-      id: `inbox-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      date: new Date().toISOString(),
-      isRead: false,
-    };
-
-    let currentItems: InboxItem[] = [];
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = safeGetItem(ITEMS_STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) currentItems = parsed;
-        }
-      } catch {}
-    }
-
-    // Deduplicate: check if an identical inbox notice for this subscription already exists
-    const existingIndex = currentItems.findIndex(
-      (i) =>
-        i.type === item.type &&
-        i.subscriptionName?.toLowerCase().trim() === item.subscriptionName?.toLowerCase().trim() &&
-        i.title.toLowerCase().trim() === item.title.toLowerCase().trim()
-    );
-
-    let updated: InboxItem[];
-    if (existingIndex >= 0) {
-      const existing = currentItems[existingIndex];
-      const updatedItem: InboxItem = {
-        ...existing,
-        ...item,
-        date: new Date().toISOString(),
-        isRead: false, // Re-open notice as unread if event re-fires
-      };
-      updated = [
-        updatedItem,
-        ...currentItems.filter((_, idx) => idx !== existingIndex),
-      ];
-    } else {
-      updated = [newItem, ...currentItems.filter((i) => i.id !== newItem.id)];
-    }
-
-    if (typeof window !== 'undefined') {
-      try {
-        safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
-      } catch {}
-    }
-
-    setRawItems(updated);
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('subsync_inbox_updated'));
+  const refreshFromStorage = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const parsedItems = readItemsFromStorage();
+      const overrides = readOverridesFromStorage();
+      if (parsedItems.length > 0) setRawItems(parsedItems);
+      setArchivedIds(overrides.archivedIds);
+      setFavouritedIds(overrides.favouritedIds);
+    } catch (err) {
+      logger.warn('[inbox-context] refreshFromStorage error', { message: err instanceof Error ? err.message : String(err) });
     }
   }, []);
+
+  const updateDbItem = useCallback(
+    async (id: string, patch: InboxItemDbUpdate) => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        await supabase.from('inbox_items').update(patch).eq('id', id).eq('user_id', user.id);
+      } catch (err) {
+        logger.warn('[inbox-context] updateDbItem offline, cache-only', { message: err instanceof Error ? err.message : String(err) });
+      }
+    },
+    [supabase]
+  );
+
+  const deleteDbItem = useCallback(
+    async (id: string) => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        await supabase.from('inbox_items').delete().eq('id', id).eq('user_id', user.id);
+      } catch (err) {
+        logger.warn('[inbox-context] deleteDbItem offline, cache-only', { message: err instanceof Error ? err.message : String(err) });
+      }
+    },
+    [supabase]
+  );
+
+  // Load inbox items from Supabase on mount (Supabase is the source of truth;
+  // localStorage is a read cache / offline fallback, merged and mirrored here).
+  const loadInboxFromServer = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('inbox_items')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(300);
+
+      if (error) {
+        logger.warn('[inbox-context] loadInboxFromServer DB error, using cache', { message: error.message });
+        return;
+      }
+
+      const rows = data ?? [];
+      const dbItems = rows.map(dbRowToItem);
+      const dbIds = new Set(dbItems.map((i) => i.id));
+
+      const localItems = readItemsFromStorage();
+      const localOverrides = readOverridesFromStorage();
+
+      const mergedItems = [...dbItems, ...localItems.filter((i) => !dbIds.has(i.id))];
+      const mergedArchived = [
+        ...rows.filter((r) => r.archived_at != null).map((r) => r.id),
+        ...localOverrides.archivedIds.filter((id) => !dbIds.has(id)),
+      ];
+      const mergedFavourited = [
+        ...rows.filter((r) => r.is_favourited).map((r) => r.id),
+        ...localOverrides.favouritedIds.filter((id) => !dbIds.has(id)),
+      ];
+
+      setRawItems(mergedItems);
+      setArchivedIds(mergedArchived);
+      setFavouritedIds(mergedFavourited);
+
+      try {
+        safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(mergedItems));
+        safeSetItem(
+          OVERRIDES_STORAGE_KEY,
+          JSON.stringify({ archivedIds: mergedArchived, favouritedIds: mergedFavourited })
+        );
+        window.dispatchEvent(new Event('subhalt_inbox_updated'));
+      } catch (err) {
+        logger.warn('[inbox-context] loadInboxFromServer cache mirror error', { message: err instanceof Error ? err.message : String(err) });
+      }
+    } catch (err) {
+      logger.warn('[inbox-context] loadInboxFromServer failed, keeping localStorage cache', { message: err instanceof Error ? err.message : String(err) });
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    void Promise.resolve().then(() => loadInboxFromServer());
+  }, [loadInboxFromServer]);
+
+  // Listen for storage updates from other tabs or the app itself.
+  useEffect(() => {
+    const handleUpdate = () => {
+      refreshFromStorage();
+    };
+
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('subhalt_inbox_updated', handleUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('subhalt_inbox_updated', handleUpdate);
+    };
+  }, [refreshFromStorage]);
+
+  const addDbItem = useCallback(
+    async (item: InboxItem, archivedAt: string | null) => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        await supabase.from('inbox_items').upsert(
+          {
+            id: item.id,
+            user_id: user.id,
+            type: item.type,
+            title: item.title,
+            description: item.description,
+            date: item.date,
+            is_read: item.isRead,
+            is_favourited: !!item.isFavourited,
+            is_urgent: !!item.isUrgent,
+            action_type: item.actionType ?? null,
+            action_label: item.actionLabel ?? null,
+            subscription_name: item.subscriptionName ?? null,
+            subscription_price: item.subscriptionPrice ?? null,
+            currency: item.currency ?? null,
+            provider_url: item.providerUrl ?? null,
+            metadata: (item.metadata as Json) ?? null,
+            archived_at: archivedAt,
+          },
+          { onConflict: 'id' }
+        );
+      } catch (err) {
+        logger.warn('[inbox-context] addDbItem offline, cache-only', { message: err instanceof Error ? err.message : String(err) });
+      }
+    },
+    [supabase]
+  );
+
+  const addInboxItem = useCallback(
+    (item: Omit<InboxItem, 'id' | 'date' | 'isRead'>) => {
+      const newItem: InboxItem = {
+        ...item,
+        id: generateInboxId(),
+        date: new Date().toISOString(),
+        isRead: false,
+      };
+
+      let currentItems: InboxItem[] = [];
+      if (typeof window !== 'undefined') {
+        const parsed = readItemsFromStorage();
+        if (parsed.length) currentItems = parsed;
+      }
+
+      // Deduplicate: check if an identical inbox notice for this subscription already exists
+      const existingIndex = currentItems.findIndex(
+        (i) =>
+          i.type === item.type &&
+          i.subscriptionName?.toLowerCase().trim() === item.subscriptionName?.toLowerCase().trim() &&
+          i.title.toLowerCase().trim() === item.title.toLowerCase().trim()
+      );
+
+      let updated: InboxItem[];
+      if (existingIndex >= 0) {
+        const existing = currentItems[existingIndex];
+        const updatedItem: InboxItem = {
+          ...existing,
+          ...item,
+          id: existing.id,
+          date: new Date().toISOString(),
+          isRead: false, // Re-open notice as unread if event re-fires
+        };
+        updated = [updatedItem, ...currentItems.filter((_, idx) => idx !== existingIndex)];
+      } else {
+        updated = [newItem, ...currentItems.filter((i) => i.id !== newItem.id)];
+      }
+
+      setRawItems(updated);
+      persistCache(updated);
+
+      const finalItem = updated[0];
+      void addDbItem(finalItem, archivedIds.includes(finalItem.id) ? finalItem.date : null);
+    },
+    [persistCache, archivedIds, addDbItem]
+  );
 
   // Listen for subscription creation events from subscription service & auto-create Inbox message/notification
   useEffect(() => {
@@ -209,9 +375,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
-    window.addEventListener('subsync_subscription_created', handleSubCreated);
+    window.addEventListener('subhalt_subscription_created', handleSubCreated);
     return () => {
-      window.removeEventListener('subsync_subscription_created', handleSubCreated);
+      window.removeEventListener('subhalt_subscription_created', handleSubCreated);
     };
   }, [addInboxItem]);
 
@@ -219,46 +385,44 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setRawItems((prev) => {
         const updated = prev.map((item) => (item.id === id ? { ...item, isRead: true } : item));
-        if (typeof window !== 'undefined') {
-          try {
-            safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
-            window.dispatchEvent(new Event('subsync_inbox_updated'));
-          } catch {}
-        }
+        persistCache(updated);
+        void updateDbItem(id, { is_read: true });
         return updated;
       });
     },
-    []
+    [persistCache, updateDbItem]
   );
 
   const markAsUnread = useCallback(
     (id: string) => {
       setRawItems((prev) => {
         const updated = prev.map((item) => (item.id === id ? { ...item, isRead: false } : item));
-        if (typeof window !== 'undefined') {
-          try {
-            safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
-            window.dispatchEvent(new Event('subsync_inbox_updated'));
-          } catch {}
-        }
+        persistCache(updated);
+        void updateDbItem(id, { is_read: false });
         return updated;
       });
     },
-    []
+    [persistCache, updateDbItem]
   );
 
   const markAllAsRead = useCallback(() => {
     setRawItems((prev) => {
       const updated = prev.map((item) => ({ ...item, isRead: true }));
-      if (typeof window !== 'undefined') {
+      persistCache(updated);
+      void (async () => {
         try {
-          safeSetItem(ITEMS_STORAGE_KEY, JSON.stringify(updated));
-          window.dispatchEvent(new Event('subsync_inbox_updated'));
-        } catch {}
-      }
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (!user) return;
+          await supabase.from('inbox_items').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+        } catch (err) {
+          logger.warn('[inbox-context] markAllAsRead DB error, cache-only', { message: err instanceof Error ? err.message : String(err) });
+        }
+      })();
       return updated;
     });
-  }, []);
+  }, [persistCache, supabase]);
 
   const deleteItem = useCallback(
     (id: string) => {
@@ -269,68 +433,76 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
       setRawItems((prev) => {
         const updated = prev.filter((item) => item.id !== id);
-        saveState(updated, nextArchived, nextFav);
+        persistCache(updated, nextArchived, nextFav);
+        void deleteDbItem(id);
         return updated;
       });
     },
-    [archivedIds, favouritedIds, saveState]
+    [archivedIds, favouritedIds, persistCache, deleteDbItem]
   );
 
   const archiveItem = useCallback(
     (id: string) => {
+      const timestamp = new Date().toISOString();
       setArchivedIds((prev) => {
         if (prev.includes(id)) return prev;
         const next = [...prev, id];
-        saveState(rawItems, next, favouritedIds);
+        persistCache(rawItems, next, favouritedIds);
+        void updateDbItem(id, { archived_at: timestamp });
         return next;
       });
     },
-    [rawItems, favouritedIds, saveState]
+    [rawItems, favouritedIds, persistCache, updateDbItem]
   );
 
   const unarchiveItem = useCallback(
     (id: string) => {
       setArchivedIds((prev) => {
         const next = prev.filter((item) => item !== id);
-        saveState(rawItems, next, favouritedIds);
+        persistCache(rawItems, next, favouritedIds);
+        void updateDbItem(id, { archived_at: null });
         return next;
       });
     },
-    [rawItems, favouritedIds, saveState]
+    [rawItems, favouritedIds, persistCache, updateDbItem]
   );
 
   const toggleFavourite = useCallback(
     (id: string) => {
+      const adding = !favouritedIds.includes(id);
+      void updateDbItem(id, { is_favourited: adding });
       setFavouritedIds((prev) => {
-        const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
-        saveState(rawItems, archivedIds, next);
+        const next = adding ? [...prev, id] : prev.filter((item) => item !== id);
+        persistCache(rawItems, archivedIds, next);
         return next;
       });
     },
-    [rawItems, archivedIds, saveState]
+    [favouritedIds, rawItems, archivedIds, persistCache, updateDbItem]
   );
 
   const addToFavourites = useCallback(
     (id: string) => {
+      void updateDbItem(id, { is_favourited: true });
       setFavouritedIds((prev) => {
         if (prev.includes(id)) return prev;
         const next = [...prev, id];
-        saveState(rawItems, archivedIds, next);
+        persistCache(rawItems, archivedIds, next);
         return next;
       });
     },
-    [rawItems, archivedIds, saveState]
+    [rawItems, archivedIds, persistCache, updateDbItem]
   );
 
   const removeFromFavourites = useCallback(
     (id: string) => {
+      void updateDbItem(id, { is_favourited: false });
       setFavouritedIds((prev) => {
         const next = prev.filter((item) => item !== id);
-        saveState(rawItems, archivedIds, next);
+        persistCache(rawItems, archivedIds, next);
         return next;
       });
     },
-    [rawItems, archivedIds, saveState]
+    [rawItems, archivedIds, persistCache, updateDbItem]
   );
 
   const archivedSet = useMemo(() => new Set(archivedIds), [archivedIds]);
@@ -403,6 +575,3 @@ export function useInbox() {
   }
   return context;
 }
-
-
-

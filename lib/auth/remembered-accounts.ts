@@ -10,7 +10,7 @@ export interface RememberedAccount {
   lastUsed: number;
 }
 
-const STORAGE_KEY = 'subsync_remembered_accounts';
+const STORAGE_KEY = 'subhalt_remembered_accounts';
 
 export function getRememberedAccounts(): RememberedAccount[] {
   if (typeof window === 'undefined') return [];

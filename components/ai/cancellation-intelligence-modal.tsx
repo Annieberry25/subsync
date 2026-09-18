@@ -155,7 +155,7 @@ export function CancellationIntelligenceModal({
           <div className="space-y-2 pt-2 border-t border-[#1A1D1D]">
             <h4 className="text-xs font-semibold text-[#F5F7F6]">Track Cancellation Status in SubHalt</h4>
             <p className="text-xs text-[#94A3B8]">
-              Once you've requested cancellation on the provider's website, update your status here so SubHalt accurately reflects your portfolio savings:
+              Once you&apos;ve requested cancellation on the provider&apos;s website, update your status here so SubHalt accurately reflects your portfolio savings:
             </p>
 
             <div className="grid grid-cols-2 gap-2 pt-1">

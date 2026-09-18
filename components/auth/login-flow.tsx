@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowLeft, Zap } from 'lucide-react';
@@ -16,8 +16,10 @@ import { RememberedAccountChooser } from './remembered-account-chooser';
 import { getSiteUrl, getAuthCallbackUrl } from '@/lib/utils/url-utils';
 
 export function LoginFlow() {
-  const [step, setStep] = useState<'chooser' | 'email' | 'password' | 'otp'>('email');
-  const [rememberedAccounts, setRememberedAccounts] = useState<RememberedAccount[]>([]);
+  const [step, setStep] = useState<'chooser' | 'email' | 'password' | 'otp'>(() =>
+    getRememberedAccounts().length > 0 ? 'chooser' : 'email'
+  );
+  const [rememberedAccounts, setRememberedAccounts] = useState<RememberedAccount[]>(() => getRememberedAccounts());
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,14 +32,6 @@ export function LoginFlow() {
 
   const router = useRouter();
   const supabase = createClient();
-
-  useEffect(() => {
-    const cached = getRememberedAccounts();
-    setRememberedAccounts(cached);
-    if (cached.length > 0) {
-      setStep('chooser');
-    }
-  }, []);
 
   const handleRemoveAccount = (emailToRemove: string) => {
     const updated = removeRememberedAccount(emailToRemove);
@@ -79,12 +73,29 @@ export function LoginFlow() {
     setLoading(true);
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      // Server-side sign-in: session cookies are written via Set-Cookie
+      // response headers (works even where document.cookie writes are blocked).
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
       });
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        user?: {
+          email?: string | null;
+          user_metadata?: {
+            full_name?: string;
+            username?: string;
+            avatar_url?: string;
+          };
+        };
+      };
 
-      if (signInError) throw signInError;
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Invalid email or password.');
+      }
 
       if (data.user) {
         saveRememberedAccount({

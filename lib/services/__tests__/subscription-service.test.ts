@@ -32,6 +32,10 @@ const mocks = vi.hoisted(() => {
       void args;
       return chain;
     }),
+    limit: vi.fn(function (...args: unknown[]) {
+      void args;
+      return chain;
+    }),
     single: vi.fn(function (...args: unknown[]) {
       void args;
       return chain;
@@ -138,7 +142,7 @@ describe('fetchSubscriptions', () => {
   it('merges DB rows with cached local subscriptions', async () => {
     const dbRow = makeSubRow({ id: 'sub_db' });
     const localRow = makeSubRow({ id: 'sub_local', name: 'Local Only' });
-    window.localStorage.setItem('subsync_subscriptions', JSON.stringify([localRow]));
+    window.localStorage.setItem('subhalt_subscriptions', JSON.stringify([localRow]));
     mocks.setResult({ data: [dbRow], error: null });
 
     const result = await fetchSubscriptions();

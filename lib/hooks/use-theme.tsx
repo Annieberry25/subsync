@@ -15,7 +15,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      const saved = safeGetItem('subsync-theme') as Theme | null;
+      const saved = safeGetItem('subhalt-theme') as Theme | null;
       if (saved === 'midnight') {
         return saved;
       }
@@ -46,7 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    safeSetItem('subsync-theme', newTheme);
+    safeSetItem('subhalt-theme', newTheme);
     applyTheme(newTheme);
   };
 

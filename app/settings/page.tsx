@@ -1,7 +1,7 @@
 'use client';
 import { safeRemoveItem } from '@/lib/safe-local-storage';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -33,6 +33,8 @@ import {
 import { useToast } from '@/lib/hooks/use-toast';
 import { useTheme, type Theme } from '@/lib/hooks/use-theme';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useInbox } from '@/lib/contexts/inbox-context';
+import { syncPlusPurchaseRecord } from '@/lib/services/plan-service';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import {
   fetchSubscriptions,
@@ -66,12 +68,13 @@ function SettingsContent() {
     searchParams.has('section') ? sectionParam : null
   );
 
-  useEffect(() => {
-    if (sectionParam) {
-      setActiveSection(sectionParam);
-      setMobileSectionView(sectionParam);
-    }
-  }, [sectionParam]);
+  // Sync section from URL param (render-phase adjustment).
+  const [prevSectionParam, setPrevSectionParam] = useState(sectionParam);
+  if (sectionParam !== prevSectionParam) {
+    setPrevSectionParam(sectionParam);
+    setActiveSection(sectionParam);
+    setMobileSectionView(sectionParam);
+  }
 
   const {
     defaultCurrency,
@@ -87,13 +90,14 @@ function SettingsContent() {
     updatePlanTier,
     deletePaymentMethod,
   } = useUserSettings();
+  const { addInboxItem } = useInbox();
 
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
   const [isEditBillingOpen, setIsEditBillingOpen] = useState(false);
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [isViewSubscriptionOpen, setIsViewSubscriptionOpen] = useState(false);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
-  const [, setSubsLoading] = useState(true);
+  const billedResultHandled = useRef(false);
 
   // Account Deletion States
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
@@ -108,15 +112,70 @@ function SettingsContent() {
   const supabase = createClient();
 
   const loadSubData = useCallback(async () => {
-    setSubsLoading(true);
     const { data } = await fetchSubscriptions();
     if (data) setSubscriptions(data);
-    setSubsLoading(false);
   }, []);
 
   useEffect(() => {
-    loadSubData();
+    Promise.resolve().then(() => loadSubData());
   }, [loadSubData]);
+
+  // View model for the "SubHalt subscription" detail modal. Prefer the real
+  // SubHalt row created after a Paystack purchase; otherwise fall back to a
+  // live record derived from the user's current plan state (no hardcoded dates).
+  const subhaltNextBilling = new Date();
+  subhaltNextBilling.setUTCDate(subhaltNextBilling.getUTCDate() + 30);
+  const subhaltSubscription: SubscriptionRow | null =
+    subscriptions.find((s) => s.name.toLowerCase().trim() === 'subhalt') ||
+    (isPlus
+      ? {
+          id: 'subhalt_local_subscription',
+          user_id: '',
+          name: 'SubHalt',
+          price: 4.99,
+          currency: 'USD',
+          billing_cycle: 'monthly',
+          category: 'Software',
+          next_billing_date: subhaltNextBilling.toISOString().split('T')[0],
+          start_date: null,
+          end_date: null,
+          status: 'active',
+          payment_method: paymentMethods[0]?.brand || 'Card',
+          provider_url: SITE_URL,
+          notes: 'SubHalt Plus — single monthly payment secured via Paystack.',
+          account_links: null,
+          receipts: null,
+          is_synced: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+      : null);
+
+  // Handle post-checkout results from the Paystack callback route
+  // (/settings?section=plan&billing=paid|failed).
+  useEffect(() => {
+    const billing = searchParams.get('billing');
+    if (!billing || billedResultHandled.current) return;
+    billedResultHandled.current = true;
+
+    const handleBillingResult = async () => {
+      if (billing === 'paid') {
+        try {
+          await syncPlusPurchaseRecord({ addInboxItem });
+          await supabase.auth.refreshSession();
+          toast.success('Your SubHalt Plus plan is now active.', 'Subscribed to Plus');
+        } catch {
+          toast.error('Your payment succeeded but we could not sync your plan.', 'Plan Sync Issue');
+        }
+      } else if (billing === 'failed') {
+        toast.error('Payment was not completed. No charges were made.', 'Payment Incomplete');
+      }
+
+      router.replace('/settings?section=plan');
+    };
+
+    void Promise.resolve().then(() => handleBillingResult());
+  }, [searchParams, router, supabase, addInboxItem, toast]);
 
   const handleCurrencyChange = async (newCurr: string) => {
     try {
@@ -146,7 +205,7 @@ function SettingsContent() {
       )}`;
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', jsonString);
-      downloadAnchor.setAttribute('download', `subsync-portfolio-${new Date().toISOString().split('T')[0]}.json`);
+      downloadAnchor.setAttribute('download', `subhalt-portfolio-${new Date().toISOString().split('T')[0]}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -157,7 +216,7 @@ function SettingsContent() {
 
   const handleClearCache = () => {
     if (typeof window !== 'undefined') {
-      safeRemoveItem('subsync_reminders');
+      safeRemoveItem('subhalt_reminders');
       toast.success('Local cache & reminder preferences purged.', 'Cache Cleared');
     }
   };
@@ -315,27 +374,7 @@ function SettingsContent() {
       />
 
       <SubscriptionDetailModal
-        subscription={{
-          id: 'subhalt_subscription',
-          user_id: 'user_mock',
-          name: 'SubHalt',
-          price: 4.99,
-          currency: 'USD',
-          billing_cycle: 'monthly',
-          category: 'Software',
-          next_billing_date: '2026-09-15',
-          start_date: '2026-08-15',
-          end_date: null,
-          status: 'active',
-          payment_method: 'Card',
-          provider_url: SITE_URL,
-          notes: 'SubHalt subscription auto-renews monthly at $4.99.',
-          account_links: null,
-          receipts: null,
-          is_synced: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }}
+        subscription={subhaltSubscription}
         isOpen={isViewSubscriptionOpen}
         onClose={() => setIsViewSubscriptionOpen(false)}
         onEdit={() => {}}
@@ -363,7 +402,7 @@ function SettingsContent() {
             </h3>
             <p className="text-xs text-[#94A3B8]">
               {isPlus
-                ? 'Your plan auto-renews monthly on Sep 15, 2026. ($4.99/month)'
+                ? 'Single monthly payment secured by Paystack. ($4.99/month)'
                 : 'Intelligence for everyday tasks'}
             </p>
           </div>
@@ -488,17 +527,21 @@ function SettingsContent() {
               <div className="space-y-1">
                 <h4 className="text-sm font-bold text-[#F5F7F6]">Cancel plan</h4>
                 <p className="text-xs text-[#94A3B8]">
-                  If you cancel, you'll keep full access to your plan features until the end of your billing period.
+                  If you cancel, you&apos;ll keep full access to your plan features until the end of your billing period.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={async () => {
                   try {
+                    const res = await fetch('/api/paystack/cancel', { method: 'POST' });
+                    if (!res.ok) {
+                      throw new Error('Cancel request failed.');
+                    }
                     await updatePlanTier('free');
-                    toast.success('Your subscription will end at the close of the current billing cycle.', 'Plan Cancelled');
+                    toast.success('Your Plus plan has been cancelled. You are now on Free.', 'Plan Cancelled');
                   } catch {
-                    toast.error('Failed to update plan.', 'Cancel Failed');
+                    toast.error('Failed to cancel plan. Please try again.', 'Cancel Failed');
                   }
                 }}
                 className="px-5 py-2 rounded-full border border-[#D9363E] text-[#D9363E] hover:bg-[#D9363E]/10 text-xs font-semibold transition-colors cursor-pointer shrink-0 text-center"

@@ -420,12 +420,28 @@ export function filterDeletedSubscriptions(subscriptions: SubscriptionRow[]): Su
 
 let cachedSubscriptions: SubscriptionRow[] | null = null;
 
+export type SubscriptionWriteResult = {
+  data: SubscriptionRow | null;
+  error: Error | null;
+  synced: boolean;
+};
+
+const LOCAL_SUBSCRIPTION_USER_ID = 'user_mock';
+
+export function isLocalOnlySubscription(subscription: Pick<SubscriptionRow, 'user_id'>): boolean {
+  return subscription.user_id === LOCAL_SUBSCRIPTION_USER_ID;
+}
+
 export function getCachedSubscriptions(): SubscriptionRow[] | null {
-  if (!cachedSubscriptions && typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     try {
-      const local = safeGetItem('subsync_subscriptions');
+      const local = safeGetItem('subhalt_subscriptions');
       if (local) {
-        cachedSubscriptions = JSON.parse(local);
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed)) {
+          cachedSubscriptions = parsed;
+          return parsed;
+        }
       }
     } catch {
       // Ignore
@@ -434,35 +450,108 @@ export function getCachedSubscriptions(): SubscriptionRow[] | null {
   return cachedSubscriptions;
 }
 
+function writeCachedSubscriptions(list: SubscriptionRow[]): void {
+  cachedSubscriptions = list;
+  if (typeof window !== 'undefined') {
+    try {
+      safeSetItem('subhalt_subscriptions', JSON.stringify(list));
+    } catch {}
+  }
+}
+
+function dispatchSubscriptionsUpdated(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event('subhalt_subscriptions_updated'));
+}
+
+/**
+ * Pushes locally-created (offline) subscriptions into Supabase once a session
+ * exists and the DB is reachable. Successful pushes leave the cache (their
+ * canonical rows with real UUIDs arrive on the next fetch); the UI is told via
+ * the returned count so callers can refresh.
+ */
+export async function syncPendingSubscriptions(): Promise<number> {
+  const cached = getCachedSubscriptions() || [];
+  const pending = cached.filter((sub) => isLocalOnlySubscription(sub));
+  if (pending.length === 0) return 0;
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const syncedLocalIds = new Set<string>();
+  for (const sub of pending) {
+    const { error } = await supabase.from('subscriptions').insert({
+      user_id: user.id,
+      name: sub.name,
+      price: sub.price,
+      currency: sub.currency,
+      billing_cycle: sub.billing_cycle,
+      category: sub.category,
+      status: sub.status,
+      start_date: sub.start_date,
+      end_date: sub.end_date,
+      next_billing_date: sub.next_billing_date,
+      payment_method: sub.payment_method,
+      provider_url: sub.provider_url,
+      notes: sub.notes,
+      account_links: sub.account_links,
+      receipts: sub.receipts,
+      is_synced: true,
+    });
+
+    if (!error) {
+      syncedLocalIds.add(sub.id);
+    } else {
+      logger.warn('[subscription-service] syncPendingSubscriptions insert failed', {
+        message: error.message,
+        id: sub.id,
+      });
+    }
+  }
+
+  if (syncedLocalIds.size > 0) {
+    writeCachedSubscriptions(cached.filter((s) => !syncedLocalIds.has(s.id)));
+  }
+  return syncedLocalIds.size;
+}
+
 export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | null; error: Error | null }> {
   const cached = getCachedSubscriptions() || [];
   try {
+    // Reconcile offline-created rows first so the merge below starts clean.
+    if (cached.some((sub) => isLocalOnlySubscription(sub))) {
+      await syncPendingSubscriptions();
+    }
+
     const supabase = createClient();
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
-      .order('next_billing_date', { ascending: true });
+      .order('next_billing_date', { ascending: true })
+      .limit(500);
 
     if (!error && data) {
-      // Merge cached local subscriptions with DB subscriptions
-      // Keep any local subscription that is not in DB (matching by ID or name)
-      const localOnly = cached.filter(
-        (local) => !data.some((remote) => remote.id === local.id || remote.name.toLowerCase().trim() === local.name.toLowerCase().trim())
-      );
+      // Merge cached local subscriptions with DB subscriptions, matching strictly
+      // by id so renamed rows never duplicate.
+      const current = getCachedSubscriptions() || [];
+      const remoteIds = new Set(data.map((remote) => remote.id));
+      const localOnly = current.filter((local) => !remoteIds.has(local.id));
       const merged = [...localOnly, ...data];
-      cachedSubscriptions = merged;
-      if (typeof window !== 'undefined') {
-        try {
-          safeSetItem('subsync_subscriptions', JSON.stringify(merged));
-        } catch {}
-      }
+      writeCachedSubscriptions(merged);
       return { data: merged, error: null };
     }
     if (error) {
+      const dbError = new Error(error.message);
       logger.warn('[subscription-service] fetchSubscriptions DB error, using cache', { message: error.message });
+      return { data: cached, error: dbError };
     }
   } catch (err) {
+    const dbError = err instanceof Error ? err : new Error(String(err));
     logger.error('[subscription-service] fetchSubscriptions exception, using cache', err);
+    return { data: cached, error: dbError };
   }
 
   return { data: cached, error: null };
@@ -470,10 +559,50 @@ export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | 
 
 export async function createSubscription(
   subscriptionData: Omit<SubscriptionInsert, 'user_id'> & { id?: string }
-): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
+): Promise<SubscriptionWriteResult> {
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .insert({
+          ...subscriptionData,
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        const existingList = getCachedSubscriptions() || [];
+        const list = [data, ...existingList.filter((s) => s.id !== data.id)];
+        cachedSubscriptions = list;
+        if (typeof window !== 'undefined') {
+          safeSetItem('subhalt_subscriptions', JSON.stringify(list));
+          window.dispatchEvent(new CustomEvent('subhalt_subscription_created', { detail: data }));
+          window.dispatchEvent(new Event('subhalt_subscriptions_updated'));
+        }
+        return { data, error: null, synced: true };
+      }
+      if (error) {
+        const dbError = new Error(error.message);
+        logger.warn('[subscription-service] createSubscription DB error', { message: error.message });
+        return { data: null, error: dbError, synced: false };
+      }
+    } else {
+      logger.warn('[subscription-service] createSubscription called without authenticated user');
+    }
+  } catch (err) {
+    logger.error('[subscription-service] createSubscription exception, persisting locally', err);
+  }
+
+  // Offline / storage-only fallback: persisted locally, flagged for later sync.
   const mockSub: SubscriptionRow = {
     id: subscriptionData.id || 'sub_' + Date.now(),
-    user_id: 'user_mock',
+    user_id: LOCAL_SUBSCRIPTION_USER_ID,
     name: subscriptionData.name,
     price: subscriptionData.price,
     currency: subscriptionData.currency || 'USD',
@@ -493,61 +622,36 @@ export async function createSubscription(
     updated_at: new Date().toISOString(),
   };
 
-  try {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .insert({
-          ...subscriptionData,
-          user_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (!error && data) {
-        const existingList = getCachedSubscriptions() || [];
-        const list = [data, ...existingList.filter((s) => s.id !== data.id)];
-        cachedSubscriptions = list;
-        if (typeof window !== 'undefined') {
-          safeSetItem('subsync_subscriptions', JSON.stringify(list));
-          window.dispatchEvent(new CustomEvent('subsync_subscription_created', { detail: data }));
-          window.dispatchEvent(new Event('subsync_subscriptions_updated'));
-        }
-        return { data, error: null };
-      }
-      if (error) {
-        logger.warn('[subscription-service] createSubscription DB error, persisting locally', { message: error.message });
-      }
-    } else {
-      logger.warn('[subscription-service] createSubscription called without authenticated user');
-    }
-  } catch (err) {
-    logger.error('[subscription-service] createSubscription exception, persisting locally', err);
-  }
-
   const existingList = getCachedSubscriptions() || [];
   const list = [mockSub, ...existingList.filter((s) => s.id !== mockSub.id)];
-  cachedSubscriptions = list;
+  writeCachedSubscriptions(list);
   if (typeof window !== 'undefined') {
-    try {
-      safeSetItem('subsync_subscriptions', JSON.stringify(list));
-      window.dispatchEvent(new CustomEvent('subsync_subscription_created', { detail: mockSub }));
-      window.dispatchEvent(new Event('subsync_subscriptions_updated'));
-    } catch {
-      // Ignore
-    }
+    window.dispatchEvent(new CustomEvent('subhalt_subscription_created', { detail: mockSub }));
+    dispatchSubscriptionsUpdated();
   }
 
-  return { data: mockSub, error: null };
+  return { data: mockSub, error: null, synced: false };
 }
 
 export async function updateSubscription(
   id: string,
   subscriptionData: SubscriptionUpdate
-): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
+): Promise<SubscriptionWriteResult> {
+  // Offline-created rows live only in the cache — update them locally.
+  const localRow = (getCachedSubscriptions() || []).find((s) => s.id === id && isLocalOnlySubscription(s));
+  if (localRow) {
+    const updated: SubscriptionRow = {
+      ...localRow,
+      ...(subscriptionData as Partial<SubscriptionRow>),
+      updated_at: new Date().toISOString(),
+      is_synced: false,
+    };
+    const list = (getCachedSubscriptions() || []).map((s) => (s.id === id ? updated : s));
+    writeCachedSubscriptions(list);
+    dispatchSubscriptionsUpdated();
+    return { data: updated, error: null, synced: false };
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from('subscriptions')
@@ -556,22 +660,56 @@ export async function updateSubscription(
     .select()
     .single();
 
-  if (error) return { data: null, error: new Error(error.message) };
-  return { data, error: null };
+  if (error) return { data: null, error: new Error(error.message), synced: false };
+
+  if (data) {
+    const current = getCachedSubscriptions() || [];
+    const list = [data, ...current.filter((s) => s.id !== data.id)];
+    writeCachedSubscriptions(list);
+    dispatchSubscriptionsUpdated();
+  }
+  return { data, error: null, synced: true };
 }
 
-export async function deleteSubscription(id: string): Promise<{ error: Error | null }> {
+export async function deleteSubscription(id: string): Promise<{ error: Error | null; synced: boolean }> {
+  // Offline-created rows live only in the cache — remove them locally.
+  const localRow = (getCachedSubscriptions() || []).find((s) => s.id === id && isLocalOnlySubscription(s));
+  if (localRow) {
+    const list = (getCachedSubscriptions() || []).filter((s) => s.id !== id);
+    writeCachedSubscriptions(list);
+    dispatchSubscriptionsUpdated();
+    return { error: null, synced: false };
+  }
+
   const supabase = createClient();
   const { error } = await supabase
     .from('subscriptions')
     .delete()
     .eq('id', id);
 
-  if (error) return { error: new Error(error.message) };
-  return { error: null };
+  if (error) return { error: new Error(error.message), synced: false };
+
+  const current = getCachedSubscriptions() || [];
+  writeCachedSubscriptions(current.filter((s) => s.id !== id));
+  dispatchSubscriptionsUpdated();
+  return { error: null, synced: true };
 }
 
-export async function archiveSubscription(id: string): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
+export async function archiveSubscription(id: string): Promise<SubscriptionWriteResult> {
+  // Offline-created rows live only in the cache.
+  const localRow = (getCachedSubscriptions() || []).find((s) => s.id === id && isLocalOnlySubscription(s));
+  if (localRow) {
+    const links = parseAccountLinks(localRow);
+    const userNotes = cleanNotesUserText(localRow.notes);
+    const historyMetadata: HistoryStateMetadata = {
+      state: 'archived',
+      previousStatus: localRow.status,
+      archivedAt: new Date().toISOString(),
+    };
+    const newNotes = formatNotesWithAccountLinks(userNotes, links, historyMetadata);
+    return updateSubscription(id, { notes: newNotes });
+  }
+
   const supabase = createClient();
   const { data: sub, error: fetchErr } = await supabase
     .from('subscriptions')
@@ -580,7 +718,7 @@ export async function archiveSubscription(id: string): Promise<{ data: Subscript
     .single();
 
   if (fetchErr || !sub) {
-    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.') };
+    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.'), synced: false };
   }
 
   const links = parseAccountLinks(sub);
@@ -596,7 +734,21 @@ export async function archiveSubscription(id: string): Promise<{ data: Subscript
   return await updateSubscription(id, { notes: newNotes });
 }
 
-export async function softDeleteSubscription(id: string): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
+export async function softDeleteSubscription(id: string): Promise<SubscriptionWriteResult> {
+  // Offline-created rows live only in the cache.
+  const localRow = (getCachedSubscriptions() || []).find((s) => s.id === id && isLocalOnlySubscription(s));
+  if (localRow) {
+    const links = parseAccountLinks(localRow);
+    const userNotes = cleanNotesUserText(localRow.notes);
+    const historyMetadata: HistoryStateMetadata = {
+      state: 'deleted',
+      previousStatus: localRow.status,
+      deletedAt: new Date().toISOString(),
+    };
+    const newNotes = formatNotesWithAccountLinks(userNotes, links, historyMetadata);
+    return updateSubscription(id, { notes: newNotes });
+  }
+
   const supabase = createClient();
   const { data: sub, error: fetchErr } = await supabase
     .from('subscriptions')
@@ -605,7 +757,7 @@ export async function softDeleteSubscription(id: string): Promise<{ data: Subscr
     .single();
 
   if (fetchErr || !sub) {
-    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.') };
+    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.'), synced: false };
   }
 
   const links = parseAccountLinks(sub);
@@ -621,7 +773,7 @@ export async function softDeleteSubscription(id: string): Promise<{ data: Subscr
   return await updateSubscription(id, { notes: newNotes });
 }
 
-export const RESTORED_STORAGE_KEY = 'subsync_restored_history';
+export const RESTORED_STORAGE_KEY = 'subhalt_restored_history';
 
 export function getRestoredHistory(): RestoredHistoryRecord[] {
   if (typeof window === 'undefined') return [];
@@ -644,7 +796,30 @@ export function addRestoredHistoryRecord(record: RestoredHistoryRecord): void {
   }
 }
 
-export async function restoreSubscription(id: string): Promise<{ data: SubscriptionRow | null; error: Error | null }> {
+export async function restoreSubscription(id: string): Promise<SubscriptionWriteResult> {
+  // Offline-created rows live only in the cache.
+  const localRow = (getCachedSubscriptions() || []).find((s) => s.id === id && isLocalOnlySubscription(s));
+  if (localRow) {
+    const links = parseAccountLinks(localRow);
+    const userNotes = cleanNotesUserText(localRow.notes);
+    const newNotes = formatNotesWithAccountLinks(userNotes, links, null);
+    const result = await updateSubscription(id, {
+      notes: newNotes,
+      status: 'active',
+    });
+    if (!result.error && result.data) {
+      addRestoredHistoryRecord({
+        id: `restored-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        subscriptionId: id,
+        name: localRow.name,
+        provider: localRow.name,
+        previousState: 'Archived',
+        dateRestored: new Date().toISOString(),
+      });
+    }
+    return result;
+  }
+
   const supabase = createClient();
   const { data: sub, error: fetchErr } = await supabase
     .from('subscriptions')
@@ -653,7 +828,7 @@ export async function restoreSubscription(id: string): Promise<{ data: Subscript
     .single();
 
   if (fetchErr || !sub) {
-    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.') };
+    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.'), synced: false };
   }
 
   const { state: currentState, metadata } = getSubscriptionHistoryState(sub);

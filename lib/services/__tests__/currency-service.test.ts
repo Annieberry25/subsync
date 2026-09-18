@@ -87,8 +87,8 @@ describe('fetchExchangeRates', () => {
   });
 
   it('uses cached rates when a fresh cache exists', async () => {
-    window.localStorage.setItem('subsync_exchange_rates', JSON.stringify({ NGN: 1555 }));
-    window.localStorage.setItem('subsync_exchange_rates_time', String(Date.now()));
+    window.localStorage.setItem('subhalt_exchange_rates', JSON.stringify({ NGN: 1555 }));
+    window.localStorage.setItem('subhalt_exchange_rates_time', String(Date.now()));
     const rates = await fetchExchangeRates();
     expect(rates.NGN).toBe(1555);
     expect(fetchMock).not.toHaveBeenCalled();

@@ -185,26 +185,28 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const loadUserSettings = useCallback(async () => {
-    setLoading(true);
     try {
-      // 1. Check local storage cache for fast rendering
+      // 1. Fetch authenticated Supabase user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // 2. Check local storage cache for fast rendering
       if (typeof window !== 'undefined') {
-        const savedCurrency = safeGetItem('subsync_default_currency');
+        const savedCurrency = safeGetItem('subhalt_default_currency');
         if (savedCurrency) setDefaultCurrencyState(savedCurrency);
 
-        const savedTz = safeGetItem('subsync_timezone');
+        const savedTz = safeGetItem('subhalt_timezone');
         if (savedTz) setTimezoneState(savedTz);
 
-        const savedCats = safeParseJSON<string[]>('subsync_custom_categories', []);
+        const savedCats = safeParseJSON<string[]>('subhalt_custom_categories', []);
         if (savedCats.length) setCustomCategoriesState(savedCats);
 
-        const savedMeta = safeParseJSON<Record<string, CategoryMeta>>('subsync_category_metadata', {});
+        const savedMeta = safeParseJSON<Record<string, CategoryMeta>>('subhalt_category_metadata', {});
         if (Object.keys(savedMeta).length) setCategoryMetadata(savedMeta);
 
-        const savedNotifs = safeParseJSON<NotificationPreferences | null>('subsync_notification_preferences', null);
+        const savedNotifs = safeParseJSON<NotificationPreferences | null>('subhalt_notification_preferences', null);
         if (savedNotifs) setNotificationPreferencesState(savedNotifs);
 
-        const savedPlan = safeGetItem('subsync_plan_tier');
+        const savedPlan = safeGetItem('subhalt_plan_tier');
         if (savedPlan === 'plus' || savedPlan === 'premium') {
           setPlanTierState('plus');
         } else if (savedPlan === 'free') {
@@ -221,18 +223,17 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
           setIsGmailConnectedState(true);
         }
 
-        const savedBilling = safeParseJSON<BillingDetails | null>('subsync_billing_details', null);
+        const savedBilling = safeParseJSON<BillingDetails | null>('subhalt_billing_details', null);
         if (savedBilling) setBillingDetailsState(savedBilling);
 
-        const savedPM = safeParseJSON<PaymentMethodItem[] | null>('subsync_payment_methods', null);
+        const savedPM = safeParseJSON<PaymentMethodItem[] | null>('subhalt_payment_methods', null);
         if (savedPM) setPaymentMethodsState(savedPM);
 
-        const savedTX = safeParseJSON<TransactionItem[] | null>('subsync_billing_transactions', null);
+        const savedTX = safeParseJSON<TransactionItem[] | null>('subhalt_billing_transactions', null);
         if (savedTX) setBillingTransactionsState(savedTX);
       }
 
-      // 2. Fetch authenticated Supabase user
-      const { data: { user } } = await supabase.auth.getUser();
+      // 3. Apply authenticated Supabase user metadata
       if (user) {
         setEmailState(user.email || '');
         const meta = user.user_metadata || {};
@@ -246,48 +247,48 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         if (meta.default_currency) {
           setDefaultCurrencyState(meta.default_currency);
           if (typeof window !== 'undefined') {
-            safeSetItem('subsync_default_currency', meta.default_currency);
+            safeSetItem('subhalt_default_currency', meta.default_currency);
           }
         }
         if (meta.timezone) {
           setTimezoneState(meta.timezone);
           if (typeof window !== 'undefined') {
-            safeSetItem('subsync_timezone', meta.timezone);
+            safeSetItem('subhalt_timezone', meta.timezone);
           }
         }
         if (meta.plan_tier === 'plus' || meta.plan_tier === 'premium') {
           setPlanTierState('plus');
           if (typeof window !== 'undefined') {
-            safeSetItem('subsync_plan_tier', 'plus');
+            safeSetItem('subhalt_plan_tier', 'plus');
           }
         } else if (meta.plan_tier === 'free') {
           setPlanTierState('free');
           if (typeof window !== 'undefined') {
-            safeSetItem('subsync_plan_tier', 'free');
+            safeSetItem('subhalt_plan_tier', 'free');
           }
         }
         if (Array.isArray(meta.custom_categories)) {
           setCustomCategoriesState(meta.custom_categories);
           if (typeof window !== 'undefined') {
-            safeSetItem('subsync_custom_categories', JSON.stringify(meta.custom_categories));
+            safeSetItem('subhalt_custom_categories', JSON.stringify(meta.custom_categories));
           }
         }
         if (meta.category_metadata && typeof meta.category_metadata === 'object') {
           setCategoryMetadata(meta.category_metadata);
           if (typeof window !== 'undefined') {
-            safeSetItem('subsync_category_metadata', JSON.stringify(meta.category_metadata));
+            safeSetItem('subhalt_category_metadata', JSON.stringify(meta.category_metadata));
           }
         }
       }
-    } catch {
-      // Ignore load errors safely
+    } catch (err) {
+      logger.warn('[user-settings] loadUserSettings error, continuing with cached values', { message: err instanceof Error ? err.message : String(err) });
     } finally {
       setLoading(false);
     }
   }, [supabase]);
 
   useEffect(() => {
-    loadUserSettings();
+    Promise.resolve().then(() => loadUserSettings());
   }, [loadUserSettings]);
 
   // Subscribe to auth state changes for real-time user updates (e.g. after email verification)
@@ -300,6 +301,18 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         }
         if (session.user.user_metadata?.last_name_change) {
           setLastNameChangeState(session.user.user_metadata.last_name_change);
+        }
+        const meta = session.user.user_metadata || {};
+        if (meta.plan_tier === 'plus' || meta.plan_tier === 'premium') {
+          setPlanTierState('plus');
+          if (typeof window !== 'undefined') {
+            safeSetItem('subhalt_plan_tier', 'plus');
+          }
+        } else if (meta.plan_tier === 'free') {
+          setPlanTierState('free');
+          if (typeof window !== 'undefined') {
+            safeSetItem('subhalt_plan_tier', 'free');
+          }
         }
       }
     });
@@ -330,7 +343,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     if (newTz !== undefined) {
       setTimezoneState(newTz);
       if (typeof window !== 'undefined') {
-        safeSetItem('subsync_timezone', newTz);
+        safeSetItem('subhalt_timezone', newTz);
       }
       const { error } = await supabase.auth.updateUser({ data: { timezone: newTz } });
       if (error) throw error;
@@ -363,7 +376,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const updateDefaultCurrency = async (newCurrency: string) => {
     setDefaultCurrencyState(newCurrency);
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_default_currency', newCurrency);
+      safeSetItem('subhalt_default_currency', newCurrency);
     }
     const { error } = await supabase.auth.updateUser({
       data: { default_currency: newCurrency },
@@ -375,7 +388,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     const updated = { ...notificationPreferences, ...prefs };
     setNotificationPreferencesState(updated);
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_notification_preferences', JSON.stringify(updated));
+      safeSetItem('subhalt_notification_preferences', JSON.stringify(updated));
     }
     const { error } = await supabase.auth.updateUser({
       data: { notification_preferences: updated },
@@ -396,8 +409,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     if (meta) setCategoryMetadata(newMeta);
 
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_custom_categories', JSON.stringify(updatedCats));
-      if (meta) safeSetItem('subsync_category_metadata', JSON.stringify(newMeta));
+      safeSetItem('subhalt_custom_categories', JSON.stringify(updatedCats));
+      if (meta) safeSetItem('subhalt_category_metadata', JSON.stringify(newMeta));
     }
 
     const { error } = await supabase.auth.updateUser({
@@ -432,8 +445,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     setCategoryMetadata(newMeta);
 
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_custom_categories', JSON.stringify(updatedCats));
-      safeSetItem('subsync_category_metadata', JSON.stringify(newMeta));
+      safeSetItem('subhalt_custom_categories', JSON.stringify(updatedCats));
+      safeSetItem('subhalt_category_metadata', JSON.stringify(newMeta));
     }
 
     const { error } = await supabase.auth.updateUser({
@@ -456,8 +469,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     setCategoryMetadata(newMeta);
 
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_custom_categories', JSON.stringify(updatedCats));
-      safeSetItem('subsync_category_metadata', JSON.stringify(newMeta));
+      safeSetItem('subhalt_custom_categories', JSON.stringify(updatedCats));
+      safeSetItem('subhalt_category_metadata', JSON.stringify(newMeta));
     }
 
     const { error } = await supabase.auth.updateUser({
@@ -474,7 +487,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const updateBillingDetails = async (details: BillingDetails) => {
     setBillingDetailsState(details);
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_billing_details', JSON.stringify(details));
+      safeSetItem('subhalt_billing_details', JSON.stringify(details));
     }
   };
 
@@ -490,7 +503,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     updated.unshift(newCard);
     setPaymentMethodsState(updated);
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_payment_methods', JSON.stringify(updated));
+      safeSetItem('subhalt_payment_methods', JSON.stringify(updated));
     }
   };
 
@@ -501,7 +514,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     }
     setPaymentMethodsState(updated);
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_payment_methods', JSON.stringify(updated));
+      safeSetItem('subhalt_payment_methods', JSON.stringify(updated));
     }
   };
 
@@ -512,14 +525,14 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     }));
     setPaymentMethodsState(updated);
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_payment_methods', JSON.stringify(updated));
+      safeSetItem('subhalt_payment_methods', JSON.stringify(updated));
     }
   };
 
   const updatePlanTier = async (newTier: 'free' | 'plus') => {
     setPlanTierState(newTier);
     if (typeof window !== 'undefined') {
-      safeSetItem('subsync_plan_tier', newTier);
+      safeSetItem('subhalt_plan_tier', newTier);
     }
     if (newTier === 'plus') {
       if (!billingDetails) {
@@ -535,7 +548,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         };
         setBillingDetailsState(defaultBilling);
         if (typeof window !== 'undefined') {
-          safeSetItem('subsync_billing_details', JSON.stringify(defaultBilling));
+          safeSetItem('subhalt_billing_details', JSON.stringify(defaultBilling));
         }
       }
     }
@@ -543,8 +556,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       await supabase.auth.updateUser({
         data: { plan_tier: newTier },
       });
-    } catch {
-      // Ignore auth update errors if offline/demo
+    } catch (err) {
+      logger.warn('[user-settings] updatePlanTier auth update failed', { message: err instanceof Error ? err.message : String(err) });
     }
   };
 

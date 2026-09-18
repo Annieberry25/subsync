@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Building2 } from 'lucide-react';
 import { resolveProviderDomain } from '@/lib/constants/provider-registry';
 import { getCatalogProviderByName } from '@/lib/constants/provider-catalog';
@@ -11,8 +11,6 @@ interface ProviderLogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }
-
-const DEFAULT_LOGO_DEV_TOKEN = 'pk_DjjLxkpaTgWW8UuIFUX1lQ';
 
 /**
  * Reusable Provider Identity / Logo Component for Bills & Payments.
@@ -32,12 +30,14 @@ export default function ProviderLogo({
   const catalogEntry = getCatalogProviderByName(name);
   const domain = catalogEntry?.domain || resolveProviderDomain(name, officialUrl);
 
-  // Reset error state if provider name or URL changes
-  useEffect(() => {
+  // Reset error state when the resolved domain changes (render-phase adjustment).
+  const [prevDomain, setPrevDomain] = useState(domain);
+  if (prevDomain !== domain) {
+    setPrevDomain(domain);
     setHasError(false);
-  }, [name, officialUrl]);
+  }
 
-  const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN || DEFAULT_LOGO_DEV_TOKEN;
+  const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
   const logoUrl = catalogEntry?.logoUrl || `https://img.logo.dev/${domain}?token=${token}&size=128&fallback=monogram`;
 
   // Size sizing classes

@@ -1,3 +1,5 @@
+import { createClient } from '@/lib/supabase/client';
+import type { Json } from '@/lib/types/database.types';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 
 export interface ChatMessageItem {
@@ -22,7 +24,12 @@ export interface GroupedConversations {
   earlier: SavedConversation[];
 }
 
-const STORAGE_KEY = 'subsync_assistant_conversations';
+export function generateConversationId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `conv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+}
 
 /**
  * Deterministically generates a human-friendly title from a user query.
@@ -60,9 +67,8 @@ export function generateTitleFromQuery(query: string): string {
   return clean.charAt(0).toUpperCase() + clean.slice(1);
 }
 
-/**
- * Fetches all saved conversations sorted by updatedAt descending.
- */
+const STORAGE_KEY = 'subhalt_assistant_conversations';
+
 export function getSavedConversations(): SavedConversation[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -70,17 +76,83 @@ export function getSavedConversations(): SavedConversation[] {
     if (!raw) return [];
     const list: SavedConversation[] = JSON.parse(raw);
     return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  } catch (err) {
-    console.error('Error loading assistant conversations:', err);
+  } catch {
     return [];
   }
 }
 
+function writeCache(list: SavedConversation[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // Cache is a mirror; ignore storage failures.
+  }
+}
+
+function isChatMessageJson(value: Json): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const sender = (value as { sender?: unknown }).sender;
+  return sender === 'user' || sender === 'assistant';
+}
+
+function mapDbRow(row: {
+  id: string;
+  title: string;
+  messages: Json;
+  created_at: string;
+  updated_at: string;
+}): SavedConversation | null {
+  if (!Array.isArray(row.messages)) return null;
+  const messages = row.messages.filter(isChatMessageJson).map((m) => m as unknown as ChatMessageItem);
+
+  return {
+    id: row.id,
+    title: row.title,
+    messages,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 /**
- * Groups saved conversations into Today, Yesterday, and Earlier.
+ * Loads all saved conversations. Supabase is the source of truth; the
+ * localStorage mirror covers offline reads and is kept in sync (no sync queue).
  */
-export function getGroupedConversations(): GroupedConversations {
-  const list = getSavedConversations();
+export async function fetchSavedConversations(): Promise<SavedConversation[]> {
+  const cached = getSavedConversations();
+  if (typeof window === 'undefined') return cached;
+
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return cached;
+
+    const { data, error } = await supabase
+      .from('ai_conversations')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(100);
+
+    if (error) return cached;
+
+    const fromDb = (data ?? []).map(mapDbRow).filter((c): c is SavedConversation => c !== null);
+    const dbIds = new Set(fromDb.map((c) => c.id));
+    const merged = [...fromDb, ...cached.filter((c) => !dbIds.has(c.id))];
+    writeCache(merged);
+
+    return merged;
+  } catch {
+    return cached;
+  }
+}
+
+/**
+ * Groups conversations into Today, Yesterday, and Earlier buckets.
+ */
+export function getGroupedConversations(list: SavedConversation[]): GroupedConversations {
   const now = new Date();
 
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -104,86 +176,105 @@ export function getGroupedConversations(): GroupedConversations {
   return { today, yesterday, earlier };
 }
 
-/**
- * Retrieves a single conversation by ID.
- */
-export function getConversationById(id: string): SavedConversation | null {
-  const list = getSavedConversations();
+export async function getConversationById(id: string): Promise<SavedConversation | null> {
+  const list = await fetchSavedConversations();
   return list.find((c) => c.id === id) || null;
 }
 
 /**
- * Saves or updates a conversation.
+ * Saves (inserts/updates) a conversation. Writes straight to Supabase; the
+ * localStorage mirror is updated as a cache after a successful DB write.
  */
-export function saveConversation(conv: SavedConversation): SavedConversation[] {
-  if (typeof window === 'undefined') return [];
+export async function saveConversation(conv: SavedConversation): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  const messagesJson = conv.messages as unknown as Json;
   try {
-    const list = getSavedConversations();
-    const index = list.findIndex((c) => c.id === conv.id);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    const updatedConv: SavedConversation = {
-      ...conv,
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (index >= 0) {
-      list[index] = updatedConv;
-    } else {
-      list.unshift(updatedConv);
+    if (!user) {
+      // Unauthenticated: nothing durable to write to, keep local mirror only.
+      upsertCache(conv);
+      return;
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    return list;
-  } catch (err) {
-    console.error('Error saving assistant conversation:', err);
-    return getSavedConversations();
+    const { error } = await supabase
+      .from('ai_conversations')
+      .upsert({ id: conv.id, user_id: user.id, messages: messagesJson }, { onConflict: 'id' });
+
+    void error;
+
+    upsertCache(conv);
+  } catch {
+    // Offline / DB error: mirror-only (no sync queue).
+    upsertCache(conv);
   }
 }
 
-/**
- * Renames a conversation title.
- */
-export function renameConversation(id: string, newTitle: string): SavedConversation[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const list = getSavedConversations();
-    const target = list.find((c) => c.id === id);
-    if (target) {
-      target.title = newTitle.trim() || target.title;
-      target.updatedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    }
-    return getSavedConversations();
-  } catch (err) {
-    console.error('Error renaming conversation:', err);
-    return getSavedConversations();
+function upsertCache(conv: SavedConversation): void {
+  const list = getSavedConversations();
+  const index = list.findIndex((c) => c.id === conv.id);
+  const updatedConv: SavedConversation = {
+    ...conv,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (index >= 0) {
+    list[index] = updatedConv;
+  } else {
+    list.unshift(updatedConv);
   }
+
+  writeCache(list);
 }
 
 /**
- * Deletes a single conversation by ID.
+ * Deletes a conversation from Supabase and the local mirror.
  */
-export function deleteConversation(id: string): SavedConversation[] {
-  if (typeof window === 'undefined') return [];
+export async function deleteConversation(id: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+
   try {
-    const list = getSavedConversations();
-    const filtered = list.filter((c) => c.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-    return filtered;
-  } catch (err) {
-    console.error('Error deleting conversation:', err);
-    return getSavedConversations();
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      await supabase.from('ai_conversations').delete().eq('id', id).eq('user_id', user.id);
+    }
+
+    writeCache(getSavedConversations().filter((c) => c.id !== id));
+  } catch {
+    writeCache(getSavedConversations().filter((c) => c.id !== id));
   }
 }
 
 /**
  * Deletes all saved conversations.
  */
-export function deleteAllConversations(): void {
+export async function deleteAllConversations(): Promise<void> {
   if (typeof window === 'undefined') return;
+
   try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (err) {
-    console.error('Error clearing assistant conversations:', err);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      await supabase.from('ai_conversations').delete().eq('user_id', user.id);
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
+    }
   }
 }

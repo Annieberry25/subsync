@@ -5,19 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, X, Loader2, CreditCard, ShieldCheck } from 'lucide-react';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useInbox } from '@/lib/contexts/inbox-context';
-import { recordActivity } from '@/lib/services/activity-service';
-import { createSubscription } from '@/lib/services/subscription-service';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.com';
 
 function PlansContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isPlus, updatePlanTier } = usePlan();
+  const { isPlus } = usePlan();
   const { toast } = useToast();
-  const { addInboxItem } = useInbox();
 
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -35,57 +29,31 @@ function PlansContent() {
     setIsCheckoutOpen(true);
   };
 
-  const handleCompletePayment = async () => {
+  const startCheckout = async () => {
     setProcessing(true);
     try {
-      // 1. Create real SubHalt subscription item in subscription state
-      await createSubscription({
-        name: 'SubHalt',
-        price: 4.99,
-        currency: 'USD',
-        billing_cycle: 'monthly',
-        category: 'Software',
-        next_billing_date: '2026-09-15',
-        start_date: new Date().toISOString().split('T')[0],
-        status: 'active',
-        payment_method: 'Card',
-        provider_url: SITE_URL,
-        notes: 'SubHalt subscription auto-renews monthly at $4.99.',
-      });
+      const res = await fetch('/api/paystack/initialize', { method: 'POST' });
+      const data = await res.json().catch(() => null);
 
-      // 2. Update user plan tier to plus
-      await updatePlanTier('plus');
+      if (!res.ok || !data?.authorizationUrl) {
+        throw new Error(data?.error || 'Could not start secure checkout.');
+      }
 
-      // 3. Record activity in History
-      recordActivity({
-        subscriptionName: 'SubHalt',
-        type: 'added',
-        title: 'SubHalt Subscription Created',
-        description: 'SubHalt — $4.99 — Paid',
-        amount: 4.99,
-        currency: 'USD',
-      });
+      if (data.alreadyActive) {
+        toast.success('Your SubHalt Plus plan is already active.', 'Already Subscribed');
+        setIsCheckoutOpen(false);
+        setProcessing(false);
+        return;
+      }
 
-      // 4. Send notification to Inbox with 'View subscription' action
-      addInboxItem({
-        type: 'plan_update',
-        title: 'SubHalt Subscription Active',
-        description: 'You subscribed to SubHalt. Your SubHalt plan is now active and will renew according to your selected billing cycle.',
-        actionType: 'view',
-        actionLabel: 'View subscription',
-        subscriptionName: 'SubHalt',
-        subscriptionPrice: 4.99,
-        currency: 'USD',
-      });
-
-      toast.success('Your SubHalt subscription was successfully created!', 'Subscribed to Plus');
-      setIsCheckoutOpen(false);
-
-      // 5. Redirect to Subscriptions page
-      router.push('/subscriptions');
-    } catch {
-      toast.error('Failed to process payment. Please try again.', 'Payment Failed');
-    } finally {
+      // Redirect to Paystack's hosted checkout; on success the callback route
+      // grants the plan server-side and lands the user back in Settings.
+      window.location.assign(data.authorizationUrl);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to start checkout. Please try again.',
+        'Payment Failed'
+      );
       setProcessing(false);
     }
   };
@@ -306,24 +274,13 @@ function PlansContent() {
               </div>
             </div>
 
-            {/* Payment Details */}
-            <div className="space-y-3">
-              <span className="text-xs font-medium text-[#94A3B8] block">Payment Details</span>
-              <div className="p-3.5 rounded-xl bg-[#141617] border border-[#232628] flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-5 shrink-0 rounded bg-[#1A1D1D] border border-[#232628]" />
-                  <div>
-                    <span className="text-xs font-semibold text-[#F5F7F6] block">Card</span>
-                    <span className="text-xs text-[#94A3B8]">•••• •••• •••• ••••</span>
-                  </div>
-                </div>
-                <span className="text-[11px] text-[#94A3B8]">Verified</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-[#94A3B8]">
-              <ShieldCheck className="w-4 h-4 text-[#94A3B8] shrink-0" />
-              <span>Mock payment processing — no real charge will be made.</span>
+            {/* Secure Checkout Note */}
+            <div className="p-3.5 rounded-xl bg-[#141617] border border-[#232628] flex items-center gap-3">
+              <ShieldCheck className="w-4 h-4 text-[#14B8A6] shrink-0" />
+              <span className="text-xs text-[#94A3B8]">
+                You&apos;ll be redirected to Paystack&apos;s secure checkout to complete your
+                $4.99 payment. Your upgrade is applied automatically on confirmation.
+              </span>
             </div>
 
             <div className="flex items-center justify-end gap-2.5 pt-2">
@@ -336,12 +293,12 @@ function PlansContent() {
               </button>
               <button
                 type="button"
-                onClick={handleCompletePayment}
+                onClick={startCheckout}
                 disabled={processing}
                 className="px-6 py-2.5 rounded-full bg-[#1A1D1D] hover:bg-[#27272A] border border-[#2D3135] text-[#F5F7F6] text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {processing && <Loader2 className="w-4 h-4 animate-spin text-[#F5F7F6]" />}
-                <span>Pay & Subscribe ($4.99)</span>
+                <span>{processing ? 'Redirecting to checkout…' : 'Continue to Checkout ($4.99)'}</span>
               </button>
             </div>
           </div>

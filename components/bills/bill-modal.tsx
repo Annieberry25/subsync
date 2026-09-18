@@ -59,7 +59,22 @@ export default function BillModal({
   const [providerSuggestions, setProviderSuggestions] = useState<VerifiedProvider[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  useEffect(() => {
+  // Reset form state when the modal opens or switches to a new edit/prefill target (render-phase adjustment).
+  const [prevResetState, setPrevResetState] = useState<{
+    isOpen: boolean;
+    initialData: typeof initialData;
+    prefillData: typeof prefillData;
+  } | null>(null);
+  const resetState = { isOpen, initialData, prefillData };
+  const shouldReset =
+    isOpen &&
+    (prevResetState === null ||
+      prevResetState.isOpen !== isOpen ||
+      prevResetState.initialData !== initialData ||
+      prevResetState.prefillData !== prefillData);
+
+  if (shouldReset) {
+    setPrevResetState(resetState);
     if (initialData) {
       setCategory(initialData.category || 'Electricity');
       setCustomCategory(initialData.customCategory || '');
@@ -110,32 +125,27 @@ export default function BillModal({
       setStatus('paid');
     }
     setErrorMsg('');
-  }, [initialData, prefillData, defaultCategory, defaultCurrency, isOpen]);
+  }
 
   // Check verified provider whenever providerName changes
-  useEffect(() => {
-    if (!providerName.trim()) {
-      setIsVerified(false);
-      setProviderSuggestions([]);
-      return;
-    }
-
-    const verified = getVerifiedProvider(providerName);
-    if (verified) {
-      setIsVerified(true);
-      if (verified.officialPaymentUrl && !initialData) {
+  // Verify + suggest providers whenever the provider name or category changes (render-phase adjustment).
+  const [prevSuggestKey, setPrevSuggestKey] = useState('');
+  const suggestKey = `${providerName}::${category}`;
+  if (suggestKey !== prevSuggestKey) {
+    setPrevSuggestKey(suggestKey);
+    const trimmed = providerName.trim();
+    const verified = trimmed ? getVerifiedProvider(providerName) : null;
+    setProviderSuggestions(trimmed ? searchVerifiedProviders(providerName, category) : []);
+    setIsVerified(!!verified);
+    if (verified && !initialData) {
+      if (verified.officialPaymentUrl) {
         setOfficialProviderUrl(verified.officialPaymentUrl);
       }
-      if (verified.category && (!category || category === 'Other') && !initialData) {
+      if (verified.category && (!category || category === 'Other')) {
         setCategory(verified.category);
       }
-    } else {
-      setIsVerified(false);
     }
-
-    const suggestions = searchVerifiedProviders(providerName, category);
-    setProviderSuggestions(suggestions);
-  }, [providerName, category, initialData]);
+  }
 
   if (!isOpen) return null;
 

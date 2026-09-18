@@ -23,11 +23,11 @@ import {
   type SubscriptionRow, 
   type RestoredHistoryRecord 
 } from '@/lib/services/subscription-service';
-import { 
-  getActivityHistory, 
+import {
+  fetchActivityLog,
   getActivityPreviewTexts,
-  type ActivityRecord, 
-  type ActivityType 
+  type ActivityRecord,
+  type ActivityType
 } from '@/lib/services/activity-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -335,7 +335,6 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     const { data, error: err } = await fetchSubscriptions();
     if (err) {
       setError(err.message || 'Failed to load subscriptions.');
@@ -343,12 +342,12 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
       setSubscriptions(data);
     }
     setRestoredHistory(getRestoredHistory());
-    setActivities(getActivityHistory());
+    setActivities(await fetchActivityLog());
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    loadData();
+    Promise.resolve().then(() => loadData());
   }, [loadData]);
 
   const archivedList = useMemo(() => filterArchivedSubscriptions(subscriptions), [subscriptions]);

@@ -69,19 +69,18 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
   const limits = useMemo(() => getPlanLimits(planTier), [planTier]);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     const billsRes = await fetchBillPayments();
     if (billsRes.data) setBills(billsRes.data);
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    loadData();
+    Promise.resolve().then(() => loadData());
 
     const handleUpdate = () => loadData();
-    window.addEventListener('subsync_bills_updated', handleUpdate);
+    window.addEventListener('subhalt_bills_updated', handleUpdate);
     return () => {
-      window.removeEventListener('subsync_bills_updated', handleUpdate);
+      window.removeEventListener('subhalt_bills_updated', handleUpdate);
     };
   }, [loadData]);
 
@@ -112,26 +111,30 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
 
   const handleSaveBill = async (billData: Partial<BillPayment>) => {
     if (editingBill) {
-      const { error } = await updateBillPayment(editingBill.id, billData);
+      const { error, synced } = await updateBillPayment(editingBill.id, billData);
       if (error) {
         toast.error(error.message, 'Error updating bill');
-      } else {
+      } else if (synced) {
         toast.success('Bill updated successfully', 'Payment Saved');
-        loadData();
+      } else {
+        toast.warning('Saved on this device only — it will sync when you are back online.', 'Offline Save');
       }
+      loadData();
     } else {
-      const { error } = await createBillPayment(toBillPaymentInsert(billData));
+      const { error, synced } = await createBillPayment(toBillPaymentInsert(billData));
       if (error) {
         toast.error(error.message, 'Error saving bill');
-      } else {
+      } else if (synced) {
         toast.success('Payment recorded successfully', 'Payment Saved');
-        loadData();
+      } else {
+        toast.warning('Added on this device only — it will sync when you are back online.', 'Offline Save');
       }
+      loadData();
     }
   };
 
   const handleConfirmScan = async (extracted: ExtractedBillReceiptData) => {
-    const { error } = await createBillPayment({
+    const { error, synced } = await createBillPayment({
       category: extracted.category || 'Utilities',
       custom_category: extracted.customCategory || null,
       provider_name: extracted.providerName,
@@ -159,10 +162,12 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
 
     if (error) {
       toast.error(error.message, 'Error saving receipt payment');
-    } else {
+    } else if (synced) {
       toast.success('Receipt scanned & payment saved successfully', 'Receipt Processed');
-      loadData();
+    } else {
+      toast.warning('Receipt saved on this device only — it will sync when you are back online.', 'Offline Save');
     }
+    loadData();
   };
 
   const handleDeleteBill = async (id: string) => {

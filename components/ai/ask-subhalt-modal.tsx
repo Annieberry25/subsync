@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, User, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Send, User, ExternalLink, History, Trash2 } from 'lucide-react';
 import { useSettings, useCurrency } from '@/lib/contexts/user-settings-context';
 import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
 import {
@@ -9,6 +9,15 @@ import {
   getCachedSubscriptions,
   type SubscriptionRow,
 } from '@/lib/services/subscription-service';
+import {
+  fetchSavedConversations,
+  saveConversation,
+  deleteConversation,
+  generateTitleFromQuery,
+  generateConversationId,
+  type SavedConversation,
+  type ChatMessageItem,
+} from '@/lib/services/assistant-history-service';
 import { logger } from '@/lib/logger';
 import {
   calculateMonthlySpend,
@@ -94,22 +103,106 @@ export function AskSubHaltModal({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<{ role: 'user' | 'assistant'; text: string }[]>([]);
 
+  // Saved conversation history (Supabase-backed, localStorage mirror).
+  const [savedConversations, setSavedConversations] = useState<SavedConversation[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const activeConvRef = useRef<SavedConversation | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load saved conversations when the modal opens.
   useEffect(() => {
-    if (providedSubs) {
-      setInternalSubs(providedSubs);
-    } else if (isOpen) {
+    if (isOpen) {
+      fetchSavedConversations().then(setSavedConversations).catch(() => {
+        // History is optional; keep chat working if it fails.
+      });
+    }
+  }, [isOpen]);
+
+  const persistConversation = useCallback(async () => {
+    if (messages.length === 0) return;
+    const current = activeConvRef.current;
+    const itemMessages: ChatMessageItem[] = messages.map((m) => ({
+      id: m.id,
+      sender: m.sender,
+      text: m.text,
+      timestamp: m.timestamp,
+      relatedSubs: m.relatedSubs,
+    }));
+
+    if (current) {
+      activeConvRef.current = { ...current, messages: itemMessages, updatedAt: new Date().toISOString() };
+    } else {
+      const firstUser = messages.find((m) => m.sender === 'user');
+      activeConvRef.current = {
+        id: generateConversationId(),
+        title: generateTitleFromQuery(firstUser?.text ?? 'New conversation'),
+        messages: itemMessages,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    await saveConversation(activeConvRef.current);
+    const saved = activeConvRef.current;
+    setSavedConversations((prev) => {
+      const idx = prev.findIndex((c) => c.id === saved.id);
+      const updated = [...prev];
+      if (idx >= 0) updated[idx] = saved;
+      else updated.unshift(saved);
+      return updated;
+    });
+  }, [messages]);
+
+  // Debounced auto-save of the active conversation as messages change.
+  useEffect(() => {
+    if (messages.length === 0 || !isOpen) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void persistConversation();
+    }, 900);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [messages, isOpen, persistConversation]);
+
+  const handleOpenConversation = (conv: SavedConversation) => {
+    setMessages(conv.messages);
+    historyRef.current = conv.messages.map((m) => ({ role: m.sender, text: m.text }));
+    activeConvRef.current = conv;
+    setIsOffline(false);
+    setShowHistory(false);
+  };
+
+  const handleDeleteConversation = async (id: string) => {
+    await deleteConversation(id);
+    setSavedConversations((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  // Sync provided subscriptions into local state (render-phase adjustment).
+  const [prevProvidedSubs, setPrevProvidedSubs] = useState<SubscriptionRow[] | null>(providedSubs ?? null);
+  if (providedSubs && providedSubs !== prevProvidedSubs) {
+    setPrevProvidedSubs(providedSubs);
+    setInternalSubs(providedSubs);
+  }
+
+  useEffect(() => {
+    if (isOpen && !providedSubs) {
       fetchSubscriptions().then(({ data }) => {
         if (data) setInternalSubs(data);
       }).catch(() => {
         // Keep internalSubs empty on failure; chat still works with no data.
       });
     }
-  }, [providedSubs, isOpen]);
+  }, [isOpen, providedSubs]);
 
   const allSubs = providedSubs || internalSubs;
   const activeSubs = allSubs.filter(
     (s) => s.status === 'active' || s.status === 'trial'
   );
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
 
   // Initialize initial conversation state
   useEffect(() => {
@@ -120,19 +213,21 @@ export function AskSubHaltModal({
         text: `Hello! I'm ${assistantName}, your finance assistant for SubHalt. I can help you understand what you're spending on subscriptions and bills, remind you about renewals and due payments, find savings, and look up current news about any service or provider you deal with. What would you like to know?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages([welcomeMessage]);
-      historyRef.current = [];
+      Promise.resolve().then(() => {
+        setMessages([welcomeMessage]);
+        historyRef.current = [];
 
-      if (initialQuestion) {
-        handleProcessQuestion(initialQuestion);
-      }
+        if (initialQuestion) {
+          // handleProcessQuestion is declared later in the component (after the
+          // open-guard early return); it's safe to call here since effects run
+          // after render.
+          // eslint-disable-next-line react-hooks/immutability
+          handleProcessQuestion(initialQuestion);
+        }
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
 
   if (!isOpen) return null;
 
@@ -312,15 +407,73 @@ export function AskSubHaltModal({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close chat"
-            className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
-          >
-            <X className="w-4.5 h-4.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowHistory((v) => !v)}
+              aria-label="Saved conversations"
+              className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
+            >
+              <History className="w-4.5 h-4.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close chat"
+              className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
+            >
+              <X className="w-4.5 h-4.5" />
+            </button>
+          </div>
         </div>
+
+        {/* Saved Conversations Panel */}
+        {showHistory && (
+          <div className="px-4 py-3 border-b border-[#1A1D1D] bg-[#0F1111] max-h-56 overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">
+                Saved conversations
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowHistory(false)}
+                className="text-[11px] text-[#94A3B8] hover:text-[#F5F7F6] cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+            {savedConversations.length === 0 && (
+              <p className="text-[11px] text-[#94A3B8]">No saved conversations yet.</p>
+            )}
+            <div className="space-y-1">
+              {savedConversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 bg-[#121414] hover:bg-[#1A1D1D] transition-colors"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleOpenConversation(conv)}
+                    className="flex-1 text-left min-w-0 cursor-pointer"
+                  >
+                    <span className="text-xs text-[#F5F7F6] truncate block">{conv.title}</span>
+                    <span className="text-[10px] text-[#94A3B8]">
+                      {conv.messages.length} message{conv.messages.length === 1 ? '' : 's'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteConversation(conv.id)}
+                    aria-label={`Delete conversation ${conv.title}`}
+                    className="text-[#94A3B8] hover:text-red-400 transition-colors shrink-0 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Preset Question Chips */}
         <div className="px-4 py-3 bg-[#0F1111] border-b border-[#1A1D1D] overflow-x-auto scrollbar-none flex items-center gap-2">

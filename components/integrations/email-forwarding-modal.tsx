@@ -186,7 +186,7 @@ export function EmailForwardingModal({ isOpen, onClose, onBack, onSuccess, onReq
                 Test Forwarding Flow
               </span>
               <span className="text-[11px] text-[#94A3B8]">
-                Simulate sending a receipt for "Notion Team Plan"
+                Simulate sending a receipt for &quot;Notion Team Plan&quot;
               </span>
             </div>
             <button

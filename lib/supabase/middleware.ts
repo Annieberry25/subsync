@@ -1,7 +1,15 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { SESSION_COOKIE_OPTIONS } from '@/lib/supabase/cookie-options';
 
 export async function updateSession(request: NextRequest) {
+  // API routes manage their own auth, so sign-in and other endpoints must be
+  // reachable without a session (the /login redirect below would otherwise
+  // swallow every unauthenticated API call).
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -17,6 +25,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookieOptions: SESSION_COOKIE_OPTIONS,
     cookies: {
       getAll() {
         return request.cookies.getAll();

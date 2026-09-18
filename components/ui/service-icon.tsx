@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 
 interface ServiceIconProps {
@@ -151,19 +151,22 @@ export function ServiceIcon({
   providerUrl,
 }: ServiceIconProps) {
   const norm = name.toLowerCase().trim();
-  if (norm === 'subhalt') {
-    return null;
-  }
-
   const [hasError, setHasError] = useState(false);
 
   const domain = resolveBrandDomain(name, providerUrl);
   const initials = getProviderInitials(name);
 
-  // Reset hasError if domain/name changes
-  useEffect(() => {
+  // Reset error state when the resolved logo domain changes, using the
+  // documented "adjust state during render" pattern (no effect).
+  const [prevDomain, setPrevDomain] = useState(domain);
+  if (prevDomain !== domain) {
+    setPrevDomain(domain);
     setHasError(false);
-  }, [name, providerUrl]);
+  }
+
+  if (norm === 'subhalt') {
+    return null;
+  }
 
   const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
   if (!token) {
@@ -175,7 +178,7 @@ export function ServiceIcon({
   }
   const logoUrl = `https://img.logo.dev/${domain}?token=${token}&size=128&fallback=monogram`;
 
-  // If Logo.dev fails to load image, render SubSync styled initial fallback
+  // If Logo.dev fails to load image, render SubHalt styled initial fallback
   if (hasError) {
     let accentTextClass = 'text-[#F5F7F6]';
     if (norm.includes('netflix')) accentTextClass = 'text-[#EF4444]';

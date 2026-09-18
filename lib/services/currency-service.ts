@@ -74,8 +74,8 @@ export const DEFAULT_EXCHANGE_RATES: Record<string, number> = {
   SAR: 3.75,
 };
 
-const CACHE_KEY = 'subsync_exchange_rates';
-const CACHE_TIME_KEY = 'subsync_exchange_rates_time';
+const CACHE_KEY = 'subhalt_exchange_rates';
+const CACHE_TIME_KEY = 'subhalt_exchange_rates_time';
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
 export async function fetchExchangeRates(): Promise<Record<string, number>> {

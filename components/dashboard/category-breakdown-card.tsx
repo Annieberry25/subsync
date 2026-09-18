@@ -12,7 +12,7 @@ interface CategoryBreakdownCardProps {
   isEmbedded?: boolean;
 }
 
-// SubSync Design System: Teal-Green & Near-Black Palette
+// SubHalt Design System: Teal-Green & Near-Black Palette
 const chartColorPalette = [
   { stroke: '#14B8A6', dot: 'bg-[#14B8A6]' }, // Primary Accent
   { stroke: '#9CA3AF', dot: 'bg-[#9CA3AF]' }, // Secondary Text

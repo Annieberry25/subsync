@@ -182,7 +182,7 @@ describe('updateBillPayment', () => {
 
   it('falls back to local storage when the DB returns an error', async () => {
     const local = makeLocalBill();
-    window.localStorage.setItem('subsync_bill_payments', JSON.stringify([local]));
+    window.localStorage.setItem('subhalt_bill_payments', JSON.stringify([local]));
     mocks.setResult({ data: null, error: { message: 'update fail' } });
 
     const result = await updateBillPayment('bp_local', { amount: 123 });

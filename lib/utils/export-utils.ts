@@ -39,7 +39,7 @@ export function exportToCSV(subscriptions: SubscriptionRow[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `subsync-subscriptions-${new Date().toISOString().split('T')[0]}.csv`);
+  link.setAttribute('download', `subhalt-subscriptions-${new Date().toISOString().split('T')[0]}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -53,7 +53,7 @@ export function exportToJSON(subscriptions: SubscriptionRow[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `subsync-subscriptions-backup-${new Date().toISOString().split('T')[0]}.json`);
+  link.setAttribute('download', `subhalt-subscriptions-backup-${new Date().toISOString().split('T')[0]}.json`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/auth/access';
 
 const NAME_CHANGE_COOLDOWN_DAYS = 30;
 
@@ -8,12 +9,9 @@ export async function POST(request: Request) {
     const supabase = await createClient();
 
     // 1. Authenticate user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser(supabase);
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized user session.' }, { status: 401 });
     }
 
@@ -29,43 +27,40 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name must be 100 characters or less.' }, { status: 400 });
     }
 
-    // 3. Server-side 30-day rate limit check using dedicated table (authoritative).
-    const nowIso = new Date().toISOString();
-    const { data: changeRow, error: rowError } = await supabase
-      .from('name_change_log')
-      .select('last_changed_at')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    // 3. Authoritative cooldown check + record happen inside the DB (SECURITY DEFINER).
+    //    The client role has no direct write access to name_change_log, so the
+    //    window cannot be backdated from the browser.
+    const { data: rpcResult, error: rpcError } = await supabase.rpc<
+      'update_user_name',
+      { p_full_name: string }
+    >('update_user_name', { p_full_name: newName });
 
-    if (rowError) {
-      console.error('[update-name] Failed to read name_change_log:', rowError.message);
+    if (rpcError) {
+      console.error('[update-name] RPC failed:', rpcError.message);
       return NextResponse.json({ error: 'Failed to verify name-change cooldown.' }, { status: 500 });
     }
 
-    if (changeRow?.last_changed_at) {
-      const lastChangeDate = new Date(changeRow.last_changed_at);
-      const now = new Date();
-      const diffMs = now.getTime() - lastChangeDate.getTime();
-      const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-      if (diffDays < NAME_CHANGE_COOLDOWN_DAYS) {
-        const nextAllowedDate = new Date(
-          lastChangeDate.getTime() + NAME_CHANGE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
-        );
+    if (!rpcResult?.success) {
+      if (rpcResult?.next_allowed_at) {
+        const nextAllowedDate = new Date(rpcResult.next_allowed_at);
         return NextResponse.json(
           {
-            error: `Name can only be changed once every 30 days. You can change your name again on ${nextAllowedDate.toLocaleDateString(
+            error: `Name can only be changed once every ${NAME_CHANGE_COOLDOWN_DAYS} days. You can change your name again on ${nextAllowedDate.toLocaleDateString(
               'en-US',
               { month: 'short', day: 'numeric', year: 'numeric' }
             )}.`,
-            nextAllowedDate: nextAllowedDate.toISOString(),
+            nextAllowedDate: rpcResult.next_allowed_at,
           },
           { status: 429 }
         );
       }
+      return NextResponse.json(
+        { error: rpcResult?.message || 'Name could not be updated.' },
+        { status: 400 }
+      );
     }
 
-    // 4. Perform persistent update in Supabase Auth user metadata & public profiles
+    // 4. Keep auth user metadata in sync (public.profiles was updated inside the DB).
     const { error: updateAuthError } = await supabase.auth.updateUser({
       data: {
         full_name: newName,
@@ -76,37 +71,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: updateAuthError.message }, { status: 400 });
     }
 
-    // Best-effort update to public.profiles table if present
-    try {
-      await supabase
-        .from('profiles')
-        .update({ full_name: newName, updated_at: nowIso })
-        .eq('id', user.id);
-    } catch {
-      // Ignore if profiles table is not present or restricted
-    }
-
-    // 5. Record the change in the authoritative rate-limit table (upsert).
-    const { error: logError } = await supabase
-      .from('name_change_log')
-      .upsert(
-        {
-          user_id: user.id,
-          last_changed_at: nowIso,
-          updated_at: nowIso,
-        },
-        { onConflict: 'user_id' }
-      );
-
-    if (logError) {
-      console.error('[update-name] Failed to record name_change_log:', logError.message);
-      return NextResponse.json({ success: false, error: 'Name updated but cooldown tracking failed.' }, { status: 500 });
-    }
-
     return NextResponse.json({
       success: true,
       fullName: newName,
-      lastNameChange: nowIso,
+      lastNameChange: rpcResult?.last_changed_at ?? null,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'An unexpected error occurred while updating name.';

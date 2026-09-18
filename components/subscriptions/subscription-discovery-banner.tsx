@@ -5,7 +5,7 @@ import { Sparkles, Plus, Check, X } from 'lucide-react';
 import type { BillPayment } from '@/lib/types/bills.types';
 import ProviderLogo from '@/components/bills/provider-logo';
 import { formatCurrencyAmount } from '@/lib/services/currency-service';
-import { createSubscription, fetchSubscriptions } from '@/lib/services/subscription-service';
+import { createSubscription, fetchSubscriptions, type SubscriptionInsert } from '@/lib/services/subscription-service';
 import { useToast } from '@/lib/hooks/use-toast';
 
 interface SubscriptionDiscoveryBannerProps {
@@ -15,7 +15,7 @@ interface SubscriptionDiscoveryBannerProps {
 
 interface DiscoveredSubscriptionCandidate {
   providerName: string;
-  category: string;
+  category: SubscriptionInsert['category'];
   amount: number;
   currency: string;
   count: number;
@@ -82,7 +82,7 @@ export default function SubscriptionDiscoveryBanner({
       price: candidate.amount,
       currency: candidate.currency,
       billing_cycle: 'monthly',
-      category: (candidate.category as any) || 'Utilities',
+      category: candidate.category || 'Utilities',
       status: 'active',
       next_billing_date: nextBillingDateStr,
       notes: `Auto-discovered from ${candidate.count} payment history records in Bills & Payments.`,

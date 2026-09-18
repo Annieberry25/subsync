@@ -1,15 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Check, Loader2 } from 'lucide-react';
+import { X, Check, Loader2, ShieldCheck } from 'lucide-react';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
-import { usePlan } from '@/lib/contexts/user-settings-context';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useInbox } from '@/lib/contexts/inbox-context';
-import { recordActivity } from '@/lib/services/activity-service';
-import { createSubscription } from '@/lib/services/subscription-service';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.com';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -24,9 +18,7 @@ export default function UpgradeModal({
   title = `You’ve reached your ${FREE_SUBSCRIPTION_LIMIT}-subscription limit.`,
   description = "Upgrade to Plus to track unlimited subscriptions.",
 }: UpgradeModalProps) {
-  const { updatePlanTier } = usePlan();
   const { toast } = useToast();
-  const { addInboxItem } = useInbox();
   const [processing, setProcessing] = useState(false);
 
   if (!isOpen) return null;
@@ -34,48 +26,29 @@ export default function UpgradeModal({
   const handleUpgrade = async () => {
     setProcessing(true);
     try {
-      await createSubscription({
-        name: 'SubHalt',
-        price: 4.99,
-        currency: 'USD',
-        billing_cycle: 'monthly',
-        category: 'Software',
-        next_billing_date: '2026-09-15',
-        start_date: new Date().toISOString().split('T')[0],
-        status: 'active',
-        payment_method: 'Card',
-        provider_url: SITE_URL,
-        notes: 'SubHalt subscription auto-renews monthly at $4.99.',
-      });
+      const res = await fetch('/api/paystack/initialize', { method: 'POST' });
+      const data = await res.json().catch(() => null);
 
-      await updatePlanTier('plus');
+      if (!res.ok || !data?.authorizationUrl) {
+        throw new Error(data?.error || 'Could not start secure checkout.');
+      }
 
-      recordActivity({
-        subscriptionName: 'SubHalt',
-        type: 'added',
-        title: 'SubHalt Subscription Created',
-        description: 'SubHalt — $4.99 — Paid',
-        amount: 4.99,
-        currency: 'USD',
-      });
+      if (data.alreadyActive) {
+        toast.success('Your SubHalt Plus plan is already active.', 'Already Subscribed');
+        setProcessing(false);
+        onClose();
+        return;
+      }
 
-      addInboxItem({
-        type: 'plan_update',
-        title: 'SubHalt Subscription Active',
-        description: 'You subscribed to SubHalt. Your SubHalt plan is now active and will renew according to your selected billing cycle.',
-        actionType: 'view',
-        actionLabel: 'View subscription',
-        subscriptionName: 'SubHalt',
-        subscriptionPrice: 4.99,
-        currency: 'USD',
-      });
-
-      toast.success('Your workspace has been upgraded to SubHalt Plus!', 'Subscribed to Plus');
+      // Redirect to Paystack's hosted checkout; on success the callback route
+      // grants the plan server-side and lands the user back in Settings.
+      window.location.assign(data.authorizationUrl);
+    } catch (err) {
       setProcessing(false);
-      onClose();
-    } catch {
-      setProcessing(false);
-      toast.error('Failed to update plan. Please try again.', 'Upgrade Failed');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to start checkout. Please try again.',
+        'Upgrade Failed'
+      );
     }
   };
 
@@ -178,8 +151,13 @@ export default function UpgradeModal({
                 className="w-full py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-opacity cursor-pointer shadow-sm text-center flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 {processing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Upgrade to Plus</span>
+                <span>{processing ? 'Redirecting to checkout…' : 'Upgrade to Plus'}</span>
               </button>
+
+              <p className="text-[11px] text-[#94A3B8] flex items-center gap-1.5 justify-center">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+                Secure checkout powered by Paystack — $4.99/month.
+              </p>
 
               <div className="space-y-2 pt-1">
                 <p className="text-[11px] font-medium text-[#F5F7F6]">Everything in Free, plus:</p>

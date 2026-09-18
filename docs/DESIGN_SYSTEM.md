@@ -1,8 +1,8 @@
-# SubSync Design System
+# SubHalt Design System
 
 ## Design Philosophy
 
-SubSync should feel like a premium SaaS product that users enjoy opening every day.
+SubHalt should feel like a premium SaaS product that users enjoy opening every day.
 
 The experience should be:
 
@@ -126,7 +126,7 @@ Like planning your finances in a handcrafted leather journal.
 
 # Glassmorphism
 
-Glass is part of the SubSync identity.
+Glass is part of the SubHalt identity.
 
 Never remove it.
 
