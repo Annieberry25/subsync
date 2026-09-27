@@ -19,7 +19,7 @@ create type public.rate_limit_result as (
   allowed boolean,
   retry_after_seconds integer,
   count bigint,
-  limit integer
+  limit_value integer
 );
 
 create or replace function public.check_rate_limit(
@@ -74,7 +74,7 @@ begin
     ceil(extract(epoch from (v_expires_at - v_now)))::integer
   );
   v_result.count := v_count;
-  v_result.limit := v_max_requests;
+  v_result.limit_value := v_max_requests;
 
   return v_result;
 end;
