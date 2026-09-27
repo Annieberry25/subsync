@@ -21,10 +21,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for Profiles
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 CREATE POLICY "Users can view their own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
@@ -82,18 +84,22 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_category ON public.subscriptions(ca
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for Subscriptions (Strict User Isolation)
+DROP POLICY IF EXISTS "Users can view their own subscriptions" ON public.subscriptions;
 CREATE POLICY "Users can view their own subscriptions"
   ON public.subscriptions FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own subscriptions" ON public.subscriptions;
 CREATE POLICY "Users can insert their own subscriptions"
   ON public.subscriptions FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own subscriptions" ON public.subscriptions;
 CREATE POLICY "Users can update their own subscriptions"
   ON public.subscriptions FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own subscriptions" ON public.subscriptions;
 CREATE POLICY "Users can delete their own subscriptions"
   ON public.subscriptions FOR DELETE
   USING (auth.uid() = user_id);
@@ -107,10 +113,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON public.subscriptions;
 CREATE TRIGGER update_subscriptions_updated_at
   BEFORE UPDATE ON public.subscriptions
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -148,26 +156,125 @@ CREATE INDEX IF NOT EXISTS idx_bill_payments_date ON public.bill_payments(paymen
 CREATE INDEX IF NOT EXISTS idx_bill_payments_category ON public.bill_payments(category);
 CREATE INDEX IF NOT EXISTS idx_bill_payments_status ON public.bill_payments(status);
 
+-- ---------- Receipt scan quota ----------
+-- Mirrors supabase/migrations/010_receipt_storage.sql. Server-writable only:
+-- quota accounting must not be reachable from the browser.
+CREATE TABLE IF NOT EXISTS public.receipt_scan_usage (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  source TEXT NOT NULL DEFAULT 'upload'
+    CHECK (source IN ('upload', 'paste', 'email', 'gmail')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipt_scan_usage_user_created
+  ON public.receipt_scan_usage (user_id, created_at DESC);
+
+ALTER TABLE public.receipt_scan_usage ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.receipt_scan_usage FROM anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON public.receipt_scan_usage TO service_role;
+
+-- ---------- Receipt files ----------
+-- The bytes behind a scanned receipt. `bill_payments.receipts` above is only
+-- JSONB metadata; this table plus the private `receipts` bucket hold the file.
+CREATE TABLE IF NOT EXISTS public.receipts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  subscription_id UUID REFERENCES public.subscriptions(id) ON DELETE CASCADE,
+  bill_payment_id UUID REFERENCES public.bill_payments(id) ON DELETE CASCADE,
+  storage_path TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  byte_size INTEGER NOT NULL CHECK (byte_size > 0),
+  amount NUMERIC(14, 2),
+  currency TEXT,
+  provider TEXT,
+  payment_date DATE,
+  extraction_confidence JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT receipts_single_parent
+    CHECK (num_nonnulls(subscription_id, bill_payment_id) = 1)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_receipts_subscription_path
+  ON public.receipts (subscription_id, storage_path)
+  WHERE subscription_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_receipts_bill_path
+  ON public.receipts (bill_payment_id, storage_path)
+  WHERE bill_payment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_receipts_user_id ON public.receipts (user_id);
+
+ALTER TABLE public.receipts ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.receipts TO authenticated;
+GRANT ALL ON public.receipts TO service_role;
+
+DROP POLICY IF EXISTS "receipts_select_own" ON public.receipts;
+CREATE POLICY "receipts_select_own" ON public.receipts
+  FOR SELECT TO authenticated USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "receipts_insert_own" ON public.receipts;
+CREATE POLICY "receipts_insert_own" ON public.receipts
+  FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "receipts_update_own" ON public.receipts;
+CREATE POLICY "receipts_update_own" ON public.receipts
+  FOR UPDATE TO authenticated
+  USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "receipts_delete_own_rows" ON public.receipts;
+CREATE POLICY "receipts_delete_own_rows" ON public.receipts
+  FOR DELETE TO authenticated USING (user_id = auth.uid());
+
+-- Private bucket: reads require a short-lived server-minted signed URL.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'receipts', 'receipts', false, 10485760,
+  ARRAY['application/pdf', 'image/jpeg', 'image/png', 'image/webp',
+        'image/heic', 'image/heif', 'text/plain']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- Object keys are namespaced by user id, which is what makes these policies safe.
+DROP POLICY IF EXISTS "receipts_read_own" ON storage.objects;
+CREATE POLICY "receipts_read_own" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'receipts' AND (storage.foldername(name))[1] = auth.uid()::text);
+DROP POLICY IF EXISTS "receipts_write_own" ON storage.objects;
+CREATE POLICY "receipts_write_own" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'receipts' AND (storage.foldername(name))[1] = auth.uid()::text);
+DROP POLICY IF EXISTS "receipts_delete_own" ON storage.objects;
+CREATE POLICY "receipts_delete_own" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'receipts' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+
 -- Enable RLS on Bill Payments
 ALTER TABLE public.bill_payments ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for Bill Payments (Strict User Isolation)
+DROP POLICY IF EXISTS "Users can view their own bill payments" ON public.bill_payments;
 CREATE POLICY "Users can view their own bill payments"
   ON public.bill_payments FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own bill payments" ON public.bill_payments;
 CREATE POLICY "Users can insert their own bill payments"
   ON public.bill_payments FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own bill payments" ON public.bill_payments;
 CREATE POLICY "Users can update their own bill payments"
   ON public.bill_payments FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own bill payments" ON public.bill_payments;
 CREATE POLICY "Users can delete their own bill payments"
   ON public.bill_payments FOR DELETE
   USING (auth.uid() = user_id);
 
+DROP TRIGGER IF EXISTS update_bill_payments_updated_at ON public.bill_payments;
 CREATE TRIGGER update_bill_payments_updated_at
   BEFORE UPDATE ON public.bill_payments
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -191,6 +298,7 @@ CREATE TABLE IF NOT EXISTS public.bill_providers (
 -- Enable RLS on Bill Providers (Public Read, Admin Write)
 ALTER TABLE public.bill_providers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone authenticated can view verified bill providers" ON public.bill_providers;
 CREATE POLICY "Anyone authenticated can view verified bill providers"
   ON public.bill_providers FOR SELECT
   USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
@@ -208,6 +316,7 @@ CREATE TABLE IF NOT EXISTS public.name_change_log (
 
 ALTER TABLE public.name_change_log ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS update_name_change_log_updated_at ON public.name_change_log;
 CREATE TRIGGER update_name_change_log_updated_at
   BEFORE UPDATE ON public.name_change_log
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -294,12 +403,16 @@ create index if not exists rate_limit_events_expires_at_idx on public.rate_limit
 
 alter table public.rate_limit_events enable row level security;
 
-create type public.rate_limit_result as (
-  allowed boolean,
-  retry_after_seconds integer,
-  count bigint,
-  limit integer
-);
+DO $$
+BEGIN
+  CREATE TYPE public.rate_limit_result AS (
+    allowed boolean,
+    retry_after_seconds integer,
+    count bigint,
+    limit_value integer
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 create or replace function public.check_rate_limit(
   p_bucket_key text,
@@ -352,8 +465,8 @@ begin
     1,
     ceil(extract(epoch from (v_expires_at - v_now)))::integer
   );
-  v_result.count := v_count;
-  v_result.limit := v_max_requests;
+v_result.count := v_count;
+  v_result.limit_value := v_max_requests;
 
   return v_result;
 end;
@@ -420,18 +533,22 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_user_time ON public.activity_log (us
 
 ALTER TABLE public.activity_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own activity log" ON public.activity_log;
 CREATE POLICY "Users can view their own activity log"
   ON public.activity_log FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own activity log" ON public.activity_log;
 CREATE POLICY "Users can insert their own activity log"
   ON public.activity_log FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own activity log" ON public.activity_log;
 CREATE POLICY "Users can update their own activity log"
   ON public.activity_log FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own activity log" ON public.activity_log;
 CREATE POLICY "Users can delete their own activity log"
   ON public.activity_log FOR DELETE
   USING (auth.uid() = user_id);
@@ -452,22 +569,27 @@ CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_time ON public.ai_conversat
 
 ALTER TABLE public.ai_conversations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own conversations" ON public.ai_conversations;
 CREATE POLICY "Users can view their own conversations"
   ON public.ai_conversations FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own conversations" ON public.ai_conversations;
 CREATE POLICY "Users can insert their own conversations"
   ON public.ai_conversations FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own conversations" ON public.ai_conversations;
 CREATE POLICY "Users can update their own conversations"
   ON public.ai_conversations FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own conversations" ON public.ai_conversations;
 CREATE POLICY "Users can delete their own conversations"
   ON public.ai_conversations FOR DELETE
   USING (auth.uid() = user_id);
 
+DROP TRIGGER IF EXISTS update_ai_conversations_updated_at ON public.ai_conversations;
 CREATE TRIGGER update_ai_conversations_updated_at
   BEFORE UPDATE ON public.ai_conversations
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -501,18 +623,22 @@ CREATE INDEX IF NOT EXISTS idx_inbox_items_user_date ON public.inbox_items (user
 
 ALTER TABLE public.inbox_items ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own inbox items" ON public.inbox_items;
 CREATE POLICY "Users can view their own inbox items"
   ON public.inbox_items FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own inbox items" ON public.inbox_items;
 CREATE POLICY "Users can insert their own inbox items"
   ON public.inbox_items FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own inbox items" ON public.inbox_items;
 CREATE POLICY "Users can update their own inbox items"
   ON public.inbox_items FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own inbox items" ON public.inbox_items;
 CREATE POLICY "Users can delete their own inbox items"
   ON public.inbox_items FOR DELETE
   USING (auth.uid() = user_id);
@@ -560,6 +686,7 @@ CREATE INDEX IF NOT EXISTS idx_plan_subscriptions_user_id
 CREATE INDEX IF NOT EXISTS idx_plan_subscriptions_reference
   ON public.plan_subscriptions (paystack_reference);
 
+DROP TRIGGER IF EXISTS update_plan_subscriptions_updated_at ON public.plan_subscriptions;
 CREATE TRIGGER update_plan_subscriptions_updated_at
   BEFORE UPDATE ON public.plan_subscriptions
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -570,6 +697,7 @@ CREATE TRIGGER update_plan_subscriptions_updated_at
 -- fabricate a paid reference or backdate an expiry.
 ALTER TABLE public.plan_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own plan subscriptions" ON public.plan_subscriptions;
 CREATE POLICY "Users can view their own plan subscriptions"
   ON public.plan_subscriptions FOR SELECT
   USING (auth.uid() = user_id);

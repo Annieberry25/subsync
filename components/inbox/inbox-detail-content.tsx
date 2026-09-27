@@ -40,7 +40,7 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
 
   if (!item) {
     return (
-      <div className="space-y-6 max-w-4xl min-h-[70vh] pb-32 w-full max-w-full overflow-x-hidden flex flex-col justify-center items-center">
+      <div className="space-y-6 max-w-4xl min-h-[70dvh] w-full max-w-full overflow-x-clip flex flex-col justify-center items-center">
         <div className="py-16 px-6 text-center flex flex-col items-center justify-center space-y-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] w-full max-w-lg">
           <div className="w-12 h-12 rounded-xl bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8]">
             <Inbox className="w-6 h-6" />
@@ -53,9 +53,9 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
           </div>
           <Link
             href="/inbox"
-            className="inline-flex items-center gap-2 py-2 px-4 rounded-xl text-xs font-semibold bg-[#14B8A6] text-[#091512] hover:opacity-90 transition-colors"
+            className="inline-flex items-center gap-2 py-2 px-4 min-h-[44px] sm:min-h-0 rounded-xl text-xs font-semibold bg-[#14B8A6] text-[#091512] hover:opacity-90 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
             <span>Back to Inbox</span>
           </Link>
         </div>
@@ -77,23 +77,24 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
   };
 
   return (
-    <div className="space-y-6 max-w-4xl min-h-[85vh] pb-32 w-full max-w-full overflow-x-hidden">
+    <div className="space-y-6 max-w-4xl min-h-[85dvh] w-full max-w-full overflow-x-clip">
       {/* Accessible DOM Heading */}
       <h1 className="sr-only">Inbox Message Detail - {item.title}</h1>
 
-      {/* Top Bar with Back Navigation */}
+      {/* Top Bar with Back Navigation. The dock has no Inbox slot, so this is
+          the only way back to the list on a phone. */}
       <div className="flex items-center justify-between pb-3 border-b border-[#1A1D1D]">
         <Link
           href="/inbox"
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-semibold text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-semibold text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4 text-[#14B8A6]" />
+          <ArrowLeft className="w-4 h-4 text-[#14B8A6]" aria-hidden="true" />
           <span>Back to Inbox</span>
         </Link>
       </div>
 
       {/* Full Page Message Container */}
-      <div className="rounded-2xl p-6 sm:p-8 bg-[#0B0D0D] border border-[#1A1D1D] space-y-6 shadow-sm">
+      <div className="rounded-2xl card-pad sm:p-8 bg-[#0B0D0D] border border-[#1A1D1D] space-y-6 shadow-sm">
         {/* Header section: Title and Date */}
         <div className="space-y-2 pb-5 border-b border-[#1A1D1D]">
           <div className="flex items-center gap-2 text-xs text-[#94A3B8]">

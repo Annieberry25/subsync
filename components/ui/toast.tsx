@@ -23,10 +23,14 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div 
+    <div
       aria-live="polite"
       aria-atomic="true"
-      className="fixed bottom-4 sm:bottom-5 left-4 right-4 sm:left-auto sm:right-5 z-50 flex flex-col gap-2.5 max-w-sm sm:w-full mx-auto sm:mx-0 pointer-events-none"
+      data-toast-container=""
+      // Sits above the floating dock (z-[70]) and clears both the dock and the
+      // iOS home indicator. The offset collapses to a normal inset from lg up,
+      // where there is no dock.
+      className="fixed bottom-[calc(var(--spacing-dock)+var(--spacing-safe-b)+0.75rem)] lg:bottom-5 left-4 right-4 sm:left-auto sm:right-5 z-[80] flex flex-col gap-2.5 max-w-sm sm:w-full lg:mx-0 mx-auto pointer-events-none"
     >
       {toasts.map((toast) => {
         const IconComponent = icons[toast.type];
@@ -54,7 +58,7 @@ export function ToastContainer() {
                 type="button"
                 onClick={() => removeToast(toast.id)}
                 aria-label="Close notification"
-                className="text-current opacity-70 hover:opacity-100 transition-opacity p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl hover:bg-white/10 shrink-0 cursor-pointer"
+                className="text-current opacity-70 hover:opacity-100 transition-opacity min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-white/10 shrink-0 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

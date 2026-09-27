@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, User, ExternalLink, History, Trash2 } from 'lucide-react';
@@ -391,7 +391,7 @@ export function AskSubHaltModal({
         role="dialog"
         aria-modal="true"
         aria-label="Ask SubHalt assistant"
-        className="w-full max-w-2xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl flex flex-col h-[620px] max-h-[90vh] overflow-hidden"
+        className="w-full max-w-2xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl flex flex-col h-[620px] max-h-[90dvh] overflow-hidden"
       >
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between bg-[#000000]">

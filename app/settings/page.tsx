@@ -235,7 +235,7 @@ function SettingsContent() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl min-h-[85vh] pb-24 animate-fade-in text-[#F5F7F6]">
+    <div className="space-y-6 max-w-5xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
       <h1 className="sr-only">Settings</h1>
 
       {/* Header Title */}

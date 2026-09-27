@@ -8,6 +8,9 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import type { BillPayment, ExtractedBillReceiptData } from '@/lib/types/bills.types';
+import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
+import { storeReceiptFile, attachReceiptMetadata } from '@/lib/services/receipt-storage';
+import { logger } from '@/lib/logger';
 import {
   fetchBillPayments,
   createBillPayment,
@@ -133,8 +136,12 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
     }
   };
 
-  const handleConfirmScan = async (extracted: ExtractedBillReceiptData) => {
-    const { error, synced } = await createBillPayment({
+  const handleConfirmScan = async (
+    extracted: ExtractedBillReceiptData,
+    file: File | null,
+    extraction: ReceiptExtraction | null
+  ) => {
+    const { data: bill, error, synced } = await createBillPayment({
       category: extracted.category || 'Utilities',
       custom_category: extracted.customCategory || null,
       provider_name: extracted.providerName,
@@ -145,28 +152,51 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
       source: 'receipt_scan',
       provider_reference: extracted.providerReference || null,
       region: extracted.region || null,
-      receipts: extracted.fileName
-        ? [
-            {
-              id: `rec_${Date.now()}`,
-              fileName: extracted.fileName,
-              uploadDate: new Date().toISOString(),
-              price: extracted.amount,
-              currency: extracted.currency,
-              provider: extracted.providerName,
-            },
-          ]
-        : [],
+      receipts: [],
       status: 'paid',
     });
 
     if (error) {
       toast.error(error.message, 'Error saving receipt payment');
-    } else if (synced) {
-      toast.success('Receipt scanned & payment saved successfully', 'Receipt Processed');
-    } else {
-      toast.warning('Receipt saved on this device only — it will sync when you are back online.', 'Offline Save');
+      loadData();
+      return;
     }
+
+    if (!synced) {
+      toast.warning(
+        'Receipt saved on this device only — the file will upload when you are back online.',
+        'Offline Save'
+      );
+      loadData();
+      return;
+    }
+
+    if (file && bill) {
+      const stored = await storeReceiptFile({
+        file,
+        parent: { kind: 'bill', billPaymentId: bill.id },
+        extraction,
+      });
+      if (stored.error) {
+        toast.warning(
+          'Payment saved, but the receipt file could not be attached.',
+          'File Not Attached'
+        );
+      } else if (stored.data) {
+        const attachError = await attachReceiptMetadata(bill.id, stored.data, {
+          amount: extracted.amount,
+          currency: extracted.currency || 'NGN',
+          provider: extracted.providerName,
+        });
+        if (attachError) {
+          logger.warn('[bills-manager] receipt metadata not attached', {
+            message: attachError.message,
+          });
+        }
+      }
+    }
+
+    toast.success('Receipt scanned & payment saved successfully', 'Receipt Processed');
     loadData();
   };
 

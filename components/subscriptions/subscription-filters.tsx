@@ -1,6 +1,7 @@
 'use client';
 
-import { Search, Filter, ArrowUpDown } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Filter, ArrowUpDown, X, ChevronDown } from 'lucide-react';
 import { CustomSelect, type SelectOption } from '@/components/ui/custom-select';
 
 interface SubscriptionFiltersProps {
@@ -12,6 +13,10 @@ interface SubscriptionFiltersProps {
   onStatusChange: (st: string) => void;
   sortBy: string;
   onSortChange: (sort: string) => void;
+  resultCount?: number;
+  totalCount?: number;
+  hasActiveFilters?: boolean;
+  onClearFilters?: () => void;
 }
 
 const categories = ['All', 'Streaming', 'Software', 'Utilities', 'Fitness', 'Finance', 'Education', 'Gaming', 'Other'];
@@ -40,7 +45,13 @@ export default function SubscriptionFilters({
   onStatusChange,
   sortBy,
   onSortChange,
+  resultCount,
+  totalCount,
+  hasActiveFilters,
+  onClearFilters,
 }: SubscriptionFiltersProps) {
+  const [categoriesOpen, setCategoriesOpen] = useState(true);
+
   return (
     <div className="space-y-3.5 sm:space-y-4">
       {/* Top Search & Filter Controls */}
@@ -100,25 +111,77 @@ export default function SubscriptionFilters({
         </div>
       </div>
 
-      {/* Unified Category Pills Row */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full pt-1 pb-0.5">
-        {categories.map((cat) => {
-          const isActive = selectedCategory === cat;
-          return (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => onCategoryChange(cat)}
-              className={`h-9 px-3.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center justify-center ${
-                isActive
-                  ? 'bg-[#14B8A6] text-[#091512] font-semibold border border-[#14B8A6]'
-                  : 'bg-[#0D0F0F] text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D]'
-              }`}
+      {/* Category Pills (Collapsible) + Result Feedback */}
+      <div className="flex items-center gap-3 w-full">
+        {/* Collapse Toggle + Pills */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => setCategoriesOpen((open) => !open)}
+            aria-expanded={categoriesOpen}
+            aria-controls="category-pills"
+            title={categoriesOpen ? 'Hide category filters' : 'Show category filters'}
+            className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] bg-[#0D0F0F] border border-[#1A1D1D] transition-colors cursor-pointer"
+          >
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${categoriesOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {categoriesOpen && (
+            <div
+              id="category-pills"
+              className="filter-scroll flex-1 min-w-0 py-0.5"
             >
-              {cat}
+              {categories.map((cat) => {
+                const isActive = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => onCategoryChange(cat)}
+                    className={`h-7 px-2.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center justify-center shrink-0 ${
+                      isActive
+                        ? 'bg-[#14B8A6] text-[#091512] font-semibold border border-[#14B8A6]'
+                        : 'bg-[#0D0F0F] text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D]'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!categoriesOpen && (
+            <span className="text-xs text-[#94A3B8] whitespace-nowrap select-none">
+              Categories{selectedCategory !== 'All' ? `: ${selectedCategory}` : ''}
+            </span>
+          )}
+        </div>
+
+        {/* Result Feedback + Clear */}
+        <div className="flex items-center gap-2 shrink-0">
+          {resultCount !== undefined && (
+            <span className="text-xs text-[#94A3B8] whitespace-nowrap" aria-live="polite">
+              {hasActiveFilters && totalCount !== undefined
+                ? `${resultCount} of ${totalCount} shown`
+                : `${resultCount} ${resultCount === 1 ? 'subscription' : 'subscriptions'}`}
+            </span>
+          )}
+
+          {hasActiveFilters && onClearFilters && (
+            <button
+              type="button"
+              onClick={onClearFilters}
+              title="Clear all filters and search"
+              className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] bg-[#0D0F0F] border border-[#1A1D1D] flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <X className="w-3.5 h-3.5 text-[#94A3B8]" />
+              <span>Clear</span>
             </button>
-          );
-        })}
+          )}
+        </div>
       </div>
     </div>
   );

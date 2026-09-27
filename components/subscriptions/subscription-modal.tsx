@@ -17,13 +17,16 @@ import { ServiceIcon } from '@/components/ui/service-icon';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-modal';
+import { storeReceiptFile } from '@/lib/services/receipt-storage';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onBack?: () => void;
-  onSave: (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => Promise<void>;
+  onSave: (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => Promise<string | null>;
   initialData?: SubscriptionRow | null;
+  /** File carried over from the receipt import step, uploaded after save. */
+  pendingReceiptFile?: File | null;
 }
 
 const categories = ['Streaming', 'Software', 'Utilities', 'Fitness', 'Finance', 'Education', 'Gaming', 'Other'] as const;
@@ -48,6 +51,7 @@ export default function SubscriptionModal({
   onBack,
   onSave,
   initialData,
+  pendingReceiptFile,
 }: SubscriptionModalProps) {
   const { toast } = useToast();
 
@@ -181,7 +185,6 @@ export default function SubscriptionModal({
 
     let addedNotes = '';
     if (extracted.plan) addedNotes += `Plan: ${extracted.plan}\n`;
-    if (extracted.trialEndDate) addedNotes += `Trial End Date: ${extracted.trialEndDate}\n`;
     if (addedNotes) {
       setNotes((prev) => (prev ? `${prev}\n${addedNotes.trim()}` : addedNotes.trim()));
     }
@@ -231,7 +234,7 @@ export default function SubscriptionModal({
     const formattedNotes = formatNotesWithAccountLinks(notes, validAccountLinks);
 
     try {
-      await onSave(
+      const savedId = await onSave(
         {
           name: name.trim(),
           price: parsedPrice,
@@ -249,6 +252,19 @@ export default function SubscriptionModal({
         },
         initialData?.id
       );
+
+      if (pendingReceiptFile && savedId) {
+        const stored = await storeReceiptFile({
+          file: pendingReceiptFile,
+          parent: { kind: 'subscription', subscriptionId: savedId },
+        });
+        if (stored.error) {
+          toast.warning(
+            'Subscription saved, but the receipt file could not be attached.',
+            'File Not Attached'
+          );
+        }
+      }
 
       toast.success(
         initialData?.id ? `Updated "${name}" successfully.` : `Added "${name}" subscription!`,
@@ -274,7 +290,7 @@ export default function SubscriptionModal({
       >
         <div 
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-[620px] bg-[#0F1111] border border-[#1A1D1D] rounded-t-[24px] sm:rounded-[24px] p-5 sm:p-7 space-y-5 sm:space-y-6 max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95 shadow-2xl"
+          className="w-full max-w-[620px] bg-[#0F1111] border border-[#1A1D1D] rounded-t-[24px] sm:rounded-[24px] p-5 sm:p-7 space-y-5 sm:space-y-6 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95 shadow-2xl"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">

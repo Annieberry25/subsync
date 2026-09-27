@@ -93,6 +93,7 @@ interface AuthContextValue {
   fullName: string;
   lastNameChange: string | null;
   loading: boolean;
+  isAdmin: boolean;
   updateProfile: (data: { fullName?: string; timezone?: string }) => Promise<void>;
   reauthenticateAndChangeEmail: (password: string, newEmail: string) => Promise<void>;
 }
@@ -112,12 +113,13 @@ interface SettingsContextValue {
   notificationPreferences: NotificationPreferences;
   assistantName: string;
   isGmailConnected: boolean;
+  gmailEmail: string | null;
   billingDetails: BillingDetails | null;
   paymentMethods: PaymentMethodItem[];
   billingTransactions: TransactionItem[];
   updateNotificationPreferences: (prefs: Partial<NotificationPreferences>) => Promise<void>;
   updateAssistantName: (name: string) => void;
-  setIsGmailConnected: (connected: boolean) => void;
+  setGmailConnection: (connected: boolean, email?: string | null) => void;
   updateBillingDetails: (details: BillingDetails) => Promise<void>;
   addPaymentMethod: (card: Omit<PaymentMethodItem, 'id'>) => Promise<void>;
   deletePaymentMethod: (id: string) => Promise<void>;
@@ -152,6 +154,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [fullName, setFullNameState] = useState<string>('');
   const [email, setEmailState] = useState<string>('');
   const [lastNameChange, setLastNameChangeState] = useState<string | null>(null);
+  const [isAdmin, setIsAdminState] = useState<boolean>(false);
   const [customCategories, setCustomCategoriesState] = useState<string[]>([]);
   const [categoryMetadata, setCategoryMetadata] = useState<Record<string, CategoryMeta>>({});
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>(DEFAULT_EXCHANGE_RATES);
@@ -159,6 +162,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [planTier, setPlanTierState] = useState<'free' | 'plus'>('free');
   const [assistantName, setAssistantNameState] = useState<string>('SubHalt Assistant');
   const [isGmailConnected, setIsGmailConnectedState] = useState<boolean>(false);
+  const [gmailEmail, setGmailEmailState] = useState<string | null>(null);
   const [billingDetails, setBillingDetailsState] = useState<BillingDetails | null>(null);
   const [paymentMethods, setPaymentMethodsState] = useState<PaymentMethodItem[]>([]);
   const [billingTransactions, setBillingTransactionsState] = useState<TransactionItem[]>([]);
@@ -278,6 +282,39 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
           if (typeof window !== 'undefined') {
             safeSetItem('subhalt_category_metadata', JSON.stringify(meta.category_metadata));
           }
+        }
+      }
+
+      // 4. Load the real Gmail connection state from the server (Supabase row).
+      //    The server is the source of truth; localStorage is only a fast cache.
+      if (user) {
+        try {
+          const res = await fetch('/api/gmail/status');
+          if (res.ok) {
+            const data = await res.json();
+            const connected = !!data.connected;
+            setIsGmailConnectedState(connected);
+            setGmailEmailState(connected ? (data.email ?? null) : null);
+            if (typeof window !== 'undefined') {
+              safeSetItem('subhalt_gmail_connected', connected ? 'true' : 'false');
+            }
+          }
+        } catch (gmailErr) {
+          logger.warn('[user-settings] gmail status fetch failed, keeping cached value', {
+            message: gmailErr instanceof Error ? gmailErr.message : String(gmailErr),
+          });
+        }
+      }
+
+      // 5. Real admin flag from the server (profiles.is_admin).
+      if (user) {
+        const { data: profileRow } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (profileRow) {
+          setIsAdminState(profileRow.is_admin === true);
         }
       }
     } catch (err) {
@@ -588,8 +625,9 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     }
   };
 
-  const setIsGmailConnected = (connected: boolean) => {
+  const setGmailConnection = (connected: boolean, email?: string | null) => {
     setIsGmailConnectedState(connected);
+    setGmailEmailState(connected ? email ?? null : null);
     if (typeof window !== 'undefined') {
       safeSetItem('subhalt_gmail_connected', connected ? 'true' : 'false');
     }
@@ -606,8 +644,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   );
 
   const authValue = useMemo<AuthContextValue>(
-    () => ({ email, fullName, lastNameChange, loading, updateProfile, reauthenticateAndChangeEmail }),
-    [email, fullName, lastNameChange, loading]
+    () => ({ email, fullName, lastNameChange, loading, isAdmin, updateProfile, reauthenticateAndChangeEmail }),
+    [email, fullName, lastNameChange, loading, isAdmin]
   );
 
   const categoriesValue = useMemo<CategoriesContextValue>(
@@ -629,19 +667,20 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       notificationPreferences,
       assistantName,
       isGmailConnected,
+      gmailEmail,
       billingDetails,
       paymentMethods,
       billingTransactions,
       updateNotificationPreferences,
       updateAssistantName,
-      setIsGmailConnected,
+      setGmailConnection,
       updateBillingDetails,
       addPaymentMethod,
       deletePaymentMethod,
       setDefaultPaymentMethod,
       refreshSettings: loadUserSettings,
     }),
-    [timezone, notificationPreferences, assistantName, isGmailConnected, billingDetails, paymentMethods, billingTransactions]
+    [timezone, notificationPreferences, assistantName, isGmailConnected, gmailEmail, billingDetails, paymentMethods, billingTransactions]
   );
 
   const aggregateValue = useMemo<UserSettingsContextValue>(

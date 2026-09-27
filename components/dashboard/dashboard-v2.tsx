@@ -22,12 +22,12 @@ import {
   formatCurrency,
 } from '@/lib/utils/metrics-utils';
 import { MetricCardSkeleton } from '@/components/ui/skeleton';
+import { StatGrid } from '@/components/ui/stat-grid';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useCurrency, usePlan } from '@/lib/contexts/user-settings-context';
 
 import { PersonalizedHeader } from './personalized-header';
 import { UpcomingRenewalsSpotlight } from '@/components/subscriptions/upcoming-renewals-spotlight';
-import { CategoryBreakdownCard } from './category-breakdown-card';
 import { MostExpensivePlanCard } from './most-expensive-plan-card';
 import { SmartInsightCard } from './smart-insight-card';
 import { AdBanner } from './ad-banner';
@@ -37,7 +37,6 @@ import PaymentReminderModal from '@/components/subscriptions/payment-reminder-mo
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import UpgradeModal from '@/components/subscriptions/upgrade-modal';
 
-import { SubHaltAIAssistant } from '@/components/ai/subhalt-ai-assistant';
 import { SavingsRecommendations } from '@/components/ai/savings-recommendations';
 import { CancellationIntelligenceModal } from '@/components/ai/cancellation-intelligence-modal';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
@@ -48,6 +47,7 @@ import {
   CreditCard,
   Wallet,
   AlertCircle,
+  ChevronRight,
 } from 'lucide-react';
 
 function renderFormattedCurrency(amount: number, currency = 'USD') {
@@ -59,10 +59,43 @@ function renderFormattedCurrency(amount: number, currency = 'USD') {
   );
 }
 
+function MetricCardLink({
+  href,
+  title,
+  icon,
+  children,
+}: {
+  href: string;
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      title={`${title} — open related page`}
+      className="group px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#2A2E2E] transition-colors flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {icon}
+          <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block truncate">
+            {title}
+          </span>
+        </div>
+        <ChevronRight className="w-3.5 h-3.5 text-[#94A3B8] opacity-0 group-hover:opacity-100 -translate-x-0.5 group-hover:translate-x-0 transition-all duration-200 shrink-0" />
+      </div>
+      <div className="mt-1 sm:mt-1.5">
+        {children}
+      </div>
+    </Link>
+  );
+}
+
 export default function DashboardV2() {
   const { toast } = useToast();
   const { defaultCurrency, exchangeRates } = useCurrency();
-  const { isPlus, isPremium } = usePlan();
+  const { isPlus } = usePlan();
 
   const initialCache = getCachedSubscriptions();
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initialCache || []);
@@ -127,10 +160,6 @@ export default function DashboardV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleViewSubscription = useCallback((sub: SubscriptionRow) => {
-    setSelectedDetailSub(sub);
-  }, []);
-
   const handleReviewSubscription = useCallback((sub: SubscriptionRow) => {
     setSelectedDetailSub(sub);
   }, []);
@@ -143,7 +172,10 @@ export default function DashboardV2() {
     window.dispatchEvent(new CustomEvent('subhalt_open_ask_modal', { detail: { question: q } }));
   }, []);
 
-const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
+const handleSave = async (
+    data: Omit<SubscriptionInsert, 'user_id'>,
+    id?: string
+  ): Promise<string | null> => {
     if (id) {
       const { error: err, synced } = await updateSubscription(id, data);
       if (err) throw err;
@@ -152,21 +184,26 @@ const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string
       } else {
         toast.warning('Saved on this device only — it will sync when you are back online.', 'Offline Save');
       }
+      setIsModalOpen(false);
+      void loadData();
+      return synced ? id : null;
+    }
+
+    if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
+      setIsUpgradeModalOpen(true);
+      return null;
+    }
+
+    const { data: created, error: err, synced } = await createSubscription(data);
+    if (err) throw err;
+    if (synced) {
+      toast.success('New subscription added to your portfolio.', 'Subscription Created');
     } else {
-      if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
-        setIsUpgradeModalOpen(true);
-        return;
-      }
-      const { error: err, synced } = await createSubscription(data);
-      if (err) throw err;
-      if (synced) {
-        toast.success('New subscription added to your portfolio.', 'Subscription Created');
-      } else {
-        toast.warning('Added on this device only — it will sync when you are back online.', 'Offline Save');
-      }
+      toast.warning('Added on this device only — it will sync when you are back online.', 'Offline Save');
     }
     setIsModalOpen(false);
     void loadData();
+    return synced && created ? created.id : null;
   };
 
   const handleConfirmDelete = async () => {
@@ -243,7 +280,7 @@ const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string
   }, [overdueCount, renewingThisWeek]);
 
   return (
-    <div className="animate-page-transition space-y-5 sm:space-y-6 bg-ambient-grid min-h-[85vh] pb-8 sm:pb-12 overflow-x-hidden">
+    <div className="animate-page-transition space-y-5 sm:space-y-6 bg-ambient-grid min-h-[85dvh] pb-8 sm:pb-12 overflow-x-clip">
       {/* 0. SPONSOR ADVERTISEMENT (Restrained Top Strip) */}
       {!loading && <AdBanner planTier="free" />}
 
@@ -254,23 +291,12 @@ const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string
         />
       </div>
 
-      {/* 2. SUBHALT AI ASSISTANT PROACTIVE BANNER (FLOATING WITH BREATHING ROOM) */}
-      {!loading && (
-        <div className="py-0.5">
-          <SubHaltAIAssistant
-            subscriptions={subscriptions}
-            onViewSubscription={handleViewSubscription}
-            onAskSubHalt={handleAskSubHalt}
-          />
-        </div>
-      )}
-
       {/* 3. OVERDUE SUBSCRIPTIONS ALERT BANNER (FULL-WIDTH CONTAINER WITH BREATHING ROOM) */}
       {!loading && overdueCount > 0 && (
-        <div className="p-4 rounded-2xl bg-[#D9363E]/10 border border-[#D9363E]/30 flex items-center justify-between gap-4 text-xs sm:text-sm text-[#F5F7F6]">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-[#D9363E] shrink-0" />
-            <div>
+        <div className="p-4 rounded-2xl bg-[#D9363E]/10 border border-[#D9363E]/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 text-xs sm:text-sm text-[#F5F7F6]">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <AlertCircle className="w-5 h-5 text-[#D9363E] shrink-0 mt-0.5 sm:mt-0" />
+            <div className="min-w-0">
               <strong className="text-[#D9363E] font-semibold block">
                 {overdueCount} {overdueCount === 1 ? 'subscription is' : 'subscriptions are'} overdue
               </strong>
@@ -281,7 +307,7 @@ const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string
           </div>
           <Link
             href="/renewals"
-            className="px-3.5 py-1.5 rounded-xl bg-[#D9363E]/20 hover:bg-[#D9363E]/30 text-[#D9363E] font-semibold text-xs transition-colors shrink-0 cursor-pointer border border-[#D9363E]/30"
+            className="w-full sm:w-auto text-center px-3.5 py-2.5 min-h-[44px] flex items-center justify-center rounded-xl bg-[#D9363E]/20 hover:bg-[#D9363E]/30 text-[#D9363E] font-semibold text-xs transition-colors shrink-0 cursor-pointer border border-[#D9363E]/30"
           >
             View Overdue
           </Link>
@@ -298,95 +324,82 @@ const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string
 
       {/* 2. KPI METRICS (2x2 Grid on Mobile for compact ergonomics) */}
       {loading && subscriptions.length === 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <StatGrid>
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
-        </div>
+        </StatGrid>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        <StatGrid>
           {/* Card 1: Monthly Spend */}
-          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
-            <div>
-              <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block">
-                Monthly Spend
-              </span>
-            </div>
-            <div className="mt-1 sm:mt-1.5">
-              <div>
-                {renderFormattedCurrency(monthlySpend, defaultCurrency)}
-              </div>
-              <span
-                className="text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8] block mt-1"
-              >
-                Normalized monthly expense ({defaultCurrency})
-              </span>
-            </div>
-          </div>
+          <MetricCardLink
+            href="/subscriptions"
+            title="Monthly Spend"
+            icon={<Wallet className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
+          >
+            {renderFormattedCurrency(monthlySpend, defaultCurrency)}
+            <span className="text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8] block mt-1">
+              Normalized monthly expense ({defaultCurrency})
+            </span>
+          </MetricCardLink>
 
           {/* Card 2: Renewing This Week */}
-          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
-            <div>
-              <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block">
-                Renewing This Week
-              </span>
-            </div>
-            <div className="mt-1 sm:mt-1.5">
-              <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
-                {renewingThisWeek}
-              </div>
-              <span className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]">
-                Due in next 7 days
-              </span>
-            </div>
-          </div>
+          <MetricCardLink
+            href="/renewals"
+            title="Renewing This Week"
+            icon={<Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
+          >
+            <span className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
+              {renewingThisWeek}
+            </span>
+            <span className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]">
+              Due in next 7 days
+            </span>
+          </MetricCardLink>
 
           {/* Card 3: Active Plans */}
-          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
-            <div>
-              <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block">
-                Active Plans
-              </span>
-            </div>
-            <div className="mt-1 sm:mt-1.5">
-              <div className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
-                {activeCount}
-              </div>
-              <span
-                className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]"
-              >
-                Active & trial subscriptions
-              </span>
-            </div>
-          </div>
+          <MetricCardLink
+            href="/subscriptions"
+            title="Active Plans"
+            icon={<CreditCard className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
+          >
+            <span className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
+              {activeCount}
+            </span>
+            <span className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]">
+              Active & trial subscriptions
+            </span>
+          </MetricCardLink>
 
           {/* Card 4: Potential Savings */}
-          <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[96px] sm:min-h-[104px]">
-            <div>
-              <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block">
-                Potential Savings
-              </span>
-            </div>
-            <div className="mt-1 sm:mt-1.5">
-              <div>
-                {renderFormattedCurrency(potentialSavings, defaultCurrency)}
-              </div>
-              <span
-                className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]"
-              >
-                From paused/trial plans ({defaultCurrency})
-              </span>
-            </div>
-          </div>
-        </div>
+          <MetricCardLink
+            href="/subscriptions?sort=price_desc"
+            title="Potential Savings"
+            icon={<DollarSign className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
+          >
+            {renderFormattedCurrency(potentialSavings, defaultCurrency)}
+            <span className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]">
+              From paused/trial plans ({defaultCurrency})
+            </span>
+          </MetricCardLink>
+        </StatGrid>
       )}
 
-      {/* 3. UPCOMING RENEWALS */}
+      {/* 3. DESKTOP 2-COLUMN: UPCOMING RENEWALS | MOST EXPENSIVE PLAN */}
       {!loading && (
-        <UpcomingRenewalsSpotlight
-          subscriptions={activeSubscriptions}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+          <div className="lg:col-span-3 min-w-0">
+            <UpcomingRenewalsSpotlight
+              subscriptions={activeSubscriptions}
+            />
+          </div>
+          <div className="lg:col-span-2 min-w-0">
+            <MostExpensivePlanCard
+              subscriptions={activeSubscriptions}
+            />
+          </div>
+        </div>
       )}
 
       {/* 4. FINANCIAL OVERVIEW: SAVINGS RECOMMENDATIONS & SPENDING BY CATEGORY */}
@@ -400,14 +413,7 @@ const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string
         />
       )}
 
-      {/* 6. MOST EXPENSIVE PLAN */}
-      {!loading && (
-        <MostExpensivePlanCard
-          subscriptions={activeSubscriptions}
-        />
-      )}
-
-      {/* 7. SMART INSIGHT */}
+      {/* 7. SMART INSIGHT (Bottom Accordion) */}
       {!loading && <SmartInsightCard subscriptions={activeSubscriptions} />}
 
       {/* Modals & Dialogs */}

@@ -18,7 +18,7 @@ export default function SectionError({
   }, [error, label]);
 
   return (
-    <div className="flex-1 min-w-0 min-h-[60vh] flex items-center justify-center p-4">
+    <div className="flex-1 min-w-0 min-h-[60dvh] flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center space-y-6 p-8 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D]">
         <div className="w-12 h-12 rounded-xl bg-[#D9363E]/10 text-[#D9363E] border border-[#D9363E]/20 mx-auto flex items-center justify-center">
           <AlertOctagon className="w-6 h-6 text-[#D9363E]" />

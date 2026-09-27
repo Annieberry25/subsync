@@ -187,7 +187,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl min-h-[85vh] pb-24 animate-fade-in text-[#F5F7F6]">
+    <div className="space-y-6 max-w-4xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
       {/* Header Bar */}
       <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-5">
         <div className="flex items-center gap-3">

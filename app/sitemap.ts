@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { BILL_PAYMENT_ENABLED } from "@/lib/config/feature-flags";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.com";
 
@@ -11,7 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/settings",
     "/profile",
     "/export",
-    "/bills",
+    ...(BILL_PAYMENT_ENABLED ? ["/bills"] : []),
     "/history",
     "/history/all",
     "/history/archive",

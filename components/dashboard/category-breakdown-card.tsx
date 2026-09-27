@@ -45,15 +45,15 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
       </div>
 
       {breakdown.length === 0 ? (
-        <div className="p-6 sm:p-8 text-center rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-2">
+        <div className="card-pad sm:p-8 text-center rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-2">
           <Tag className="w-8 h-8 text-[#94A3B8] mx-auto" />
           <p className="text-base font-semibold text-[#F5F7F6]">No active category spending</p>
           <p className="text-xs sm:text-[15px] text-[#94A3B8]">Add active subscriptions to view category distribution.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        <div className={isEmbedded ? "grid grid-cols-1 gap-6 items-center" : "grid grid-cols-1 lg:grid-cols-12 gap-6 items-center"}>
           {/* Donut Chart with Center Total Spend */}
-          <div className="lg:col-span-5 flex flex-col items-center justify-center relative py-2">
+          <div className={isEmbedded ? "flex flex-col items-center justify-center relative py-2" : "lg:col-span-5 flex flex-col items-center justify-center relative py-2"}>
             <div className="relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 180 180">
                 {/* Background Ring */}
@@ -110,14 +110,14 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
           </div>
 
           {/* Breakdown List on Right */}
-          <div className="lg:col-span-7 divide-y divide-[#1A1D1D]/60">
+          <div className={isEmbedded ? "divide-y divide-[#1A1D1D]/60" : "lg:col-span-7 divide-y divide-[#1A1D1D]/60"}>
             {breakdown.map((item, idx) => {
               const categoryStyle = chartColorPalette[idx % chartColorPalette.length];
 
               return (
                 <div
                   key={item.category}
-                  className="py-3 px-1 flex flex-col xs:flex-row xs:items-center justify-between gap-2.5 sm:gap-4"
+                  className="py-3 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
@@ -131,7 +131,7 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
                     </div>
                   </div>
 
-                  <div className="text-left xs:text-right shrink-0 flex items-center justify-between xs:justify-end gap-3 sm:gap-4 w-full xs:w-auto pt-2 xs:pt-0 border-t xs:border-t-0 border-[#1A1D1D]/60">
+                  <div className="sm:text-right shrink-0 flex items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]/60">
                     <div>
                       <span className="text-sm font-semibold text-[#F5F7F6] block">
                         {formatCurrency(item.monthlySpend, defaultCurrency)}
