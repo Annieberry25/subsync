@@ -1,7 +1,34 @@
 import type { NextConfig } from "next";
+import { execSync } from "node:child_process";
+
+/**
+ * Resolves a short commit SHA identifying the exact source this build came
+ * from, inlined into the client bundle at build time.
+ *
+ * On Vercel `VERCEL_GIT_COMMIT_SHA` is injected automatically. Elsewhere (local
+ * `dev`, a detached CI checkout) we fall back to asking git directly, and
+ * finally to a literal so a missing git binary can never fail the build.
+ */
+function resolveBuildSha(): string {
+  const fromVercel = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (fromVercel) return fromVercel.slice(0, 7);
+
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return "unknown";
+  }
+}
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: resolveBuildSha(),
+  },
   // pdfjs-dist ships a worker and WASM-backed decoders that must stay outside
   // the server bundle for the legacy build to resolve at runtime.
   serverExternalPackages: ['pdfjs-dist'],

@@ -210,6 +210,10 @@ export function MoreSheet({ open, onClose }: MoreSheetProps) {
             <LogOut className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span>Log out</span>
           </button>
+
+          <p className="pt-3 text-center text-[10px] text-[#5A6461] tabular-nums">
+            build {process.env.NEXT_PUBLIC_BUILD_SHA ?? 'unknown'}
+          </p>
         </div>
       </div>
     </Sheet>

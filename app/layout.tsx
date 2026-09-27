@@ -77,7 +77,10 @@ export default function RootLayout({
       lang="en"
       className={`${spaceGrotesk.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full bg-[#101215] text-white font-sans overscroll-y-none">
+      <body
+        data-build={process.env.NEXT_PUBLIC_BUILD_SHA}
+        className="min-h-full bg-[#101215] text-white font-sans overscroll-y-none"
+      >
         <AppShell>{children}</AppShell>
       </body>
     </html>
