@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { X, FileText, Upload, CheckCircle2, Sparkles, ArrowLeft } from 'lucide-react';
+import { X, Upload, CheckCircle2, Sparkles, ArrowLeft, AlertCircle, FileSearch } from 'lucide-react';
+import { ACCEPT_ATTRIBUTE, TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
+import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
 
 export interface ExtractedReceiptData {
   name: string;
@@ -20,116 +22,57 @@ interface ReceiptImportModalProps {
   onClose: () => void;
   onBack?: () => void;
   onCancel?: () => void;
-  onConfirm: (extracted: ExtractedReceiptData) => void;
+  onConfirm: (extracted: ExtractedReceiptData, file: File | null) => void;
   initialProviderName?: string;
 }
 
-export function parseReceiptText(text: string, initialProviderName?: string): ExtractedReceiptData {
-  const normText = text.toLowerCase();
-  
-  // Extract Provider Name
-  let name = '';
-  if (normText.includes('netflix')) name = 'Netflix';
-  else if (normText.includes('spotify')) name = 'Spotify';
-  else if (normText.includes('adobe')) name = 'Adobe Creative Cloud';
-  else if (normText.includes('github')) name = 'GitHub Pro';
-  else if (normText.includes('amazon') || normText.includes('prime')) name = 'Amazon Prime';
-  else if (normText.includes('chatgpt') || normText.includes('openai')) name = 'ChatGPT Plus';
-  else if (normText.includes('youtube')) name = 'YouTube Premium';
-  else if (normText.includes('disney')) name = 'Disney+';
-  else if (normText.includes('google')) name = 'Google One';
-  else if (normText.includes('apple')) name = 'Apple';
-  else if (normText.includes('playstation')) name = 'PlayStation Plus';
-  else if (initialProviderName) {
-    name = initialProviderName;
-  } else {
-    const firstLine = text.split('\n')[0]?.trim() || '';
-    name = firstLine.replace(/receipt|invoice|confirmation|subscription|order|#/gi, '').trim() || '';
-  }
+const CATEGORY_ORDER: ExtractedReceiptData['category'][] = [
+  'Streaming',
+  'Software',
+  'Utilities',
+  'Fitness',
+  'Finance',
+  'Education',
+  'Gaming',
+  'Other',
+];
 
-  // Extract Price from user receipt text
-  let price = '';
-  const priceMatch = text.match(/\$\s*(\d+(\.\d{1,2})?)/);
-  if (priceMatch && priceMatch[1]) {
-    price = priceMatch[1];
-  } else {
-    const rawNumber = text.match(/(\d+\.\d{2})/);
-    if (rawNumber && rawNumber[1]) price = rawNumber[1];
-  }
+const CURRENCY_SYMBOL: Record<string, string> = {
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  NGN: '₦',
+};
 
-  // Extract Currency
-  let currency = 'USD';
-  if (text.includes('€') || normText.includes('eur')) currency = 'EUR';
-  else if (text.includes('£') || normText.includes('gbp')) currency = 'GBP';
+function toCategory(value: string | null | undefined): ExtractedReceiptData['category'] {
+  if (!value) return 'Other';
+  const match = CATEGORY_ORDER.find((c) => c.toLowerCase() === value.toLowerCase());
+  return match ?? 'Other';
+}
 
-  // Extract Billing Cycle
-  let billingCycle: 'monthly' | 'yearly' | 'weekly' | 'quarterly' = 'monthly';
-  if (normText.includes('year') || normText.includes('annual')) billingCycle = 'yearly';
-  else if (normText.includes('quarter')) billingCycle = 'quarterly';
-  else if (normText.includes('week')) billingCycle = 'weekly';
+function toBillingCycle(value: string | undefined): ExtractedReceiptData['billingCycle'] {
+  if (value === 'yearly' || value === 'quarterly' || value === 'weekly') return value;
+  return 'monthly';
+}
 
-  // Extract Category
-  let category: 'Streaming' | 'Software' | 'Utilities' | 'Fitness' | 'Finance' | 'Education' | 'Gaming' | 'Other' = 'Streaming';
-  if (normText.includes('software') || normText.includes('adobe') || normText.includes('github') || normText.includes('chatgpt')) category = 'Software';
-  else if (normText.includes('streaming') || normText.includes('netflix') || normText.includes('spotify') || normText.includes('youtube') || normText.includes('disney')) category = 'Streaming';
-  else if (normText.includes('utility') || normText.includes('storage') || normText.includes('icloud') || normText.includes('google one')) category = 'Utilities';
-  else if (normText.includes('game') || normText.includes('gaming') || normText.includes('playstation') || normText.includes('xbox')) category = 'Gaming';
-
-  // Extract Renewal Date
-  let nextBillingDate = '';
-  const dateMatches = text.match(/20\d{2}[-/.]\d{2}[-/.]\d{2}/g);
-  if (dateMatches && dateMatches.length > 0) {
-    nextBillingDate = dateMatches[0].replace(/\./g, '-');
-  } else {
-    const monthMatch = text.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}),?\s+(20\d{2})/i);
-    if (monthMatch) {
-      const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
-      const mIdx = monthNames.indexOf(monthMatch[1].toLowerCase());
-      const monthStr = String(mIdx + 1).padStart(2, '0');
-      const dayStr = String(monthMatch[2]).padStart(2, '0');
-      nextBillingDate = `${monthMatch[3]}-${monthStr}-${dayStr}`;
-    } else {
-      const nextMonth = new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      nextBillingDate = nextMonth.toISOString().split('T')[0];
-    }
-  }
-
-  // Extract Trial / End Date if trial mentioned
-  let trialEndDate = '';
-  if (normText.includes('trial') || normText.includes('free trial') || normText.includes('end date')) {
-    const trialMatch = text.match(/(?:trial|end date|until|renews on)[\s:]*(20\d{2}[-/.]\d{2}[-/.]\d{2})/i);
-    if (trialMatch && trialMatch[1]) {
-      trialEndDate = trialMatch[1].replace(/\./g, '-');
-    } else if (dateMatches && dateMatches.length > 1) {
-      trialEndDate = dateMatches[1].replace(/\./g, '-');
-    }
-  }
-
-  // Extract Plan
-  let plan = '';
-  const planMatch = text.match(/plan:\s*([^\n\r]+)/i) || text.match(/(premium|standard|basic|pro|family|individual|plus|ultra)\s+plan/i);
-  if (planMatch) {
-    plan = planMatch[1] ? planMatch[1].trim() : planMatch[0].trim();
-  }
-
-  // Extract Website
-  let providerUrl = '';
-  const urlMatch = text.match(/https?:\/\/[^\s\n\r]+/i);
-  if (urlMatch) {
-    providerUrl = urlMatch[0];
-  }
-
+/**
+ * Maps the shared extraction onto the subscription form. Anything the parser
+ * could not read is left blank rather than guessed — a wrong renewal date is
+ * worse than an empty field the user fills in.
+ */
+function toReviewData(
+  extraction: ReceiptExtraction,
+  initialProviderName?: string
+): ExtractedReceiptData {
   return {
-    name,
-    plan,
-    price,
-    currency,
-    billingCycle,
-    category,
-    nextBillingDate,
-    trialEndDate: trialEndDate || undefined,
-    providerUrl,
+    name: extraction.providerName.value ?? initialProviderName ?? '',
+    plan: extraction.plan.value ?? undefined,
+    price: extraction.amount.value != null ? String(extraction.amount.value) : '',
+    currency: extraction.currency.value ?? 'USD',
+    billingCycle: toBillingCycle(extraction.billingCycle.value),
+    category: toCategory(extraction.category.value),
+    nextBillingDate: extraction.nextBillingDate.value ?? '',
+    providerUrl: extraction.providerUrl.value ?? undefined,
   };
 }
 
@@ -141,40 +84,50 @@ export default function ReceiptImportModal({
   onConfirm,
   initialProviderName,
 }: ReceiptImportModalProps) {
+  const scan = useReceiptScan();
   const [receiptText, setReceiptText] = useState('');
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [reviewData, setReviewData] = useState<ExtractedReceiptData | null>(null);
+  const [showReadText, setShowReadText] = useState(false);
 
   if (!isOpen) return null;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      setReceiptText(content || `Subscription receipt file uploaded: ${file.name}`);
-    };
-    reader.readAsText(file);
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    e.target.value = '';
+    if (selected.size > 10 * 1024 * 1024) {
+      scan.clearError();
+      return;
+    }
+    setFile(selected);
+    if (receiptText.trim()) setReceiptText('');
   };
 
-  const handleAnalyze = () => {
-    const textToParse = receiptText.trim() || (initialProviderName ? `Receipt for ${initialProviderName}` : '');
-    if (!textToParse) return;
-    const extracted = parseReceiptText(textToParse, initialProviderName);
-    setReviewData(extracted);
+  const handleAnalyze = async () => {
+    const result = await scan.run({ kind: 'subscription', file, text: receiptText });
+    if (result) setReviewData(toReviewData(result.extraction, initialProviderName));
   };
 
   const handleConfirmExtracted = () => {
     if (reviewData) {
-      onConfirm(reviewData);
+      onConfirm(reviewData, file);
       onClose();
     }
   };
 
-  const isAnalyzeDisabled = !receiptText.trim() && !fileName;
+  const isAnalyzeDisabled = scan.isScanning || (!receiptText.trim() && !file);
+  const lowConfidence = (() => {
+    if (!scan.result) return [] as string[];
+    const e = scan.result.extraction;
+    const flagged: string[] = [];
+    if (e.amount.confidence === 'low' || e.amount.confidence === 'none') flagged.push('price');
+    if (e.providerName.confidence === 'low' || e.providerName.confidence === 'none') {
+      flagged.push('provider name');
+    }
+    if (!e.nextBillingDate.value) flagged.push('renewal date');
+    return flagged;
+  })();
 
   return (
     <div
@@ -186,7 +139,7 @@ export default function ReceiptImportModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[560px] bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
+        className="w-full max-w-[560px] bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90dvh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
@@ -239,19 +192,49 @@ export default function ReceiptImportModal({
                 <div className="relative border-2 border-dashed border-[#1A1D1D] hover:border-[#14B8A6] rounded-2xl p-4 text-center bg-[#0D0F0F]/50 transition-colors">
                   <input
                     type="file"
-                    accept=".txt,.pdf,.png,.jpg,.jpeg"
+                    accept={ACCEPT_ATTRIBUTE}
                     onChange={handleFileUpload}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div className="flex flex-col items-center justify-center space-y-1.5 pointer-events-none">
                     <Upload className="w-6 h-6 text-[#14B8A6]" />
                     <span className="text-xs font-semibold text-[#F5F7F6]">
-                      {fileName ? `Uploaded: ${fileName}` : 'Click or drop subscription receipt here'}
+                      {file ? `Selected: ${file.name}` : 'Click or drop subscription receipt here'}
                     </span>
-                    <span className="text-[11px] text-[#94A3B8]">Supports PDF invoices, text receipts, or image files</span>
+                    <span className="text-[11px] text-[#94A3B8]">
+                      PDF invoices, screenshots, photos, or text files (max 10MB)
+                    </span>
                   </div>
                 </div>
               </div>
+
+              {scan.result && (
+                <div className="rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] p-3">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold text-[#94A3B8]">
+                    <FileSearch className="w-3.5 h-3.5" />
+                    <span>{TEXT_SOURCE_LABEL[scan.result.textSource]}</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowReadText((v) => !v)}
+                      className="ml-auto text-[#14B8A6] hover:underline"
+                    >
+                      {showReadText ? 'Hide' : 'View'} text
+                    </button>
+                  </div>
+                  {showReadText && (
+                    <pre className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-[11px] text-[#94A3B8] font-mono">
+                      {scan.result.text}
+                    </pre>
+                  )}
+                </div>
+              )}
+
+              {scan.error && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="flex-1">{scan.error}</span>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
@@ -261,7 +244,10 @@ export default function ReceiptImportModal({
                   rows={5}
                   placeholder="Paste your email receipt or subscription confirmation text here..."
                   value={receiptText}
-                  onChange={(e) => setReceiptText(e.target.value)}
+                  onChange={(e) => {
+                    setReceiptText(e.target.value);
+                    if (e.target.value.trim()) setFile(null);
+                  }}
                   className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
                 />
               </div>
@@ -277,8 +263,24 @@ export default function ReceiptImportModal({
             <div className="space-y-4">
               <div className="p-3.5 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 text-[#14B8A6] text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-[#14B8A6]" />
-                <span>Extracted subscription information. Please review before applying.</span>
+                <span>
+                  {scan.result
+                    ? `Read from ${TEXT_SOURCE_LABEL[scan.result.textSource].toLowerCase()}. `
+                    : ''}
+                  Please review every value before applying.
+                </span>
               </div>
+
+              {lowConfidence.length > 0 && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    We could not read the {lowConfidence.join(', ')} clearly, so{' '}
+                    {lowConfidence.length === 1 ? 'it is' : 'they are'} blank or a best guess.
+                    Please check {lowConfidence.length === 1 ? 'it' : 'them'} against the receipt.
+                  </span>
+                </div>
+              )}
 
               <div className="space-y-3 bg-[#0D0F0F] p-4 rounded-2xl border border-[#1A1D1D]">
                 <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
@@ -298,11 +300,23 @@ export default function ReceiptImportModal({
                   </div>
 
                   <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
-                    <span className="text-[#94A3B8] block text-[11px]">Price & Currency</span>
+                    <span className="text-[#94A3B8] block text-[11px]">Price &amp; Currency</span>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <span className="text-[#F5F7F6] font-semibold text-sm">$</span>
+                      <select
+                        value={reviewData.currency}
+                        onChange={(e) => setReviewData({ ...reviewData, currency: e.target.value })}
+                        aria-label="Currency"
+                        className="bg-transparent text-[#F5F7F6] font-semibold text-sm focus:outline-none"
+                      >
+                        {Object.keys(CURRENCY_SYMBOL).map((c) => (
+                          <option key={c} value={c} className="bg-[#0B0D0D]">
+                            {CURRENCY_SYMBOL[c]} {c}
+                          </option>
+                        ))}
+                      </select>
                       <input
                         type="text"
+                        inputMode="decimal"
                         value={reviewData.price}
                         onChange={(e) => setReviewData({ ...reviewData, price: e.target.value })}
                         placeholder="0.00"
@@ -313,7 +327,23 @@ export default function ReceiptImportModal({
 
                   <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
                     <span className="text-[#94A3B8] block text-[11px]">Billing Cycle</span>
-                    <span className="text-[#F5F7F6] font-semibold text-xs capitalize mt-0.5 block">{reviewData.billingCycle}</span>
+                    <select
+                      value={reviewData.billingCycle}
+                      onChange={(e) =>
+                        setReviewData({
+                          ...reviewData,
+                          billingCycle: e.target.value as ExtractedReceiptData['billingCycle'],
+                        })
+                      }
+                      aria-label="Billing cycle"
+                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs capitalize focus:outline-none mt-0.5"
+                    >
+                      {(['monthly', 'yearly', 'quarterly', 'weekly'] as const).map((c) => (
+                        <option key={c} value={c} className="bg-[#0B0D0D] capitalize">
+                          {c}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
@@ -324,11 +354,29 @@ export default function ReceiptImportModal({
                       onChange={(e) => setReviewData({ ...reviewData, nextBillingDate: e.target.value })}
                       className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
                     />
+                    {!reviewData.nextBillingDate && (
+                      <span className="text-[10px] text-amber-300/80">
+                        Not found on the receipt — enter it yourself.
+                      </span>
+                    )}
                   </div>
 
                   <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
                     <span className="text-[#94A3B8] block text-[11px]">Category</span>
-                    <span className="text-[#F5F7F6] font-semibold text-xs mt-0.5 block">{reviewData.category}</span>
+                    <select
+                      value={reviewData.category}
+                      onChange={(e) =>
+                        setReviewData({ ...reviewData, category: e.target.value as ExtractedReceiptData['category'] })
+                      }
+                      aria-label="Category"
+                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
+                    >
+                      {CATEGORY_ORDER.map((c) => (
+                        <option key={c} value={c} className="bg-[#0B0D0D]">
+                          {c}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
@@ -338,16 +386,6 @@ export default function ReceiptImportModal({
                       value={reviewData.plan || ''}
                       onChange={(e) => setReviewData({ ...reviewData, plan: e.target.value })}
                       placeholder="e.g. Premium, Family, Basic"
-                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
-                    />
-                  </div>
-
-                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
-                    <span className="text-[#94A3B8] block text-[11px]">Trial / End Date (Optional)</span>
-                    <input
-                      type="date"
-                      value={reviewData.trialEndDate || ''}
-                      onChange={(e) => setReviewData({ ...reviewData, trialEndDate: e.target.value })}
                       className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
                     />
                   </div>
@@ -361,8 +399,7 @@ export default function ReceiptImportModal({
                   className="text-xs text-[#94A3B8] hover:text-[#F5F7F6] underline"
                 >
                   ← Edit or re-upload text
-                </button>
-              </div>
+                </button>              </div>
             </div>
           )}
         </div>
@@ -377,7 +414,7 @@ export default function ReceiptImportModal({
               className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-4 h-4 text-[#091512]" />
-              <span>Extract Receipt Info</span>
+              <span>{scan.isScanning ? 'Reading receipt…' : 'Extract Receipt Info'}</span>
             </button>
           ) : (
             <button

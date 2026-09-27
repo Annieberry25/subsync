@@ -179,7 +179,7 @@ export function processAssistantQuery(
     ) {
       if (qLower.includes('electricity')) {
         const detail =
-          "Yes! You can track electricity payments in SubHalt. You can record prepaid tokens or postpaid electricity bills, set the provider (like IKEDC, EKEDC, etc.), enter the amount paid, and attach PDF or photo receipts for your records.";
+          "Yes! You can track electricity payments in SubHalt. You can record prepaid tokens or postpaid electricity bills, set the provider (like IKEDC, EKEDC, etc.), and enter the amount paid. With Scan Bill you can upload a PDF or photo of the receipt and SubHalt will fill those details in for you to confirm.";
         return {
           responseText: detail,
           nextContext: {
@@ -212,7 +212,7 @@ export function processAssistantQuery(
       qLower.includes('upload')
     ) {
       const detail =
-        "Yes! You can save and attach receipts (PDF files or images) to any recorded bill payment. SubHalt stores your receipts securely so you can view your full payment proof history whenever you need it.";
+        "Yes! When you record a bill payment from a receipt — using Scan Bill, or the upload option on the bill screen — SubHalt reads the receipt, fills in the provider, amount, date, and category for you to confirm, and keeps the original file stored privately against that payment.";
       return {
         responseText: detail,
         nextContext: {
@@ -233,7 +233,7 @@ export function processAssistantQuery(
       qLower.includes('add manually')
     ) {
       const detail =
-        "If a provider doesn't send an email receipt, you can easily add the payment manually in SubHalt. Simply open Bills & Payments, click 'Record Payment', enter the provider name, amount, and payment date. You can also upload a photo or PDF of your receipt anytime.";
+        "If a provider doesn't send an email receipt, you can easily add the payment manually in SubHalt. Simply open Bills & Payments, click 'Record Payment', enter the provider name, amount, and payment date. Alternatively, use Scan Bill on the same screen to upload a photo or PDF of your receipt and let SubHalt prefill those fields for you.";
       return {
         responseText: detail,
         nextContext: {

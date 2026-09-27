@@ -23,6 +23,14 @@ const envSchema = z.object({
   GROQ_WEB_SEARCH: z.string().optional(),
   PAYSTACK_SECRET_KEY: z.string().optional(),
   NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
+  INBOUND_EMAIL_DOMAIN: z.string().optional(),
+  INBOUND_WEBHOOK_SECRET: z.string().optional(),
+  MAILGUN_SIGNING_KEY: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
+  ENABLE_BACKGROUND_GMAIL_SCAN: z.string().optional(),
 });
 
 function loadEnv() {
@@ -37,6 +45,14 @@ function loadEnv() {
     GROQ_WEB_SEARCH: process.env.GROQ_WEB_SEARCH,
     PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY,
     NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+    INBOUND_EMAIL_DOMAIN: process.env.INBOUND_EMAIL_DOMAIN,
+    INBOUND_WEBHOOK_SECRET: process.env.INBOUND_WEBHOOK_SECRET,
+    MAILGUN_SIGNING_KEY: process.env.MAILGUN_SIGNING_KEY,
+    CRON_SECRET: process.env.CRON_SECRET,
+    ENABLE_BACKGROUND_GMAIL_SCAN: process.env.ENABLE_BACKGROUND_GMAIL_SCAN,
   });
 
   if (!parsed.success) {

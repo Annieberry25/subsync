@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // pdfjs-dist ships a worker and WASM-backed decoders that must stay outside
+  // the server bundle for the legacy build to resolve at runtime.
+  serverExternalPackages: ['pdfjs-dist'],
   images: {
     remotePatterns: [
       {
