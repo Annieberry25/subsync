@@ -340,7 +340,7 @@ the background and new receipts are auto-imported.
 | `lib/services/gmail-monitor.ts` | Batch scan + auto-import orchestrator |
 | `app/api/cron/gmail-rescan/route.ts` | `GET`/`POST` cron endpoint |
 | `instrumentation.ts` | Self-hosted interval (root, per Next docs) |
-| `vercel.json` | Added `crons` entry (`0 */6 * * *`) |
+| `vercel.json` | Added `crons` entry (`0 6 * * *`, see below) |
 
 ### `lib/services/gmail-monitor.ts`
 
@@ -384,10 +384,17 @@ header on a 6-hour interval (first run after 15 s), with a module-level
 ```json
 {
   "crons": [
-    { "path": "/api/cron/gmail-rescan", "schedule": "0 */6 * * *" }
+    { "path": "/api/cron/gmail-rescan", "schedule": "0 6 * * *" }
   ]
 }
 ```
+
+> **Revised after first deploy.** This originally shipped as `0 */6 * * *`, which
+> Vercel rejects on Hobby: *"Hobby accounts are limited to daily cron jobs."*
+> The check runs at build time, so the entry did not merely disable the cron —
+> it failed the whole deployment, and the app stopped updating at all. The
+> schedule is now daily. Sub-daily scans on Hobby require either Pro or an
+> external cron POSTing to the route with the secret header.
 
 Any external cron can also POST/GET the route with the secret header.
 

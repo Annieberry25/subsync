@@ -99,10 +99,20 @@ to 10 connected users, rescans their inbox, and auto-imports any *new* receipts
 
 Set `CRON_SECRET` (any long random string) in the environment. Then pick one runner:
 
-- **Vercel Cron**: `vercel.json` already registers `0 */6 * * *` → the route.
+- **Vercel Cron**: `vercel.json` already registers `0 6 * * *` → the route.
+  That is **once a day (06:00 UTC)** because Hobby plans reject sub-daily crons.
+  This is not a warning — Vercel validates the schedule when it builds, so a
+  `0 */6 * * *` entry fails the whole deployment and nothing gets published.
+  For more frequent scans, upgrade to Pro, or use one of the two options below.
 - **Self-hosted**: set `ENABLE_BACKGROUND_GMAIL_SCAN=true` and `NEXT_PUBLIC_SITE_URL`
   to your deployed origin; `instrumentation.ts` triggers the route on a 6-hour loop.
-- **Any external cron**: hit the route with the secret header on your own schedule.
+- **Any external cron** (keeps the 6-hour cadence on Hobby): point
+  cron-job.org, GitHub Actions, or a machine-level `crontab` at the route with
+  the secret header.
+
+Note that `instrumentation.ts` only helps when you self-host. On Vercel it is
+inert unless `ENABLE_BACKGROUND_GMAIL_SCAN=true`, which you should leave off
+there since `vercel.json` already provides the schedule.
 
 ## Email forwarding (inbound receipts)
 

@@ -71,7 +71,11 @@ to the browser.
 To let the app re-scan connected inboxes automatically, set up one runner:
 
 - **On Vercel:** nothing to do — `vercel.json` already registers the cron
-  (`0 */6 * * *` → `/api/cron/gmail-rescan`). You only need `CRON_SECRET`.
+  (`0 6 * * *` → `/api/cron/gmail-rescan`). You only need `CRON_SECRET`.
+  It runs once a day because Hobby plans reject sub-daily crons, and Vercel
+  checks the schedule during the build — an over-frequent entry fails the
+  entire deployment. For 6-hourly scans on Hobby, point an external cron at
+  the route instead.
 - **Self-hosted Node server:** add these env vars:
 
   ```
