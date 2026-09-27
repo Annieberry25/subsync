@@ -8,7 +8,7 @@ export function Skeleton({ className = '' }: { className?: string }) {
 
 export function MetricCardSkeleton() {
   return (
-    <div className="px-5 py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[104px]">
+    <div className="card-pad rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[104px]">
       <div>
         <Skeleton className="h-3.5 w-24" />
       </div>
@@ -22,7 +22,7 @@ export function MetricCardSkeleton() {
 
 export function SubscriptionCardSkeleton() {
   return (
-    <div className="p-5 bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl space-y-4">
+    <div className="card-pad bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl space-y-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <Skeleton className="w-11 h-11 rounded-2xl shrink-0" />
@@ -58,7 +58,7 @@ export function SubscriptionCardSkeleton() {
 
 export function AnalyticsChartSkeleton() {
   return (
-    <div className="p-6 bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px] space-y-6">
+    <div className="card-pad bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px] space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <Skeleton className="w-5 h-5 rounded-md" />

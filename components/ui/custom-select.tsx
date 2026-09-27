@@ -140,11 +140,11 @@ export function CustomSelect({
             left: `${menuPos.left}px`,
             minWidth: `${menuPos.minWidth}px`,
           }}
-          className={`p-1.5 rounded-2xl bg-[#0F1111] border border-[#1A1D1D] z-50 animate-in fade-in duration-100 max-w-[280px] ${
+          className={`p-1.5 rounded-2xl bg-[#0F1111] border border-[#1A1D1D] z-[75] animate-in fade-in duration-100 max-w-[calc(100vw-1.5rem)] sm:max-w-[280px] ${
             alignRight ? 'origin-top-right' : 'origin-top-left'
           }`}
         >
-          <div className="py-1 space-y-0.5 max-h-60 overflow-y-auto no-scrollbar">
+          <div className="py-1 space-y-0.5 max-h-[60dvh] overflow-y-auto no-scrollbar">
             {options.map((opt) => {
               const isSelected = opt.value === value;
               return (
@@ -155,7 +155,7 @@ export function CustomSelect({
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2 min-h-[36px] rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2 min-h-[44px] sm:min-h-[36px] rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
                     isSelected
                       ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
                       : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]/70'
@@ -185,7 +185,7 @@ export function CustomSelect({
         aria-expanded={isOpen}
         className={
           isInline
-            ? `flex items-center gap-1.5 px-2 py-1 text-xs sm:text-sm font-medium text-[#F5F7F6] hover:bg-[#1A1D1D]/50 rounded-lg transition-colors cursor-pointer group outline-none focus:outline-none bg-transparent border-none ${className}`
+            ? `flex items-center gap-1.5 px-2 py-1 min-h-[44px] sm:min-h-0 text-xs sm:text-sm font-medium text-[#F5F7F6] hover:bg-[#1A1D1D]/50 rounded-lg transition-colors cursor-pointer group outline-none focus:outline-none bg-transparent border-none ${className}`
             : `flex items-center justify-between gap-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] text-xs font-medium text-[#F5F7F6] transition-colors cursor-pointer group ${minWidth} ${className}`
         }
       >

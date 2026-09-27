@@ -213,19 +213,19 @@ export default function InboxPageContent() {
   const hasItemsToShow = displayedItems.length > 0;
 
   return (
-    <div className="space-y-6 max-w-4xl min-h-[85vh] pb-32 w-full max-w-full overflow-x-hidden">
+    <div className="space-y-6 max-w-4xl min-h-[85dvh] w-full max-w-full overflow-x-clip">
       {/* Accessible DOM Heading */}
       <h1 className="sr-only">Inbox - Attention Center</h1>
 
       {/* HEADER & FILTER CONTROLS */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 pb-3 border-b border-[#1A1D1D] w-full max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 pb-3 border-b border-[#1A1D1D] w-full max-w-full overflow-x-clip">
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold text-[#F5F7F6] tracking-tight">Inbox</h2>
         </div>
 
         {/* Filter Tabs - WhatsApp-Style Standalone Pills with Expandable (+) Button */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto max-w-full overflow-x-hidden">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full sm:w-auto py-1 shrink-0">
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto max-w-full min-w-0">
+          <div className="filter-scroll flex-1 min-w-0 w-full sm:w-auto sm:flex-none py-1">
             {/* Primary visible pills */}
             {[
               {
@@ -369,7 +369,7 @@ export default function InboxPageContent() {
                 onTouchStart={() => handleTouchStart(item)}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchMove}
-                className={`group relative rounded-2xl p-4 sm:p-5 border bg-[#0B0D0D] transition-all duration-150 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer ${
+                className={`group relative rounded-2xl p-4 sm:p-5 border bg-[#0B0D0D] transition-all duration-150 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer min-h-[64px] ${
                   !item.isRead
                     ? 'border-[#1A1D1D] hover:border-[#14B8A6]/50 shadow-sm'
                     : 'border-[#1A1D1D] hover:border-[#262929]'

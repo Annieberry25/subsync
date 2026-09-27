@@ -121,7 +121,7 @@ export default function LinkSubscriptionModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xl bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
+        className="w-full max-w-xl bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90dvh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
       >
         {/* Header (Exact Match to User Screenshot) */}
         <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">

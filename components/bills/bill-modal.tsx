@@ -239,7 +239,7 @@ export default function BillModal({
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80dvh] overflow-y-auto">
           {errorMsg && (
             <div id="bill-error" className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0" />

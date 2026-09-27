@@ -399,7 +399,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
   const headerInfo = sectionHeaderMeta[section] || sectionHeaderMeta.all;
 
   return (
-    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-32 w-full max-w-full overflow-x-hidden">
+    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85dvh] w-full max-w-full overflow-x-clip">
       {/* Accessible DOM Heading */}
       <h1 className="sr-only">{headerInfo.title} - History</h1>
 
@@ -813,12 +813,12 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
           {/* SECTION 3: RESTORED */}
           {section === 'restored' && (
             restoredHistory.length > 0 ? (
-              <div className="w-full max-w-full overflow-hidden rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] shadow-sm">
-                <div className="w-full overflow-x-auto no-scrollbar">
+              <div className="w-full max-w-full rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] shadow-sm">
+                <div className="w-full table-scroll hidden md:block">
                   <table className="w-full text-left border-collapse min-w-[640px]">
-                    <thead>
+                    <thead className="sticky top-(--spacing-header) z-20">
                       <tr className="border-b border-[#1A1D1D] text-[13px] font-semibold text-[#94A3B8] uppercase tracking-wider bg-[#0B0D0D]">
-                        <th className="py-4 px-5 font-semibold">Subscription Name</th>
+                        <th className="py-4 px-5 font-semibold table-sticky-col">Subscription Name</th>
                         <th className="py-4 px-4 font-semibold">Provider / Service</th>
                         <th className="py-4 px-4 font-semibold">Previous State</th>
                         <th className="py-4 px-5 font-semibold text-right">Date Restored</th>
@@ -860,6 +860,37 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                     </tbody>
                   </table>
                 </div>
+
+                {/* Card layout below md — a 640px table needs too much horizontal
+                    scrolling on a phone. */}
+                <ul className="md:hidden divide-y divide-[#1A1D1D]">
+                  {restoredHistory.map((item) => (
+                    <li key={item.id} className="card-pad space-y-2">
+                      <p className="text-sm font-bold text-[#F5F7F6]">{item.name}</p>
+                      <p className="text-xs text-[#94A3B8]">{item.provider}</p>
+                      <div className="flex items-center justify-between gap-3 pt-1">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                            item.previousState === 'Archived'
+                              ? 'bg-[#F59E0B]/10 border-[#F59E0B]/30 text-[#F59E0B]'
+                              : 'bg-[#D9363E]/10 border-[#D9363E]/30 text-[#D9363E]'
+                          }`}
+                        >
+                          {item.previousState}
+                        </span>
+                        <span className="text-xs font-medium text-[#94A3B8] text-right">
+                          {new Date(item.dateRestored).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : (
               <div className="py-20 sm:py-28 min-h-[320px] text-center flex flex-col items-center justify-center space-y-1.5">

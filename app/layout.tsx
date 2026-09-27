@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
@@ -9,6 +9,20 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.com";
+
+/**
+ * `viewportFit: "cover"` is what makes `env(safe-area-inset-*)` resolve to a
+ * non-zero value, which the floating dock depends on to clear the iOS home
+ * indicator and the notch. `maximumScale` / `userScalable` are deliberately left
+ * unset — disabling pinch-zoom is an accessibility failure.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  colorScheme: "dark",
+  themeColor: "#000000",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -63,7 +77,7 @@ export default function RootLayout({
       lang="en"
       className={`${spaceGrotesk.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full bg-[#101215] text-white font-sans">
+      <body className="min-h-full bg-[#101215] text-white font-sans overscroll-y-none">
         <AppShell>{children}</AppShell>
       </body>
     </html>

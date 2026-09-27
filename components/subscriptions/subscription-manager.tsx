@@ -2,7 +2,7 @@
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, CreditCard, AlertCircle, XCircle, LayoutGrid, List, Mail, UploadCloud, Forward } from 'lucide-react';
+import { Plus, AlertCircle, LayoutGrid, List, Mail, UploadCloud, Forward } from 'lucide-react';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import { 
   fetchSubscriptions, 
@@ -29,33 +29,59 @@ import { useToast } from '@/lib/hooks/use-toast';
 import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import UpgradeModal from './upgrade-modal';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
-import { ReceiptExtractionModal } from './receipt-extraction-modal';
 import { EmailForwardingModal } from '@/components/integrations/email-forwarding-modal';
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
   const { isPlus, isPremium } = usePlan();
   const { isGmailConnected } = useSettings();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const paramHighlight = searchParams.get('highlight');
   const paramCategory = searchParams.get('category');
   const paramStatus = searchParams.get('status');
+  const paramSort = searchParams.get('sort');
   const paramLinked = searchParams.get('linked');
   const paramEmail = searchParams.get('email');
+  const paramGmailConnected = searchParams.get('gmailConnected');
+  const paramGmailError = searchParams.get('gmailError');
+
+  const [gmailAutoScan, setGmailAutoScan] = useState(false);
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+
   const [isForwardingModalOpen, setIsForwardingModalOpen] = useState(false);
 
   // View Mode: 'table' (default list/table) or 'grid' (cards)
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+
+  /**
+   * The table is `min-w-[760px]` and needs horizontal scrolling, which is
+   * unusable on a phone. Below `md` the cards are rendered regardless of the
+   * saved preference, and the toggle that sets it is hidden to match.
+   *
+   * This reads a media query rather than duplicating the breakpoint in CSS
+   * because the value decides *which component tree* renders, not just its
+   * styling.
+   */
+  const [isWideViewport, setIsWideViewport] = useState(true);
+
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 768px)');
+    const sync = () => setIsWideViewport(query.matches);
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  const isTableView = isWideViewport && viewMode === 'table';
 
   // Detail View Modal state
   const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
@@ -63,6 +89,8 @@ export default function SubscriptionManager() {
 
   // Add Subscription Modal State
   const [isAddPathModalOpen, setIsAddPathModalOpen] = useState(false);
+  const [addPathInitial, setAddPathInitial] = useState<'gmail' | 'forwarding' | 'link' | 'receipt' | null>(null);
+  const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [prefillData, setPrefillData] = useState<Partial<Omit<SubscriptionInsert, 'user_id'>> | null>(null);
 
@@ -124,7 +152,7 @@ export default function SubscriptionManager() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(paramCategory || 'All');
   const [selectedStatus, setSelectedStatus] = useState(paramStatus || 'All');
-  const [sortBy, setSortBy] = useState('next_billing_asc');
+  const [sortBy, setSortBy] = useState(paramSort || 'next_billing_asc');
   const [highlightedSubId, setHighlightedSubId] = useState<string | null>(paramHighlight);
 
   // Sync URL params into filter state via render-phase adjustment (no effect).
@@ -132,16 +160,19 @@ export default function SubscriptionManager() {
     category: paramCategory,
     status: paramStatus,
     highlight: paramHighlight,
+    sort: paramSort,
   });
   if (
     paramCategory !== prevParamState.category ||
     paramStatus !== prevParamState.status ||
-    paramHighlight !== prevParamState.highlight
+    paramHighlight !== prevParamState.highlight ||
+    paramSort !== prevParamState.sort
   ) {
-    setPrevParamState({ category: paramCategory, status: paramStatus, highlight: paramHighlight });
+    setPrevParamState({ category: paramCategory, status: paramStatus, highlight: paramHighlight, sort: paramSort });
     if (paramCategory) setSelectedCategory(paramCategory);
     if (paramStatus) setSelectedStatus(paramStatus);
     if (paramHighlight) setHighlightedSubId(paramHighlight);
+    if (paramSort) setSortBy(paramSort);
   }
 
   // Open detail view modal if search parameter detail=true is specified.
@@ -158,6 +189,43 @@ export default function SubscriptionManager() {
       setIsDetailOpen(true);
     }
   }
+
+  // Open the add flow when the contextual FAB deep-links here with ?add=true.
+  //
+  // Guarded by a `handled` flag rather than a previous-value comparison like
+  // the filter params above: `useState(paramAdd)` would seed the comparison
+  // with the current value, so a direct load of `?add=true` (refresh, or
+  // opening the FAB link in a new tab) would see no change and never open the
+  // modal. This matches how the OAuth callback params below are handled.
+  const paramAdd = searchParams.get('add');
+  const [addParamHandled, setAddParamHandled] = useState(false);
+  if (!addParamHandled && paramAdd === 'true') {
+    setAddParamHandled(true);
+    if (!isAddPathModalOpen) {
+      setAddPathInitial(null);
+      setIsAddPathModalOpen(true);
+    }
+  }
+
+  // React to OAuth callback redirects (?gmailConnected=1 / ?gmailError=1).
+  const [gmailParamHandled, setGmailParamHandled] = useState(false);
+  if (!gmailParamHandled && (paramGmailConnected === '1' || paramGmailError === '1')) {
+    setGmailParamHandled(true);
+    if (paramGmailConnected === '1') {
+      setGmailAutoScan(true);
+      setIsGmailModalOpen(true);
+    }
+  }
+
+  useEffect(() => {
+    if (paramGmailConnected === '1') {
+      router.replace(window.location.pathname, { scroll: false });
+      toast.success('Gmail connected successfully.', 'Gmail Connected');
+    } else if (paramGmailError === '1') {
+      router.replace(window.location.pathname, { scroll: false });
+      toast.error('Gmail connection failed. Please try again.', 'Gmail Error');
+    }
+  }, [paramGmailConnected, paramGmailError, router, toast]);
 
   // Scroll into view & highlight effect
   useEffect(() => {
@@ -224,7 +292,10 @@ export default function SubscriptionManager() {
   }, []);
 
   // Handle Save (Create / Update)
-  const handleSave = async (data: Omit<SubscriptionInsert, 'user_id'>, id?: string) => {
+  const handleSave = async (
+    data: Omit<SubscriptionInsert, 'user_id'>,
+    id?: string
+  ): Promise<string | null> => {
     if (id) {
       const { error: err, synced } = await updateSubscription(id, data);
       if (err) throw err;
@@ -233,20 +304,24 @@ export default function SubscriptionManager() {
       } else {
         toast.warning('Saved on this device only — it will sync to your account when you are back online.', 'Offline Save');
       }
+      await loadData();
+      return synced ? id : null;
+    }
+
+    if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
+      setIsUpgradeModalOpen(true);
+      return null;
+    }
+
+    const { data: created, error: err, synced } = await createSubscription(data);
+    if (err) throw err;
+    if (synced) {
+      toast.success('New subscription added to your portfolio.', 'Subscription Created');
     } else {
-      if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
-        setIsUpgradeModalOpen(true);
-        return;
-      }
-      const { error: err, synced } = await createSubscription(data);
-      if (err) throw err;
-      if (synced) {
-        toast.success('New subscription added to your portfolio.', 'Subscription Created');
-      } else {
-        toast.warning('Added on this device only — it will sync to your account when you are back online.', 'Offline Save');
-      }
+      toast.warning('Added on this device only — it will sync to your account when you are back online.', 'Offline Save');
     }
     await loadData();
+    return synced && created ? created.id : null;
   };
 
   // Handle Archive
@@ -340,40 +415,113 @@ export default function SubscriptionManager() {
   }, []);
 
   return (
-    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85vh] pb-12 sm:pb-16">
-      {/* 1. PAGE HEADER (Primary Action: Add Subscription & View Switcher) */}
-      <div className="flex items-center justify-between sm:justify-end gap-4">
-        <h1 className="sr-only">Subscriptions</h1>
-        <div className="flex items-center gap-3">
-          {/* Layout View Toggle */}
-          <div className="flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 shrink-0">
+    <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85dvh] pb-12 sm:pb-16">
+      {/* 1. PAGE HEADER (Title + Count + Consolidated Actions) */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        {/* Left: Title, Live Count Badge & Subtitle */}
+        <div className="min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-wrap">
+            <h1 className="sr-only">Subscriptions</h1>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight shrink-0">
+              Subscriptions
+            </h2>
+            <span
+              className="px-2.5 py-1 rounded-full bg-[#14B8A6]/10 border border-[#14B8A6]/20 text-[#14B8A6] text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
+              title={`${activeSubscriptions.length} active subscription${activeSubscriptions.length === 1 ? '' : 's'} being tracked`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6]" />
+              {activeSubscriptions.length} active
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-[#94A3B8] mt-1 font-normal leading-relaxed">
+            Track every subscription, renewal, and payment in one place.
+          </p>
+        </div>
+
+        {/* Right: Import Sources + View Mode + Primary Action */}
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap lg:flex-nowrap">
+          {/* Import Sources Group */}
+          <div
+            className="flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 gap-1"
+            role="group"
+            aria-label="Import subscription sources"
+          >
+            <button
+              type="button"
+              onClick={() => setIsGmailModalOpen(true)}
+              title={isGmailConnected ? 'Gmail connected — manage settings' : 'Connect Gmail to auto-discover subscriptions'}
+              aria-label={isGmailConnected ? 'Gmail Settings' : 'Connect Gmail'}
+              className="relative w-9 h-9 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <Mail className="w-4 h-4" />
+              {isGmailConnected && (
+                <span
+                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#14B8A6]"
+                  title="Gmail Sync Active"
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setAddPathInitial('receipt');
+                setIsAddPathModalOpen(true);
+              }}
+              title="Upload Receipt — extract subscription details from a receipt"
+              aria-label="Upload Receipt"
+              className="w-9 h-9 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <UploadCloud className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsForwardingModalOpen(true)}
+              title="Email Forwarding — forward receipts to your SubHalt inbox"
+              aria-label="Email Forwarding"
+              className="w-9 h-9 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <Forward className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Layout View Toggle — md and up only. Below md the table is
+              replaced by cards (see `isTableView` below), so offering a choice
+              would present a control that cannot change anything. */}
+          <div
+            className="hidden md:flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 gap-1"
+            role="group"
+            aria-label="View mode"
+          >
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              title="Table/List View"
+              title="List View"
               aria-label="Table view"
-              className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              aria-pressed={viewMode === 'table'}
+              className={`w-9 h-9 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-[#14B8A6] text-[#091512] font-semibold'
                   : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
               }`}
             >
               <List className="w-4 h-4" />
-              <span className="hidden sm:inline">List</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              title="Grid Cards View"
+              title="Cards View"
               aria-label="Grid view"
-              className={`p-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              aria-pressed={viewMode === 'grid'}
+              className={`w-9 h-9 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[#14B8A6] text-[#091512] font-semibold'
                   : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
               }`}
             >
               <LayoutGrid className="w-4 h-4" />
-              <span className="hidden sm:inline">Cards</span>
             </button>
           </div>
 
@@ -396,52 +544,7 @@ export default function SubscriptionManager() {
         </div>
       )}
 
-      {/* 2. AUTO-DISCOVERY & IMPORT BAR */}
-      {!loading && (
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-wrap items-center justify-between gap-3 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xs sm:text-sm font-semibold text-[#F5F7F6]">Auto-Discovery & Import:</span>
-            {isGmailConnected ? (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] border border-[#14B8A6]/20 text-xs font-semibold">
-                Gmail Sync Active
-              </span>
-            ) : (
-              <span className="text-xs text-[#94A3B8]">Connect sources to automatically find receipts</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsGmailModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-[#121414] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] hover:border-[#3F3F46] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Mail className="w-3.5 h-3.5 text-[#14B8A6]" />
-              <span>{isGmailConnected ? 'Gmail Settings' : 'Connect Gmail'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsReceiptModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-[#121414] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] hover:border-[#3F3F46] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <UploadCloud className="w-3.5 h-3.5 text-[#14B8A6]" />
-              <span>Upload Receipt</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsForwardingModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-[#121414] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] hover:border-[#3F3F46] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Forward className="w-3.5 h-3.5 text-[#14B8A6]" />
-              <span>Email Forwarding</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 3. SEARCH AND FILTERS BAR */}
+      {/* 2. SEARCH AND FILTERS BAR */}
       <SubscriptionFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -451,17 +554,21 @@ export default function SubscriptionManager() {
         onStatusChange={setSelectedStatus}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        resultCount={filteredSubscriptions.length}
+        totalCount={activeSubscriptions.length}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearFilters}
       />
 
       {/* 3. SUBSCRIPTIONS TABLE / GRID / SKELETONS / EMPTY STATES */}
       {loading && subscriptions.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <SubscriptionCardSkeleton />
           <SubscriptionCardSkeleton />
           <SubscriptionCardSkeleton />
         </div>
       ) : filteredSubscriptions.length > 0 ? (
-        viewMode === 'table' ? (
+        isTableView ? (
           <>
             <SubscriptionTable
               subscriptions={paginatedSubscriptions}
@@ -488,7 +595,7 @@ export default function SubscriptionManager() {
           </>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {paginatedSubscriptions.map((sub) => (
               <SubscriptionCard
                 key={sub.id}
@@ -547,14 +654,19 @@ export default function SubscriptionManager() {
       {/* Add Subscription Entry Choice Modal (Three Path Flow) */}
       <AddSubscriptionModal
         isOpen={isAddPathModalOpen}
-        onClose={() => setIsAddPathModalOpen(false)}
+        onClose={() => {
+          setAddPathInitial(null);
+          setIsAddPathModalOpen(false);
+        }}
+        initialPath={addPathInitial}
         onRequireUpgrade={() => setIsUpgradeModalOpen(true)}
         existingSubscriptions={activeSubscriptions}
         onSelectExistingDetails={(sub) => {
           setSelectedDetailSub(sub);
           setIsDetailOpen(true);
         }}
-        onSelectManual={(prefill) => {
+        onSelectManual={(prefill, receiptFile) => {
+          setPendingReceiptFile(receiptFile ?? null);
           setIsAddPathModalOpen(false);
           if (prefill) {
             setEditingSubscription({
@@ -633,6 +745,7 @@ export default function SubscriptionManager() {
         }
         onSave={handleSave}
         initialData={editingSubscription}
+        pendingReceiptFile={pendingReceiptFile}
       />
 
       {/* Dedicated Notes Editor Modal */}
@@ -691,14 +804,12 @@ export default function SubscriptionManager() {
       {/* Auto-Discovery & Import Modals */}
       <GmailConnectModal
         isOpen={isGmailModalOpen}
-        onClose={() => setIsGmailModalOpen(false)}
+        onClose={() => {
+          setIsGmailModalOpen(false);
+          setGmailAutoScan(false);
+        }}
         onSuccess={loadData}
-      />
-
-      <ReceiptExtractionModal
-        isOpen={isReceiptModalOpen}
-        onClose={() => setIsReceiptModalOpen(false)}
-        onSuccess={loadData}
+        autoScan={gmailAutoScan}
       />
 
       <EmailForwardingModal

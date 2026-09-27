@@ -131,7 +131,7 @@ export default function SubscriptionDetailModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl bg-[#0D0F10] border border-[#1F2425] rounded-2xl sm:rounded-3xl p-4 sm:p-7 space-y-6 max-h-[90vh] overflow-y-auto my-auto shadow-2xl animate-in zoom-in-95 duration-200"
+        className="w-full max-w-3xl bg-[#0D0F10] border border-[#1F2425] rounded-2xl sm:rounded-3xl p-4 sm:p-7 space-y-6 max-h-[90dvh] overflow-y-auto my-auto shadow-2xl animate-in zoom-in-95 duration-200"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#1F2425] pb-4 shrink-0">

@@ -146,7 +146,7 @@ export default function ExportPage() {
   const topCategory = breakdown.length > 0 ? breakdown[0] : null;
 
   return (
-    <div className="space-y-8 min-h-[85vh] pb-32">
+    <div className="space-y-8 min-h-[85dvh]">
       {/* Hidden File Inputs */}
       <input
         type="file"

@@ -1,11 +1,58 @@
 'use client';
 
+import { useState } from 'react';
 import { X, ExternalLink, ShieldCheck, Calendar, MapPin, Tag, FileText, Trash2, Edit3, Info, Loader2 } from 'lucide-react';
-import type { BillPayment } from '@/lib/types/bills.types';
+import type { AttachedBillReceipt, BillPayment } from '@/lib/types/bills.types';
 import { formatCurrencyAmount, convertAmount } from '@/lib/services/currency-service';
 import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { getVerifiedProvider } from '@/lib/constants/verified-providers';
+import { createReceiptViewUrlForRow } from '@/lib/services/receipt-storage';
 import ProviderLogo from './provider-logo';
+
+function ReceiptRow({ receipt }: { receipt: AttachedBillReceipt }) {
+  const [url, setUrl] = useState<string | null>(receipt.fileUrl ?? null);
+  const [isOpening, setIsOpening] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const open = async () => {
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (failed) return;
+    setIsOpening(true);
+    const signed = await createReceiptViewUrlForRow(receipt.id);
+    setIsOpening(false);
+    if (!signed) {
+      setFailed(true);
+      return;
+    }
+    setUrl(signed);
+    window.open(signed, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <div className="p-3 rounded-xl bg-[#050706] border border-[#161F1D] flex items-center justify-between text-xs gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <FileText className="w-4 h-4 text-[#94A3B8] shrink-0" />
+        <span className="text-[#F5F7F6] truncate font-medium">{receipt.fileName}</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-[10px] text-[#94A3B8]">{receipt.uploadDate.split('T')[0]}</span>
+        <button
+          type="button"
+          onClick={open}
+          disabled={isOpening || failed}
+          title={failed ? 'This receipt file is no longer available.' : 'Open receipt'}
+          aria-label={`Open receipt ${receipt.fileName}`}
+          className="px-2 py-1 rounded-lg border border-[#161F1D] text-[10px] font-semibold text-[#14B8A6] hover:bg-[#161F1D] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isOpening ? 'Opening…' : failed ? 'Unavailable' : 'Open'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface BillDetailModalProps {
   bill: BillPayment | null;
@@ -84,7 +131,7 @@ export default function BillDetailModal({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+        <div className="p-6 space-y-6 max-h-[80dvh] overflow-y-auto">
           {/* Amount Card */}
           <div className="p-5 rounded-2xl bg-[#050706] border border-[#161F1D] flex items-center justify-between">
             <div>
@@ -195,16 +242,7 @@ export default function BillDetailModal({
               </span>
               <div className="space-y-2">
                 {bill.receipts.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className="p-3 rounded-xl bg-[#050706] border border-[#161F1D] flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="w-4 h-4 text-[#94A3B8] shrink-0" />
-                      <span className="text-[#F5F7F6] truncate font-medium">{rec.fileName}</span>
-                    </div>
-                    <span className="text-[10px] text-[#94A3B8]">{rec.uploadDate.split('T')[0]}</span>
-                  </div>
+                  <ReceiptRow key={rec.id} receipt={rec} />
                 ))}
               </div>
             </div>

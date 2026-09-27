@@ -1,39 +1,64 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { X, Upload, FileText, CheckCircle2, Sparkles, AlertCircle, Edit3, ArrowRight, Camera } from 'lucide-react';
+import { useState } from 'react';
+import { X, Upload, CheckCircle2, Sparkles, AlertCircle, Edit3, ArrowRight, FileSearch } from 'lucide-react';
 import type { ExtractedBillReceiptData } from '@/lib/types/bills.types';
-import { parseBillReceiptText } from '@/lib/services/bill-receipt-parser';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { useCurrency } from '@/lib/contexts/user-settings-context';
+import { ACCEPT_ATTRIBUTE, TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
+import { mapBillingCycleToBillFrequency } from '@/lib/services/receipt-discovery';
+import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
 import ProviderLogo from './provider-logo';
 
 interface ReceiptScanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (extractedData: ExtractedBillReceiptData) => Promise<void>;
+  onConfirm: (
+    extractedData: ExtractedBillReceiptData,
+    file: File | null,
+    extraction: ReceiptExtraction | null
+  ) => Promise<void>;
 }
 
-export default function ReceiptScanModal({
-  isOpen,
+/** Turns a confidence-scoped extraction into the editable confirm form. */
+function toFormState(extraction: ReceiptExtraction, defaultCurrency: string): ExtractedBillReceiptData {
+  return {
+    providerName: extraction.providerName.value ?? '',
+    amount: extraction.amount.value ?? 0,
+    // Never invent a currency: fall back to the user's display setting, which
+    // is a visible default in the form rather than a fabricated field.
+    currency: extraction.currency.value ?? defaultCurrency ?? 'NGN',
+    paymentDate: extraction.paymentDate.value ?? new Date().toISOString().split('T')[0],
+    category: extraction.category.value ?? 'Utilities',
+    customCategory: '',
+    providerReference: extraction.providerReference.value ?? '',
+    region: extraction.region.value ?? '',
+    paymentFrequency: mapBillingCycleToBillFrequency(extraction.billingCycle.value),
+  };
+}
+
+export default function ReceiptScanModal(props: ReceiptScanModalProps) {
+  // Remounting on open is what resets the wizard; an effect that cleared state
+  // on close would render one extra frame of the previous session.
+  if (!props.isOpen) return null;
+  return <ReceiptScanModalBody key="open" {...props} />;
+}
+
+function ReceiptScanModalBody({
   onClose,
   onConfirm,
 }: ReceiptScanModalProps) {
   const { defaultCurrency } = useCurrency();
+  const scan = useReceiptScan();
 
   const [step, setStep] = useState<'upload' | 'confirm'>('upload');
-  const [fileName, setFileName] = useState<string>('');
+  const [file, setFile] = useState<File | null>(null);
   const [pastedText, setPastedText] = useState<string>('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lowConfidence, setLowConfidence] = useState<string[]>([]);
+  const [showReadText, setShowReadText] = useState(false);
 
   // Extracted Form State for Step 2 ("Here's what we found")
   const [extractedData, setExtractedData] = useState<ExtractedBillReceiptData>({
@@ -47,69 +72,45 @@ export default function ReceiptScanModal({
     region: '',
   });
 
-  if (!isOpen) return null;
+  const applyResult = (extraction: ReceiptExtraction) => {
+    setExtractedData(toFormState(extraction, defaultCurrency || 'NGN'));
+    // Only surface the fields the server flagged as unreliable, so the banner
+    // stays short and actionable.
+    const flagged: string[] = [];
+    if (extraction.amount.confidence === 'low' || extraction.amount.confidence === 'none') {
+      flagged.push('amount');
+    }
+    if (extraction.paymentDate.confidence === 'low') flagged.push('payment date');
+    if (extraction.providerName.confidence === 'low' || extraction.providerName.confidence === 'none') {
+      flagged.push('provider name');
+    }
+    setLowConfidence(flagged);
+    setStep('confirm');
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    // Reset the input so re-picking the same file fires change again.
+    e.target.value = '';
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (selected.size > 10 * 1024 * 1024) {
       setErrorMsg('File size exceeds maximum allowed limit of 10MB.');
       return;
     }
 
-    setFileName(file.name);
+    setFile(selected);
+    setPastedText('');
     setErrorMsg('');
-
-    // Read text from file if text/plain or sample PDF
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const content = evt.target?.result as string;
-      if (content) {
-        processExtraction(content, file.name);
-      } else {
-        processExtraction(`Receipt file uploaded: ${file.name}`, file.name);
-      }
-    };
-    reader.onerror = () => {
-      processExtraction(`Receipt file uploaded: ${file.name}`, file.name);
-    };
-
-    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-      reader.readAsText(file);
-    } else {
-      // For images/PDFs, run deterministic parsing on file name and text snippet
-      processExtraction(`Receipt file: ${file.name}`, file.name);
-    }
   };
 
-  const processExtraction = (textToParse: string, fName?: string) => {
-    setIsAnalyzing(true);
-    setErrorMsg('');
-
-    timerRef.current = setTimeout(() => {
-      try {
-        const parsed = parseBillReceiptText(textToParse, fName);
-        setExtractedData({
-          ...parsed,
-          currency: parsed.currency || defaultCurrency || 'NGN',
-          fileName: fName || fileName || 'receipt_scanned.pdf',
-        });
-        setStep('confirm');
-      } catch {
-        setErrorMsg('Could not parse receipt text. Please try entering details manually.');
-      } finally {
-        setIsAnalyzing(false);
-      }
-    }, 600);
-  };
-
-  const handleAnalyzePastedText = () => {
-    if (!pastedText.trim() && !fileName) {
+  const handleAnalyze = async () => {
+    if (!file && !pastedText.trim()) {
       setErrorMsg('Please upload a receipt file or paste confirmation text.');
       return;
     }
-    processExtraction(pastedText, fileName);
+    const result = await scan.run({ kind: 'bill', file, text: pastedText });
+    if (result) applyResult(result.extraction);
   };
 
   const handleSaveConfirmed = async () => {
@@ -122,16 +123,20 @@ export default function ReceiptScanModal({
       return;
     }
 
-    setIsAnalyzing(true);
+    setIsSaving(true);
     try {
-      await onConfirm(extractedData);
+      await onConfirm(extractedData, file, scan.result?.extraction ?? null);
       onClose();
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Failed to save confirmed payment.');
     } finally {
-      setIsAnalyzing(false);
+      setIsSaving(false);
     }
   };
+
+  const isBusy = scan.isScanning || isSaving;
+  const scanError = scan.error || errorMsg;
+  const sourceLabel = scan.result ? TEXT_SOURCE_LABEL[scan.result.textSource] : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
@@ -160,10 +165,21 @@ export default function ReceiptScanModal({
 
         {/* Modal Body */}
         <div className="p-6 space-y-5">
-          {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMsg}</span>
+          {scanError && (
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-red-400 text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="flex-1">{scanError}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMsg('');
+                  scan.clearError();
+                }}
+                className="shrink-0 text-red-300 hover:text-white transition-colors cursor-pointer"
+                aria-label="Dismiss error"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
 
@@ -174,7 +190,7 @@ export default function ReceiptScanModal({
               <div className="relative border-2 border-dashed border-[#161F1D] hover:border-[#14B8A6] rounded-2xl p-6 text-center transition-all bg-[#050706] group cursor-pointer">
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf,text/plain"
+                  accept={ACCEPT_ATTRIBUTE}
                   onChange={handleFileUpload}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
@@ -183,13 +199,36 @@ export default function ReceiptScanModal({
                     <Upload className="w-6 h-6" />
                   </div>
                   <span className="text-xs font-semibold text-[#F5F7F6]">
-                    {fileName ? `Uploaded: ${fileName}` : 'Drop receipt file here or click to browse'}
+                    {file ? `Selected: ${file.name}` : 'Drop receipt file here or click to browse'}
                   </span>
                   <span className="text-[11px] text-[#94A3B8] mt-1">
-                    Supports JPG, PNG, PDF invoices, or text confirmation files (max 10MB)
+                    PDF invoices, screenshots, photos, or text files (max 10MB)
                   </span>
                 </div>
               </div>
+
+              {/* What the text we read looks like */}
+              {scan.result && (
+                <div className="rounded-xl border border-[#161F1D] bg-[#050706] p-3">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold text-[#94A3B8] mb-1.5">
+                    <FileSearch className="w-3.5 h-3.5" />
+                    <span>{TEXT_SOURCE_LABEL[scan.result.textSource]}</span>
+                    {scan.result.pageCount > 1 && <span>· {scan.result.pageCount} pages</span>}
+                    <button
+                      type="button"
+                      onClick={() => setShowReadText((v) => !v)}
+                      className="ml-auto text-[#14B8A6] hover:underline"
+                    >
+                      {showReadText ? 'Hide' : 'View'} text
+                    </button>
+                  </div>
+                  {showReadText && (
+                    <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-[11px] text-[#94A3B8] font-mono">
+                      {scan.result.text}
+                    </pre>
+                  )}
+                </div>
+              )}
 
               {/* Paste Text Option */}
               <div>
@@ -199,7 +238,10 @@ export default function ReceiptScanModal({
                 <textarea
                   rows={4}
                   value={pastedText}
-                  onChange={(e) => setPastedText(e.target.value)}
+                  onChange={(e) => {
+                    setPastedText(e.target.value);
+                    if (e.target.value.trim()) setFile(null);
+                  }}
                   placeholder="Paste your billing email snippet, token sms, or invoice text here (e.g. 'Ikeja Electric prepaid token ₦25,000 paid on 20 Aug 2026')..."
                   className="w-full px-3.5 py-2.5 bg-[#050706] border border-[#161F1D] rounded-xl text-xs text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
                 />
@@ -210,18 +252,21 @@ export default function ReceiptScanModal({
                 <button
                   type="button"
                   onClick={onClose}
+                  disabled={isBusy}
                   className="px-4 py-2.5 rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={handleAnalyzePastedText}
-                  disabled={isAnalyzing}
+                  onClick={handleAnalyze}
+                  disabled={isBusy || (!file && !pastedText.trim())}
                   className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  {isAnalyzing ? (
-                    <span>Extracting...</span>
+                  {scan.isScanning ? (
+                    <>
+                      <span className="animate-pulse">Reading receipt…</span>
+                    </>
                   ) : (
                     <>
                       <span>Extract Receipt Details</span>
@@ -238,8 +283,22 @@ export default function ReceiptScanModal({
             <div className="space-y-4 animate-in fade-in duration-200">
               <div className="p-3.5 rounded-xl bg-[#14B8A6]/10 border border-[#14B8A6]/30 flex items-center gap-2.5 text-[#14B8A6] text-xs font-semibold">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>Extracted payment information. You can review or edit before saving.</span>
+                <span>
+                  {sourceLabel ? `Read from ${sourceLabel.toLowerCase()}. ` : ''}
+                  Review every value before saving.
+                </span>
               </div>
+
+              {lowConfidence.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-amber-300 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    We could not read the {lowConfidence.join(', ')} clearly, so{' '}
+                    {lowConfidence.length === 1 ? 'it is' : 'they are'} a best guess. Please check{' '}
+                    {lowConfidence.length === 1 ? 'it' : 'them'} against the receipt.
+                  </span>
+                </div>
+              )}
 
               {/* Provider Name */}
               <div>

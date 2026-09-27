@@ -72,7 +72,7 @@ export const PersonalizedHeader = memo(function PersonalizedHeader({
     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
       <h1 className="sr-only">Dashboard</h1>
       {/* Left: Greeting + Subtitle */}
-      <div>
+      <div className="min-w-0 break-words">
         <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">
           {greeting}, {displayName}.
         </h2>

@@ -33,7 +33,7 @@ export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
         </div>
 
         {/* Content Body */}
-        <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4 text-xs sm:text-sm text-[#94A3B8] leading-relaxed">
+        <div className="p-6 max-h-[60dvh] overflow-y-auto space-y-4 text-xs sm:text-sm text-[#94A3B8] leading-relaxed">
           {isPrivacy ? (
             <>
               <p className="font-medium text-[#F5F7F6]">Last updated: August 2026</p>
