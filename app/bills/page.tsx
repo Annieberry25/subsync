@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
+import { BILL_PAYMENT_ENABLED } from '@/lib/config/feature-flags';
 
 export const metadata: Metadata = {
   title: 'Bills',
@@ -8,5 +9,6 @@ export const metadata: Metadata = {
 };
 
 export default function BillsPage() {
+  if (!BILL_PAYMENT_ENABLED) redirect('/');
   redirect('/bills/pay');
 }

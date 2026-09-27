@@ -4,6 +4,7 @@ import { memo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
+import { cleanNotesUserText } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 
@@ -13,8 +14,9 @@ interface UpcomingRenewalsSpotlightProps {
 }
 
 function getPlanName(sub: SubscriptionRow): string {
-  if (sub.notes && sub.notes.trim().toLowerCase().includes('plan')) {
-    return sub.notes.trim();
+  const cleanNotes = cleanNotesUserText(sub?.notes).trim();
+  if (cleanNotes && cleanNotes.toLowerCase().includes('plan')) {
+    return cleanNotes;
   }
   const nameLower = sub.name.toLowerCase();
   if (nameLower.includes('netflix')) return 'Basic Plan';
@@ -68,7 +70,7 @@ export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight
   const showViewAll = upcomingList.length > 0;
 
   return (
-    <div className="p-4 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-4">
+    <div className="h-full flex flex-col gap-4 p-4 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D]">
       {/* Header Row */}
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">
@@ -107,7 +109,7 @@ export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight
             return (
               <div
                 key={sub.id}
-                className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center py-3.5 px-1 gap-2.5 sm:gap-4 cursor-default"
+                className="flex flex-col sm:grid sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] items-start sm:items-center py-3.5 px-1 gap-2.5 sm:gap-4 cursor-default"
               >
                 {/* 1. Service Logo + Name + Plan */}
                 <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
@@ -123,11 +125,11 @@ export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight
                 </div>
 
                 {/* 2 & 3: Mobile sub-row / Desktop grid cells */}
-                <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]/60 gap-2">
+                <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]/60 gap-2 min-w-0">
                   {/* 2. Renewal Status */}
                   <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
                     <span
-                      className="text-xs sm:text-sm font-medium"
+                      className="text-xs sm:text-sm font-medium whitespace-nowrap"
                       style={{ color: status.color }}
                     >
                       {status.text}
@@ -136,10 +138,10 @@ export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight
 
                   {/* 3. Single-line Price */}
                   <div className="text-right min-w-0 shrink-0 justify-self-end">
-                    <span className="text-base sm:text-lg font-bold text-[#F5F7F6]">
+                    <span className="text-base sm:text-lg font-bold text-[#F5F7F6] whitespace-nowrap">
                       {formatCurrency(price, sub.currency || 'USD')}
                     </span>
-                    <span className="text-xs font-normal text-[#94A3B8]">
+                    <span className="text-xs font-normal text-[#94A3B8] whitespace-nowrap">
                       {cycleSuffix}
                     </span>
                   </div>

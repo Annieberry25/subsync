@@ -8,58 +8,32 @@ import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
+import {
+  getVisibleNavItems,
+  isNavItemActive,
+  type NavItem,
+} from '@/lib/nav';
 import { 
-  LayoutDashboard, 
-  CreditCard, 
-  Download, 
-  Settings, 
-  History as HistoryIcon,
-  Archive,
-  Trash2,
-  RotateCcw,
   ChevronDown,
   ChevronRight,
   LogOut,
   User as UserIcon,
-  X,
-  Inbox as InboxIcon,
-  Clock,
   HelpCircle,
-  Receipt,
-  Send
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
-export const navItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard },
-  { name: 'Bills & Payments', href: '/bills', icon: Receipt },
-  { name: 'Inbox', href: '/inbox', icon: InboxIcon },
-  { name: 'History', href: '/history', icon: HistoryIcon },
-  { name: 'Export & Analytics', href: '/export', icon: Download },
-  { name: 'Settings', href: '/settings', icon: Settings },
-];
-
-export const billsSubItems = [
-  { name: 'Pay a Bill', href: '/bills/pay', icon: Send },
-  { name: 'Payment History', href: '/bills/history', icon: HistoryIcon },
-];
-
-export const historySubItems = [
-  { name: 'Past Activity', href: '/history/all', icon: Clock },
-  { name: 'Archive', href: '/history/archive', icon: Archive },
-  { name: 'Deleted', href: '/history/deleted', icon: Trash2 },
-  { name: 'Restored', href: '/history/restored', icon: RotateCcw },
-];
+export { navItems, billsSubItems, historySubItems, adminNavItems } from '@/lib/nav';
 
 interface SidebarProps {
-  isMobileOpen?: boolean;
-  onMobileClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export default function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-const { fullName: contextFullName, email: contextEmail } = useAuth();
+const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
   const { isPlus } = usePlan();
   const { unreadCount } = useInbox();
   const [user, setUser] = useState<User | null>(null);
@@ -135,173 +109,132 @@ const { fullName: contextFullName, email: contextEmail } = useAuth();
 
   const initials = getInitials(effectiveFullName || userName);
 
-  const content = (
-    <div className="flex flex-col justify-between h-full bg-[#000000] overflow-y-auto">
-      <div>
-        {/* Brand Logo & Mobile Close */}
-        <div className="px-5 pt-5 pb-4 flex items-center justify-between border-b border-[#121414]">
-          <Link href="/" onClick={onMobileClose} className="flex items-center gap-3 group">
-            <span className="font-bold text-lg text-[#14B8A6] tracking-tight">SubHalt</span>
-          </Link>
+  const visibleNavItems = getVisibleNavItems(isAdmin);
 
-          {onMobileClose && (
-            <button
-              type="button"
-              onClick={onMobileClose}
-              aria-label="Close navigation menu"
-              className="lg:hidden w-11 h-11 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] transition-colors flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
+
+  const renderSubItems = (children: NavItem[]) => (
+    <div className="pl-4 space-y-1 border-l border-[#1A1D1D] ml-5 my-1">
+      {children.map((sub) => {
+        const isSubActive = isNavItemActive(pathname, sub.href);
+
+        return (
+          <Link
+            key={sub.href}
+            href={sub.href}
+            className={`flex items-center px-3 py-2 min-h-[44px] rounded-lg text-xs transition-all ${
+              isSubActive
+                ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
+                : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0D] font-medium'
+            }`}
+          >
+            <span className="truncate">{sub.name}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+
+  const content = (collapsed: boolean) => (
+    <div className="flex flex-col justify-between h-full bg-[#000000] overflow-y-auto overflow-x-hidden">
+      <div>
+        {/* Brand Logo */}
+        <div className={`border-b border-[#121414] flex items-center ${collapsed ? 'justify-center px-0 pt-5 pb-4' : 'justify-between px-5 pt-5 pb-4'}`}>
+          <Link
+            href="/"
+            title="SubHalt"
+            className={`flex items-center group ${collapsed ? 'justify-center' : 'gap-3'}`}
+          >
+            {collapsed ? (
+              <span className="w-8 h-8 rounded-lg bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] text-sm font-bold tracking-tight">
+                S
+              </span>
+            ) : (
+              <span className="font-bold text-lg text-[#14B8A6] tracking-tight">SubHalt</span>
+            )}
+          </Link>
         </div>
 
         {/* Navigation Items */}
-        <nav className="px-3 pt-4 pb-4 space-y-1" aria-label="Main Navigation">
-          {navItems.map((item) => {
-            // 1. Bills & Payments Accordion Parent
-            if (item.name === 'Bills & Payments') {
-              const isParentActive = pathname.startsWith('/bills');
-              const Icon = item.icon;
+        <nav className={`${collapsed ? 'px-2' : 'px-3'} pt-4 pb-4 space-y-1`} aria-label="Main Navigation">
+          {visibleNavItems.map((item) => {
+            const isActive = isNavItemActive(pathname, item.href);
+            const Icon = item.icon;
+
+            // Accordion parents (Bills & Payments, History)
+            if (item.children) {
+              const isOpen =
+                item.href === '/bills' ? isBillsOpen : isHistoryOpen;
+              const setIsOpen =
+                item.href === '/bills' ? setIsBillsOpen : setIsHistoryOpen;
 
               return (
-                <div key={item.name} className="space-y-1">
+                <div key={item.href} className="space-y-1">
                   <button
                     type="button"
                     onClick={() => {
-                      setIsBillsOpen(!isBillsOpen);
-                      if (!pathname.startsWith('/bills')) {
-                        router.push('/bills/pay');
+                      if (collapsed) {
+                        onToggleCollapse?.();
+                        return;
+                      }
+                      setIsOpen(!isOpen);
+                      if (item.defaultChildHref && !isActive) {
+                        router.push(item.defaultChildHref);
                       }
                     }}
-                    aria-label="Toggle Bills & Payments submenu"
-                    aria-expanded={isBillsOpen}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors cursor-pointer ${
-                      isParentActive
+                    aria-label={`Toggle ${item.name} submenu`}
+                    title={item.name}
+                    aria-expanded={isOpen}
+                    className={`w-full flex items-center ${collapsed ? 'justify-center px-0' : 'justify-between px-3'} py-2.5 min-h-[44px] rounded-xl text-xs transition-colors cursor-pointer ${
+                      isActive
                         ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#1A1D1D]'
                         : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <Icon className={`w-4 h-4 ${isParentActive ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'}`} />
-                      <span>Bills & Payments</span>
+                    <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
+                      <Icon
+                        className={`w-4 h-4 ${isActive ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'}`}
+                        aria-hidden="true"
+                      />
+                      {!collapsed && <span className="truncate">{item.name}</span>}
                     </div>
-                    {isBillsOpen ? (
-                      <ChevronDown className="w-4 h-4 text-[#F5F7F6]" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-[#94A3B8]" />
-                    )}
+                    {!collapsed &&
+                      (isOpen ? (
+                        <ChevronDown className="w-4 h-4 text-[#F5F7F6] shrink-0" aria-hidden="true" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-[#94A3B8] shrink-0" aria-hidden="true" />
+                      ))}
                   </button>
 
-                  {/* Submenu Children: Pay a Bill & Payment History ONLY */}
-                  {isBillsOpen && (
-                    <div className="pl-4 space-y-1 border-l border-[#1A1D1D] ml-5 my-1">
-                      {billsSubItems.map((sub) => {
-                        const isSubActive =
-                          pathname === sub.href ||
-                          (sub.href === '/bills/pay' && (pathname === '/bills' || pathname === '/bills/'));
-
-                        return (
-                          <Link
-                            key={sub.href}
-                            href={sub.href}
-                            onClick={onMobileClose}
-                            className={`flex items-center px-3 py-2 min-h-[38px] rounded-lg text-xs transition-all ${
-                              isSubActive
-                                ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
-                                : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
-                            }`}
-                          >
-                            <span>{sub.name}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {!collapsed && isOpen && renderSubItems(item.children)}
                 </div>
               );
             }
 
-            // 2. History Accordion Parent
-            if (item.name === 'History') {
-              const isParentActive = pathname.startsWith('/history');
-              const Icon = item.icon;
-
-              return (
-                <div key={item.name} className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    aria-label="Toggle History submenu"
-                    aria-expanded={isHistoryOpen}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors cursor-pointer ${
-                      isParentActive
-                        ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#1A1D1D]'
-                        : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className={`w-4 h-4 ${isParentActive ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'}`} />
-                      <span>History</span>
-                    </div>
-                    {isHistoryOpen ? (
-                      <ChevronDown className="w-4 h-4 text-[#F5F7F6]" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-[#94A3B8]" />
-                    )}
-                  </button>
-
-                  {/* Submenu Children */}
-                  {isHistoryOpen && (
-                    <div className="pl-4 space-y-1 border-l border-[#1A1D1D] ml-5 my-1">
-                      {historySubItems.map((sub) => {
-                        const isSubActive =
-                          pathname === sub.href ||
-                          (sub.href === '/history/all' && (pathname === '/history' || pathname === '/history/'));
-
-                        return (
-                          <Link
-                            key={sub.href}
-                            href={sub.href}
-                            onClick={onMobileClose}
-                            className={`flex items-center px-3 py-2 min-h-[38px] rounded-lg text-xs transition-all ${
-                              isSubActive
-                                ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold'
-                                : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
-                            }`}
-                          >
-                            <span>{sub.name}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            // 3. Regular Navigation Items (Dashboard, Subscriptions, Inbox, etc.)
-            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-            const Icon = item.icon;
-
+            // Regular navigation items
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={onMobileClose}
-                className={`flex items-center justify-between px-3 py-2.5 min-h-[44px] rounded-xl text-xs transition-colors ${
+                title={item.name}
+                className={`w-full flex items-center ${collapsed ? 'justify-center px-0' : 'justify-between px-3'} py-2.5 min-h-[44px] rounded-xl text-xs transition-colors ${
                   isActive
                     ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#1A1D1D]'
                     : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] font-medium'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'}`} />
-                  <span>{item.name}</span>
+                <div className={`flex items-center ${collapsed ? 'justify-center relative' : 'gap-3'}`}>
+                  <Icon
+                    className={`w-4 h-4 ${isActive ? 'text-[#F5F7F6]' : 'text-[#94A3B8]'}`}
+                    aria-hidden="true"
+                  />
+                  {!collapsed && <span className="truncate">{item.name}</span>}
+                  {collapsed && item.href === '/inbox' && unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-[#14B8A6]" />
+                  )}
                 </div>
-                {item.name === 'Inbox' && unreadCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#14B8A6] text-[#091512] shadow-sm">
-                    {unreadCount}
+                {!collapsed && item.href === '/inbox' && unreadCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#14B8A6] text-[#091512] shadow-sm tabular-nums">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </Link>
@@ -311,43 +244,34 @@ const { fullName: contextFullName, email: contextEmail } = useAuth();
       </div>
 
       {/* Sidebar Footer: User Profile */}
-      <div className="px-3 pt-2 pb-5 space-y-3 mt-auto">
+      <div className={`${collapsed ? 'px-2' : 'px-3'} pt-2 pb-5 space-y-3 mt-auto`}>
         <div className="relative" ref={profileMenuRef}>
-          {showProfileMenu && (
+          {!collapsed && showProfileMenu && (
             <div className="absolute bottom-full left-0 right-0 mb-2 p-1.5 rounded-xl bg-[#0F1111] border border-[#1A1D1D] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5">
               <Link
                 href="/profile"
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  onMobileClose?.();
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
+                onClick={() => setShowProfileMenu(false)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
               >
-                <UserIcon className="w-4 h-4 text-[#94A3B8]" />
+                <UserIcon className="w-4 h-4 text-[#94A3B8]" aria-hidden="true" />
                 <span>Profile</span>
               </Link>
 
               <Link
                 href="/help"
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  onMobileClose?.();
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
+                onClick={() => setShowProfileMenu(false)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
               >
-                <HelpCircle className="w-4 h-4 text-[#94A3B8]" />
+                <HelpCircle className="w-4 h-4 text-[#94A3B8]" aria-hidden="true" />
                 <span>Help</span>
               </Link>
 
               <Link
                 href={`/plans?from=${encodeURIComponent(pathname)}`}
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  onMobileClose?.();
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
+                onClick={() => setShowProfileMenu(false)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
               >
-                <LogOut className="w-4 h-4 text-[#94A3B8]" />
+                <LogOut className="w-4 h-4 text-[#94A3B8]" aria-hidden="true" />
                 <span>Upgrade Plan</span>
               </Link>
 
@@ -359,9 +283,9 @@ const { fullName: contextFullName, email: contextEmail } = useAuth();
                     handleSignOut();
                   }}
                   aria-label="Log out"
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 min-h-[44px] text-xs font-medium text-[#D9363E] hover:bg-[#D9363E]/10 rounded-lg transition-colors cursor-pointer"
                 >
-                  <LogOut className="w-4 h-4 text-[#94A3B8]" />
+                  <LogOut className="w-4 h-4" aria-hidden="true" />
                   <span>Log out</span>
                 </button>
               </div>
@@ -370,16 +294,23 @@ const { fullName: contextFullName, email: contextEmail } = useAuth();
 
           <button
             type="button"
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            onClick={() => {
+              if (collapsed) {
+                onToggleCollapse?.();
+                return;
+              }
+              setShowProfileMenu(!showProfileMenu);
+            }}
             aria-label="User profile options"
-            aria-expanded={showProfileMenu}
-            className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-colors text-left group cursor-pointer ${
+            title={collapsed ? userName : undefined}
+            aria-expanded={!collapsed && showProfileMenu}
+            className={`w-full ${collapsed ? 'flex items-center justify-center p-2' : 'flex items-center justify-between p-2.5'} rounded-xl border transition-colors text-left group cursor-pointer ${
               showProfileMenu
                 ? 'border-[#3F3F46] bg-[#121414]'
                 : 'border-[#1A1D1D] bg-[#0B0D0D] hover:border-[#3F3F46] hover:bg-[#121414]'
             }`}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5 min-w-0'}`}>
               {avatarUrl ? (
                 <Image
                   src={avatarUrl}
@@ -394,16 +325,25 @@ const { fullName: contextFullName, email: contextEmail } = useAuth();
                   {initials || (userName ? userName.slice(0, 2).toUpperCase() : 'SU')}
                 </div>
               )}
-              <div className="min-w-0 flex-1">
-                <span className="text-xs font-semibold text-[#F5F7F6] tracking-tight truncate block">
-                  {userName}
-                </span>
-                <span className="text-[11px] text-[#94A3B8] truncate block">
-                  {effectiveEmail}
-                </span>
-              </div>
+              {!collapsed && (
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-semibold text-[#F5F7F6] tracking-tight truncate block">
+                    {userName}
+                  </span>
+                  <span className="text-[11px] text-[#94A3B8] truncate block">
+                    {effectiveEmail}
+                  </span>
+                </div>
+              )}
             </div>
-            <ChevronDown className={`w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-transform duration-200 shrink-0 ml-1 ${showProfileMenu ? 'rotate-180 text-[#F5F7F6]' : ''}`} />
+            {!collapsed && (
+              <ChevronDown
+                className={`w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-transform duration-200 shrink-0 ml-1 ${
+                  showProfileMenu ? 'rotate-180 text-[#F5F7F6]' : ''
+                }`}
+                aria-hidden="true"
+              />
+            )}
           </button>
         </div>
       </div>
@@ -411,26 +351,27 @@ const { fullName: contextFullName, email: contextEmail } = useAuth();
   );
 
   return (
-    <>
-      {/* Desktop Sidebar (Compact 240px width - Visible on lg screens 1024px+) */}
-      <aside className="w-[240px] bg-[#000000] border-r border-[#1A1D1D] hidden lg:flex flex-col h-screen sticky top-0 shrink-0 z-20">
-        {content}
-      </aside>
+    <aside
+      className={`relative bg-[#000000] border-r border-[#1A1D1D] hidden lg:flex flex-col h-[100dvh] sticky top-0 shrink-0 z-20 transition-[width] duration-300 ease-in-out ${
+        isCollapsed ? 'w-[76px]' : 'w-[240px]'
+      }`}
+    >
+      {content(isCollapsed)}
 
-      {/* Mobile & Tablet Drawer Overlay (Active on screens < 1024px) */}
-      {isMobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/85 z-50 lg:hidden animate-in fade-in duration-150"
-          onClick={onMobileClose}
-        >
-          <aside
-            onClick={(e) => e.stopPropagation()}
-            className="w-[260px] max-w-[80vw] bg-[#000000] h-full shadow-2xl animate-in slide-in-from-left duration-200"
-          >
-            {content}
-          </aside>
-        </div>
-      )}
-    </>
+      {/* Collapse / Expand Toggle Handle */}
+      <button
+        type="button"
+        onClick={() => onToggleCollapse?.()}
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="absolute -right-[13px] top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#14B8A6] text-[#94A3B8] hover:text-[#14B8A6] flex items-center justify-center transition-colors z-30 cursor-pointer"
+      >
+        {isCollapsed ? (
+          <PanelLeftOpen className="w-3.5 h-3.5" />
+        ) : (
+          <PanelLeftClose className="w-3.5 h-3.5" />
+        )}
+      </button>
+    </aside>
   );
 }

@@ -81,8 +81,9 @@ const HELP_TOPICS: HelpTopic[] = [
     title: 'Importing receipts & assisted data entry',
     description: 'Upload PDF invoices, screenshots, or email receipts to prefill subscription records.',
     paragraphs: [
-      'Our smart receipt parser extracts key subscription metadata from uploaded PDF invoices, image receipts, or pasted text blocks.',
-      'Receipt parsing operates as an assisted data entry pipeline — all extracted fields are presented for your review before confirming.',
+      'SubHalt reads your receipt and extracts the key subscription details into an editable form for you to check.',
+      'How the text is read depends on the file: a PDF invoice is read from its embedded text, a screenshot or photo is transcribed, and pasted text is read directly. Every field is shown for your review before anything is saved, and fields that could not be read confidently are flagged rather than guessed.',
+      'If a field is left blank, it simply was not found on the receipt — fill it in yourself.',
     ],
     subheading: 'Extracted subscription fields',
     bullets: [
@@ -146,15 +147,15 @@ const HELP_TOPICS: HelpTopic[] = [
     id: 'receipts-and-records',
     category: 'Receipts & Uploads',
     title: 'Receipts and supporting payment records',
-    description: 'Attach multiple receipts and confirmation invoices to your existing subscriptions.',
+    description: 'Receipt files uploaded during import are stored privately against the record.',
     paragraphs: [
-      'SubHalt allows you to attach multiple invoices, receipt images, or confirmation documents to any subscription record regardless of how it was created.',
+      'When you import a subscription from a receipt, the file you uploaded is stored in a private, access-controlled location and linked to that subscription. Your receipt is never public and can only be opened by you.',
     ],
-    subheading: 'Managing stored records',
+    subheading: 'What happens to an uploaded receipt',
     bullets: [
-      'File support — Upload PDF invoices or screenshot images directly to the subscription.',
-      'Metadata tracking — View upload timestamps, file sizes, and invoice reference IDs.',
-      'Record access — Download or replace stored records anytime in View Subscription Details.',
+      'File support — PDF invoices, screenshots, photos, and text files up to 10MB are accepted.',
+      'Private storage — Receipt files are not publicly accessible; opening one requires a short-lived, signed link.',
+      'Deleting a subscription — Removing the subscription also removes the receipts attached to it.',
     ],
   },
   {
@@ -253,7 +254,7 @@ export default function HelpPage() {
   const categories = Array.from(new Set(HELP_TOPICS.map((t) => t.category)));
 
   return (
-    <div className="space-y-6 max-w-4xl min-h-[85vh] pb-24 animate-fade-in text-[#F5F7F6]">
+    <div className="space-y-6 max-w-4xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-5">
         <div className="flex items-center gap-3">

@@ -66,7 +66,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
       <div
-        className="w-full max-w-lg bg-[#0F1111] border border-[#1A1D1D] rounded-2xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative text-[#F5F7F6] max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg bg-[#0F1111] border border-[#1A1D1D] rounded-2xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative text-[#F5F7F6] max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header */}

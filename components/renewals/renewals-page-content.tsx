@@ -7,6 +7,7 @@ import {
   fetchSubscriptions, 
   getCachedSubscriptions, 
   filterActiveSubscriptions,
+  cleanNotesUserText,
   type SubscriptionRow 
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
@@ -14,8 +15,9 @@ import { ServiceIcon } from '@/components/ui/service-icon';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 
 function getPlanName(sub: SubscriptionRow): string {
-  if (sub.notes && sub.notes.trim()) {
-    return sub.notes.trim();
+  const cleanNotes = cleanNotesUserText(sub?.notes);
+  if (cleanNotes) {
+    return cleanNotes;
   }
   const cycleName = sub.billing_cycle ? sub.billing_cycle.charAt(0).toUpperCase() + sub.billing_cycle.slice(1) : 'Monthly';
   return `${cycleName} Subscription`;
@@ -103,15 +105,15 @@ export default function RenewalsPageContent() {
   }, [subscriptions]);
 
   return (
-    <div className="animate-page-transition space-y-4 sm:space-y-5 bg-ambient-grid pb-8 sm:pb-12 overflow-x-hidden">
+    <div className="animate-page-transition space-y-4 sm:space-y-5 bg-ambient-grid pb-8 sm:pb-12 overflow-x-clip">
       {/* Top-left Back Button */}
       <div>
         <Link
           href="/"
           prefetch={true}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-0 text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           <span>Back to Dashboard</span>
         </Link>
       </div>

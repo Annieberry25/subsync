@@ -1,38 +1,78 @@
 'use client';
 
-import { useState } from 'react';
-import { Sparkles, Info, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import {
+  ADSENSE_AD_SLOT,
+  ADSENSE_CLIENT,
+  ADSENSE_ENABLED,
+} from '@/lib/config/adsense';
+
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
 
 interface AdBannerProps {
   planTier?: 'free' | 'premium' | 'family';
-  adUnitId?: string;
+  adSlot?: string;
   className?: string;
 }
 
-export function AdBanner({ planTier = 'free', className = '' }: AdBannerProps) {
-  const [dismissed, setDismissed] = useState(false);
+let adsenseScriptLoaded = false;
 
-  // Paid plans do not show advertisements
-  if (planTier !== 'free' || dismissed) {
+function loadAdsenseScript() {
+  if (adsenseScriptLoaded || typeof window === 'undefined') return;
+  adsenseScriptLoaded = true;
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+  script.crossOrigin = 'anonymous';
+  document.head.appendChild(script);
+}
+
+export function AdBanner({
+  planTier = 'free',
+  adSlot = ADSENSE_AD_SLOT,
+  className = '',
+}: AdBannerProps) {
+  const [dismissed, setDismissed] = useState(false);
+  const insRef = useRef<HTMLModElement>(null);
+
+  const enabled = ADSENSE_ENABLED && adSlot;
+
+  useEffect(() => {
+    if (!enabled || dismissed) return;
+    loadAdsenseScript();
+
+    // Mark this slot as filled to avoid duplicate pushes (React strict mode / re-renders).
+    const ins = insRef.current;
+    if (!ins || ins.getAttribute('data-adsbygoogle-status') === 'done') return;
+
+    try {
+      window.adsbygoogle = window.adsbygoogle || [];
+      window.adsbygoogle.push({});
+    } catch {
+      // AdSense may reject the fill (e.g. not fully laid out); ignore silently.
+    }
+  }, [enabled, dismissed]);
+
+  // Paid plans do not show advertisements; ads never render without real AdSense config.
+  if (planTier !== 'free' || dismissed || !enabled) {
     return null;
   }
 
   return (
     <div
-      className={`w-full py-2 px-1 border-b border-[#1A1D1D]/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs text-[#94A3B8] bg-transparent ${className}`}
+      className={`w-full rounded-2xl border border-[#1A1D1D] bg-[#0B0D0D] overflow-hidden ${className}`}
       role="region"
-      aria-label="Sponsor advertisement"
+      aria-label="Advertisement"
     >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <span className="text-[11px] font-semibold text-[#94A3B8] shrink-0">
-          Ads.
+      <div className="flex items-center justify-between gap-2 px-3 pt-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#94A3B8]">
+          Ads by Google
         </span>
-        <span className="text-xs text-[#94A3B8] truncate">
-          <strong className="font-semibold text-[#F5F7F6]">Sponsor Spotlight:</strong> Optimize your SaaS stack & team productivity tools.
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
         <button
           type="button"
           onClick={() => setDismissed(true)}
@@ -43,6 +83,16 @@ export function AdBanner({ planTier = 'free', className = '' }: AdBannerProps) {
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      <ins
+        ref={insRef}
+        className="adsbygoogle"
+        style={{ display: 'block', minHeight: 90 }}
+        data-ad-client={ADSENSE_CLIENT}
+        data-ad-slot={adSlot}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
     </div>
   );
 }

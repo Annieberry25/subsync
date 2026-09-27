@@ -2,6 +2,11 @@
 
 @theme {
   --font-sans: var(--font-space-grotesk), system-ui, sans-serif;
+
+  /* ---- Mobile layout scale (see MOBILE-IMPLEMENTATION-PLAN.md §3.1) ---- */
+  --spacing-dock: 3.5rem;   /* 56px floating dock bar            */
+  --spacing-fab: 3.5rem;    /* 56px contextual action button     */
+  --spacing-touch-min: 2.75rem; /* 44px minimum interactive target */
 }
 
 @layer base {
@@ -57,6 +62,37 @@
     --env-status-warning: #F59E0B;
     --env-status-danger: #D9363E;
     --env-status-neutral: #94A3B8;
+
+    /* ==========================================
+       MOBILE / RESPONSIVE LAYOUT VARIABLES
+       ========================================== */
+
+    /* Device safe areas. Only non-zero when the viewport meta sets
+       viewport-fit=cover (see app/layout.tsx `viewport` export). */
+    --spacing-safe-t: env(safe-area-inset-top, 0px);
+    --spacing-safe-r: env(safe-area-inset-right, 0px);
+    --spacing-safe-b: env(safe-area-inset-bottom, 0px);
+    --spacing-safe-l: env(safe-area-inset-left, 0px);
+
+    /* Horizontal page gutter, stepped by breakpoint. */
+    --spacing-gutter: 1rem;   /* 16px — compact phones */
+
+    /* Height of the sticky app header, used to offset sticky table headers.
+       Mirrors `h-14 sm:h-16` in Header.tsx. */
+    --spacing-header: calc(3.5rem + var(--spacing-safe-t)); /* 56px */
+  }
+
+  @media (min-width: 640px) {
+    :root {
+      --spacing-gutter: 1.25rem;                            /* 20px */
+      --spacing-header: calc(4rem + var(--spacing-safe-t));  /* 64px */
+    }
+  }
+  @media (min-width: 768px) {
+    :root { --spacing-gutter: 1.5rem; }   /* 24px */
+  }
+  @media (min-width: 1024px) {
+    :root { --spacing-gutter: 2rem; }     /* 32px */
   }
 
   body {
@@ -74,48 +110,50 @@
 
 /* ==========================================
    TYPOGRAPHY HIERARCHY (v2.0 Specifications)
+   Fluid via clamp() so no per-page font overrides are needed.
+   Max values match the original desktop sizes, so >=1024px is unchanged.
    ========================================== */
 .page-title {
-  font-size: 40px;
-  line-height: 48px;
+  font-size: clamp(1.5rem, 1.02rem + 2.4vw, 2.5rem);   /* 24px -> 40px */
+  line-height: 1.15;
   font-weight: 700;
   color: #F5F7F6;
   letter-spacing: -0.02em;
 }
 
 .section-heading {
-  font-size: 28px;
-  line-height: 36px;
+  font-size: clamp(1.25rem, 0.99rem + 1.3vw, 1.75rem); /* 20px -> 28px */
+  line-height: 1.25;
   font-weight: 700;
   color: #F5F7F6;
   letter-spacing: -0.01em;
 }
 
 .card-title {
-  font-size: 18px;
-  line-height: 24px;
+  font-size: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);   /* 16px -> 18px */
+  line-height: 1.35;
   font-weight: 600;
   color: #F5F7F6;
 }
 
 .large-metric {
-  font-size: 48px;
-  line-height: 56px;
+  font-size: clamp(2rem, 1.32rem + 3.4vw, 3rem);        /* 32px -> 48px */
+  line-height: 1.1;
   font-weight: 700;
   color: #F5F7F6;
   letter-spacing: -0.02em;
 }
 
 .body-text {
-  font-size: 15px;
-  line-height: 22px;
+  font-size: 1rem;      /* 16px */
+  line-height: 1.5;
   font-weight: 400;
   color: #94A3B8;
 }
 
 .secondary-text {
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.4;
   font-weight: 500;
   color: #94A3B8;
 }
@@ -167,6 +205,63 @@
   border: 1px solid #1A1D1D !important;
   border-radius: 16px !important;
   box-shadow: none !important;
+}
+
+/* The floating dock is the ONE sanctioned elevation in the design system.
+   A surface that floats over scrolling content must read as lifted, so this
+   deliberately uses a shadow where every other surface is flat. */
+.glass-dock {
+  background-color: #0B0D0D !important;
+  border: 1px solid #1A1D1D !important;
+  border-radius: 20px !important;
+  box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.6), 0 8px 32px rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ==========================================
+   TOUCH TARGETS & INTERACTION
+   ========================================== */
+
+@layer base {
+  /* Removes the 300ms tap delay without disabling pinch-zoom. */
+  button,
+  [role="button"],
+  a[href],
+  label[for],
+  summary {
+    touch-action: manipulation;
+  }
+
+  /* Long provider names, URLs and receipt references must never force a
+     horizontal scrollbar on a phone. */
+  body {
+    overflow-wrap: break-word;
+  }
+}
+
+/*
+ * Global 44px floor for interactive targets, phones only.
+ *
+ * Why unlayered: an unlayered declaration outranks every layered one, which is
+ * required here. Components already carry utilities like `h-7` and
+ * `min-h-[34px]`, and a rule inside `@layer base` would lose to them — leaving
+ * dozens of sub-44px targets untouched. Scoping the query to
+ * `max-width: 639px` keeps this off desktop, so it never fights the deliberate
+ * compact sizes in `button.tsx` or `custom-select.tsx` at sm and above.
+ *
+ * `min-width` is set alongside `min-height` so square icon buttons that only
+ * declare `w-9 h-9` grow on both axes instead of stretching into 36x44.
+ *
+ * `data-touch="compact"` is the escape hatch for genuinely dense mobile
+ * controls, such as the action menu inside a table row.
+ */
+@media (max-width: 639px) {
+  button:not([data-touch="compact"]),
+  [role="button"]:not([data-touch="compact"]) {
+    min-height: var(--spacing-touch-min);
+    min-width: var(--spacing-touch-min);
+  }
 }
 
 /* Clean background grid override (No gradients/glows) */
@@ -263,8 +358,98 @@ button.btn-pill {
 
   /* Touch target safety helper */
   .touch-target {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: var(--spacing-touch-min);
+    min-width: var(--spacing-touch-min);
+  }
+}
+
+/* Responsive card padding: 16px on phones, 24px from sm up. */
+.card-pad {
+  padding: 1rem;
+}
+@media (min-width: 640px) {
+  .card-pad { padding: 1.5rem; }
+}
+
+/* ==========================================
+   SCROLLING PRIMITIVES
+   ========================================== */
+
+/* Filter chip row. On phones this is a snap-scrolling single line with the
+   content fading out at both edges, so it is discoverable as scrollable
+   without a visible scrollbar. From md up it simply wraps. */
+.filter-scroll {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.filter-scroll::-webkit-scrollbar {
+  display: none;
+}
+.filter-scroll > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+@media (max-width: 767px) {
+  .filter-scroll {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 16px,
+      #000 calc(100% - 24px),
+      transparent 100%
+    );
+  }
+}
+@media (min-width: 768px) {
+  .filter-scroll {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    scroll-snap-type: none;
+  }
+}
+
+/* Wide data tables scroll horizontally instead of being crushed. The first
+   column is sticky so the entity name stays anchored while the rest of the
+   row scrolls under it. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  .table-sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    /* Must match the table surface, otherwise scrolled content shows through
+       the pinned column. */
+    background-color: #0b0d0d;
+  }
+  .table-sticky-col::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: -1px;
+    width: 1px;
+    background-color: #1A1D1D;
+  }
+}
+
+/* Chart canvases need a deterministic height or the container collapses to
+   zero once a chart is switched to responsive sizing. */
+.chart-frame {
+  position: relative;
+  width: 100%;
+  height: 200px;
+}
+@media (min-width: 640px) {
+  .chart-frame {
+    height: 260px;
   }
 }
 
@@ -325,6 +510,43 @@ button.btn-pill {
   40% { transform: translateX(5px); }
   60% { transform: translateX(-3px); }
   80% { transform: translateX(3px); }
+}
+
+/* ==========================================
+   REDUCED MOTION
+   Honour the OS setting for every animation the app introduces, including
+   the page transition, dock, and sheets. Tailwind's `animate-*` utilities and
+   the `animate-in` family are neutralised by zeroing duration/iteration.
+   ========================================== */
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-transition,
+  .animate-subtle-shake,
+  [class*="animate-"] {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================
+   FOCUS VISIBILITY
+   `.settings-nav` deliberately strips `outline` for its flat styling, which
+   also removes the focus ring. This restores a visible indicator for keyboard
+   users without reintroducing any visual noise for mouse/touch interaction.
+   ========================================== */
+:where(button, a[href], input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid #14B8A6 !important;
+  outline-offset: 2px !important;
+  border-radius: 6px;
 }
 
 

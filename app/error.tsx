@@ -16,7 +16,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center p-4">
+    <div className="min-h-[75dvh] flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center space-y-6 p-8 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D]">
         <div className="w-12 h-12 rounded-xl bg-[#D9363E]/10 text-[#D9363E] border border-[#D9363E]/20 mx-auto flex items-center justify-center">
           <AlertOctagon className="w-6 h-6 text-[#D9363E]" />

@@ -8,13 +8,20 @@ import LinkSubscriptionModal from './link-subscription-modal';
 import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-modal';
 import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
 
+type AddPath = 'gmail' | 'forwarding' | 'link' | 'receipt';
+
 interface AddSubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectManual: (prefillData?: Partial<Omit<SubscriptionInsert, 'user_id'>>) => void;
+  onSelectManual: (
+    prefillData?: Partial<Omit<SubscriptionInsert, 'user_id'>>,
+    receiptFile?: File | null
+  ) => void;
   onSelectExistingDetails?: (subscription: SubscriptionRow) => void;
   existingSubscriptions?: SubscriptionRow[];
   onRequireUpgrade?: () => void;
+  /** Opens straight into one of the sub-flows instead of the option menu. */
+  initialPath?: AddPath | null;
 }
 
 function parsePriceSafely(raw?: string): number | undefined {
@@ -30,11 +37,20 @@ export default function AddSubscriptionModal({
   onSelectExistingDetails,
   existingSubscriptions,
   onRequireUpgrade,
+  initialPath = null,
 }: AddSubscriptionModalProps) {
-  const [activeSubModal, setActiveSubModal] = useState<
-    'none' | 'gmail' | 'forwarding' | 'link' | 'receipt'
-  >('none');
+  const [activeSubModal, setActiveSubModal] = useState<'none' | AddPath>('none');
   const [receiptProviderName, setReceiptProviderName] = useState<string | undefined>(undefined);
+  const [appliedInitialPath, setAppliedInitialPath] = useState<AddPath | null>(null);
+
+  // Adjusting state during render (rather than in an effect) so the sub-flow
+  // opens on the same paint as the modal instead of a second cascading render.
+  if (!isOpen) {
+    if (appliedInitialPath !== null) setAppliedInitialPath(null);
+  } else if (initialPath && initialPath !== appliedInitialPath) {
+    setAppliedInitialPath(initialPath);
+    setActiveSubModal(initialPath);
+  }
 
   if (!isOpen && activeSubModal === 'none') return null;
 
@@ -67,12 +83,11 @@ export default function AddSubscriptionModal({
     onSelectManual(data);
   };
 
-  const handleReceiptConfirm = (extracted: ExtractedReceiptData) => {
+  const handleReceiptConfirm = (extracted: ExtractedReceiptData, file: File | null) => {
     handleExitAll();
 
     let notes = '';
     if (extracted.plan) notes += `Plan: ${extracted.plan}\n`;
-    if (extracted.trialEndDate) notes += `Trial End Date: ${extracted.trialEndDate}\n`;
 
     const prefill: Partial<Omit<SubscriptionInsert, 'user_id'>> = {
       name: extracted.name,
@@ -80,11 +95,11 @@ export default function AddSubscriptionModal({
       currency: extracted.currency || 'USD',
       billing_cycle: extracted.billingCycle || 'monthly',
       category: extracted.category || 'Streaming',
-      next_billing_date: extracted.nextBillingDate,
+      next_billing_date: extracted.nextBillingDate || undefined,
       provider_url: extracted.providerUrl,
       notes: notes.trim() || undefined,
     };
-    onSelectManual(prefill);
+    onSelectManual(prefill, file);
   };
 
   return (
@@ -99,7 +114,7 @@ export default function AddSubscriptionModal({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] sm:max-h-[80vh] overflow-hidden"
+            className="w-full max-w-xl bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[85dvh] sm:max-h-[80dvh] overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0 mb-2">

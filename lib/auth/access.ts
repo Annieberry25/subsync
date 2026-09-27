@@ -31,3 +31,29 @@ export function getPlanTier(user: User): PlanTier {
 export function hasPlanTier(user: User, minTier: PlanTier): boolean {
   return PLAN_RANK[getPlanTier(user)] >= PLAN_RANK[minTier];
 }
+
+/**
+ * Resolve the admin flag for a user id from the profiles row.
+ * Server-side only — uses the passed client (works from middleware too).
+ */
+export async function isUserAdmin(
+  supabase: SupabaseClient<Database>,
+  userId: string | undefined
+): Promise<boolean> {
+  if (!userId) return false;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', userId)
+    .maybeSingle();
+  return !error && data?.is_admin === true;
+}
+
+/** Convenience: fetch the current user and check the admin flag in one call. */
+export async function isAdminUser(
+  supabase: SupabaseClient<Database>
+): Promise<boolean> {
+  const user = await getAuthUser(supabase);
+  if (!user) return false;
+  return isUserAdmin(supabase, user.id);
+}

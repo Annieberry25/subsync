@@ -27,12 +27,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none focus:outline-none focus:ring-2 focus:ring-[#14B8A6]/40 active:scale-[0.98]';
+      'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed select-none focus:outline-none focus:ring-2 focus:ring-[#14B8A6]/40 active:scale-[0.98] touch-manipulation';
 
     const sizeStyles = {
-      sm: 'px-3 py-1 text-xs min-h-[32px] h-8 gap-1.5',
-      md: 'px-4 py-1.5 text-xs min-h-[36px] h-9 gap-2',
-      lg: 'px-5 py-2 text-xs sm:text-sm min-h-[40px] h-10 gap-2',
+      // 44px on phones, stepping down to the original density at sm. The
+      // compact desktop sizes are deliberate, not an oversight.
+      sm: 'px-3 py-1 text-xs min-h-[44px] sm:min-h-[32px] h-11 sm:h-8 gap-1.5',
+      md: 'px-4 py-1.5 text-xs min-h-[44px] sm:min-h-[36px] h-11 sm:h-9 gap-2',
+      lg: 'px-5 py-2 text-xs sm:text-sm min-h-[44px] sm:min-h-[40px] h-11 sm:h-10 gap-2',
     };
 
     const variantStyles = {

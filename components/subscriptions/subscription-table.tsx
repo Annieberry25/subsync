@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useSyncExternalStore, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, ChevronRight, Trash2 } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription } from '@/lib/services/subscription-service';
+import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription, cleanNotesUserText } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -30,8 +30,9 @@ const statusDotColors: Record<string, string> = {
 };
 
 function getPlanName(sub: SubscriptionRow): string {
-  if (sub.notes && sub.notes.trim()) {
-    return sub.notes.trim();
+  const cleanNotes = cleanNotesUserText(sub?.notes);
+  if (cleanNotes) {
+    return cleanNotes;
   }
   const cycleName = sub.billing_cycle ? sub.billing_cycle.charAt(0).toUpperCase() + sub.billing_cycle.slice(1) : 'Monthly';
   return `${cycleName} Subscription`;
@@ -246,17 +247,18 @@ function SubscriptionTable({
 
   return (
     <div className="w-full max-w-full overflow-hidden rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] shadow-sm">
-      {/* Contained Horizontal Scroll Wrapper */}
-      <div className="w-full overflow-x-auto no-scrollbar">
-        <table className="w-full text-left border-collapse min-w-[760px]">
-          <thead>
-            <tr className="border-b border-[#1A1D1D] text-xs font-medium text-[#94A3B8] bg-[#0B0D0D]">
-              <th className="py-3.5 px-5 font-medium">Provider</th>
-              <th className="py-3.5 px-4 font-medium">Plan</th>
-              <th className="py-3.5 px-4 font-medium">Category</th>
-              <th className="py-3.5 px-4 font-medium">Amount</th>
-              <th className="py-3.5 px-4 font-medium">Next Billing</th>
-              <th className="py-3.5 px-5 text-right font-medium">Actions</th>
+      {/* Contained Horizontal Scroll Wrapper. The first column is sticky so the
+          provider name stays anchored while the other columns scroll under it. */}
+      <div className="w-full table-scroll">
+        <table className="w-full text-left border-collapse min-w-[700px]">
+          <thead className="sticky top-(--spacing-header) z-20">
+            <tr className="border-b border-[#1A1D1D] text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF] bg-[#0B0D0D]">
+              <th className="py-3.5 px-5 font-semibold table-sticky-col">Provider</th>
+              <th className="py-3.5 px-4 font-semibold">Plan</th>
+              <th className="py-3.5 px-4 font-semibold">Category</th>
+              <th className="py-3.5 px-4 font-semibold">Amount</th>
+              <th className="py-3.5 px-4 font-semibold">Next Billing</th>
+              <th className="py-3.5 px-5 text-right font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1A1D1D] text-xs sm:text-sm">
@@ -293,8 +295,10 @@ function SubscriptionTable({
                   key={sub.id}
                   id={`sub-card-${sub.id}`}
                   onClick={() => onSelectSubscription(sub)}
-                  className={`group transition-colors cursor-pointer hover:bg-[#0F1111] ${
-                    isHighlighted ? 'bg-[#14B8A6]/15 border-l-4 border-l-[#14B8A6]' : ''
+                  className={`group border-l-4 transition-colors cursor-pointer hover:bg-[#0F1111] ${
+                    isHighlighted
+                      ? 'border-l-[#14B8A6] bg-[#14B8A6]/15'
+                      : 'border-l-transparent'
                   }`}
                 >
                   {/* Provider (Logo + Name) */}
@@ -313,8 +317,13 @@ function SubscriptionTable({
                   </td>
 
                   {/* Plan */}
-                  <td className="py-4 px-4 whitespace-nowrap font-medium text-xs sm:text-sm text-[#94A3B8]">
-                    {planName}
+                  <td className="py-4 px-4 max-w-[240px]">
+                    <span
+                      title={planName}
+                      className="block truncate font-medium text-xs sm:text-sm text-[#94A3B8]"
+                    >
+                      {planName}
+                    </span>
                   </td>
 
                   {/* Category */}

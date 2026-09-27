@@ -17,6 +17,7 @@ export interface Database {
           avatar_url: string | null
           plan_tier: string
           plan_expires_at: string | null
+          is_admin: boolean
           created_at: string
           updated_at: string
         }
@@ -27,6 +28,7 @@ export interface Database {
           avatar_url?: string | null
           plan_tier?: string
           plan_expires_at?: string | null
+          is_admin?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -37,6 +39,7 @@ export interface Database {
           avatar_url?: string | null
           plan_tier?: string
           plan_expires_at?: string | null
+          is_admin?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -249,6 +252,111 @@ export interface Database {
           }
         ]
       }
+      receipt_scan_usage: {
+        Row: {
+          id: string
+          user_id: string
+          source: 'upload' | 'paste' | 'email' | 'gmail'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          source?: 'upload' | 'paste' | 'email' | 'gmail'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          source?: 'upload' | 'paste' | 'email' | 'gmail'
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_scan_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      receipts: {
+        Row: {
+          id: string
+          user_id: string
+          subscription_id: string | null
+          bill_payment_id: string | null
+          storage_path: string
+          file_name: string
+          mime_type: string
+          byte_size: number
+          amount: number | null
+          currency: string | null
+          provider: string | null
+          payment_date: string | null
+          extraction_confidence: Record<string, string> | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          subscription_id?: string | null
+          bill_payment_id?: string | null
+          storage_path: string
+          file_name: string
+          mime_type: string
+          byte_size: number
+          amount?: number | null
+          currency?: string | null
+          provider?: string | null
+          payment_date?: string | null
+          extraction_confidence?: Record<string, string> | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          subscription_id?: string | null
+          bill_payment_id?: string | null
+          storage_path?: string
+          file_name?: string
+          mime_type?: string
+          byte_size?: number
+          amount?: number | null
+          currency?: string | null
+          provider?: string | null
+          payment_date?: string | null
+          extraction_confidence?: Record<string, string> | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_bill_payment_id_fkey"
+            columns: ["bill_payment_id"]
+            isOneToOne: false
+            referencedRelation: "bill_payments"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       bill_providers: {
         Row: {
           id: string
@@ -426,6 +534,56 @@ export interface Database {
         }
         Relationships: []
       }
+      gmail_connections: {
+        Row: {
+          id: string
+          user_id: string
+          email: string
+          credentials: Json
+          scope: string | null
+          status: 'connected' | 'revoked' | 'error'
+          last_scan_at: string | null
+          last_scan_status: string | null
+          last_scan_count: number | null
+          connected_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          email: string
+          credentials: Json
+          scope?: string | null
+          status?: 'connected' | 'revoked' | 'error'
+          last_scan_at?: string | null
+          last_scan_status?: string | null
+          last_scan_count?: number | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          email?: string
+          credentials?: Json
+          scope?: string | null
+          status?: 'connected' | 'revoked' | 'error'
+          last_scan_at?: string | null
+          last_scan_status?: string | null
+          last_scan_count?: number | null
+          connected_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gmail_connections_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -445,6 +603,13 @@ export interface Database {
         }
         Returns: Database['public']['CompositeTypes']['rate_limit_result']
       }
+      set_user_admin: {
+        Args: {
+          target_user_id: string
+          make_admin: boolean
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
@@ -460,7 +625,7 @@ export interface Database {
         allowed: boolean
         retry_after_seconds: number
         count: number
-        limit: number
+        limit_value: number
       }
     }
   }

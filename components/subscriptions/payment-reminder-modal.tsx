@@ -99,7 +99,7 @@ export default function PaymentReminderModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-[480px] bg-[#0F1111] border border-[#1A1D1D] rounded-t-[24px] sm:rounded-[20px] p-5 sm:p-6 space-y-4 sm:space-y-5 max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-y-auto animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95"
+        className="w-full sm:max-w-[480px] bg-[#0F1111] border border-[#1A1D1D] rounded-t-[24px] sm:rounded-[20px] p-5 sm:p-6 space-y-4 sm:space-y-5 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col overflow-y-auto animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95"
       >
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
