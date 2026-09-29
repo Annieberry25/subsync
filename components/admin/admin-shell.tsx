@@ -27,7 +27,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      <nav className="flex items-center gap-1 mb-6 overflow-x-auto pb-1" aria-label="Admin sections">
+      {/* Chip row below md, where five labelled tabs cannot fit on one line
+          without a horizontal scroll. The strip scrolls rather than wrapping
+          so the section it belongs to stays visually compact. */}
+      <nav
+        className="flex items-center gap-1.5 mb-6 -mx-4 px-4 overflow-x-auto no-scrollbar snap-x sm:mx-0 sm:px-0"
+        aria-label="Admin sections"
+      >
         {tabs.map((tab) => {
           const isActive = tab.href === '/admin' ? pathname === '/admin' : pathname.startsWith(tab.href);
           const Icon = tab.icon;
@@ -35,13 +41,14 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <Link
               key={tab.href}
               href={tab.href}
-              className={`shrink-0 flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-medium transition-colors ${
+              aria-current={isActive ? 'page' : undefined}
+              className={`shrink-0 snap-start flex items-center gap-2 px-3.5 min-h-[44px] rounded-xl text-xs font-medium transition-colors ${
                 isActive
                   ? 'bg-[#1A1D1D] text-[#F5F7F6] font-semibold border border-[#1A1D1D]'
-                  : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F]'
+                  : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0F] border border-transparent'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} />
+              <Icon className={`w-4 h-4 ${isActive ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`} aria-hidden="true" />
               <span>{tab.name}</span>
             </Link>
           );

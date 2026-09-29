@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search, ShieldCheck, ShieldOff, Gem, X } from 'lucide-react';
+import { Search, ShieldCheck, ShieldOff, Gem } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import type { AdminUserDetail, AdminUserRow } from '@/lib/types/admin.types';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useAuth } from '@/lib/contexts/user-settings-context';
@@ -207,7 +208,7 @@ export default function AdminUsersTab() {
                         type="button"
                         onClick={() => openDetail(u.id)}
                         disabled={busyId === u.id}
-                        className="px-2.5 py-1.5 min-h-[34px] rounded-lg text-[11px] font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
                       >
                         View
                       </button>
@@ -215,7 +216,7 @@ export default function AdminUsersTab() {
                         type="button"
                         onClick={() => setGrantTarget(u)}
                         disabled={busyId === u.id}
-                        className="flex items-center gap-1 px-2.5 py-1.5 min-h-[34px] rounded-lg text-[11px] font-medium text-[#14B8A6] bg-[#14B8A6]/10 border border-[#14B8A6]/25 hover:bg-[#14B8A6]/20 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-medium text-[#14B8A6] bg-[#14B8A6]/10 border border-[#14B8A6]/25 hover:bg-[#14B8A6]/20 transition-colors cursor-pointer"
                       >
                         <Gem className="w-3 h-3" />
                         Grant
@@ -225,7 +226,15 @@ export default function AdminUsersTab() {
                           type="button"
                           onClick={() => toggleRole(u)}
                           disabled={busyId === u.id}
-                          className={`px-2.5 py-1.5 min-h-[34px] rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
+                          /* Names the row it acts on: the visible label only
+                             says "Demote", which is ambiguous in a table of
+                             dozens of identical buttons. */
+                          aria-label={
+                            u.is_admin
+                              ? `Remove admin from ${u.email}`
+                              : `Grant admin to ${u.email}`
+                          }
+                          className={`px-2.5 py-1.5 min-h-[44px] rounded-lg text-[11px] font-medium border transition-colors cursor-pointer ${
                             u.is_admin
                               ? 'text-[#F87171] border-[#F87171]/25 bg-[#F87171]/5 hover:bg-[#F87171]/15'
                               : 'text-[#94A3B8] border-[#1A1D1D] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
@@ -243,28 +252,18 @@ export default function AdminUsersTab() {
         </div>
       )}
 
-      {detail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={() => setDetail(null)}>
-          <div className="w-full max-w-lg rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] shadow-2xl max-h-[85dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-[#F5F7F6]">{detail.profile.email}</h3>
-                <p className="text-[11px] text-[#94A3B8]">{detail.profile.full_name || 'No display name'}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDetail(null)}
-                aria-label="Close"
-                className="w-9 h-9 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {detailLoading ? (
-              <LoadingState label="Loading user detail…" />
-            ) : (
-              <div className="p-5 space-y-5">
+      <Sheet
+        open={Boolean(detail)}
+        onClose={() => setDetail(null)}
+        size="md"
+        title={detail?.profile.email ?? ''}
+        description={detail?.profile.full_name || 'No display name'}
+      >
+        {detail ? (
+          detailLoading ? (
+            <LoadingState label="Loading user detail…" />
+          ) : (
+            <div className="space-y-5 pt-1">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] p-3">
                     <p className="text-[11px] text-[#94A3B8]">Plan</p>
@@ -337,7 +336,7 @@ export default function AdminUsersTab() {
                         created_at: detail.profile.created_at,
                       })}
                       disabled={busyId === detail.profile.id}
-                      className={`flex-1 min-w-[140px] px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                      className={`flex-1 min-w-[140px] px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
                         detail.profile.is_admin
                           ? 'text-[#F87171] border-[#F87171]/25 bg-[#F87171]/5 hover:bg-[#F87171]/15'
                           : 'text-[#14B8A6] border-[#14B8A6]/25 bg-[#14B8A6]/10 hover:bg-[#14B8A6]/20'
@@ -349,33 +348,52 @@ export default function AdminUsersTab() {
                       type="button"
                       onClick={() => revokePlan(detail.profile.id)}
                       disabled={busyId === detail.profile.id || detail.profile.plan_tier === 'free'}
-                      className="flex-1 min-w-[140px] px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-semibold text-[#94A3B8] border border-[#1A1D1D] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex-1 min-w-[140px] px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] border border-[#1A1D1D] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Revoke plan
                     </button>
                   </div>
                 ) : null}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+            )
+        ) : null}
+      </Sheet>
 
-      {grantTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={() => setGrantTarget(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-[#1A1D1D]">
-              <h3 className="text-sm font-semibold text-[#F5F7F6]">Grant plan — {grantTarget.email}</h3>
-              <p className="text-[11px] text-[#94A3B8]">Creates a paid plan row and grants access immediately.</p>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="flex gap-2">
+      <Sheet
+        open={Boolean(grantTarget)}
+        onClose={() => setGrantTarget(null)}
+        size="sm"
+        title={`Grant plan — ${grantTarget?.email ?? ''}`}
+        description="Creates a paid plan row and grants access immediately."
+        footer={
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setGrantTarget(null)}
+              className="flex-1 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-[#94A3B8] border border-[#1A1D1D] hover:text-[#F5F7F6] cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={applyGrant}
+              disabled={busyId === grantTarget?.id}
+              className="flex-1 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold text-[#06090A] bg-[#14B8A6] hover:bg-[#0FA394] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {busyId === grantTarget?.id ? 'Granting…' : 'Grant plan'}
+            </button>
+          </div>
+        }
+      >
+            <div className="space-y-4 pt-1">
+              <div className="flex gap-2" role="group" aria-label="Plan tier">
                 {(['plus', 'premium'] as const).map((tier) => (
                   <button
                     key={tier}
                     type="button"
                     onClick={() => setGrantTier(tier)}
-                    className={`flex-1 px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-semibold capitalize border transition-colors cursor-pointer ${
+                    aria-pressed={grantTier === tier}
+                    className={`flex-1 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold capitalize border transition-colors cursor-pointer ${
                       grantTier === tier
                         ? 'bg-[#14B8A6]/15 text-[#14B8A6] border-[#14B8A6]/40'
                         : 'text-[#94A3B8] border-[#1A1D1D] hover:text-[#F5F7F6]'
@@ -393,30 +411,11 @@ export default function AdminUsersTab() {
                   max={3650}
                   value={grantDays}
                   onChange={(e) => setGrantDays(Math.max(1, Number(e.target.value) || 1))}
-                  className="w-full h-10 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] px-3 text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]/50"
+                  className="w-full h-11 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] px-3 text-xs text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]/50"
                 />
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setGrantTarget(null)}
-                  className="flex-1 px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-medium text-[#94A3B8] border border-[#1A1D1D] hover:text-[#F5F7F6] cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={applyGrant}
-                  disabled={busyId === grantTarget.id}
-                  className="flex-1 px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-semibold text-[#06090A] bg-[#14B8A6] hover:bg-[#0FA394] transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {busyId === grantTarget.id ? 'Granting…' : 'Grant plan'}
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Sheet>
     </div>
   );
 }

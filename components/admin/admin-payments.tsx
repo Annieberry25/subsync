@@ -63,13 +63,14 @@ export default function AdminPaymentsTab() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter plan payments by status">
         {(['all', 'paid', 'pending', 'failed', 'cancelled', 'expired'] as StatusFilter[]).map((f) => (
           <button
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 min-h-[34px] rounded-lg text-[11px] font-medium capitalize transition-colors cursor-pointer ${
+            aria-pressed={filter === f}
+            className={`px-3 py-1.5 min-h-[44px] rounded-lg text-[11px] font-medium capitalize transition-colors cursor-pointer ${
               filter === f
                 ? 'bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D]'
                 : 'text-[#94A3B8] hover:text-[#F5F7F6] border border-transparent'

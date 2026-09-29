@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
+import ConfirmDialog from '@/components/ui/confirm-dialog';
 import type { AdminBillProviderRow, AdminProviderInput } from '@/lib/types/admin.types';
 import { useToast } from '@/lib/hooks/use-toast';
 import { LoadingState, ErrorState, EmptyState, StatusBadge, formatDateTime } from '@/components/admin/admin-ui';
@@ -145,7 +147,7 @@ export default function AdminProvidersTab() {
         <button
           type="button"
           onClick={openAdd}
-          className="flex items-center gap-1.5 px-3.5 py-2 min-h-[40px] rounded-xl text-xs font-semibold text-[#06090A] bg-[#14B8A6] hover:bg-[#0FA394] transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-xl text-xs font-semibold text-[#06090A] bg-[#14B8A6] hover:bg-[#0FA394] transition-colors cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add provider
@@ -211,21 +213,32 @@ export default function AdminProvidersTab() {
         </div>
       )}
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={() => setModalOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] shadow-2xl max-h-[88dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-[#F5F7F6]">{editing ? 'Edit provider' : 'Add provider'}</h3>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                aria-label="Close"
-                className="w-9 h-9 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center justify-center cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
+      <Sheet
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        size="md"
+        title={editing ? 'Edit provider' : 'Add provider'}
+        footer={
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="flex-1 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-[#94A3B8] border border-[#1A1D1D] hover:text-[#F5F7F6] cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="flex-1 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-semibold text-[#06090A] bg-[#14B8A6] hover:bg-[#0FA394] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : editing ? 'Save changes' : 'Create provider'}
+            </button>
+          </div>
+        }
+      >
+            <div className="space-y-4 pt-1">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Name">
                   <input value={form.name ?? ''} onChange={(e) => set('name', e.target.value)} placeholder="DStv" className={inputClass} />
@@ -260,62 +273,23 @@ export default function AdminProvidersTab() {
                   <option value="unverified">unverified</option>
                 </select>
               </Field>
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="flex-1 px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-medium text-[#94A3B8] border border-[#1A1D1D] hover:text-[#F5F7F6] cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={save}
-                  disabled={saving}
-                  className="flex-1 px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-semibold text-[#06090A] bg-[#14B8A6] hover:bg-[#0FA394] transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {saving ? 'Saving…' : editing ? 'Save changes' : 'Create provider'}
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
-      )}
+      </Sheet>
 
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={() => setConfirmDelete(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4">
-              <h3 className="text-sm font-semibold text-[#F5F7F6]">Delete provider?</h3>
-              <p className="mt-1 text-xs text-[#94A3B8]">
-                “{confirmDelete.name}” will be removed from the bill providers catalog.
-              </p>
-            </div>
-            <div className="px-5 pb-5 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(null)}
-                className="flex-1 px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-medium text-[#94A3B8] border border-[#1A1D1D] hover:text-[#F5F7F6] cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => remove(confirmDelete.id)}
-                className="flex-1 px-3 py-2.5 min-h-[40px] rounded-xl text-xs font-semibold text-white bg-[#F87171] hover:bg-[#E55555] transition-colors cursor-pointer"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={Boolean(confirmDelete)}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => remove(confirmDelete!.id)}
+        title="Delete provider?"
+        description={`“${confirmDelete?.name ?? ''}” will be removed from the bill providers catalog.`}
+        confirmText="Delete"
+      />
     </div>
   );
 }
 
 const inputClass =
-  'w-full h-10 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] px-3 text-xs text-[#F5F7F6] placeholder:text-[#5B6470] focus:outline-none focus:border-[#14B8A6]/50';
+  'w-full h-11 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] px-3 text-xs text-[#F5F7F6] placeholder:text-[#5B6470] focus:outline-none focus:border-[#14B8A6]/50';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

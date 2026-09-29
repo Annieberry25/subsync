@@ -49,6 +49,30 @@ async function count(
   return error ? 0 : (count ?? 0);
 }
 
+/**
+ * Counts plan_subscriptions rows in a given payment state.
+ *
+ * The plan-status tiles are broken out per status rather than reusing
+ * `count()`, which has no filter. They are the most prominent cards on the
+ * admin overview, so returning the unfiltered total three times would show
+ * plausible-looking but wrong numbers on exactly the screen admins check
+ * first.
+ *
+ * Typed per-table rather than generically: the two `status` columns have
+ * different CHECK constraints, so a shared generic loses the type that would
+ * catch a typo in the status string.
+ */
+async function countPlansByStatus(
+  admin: SupabaseClient<Database>,
+  status: 'pending' | 'paid' | 'failed' | 'cancelled' | 'expired'
+): Promise<number> {
+  const { count, error } = await admin
+    .from('plan_subscriptions')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', status);
+  return error ? 0 : (count ?? 0);
+}
+
 export async function getAdminOverview(): Promise<AdminOverview> {
   const admin = createAdminClient();
   const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -57,9 +81,9 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     count(admin, 'profiles'),
     count(admin, 'subscriptions'),
     count(admin, 'plan_subscriptions'),
-    count(admin, 'plan_subscriptions'),
-    count(admin, 'plan_subscriptions'),
-    count(admin, 'plan_subscriptions'),
+    countPlansByStatus(admin, 'paid'),
+    countPlansByStatus(admin, 'pending'),
+    countPlansByStatus(admin, 'failed'),
     count(admin, 'gmail_connections'),
     count(admin, 'ai_conversations'),
     count(admin, 'inbox_items'),
