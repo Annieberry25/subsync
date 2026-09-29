@@ -92,6 +92,12 @@ export interface SheetProps {
   id?: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
+  /**
+   * Extra controls rendered beside the close button. Used by dialogs that
+   * carry their own header actions, e.g. the AI assistant's saved-conversation
+   * toggle.
+   */
+  headerAction?: React.ReactNode;
   children?: React.ReactNode;
   /** Pinned to the bottom of the panel, outside the scrolling body. */
   footer?: React.ReactNode;
@@ -122,6 +128,7 @@ export function Sheet({
   id,
   title,
   description,
+  headerAction,
   children,
   footer,
   showClose = true,
@@ -245,7 +252,7 @@ export function Sheet({
 
   if (!open || !mounted) return null;
 
-  const hasHeader = Boolean(title || description);
+  const hasHeader = Boolean(title || description || headerAction);
   const isBottom = placement === 'bottom';
 
   const panel = (
@@ -306,6 +313,11 @@ export function Sheet({
                 </p>
               )}
             </div>
+            {headerAction && (
+              <div className="flex items-center gap-2 shrink-0">
+                {headerAction}
+              </div>
+            )}
             {showClose && (
               <button
                 type="button"

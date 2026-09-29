@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Send, User, ExternalLink, History, Trash2 } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { useSettings, useCurrency } from '@/lib/contexts/user-settings-context';
 import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
 import {
@@ -386,50 +387,53 @@ export function AskSubHaltModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Ask SubHalt assistant"
-        className="w-full max-w-2xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl flex flex-col h-[620px] max-h-[90dvh] overflow-hidden"
-      >
-        {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between bg-[#000000]">
-          <div className="flex items-center gap-3">
-            <SubHaltAvatar size="md" />
-            <div>
-              <h3 className="text-sm font-semibold text-[#F5F7F6] tracking-tight">
-                Ask {assistantName}
-              </h3>
-              <p className="text-[11px] text-[#94A3B8]">
-                Connected to your subscriptions & bills
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowHistory((v) => !v)}
-              aria-label="Saved conversations"
-              className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
-            >
-              <History className="w-4.5 h-4.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close chat"
-              className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
-            >
-              <X className="w-4.5 h-4.5" />
-            </button>
-          </div>
-        </div>
-
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="full"
+      title={`Ask ${assistantName}`}
+      description="Connected to your subscriptions & bills"
+      headerAction={
+        <button
+          type="button"
+          onClick={() => setShowHistory((v) => !v)}
+          aria-label="Saved conversations"
+          aria-expanded={showHistory}
+          className="w-11 h-11 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
+        >
+          <History className="w-4.5 h-4.5" />
+        </button>
+      }
+      /* Composer is pinned in the footer so it stays above the keyboard. */
+      footer={
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleProcessQuestion(inputQuery);
+          }}
+          className="flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={inputQuery}
+            onChange={(e) => setInputQuery(e.target.value)}
+            placeholder={`Ask ${assistantName} about your subscriptions, bills, or current news...`}
+            className="flex-1 h-11 bg-[#121414] border border-[#1A1D1D] focus:border-[#14B8A6] rounded-xl px-3.5 text-xs text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none transition-colors"
+          />
+          <button
+            type="submit"
+            disabled={!inputQuery.trim() || isTyping}
+            className="px-4 py-3 min-h-[44px] rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] disabled:opacity-40 disabled:cursor-not-allowed text-[#091512] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <span>Ask</span>
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </form>
+      }
+    >
         {/* Saved Conversations Panel */}
         {showHistory && (
-          <div className="px-4 py-3 border-b border-[#1A1D1D] bg-[#0F1111] max-h-56 overflow-y-auto">
+          <div className="mb-4 p-3 rounded-xl border border-[#1A1D1D] bg-[#0F1111] max-h-56 overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider">
                 Saved conversations
@@ -476,7 +480,7 @@ export function AskSubHaltModal({
         )}
 
         {/* Preset Question Chips */}
-        <div className="px-4 py-3 bg-[#0F1111] border-b border-[#1A1D1D] overflow-x-auto scrollbar-none flex items-center gap-2">
+        <div className="mb-4 py-2 px-1 bg-[#0F1111] rounded-xl border border-[#1A1D1D] overflow-x-auto scrollbar-none flex items-center gap-2">
           <span className="text-[11px] font-medium text-[#94A3B8] shrink-0 mr-1">
             Suggested:
           </span>
@@ -514,8 +518,9 @@ export function AskSubHaltModal({
           </div>
         )}
 
-        {/* Chat History Messages Stream */}
-        <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-[#0B0D0D]">
+        {/* Chat History Messages Stream. The Sheet body owns the scroll, so
+            this must not create a second nested scroll root. */}
+        <div className="space-y-4">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -613,34 +618,6 @@ export function AskSubHaltModal({
 
           <div ref={messagesEndRef} />
         </div>
-
-        {/* Input Bar */}
-        <div className="p-3 sm:p-4 border-t border-[#1A1D1D] bg-[#000000]">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleProcessQuestion(inputQuery);
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              type="text"
-              value={inputQuery}
-              onChange={(e) => setInputQuery(e.target.value)}
-              placeholder={`Ask ${assistantName} about your subscriptions, bills, or current news...`}
-              className="flex-1 bg-[#121414] border border-[#1A1D1D] focus:border-[#14B8A6] rounded-xl px-3.5 py-2.5 text-xs text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none transition-colors"
-            />
-            <button
-              type="submit"
-              disabled={!inputQuery.trim() || isTyping}
-              className="px-4 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] disabled:opacity-40 disabled:cursor-not-allowed text-[#091512] font-semibold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <span>Ask</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
