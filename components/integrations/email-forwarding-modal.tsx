@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Forward, Copy, Check, Info, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Forward, Copy, Check, Info, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { useToast } from '@/lib/hooks/use-toast';
+import Sheet from '@/components/ui/sheet';
 
 interface EmailForwardingModalProps {
   isOpen: boolean;
@@ -111,46 +112,60 @@ export function EmailForwardingModal({ isOpen, onClose, onBack, onSuccess, onReq
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden">
-        {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between bg-[#000000]">
-          <div className="flex items-center gap-3">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                aria-label="Back to Add Subscription menu"
-                className="w-8 h-8 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            <div className="w-8 h-8 rounded-xl bg-[#14B8A6]/10 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] shrink-0">
-              <Forward className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[#F5F7F6] tracking-tight">
-                Receipt Email Forwarding
-              </h3>
-              <p className="text-[11px] text-[#94A3B8]">
-                Manual Receipt Forwarding Address
-              </p>
-            </div>
-          </div>
-
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="md"
+      title={
+        <span className="flex items-center gap-3">
+          <span className="w-8 h-8 rounded-xl bg-[#14B8A6]/10 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] shrink-0">
+            <Forward className="w-4 h-4" />
+          </span>
+          <span className="flex flex-col">
+            <span className="text-sm font-semibold text-[#F5F7F6] tracking-tight">
+              Receipt Email Forwarding
+            </span>
+            <span className="text-[11px] text-[#94A3B8]">
+              Manual Receipt Forwarding Address
+            </span>
+          </span>
+        </span>
+      }
+      headerAction={
+        onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to Add Subscription menu"
+            className="w-11 h-11 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        ) : null
+      }
+      footer={
+        <div className="flex justify-end gap-2">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-4 py-2.5 min-h-[44px] rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
+            >
+              ← Back
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close modal completely"
-            className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
+            className="px-4 py-2.5 min-h-[44px] rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
           >
-            <X className="w-4.5 h-4.5" />
+            Cancel
           </button>
         </div>
-
+      }
+    >
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="space-y-5">
           {/* Distinction Callout Banner */}
           <div className="p-4 rounded-xl bg-[#121414] border border-[#14B8A6]/30 space-y-2">
             <div className="flex items-center gap-2 font-semibold text-xs text-[#F5F7F6]">
@@ -237,26 +252,7 @@ export function EmailForwardingModal({ isOpen, onClose, onBack, onSuccess, onReq
             </>
           )}
 
-          <div className="pt-2 flex justify-end gap-2">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="px-4 py-2.5 rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
-              >
-                ← Back
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
