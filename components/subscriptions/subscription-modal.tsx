@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, AlertCircle, Plus, Trash2, Globe, Upload, Link2, ExternalLink, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Trash2, Globe, Upload, Link2, ExternalLink } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow, 
   type SubscriptionInsert,
@@ -44,6 +45,8 @@ function formatDateInput(date: Date): string {
 
 const MIN_DATE = '2000-01-01';
 const MAX_DATE = formatDateInput(new Date(new Date().getFullYear() + 10, 11, 31));
+
+const SUBSCRIPTION_FORM_ID = 'subscription-modal-form';
 
 export default function SubscriptionModal({
   isOpen,
@@ -279,62 +282,68 @@ export default function SubscriptionModal({
     }
   };
 
+  const isSubmitDisabled =
+    loading || !name.trim() || !price.trim() || isNaN(parseFloat(price)) || parseFloat(price) <= 0 || !nextBillingDate;
+
   return (
     <>
-      <div 
-        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-        onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-      >
-        <div 
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-[620px] bg-[#0F1111] border border-[#1A1D1D] rounded-t-[24px] sm:rounded-[24px] p-5 sm:p-7 space-y-5 sm:space-y-6 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95 shadow-2xl"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
-            <div className="flex items-center gap-3">
-              {onBack && (
-                <button
-                  type="button"
-                  onClick={onBack}
-                  aria-label="Back to Add Subscription menu"
-                  className="w-8 h-8 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </button>
+      <Sheet
+        open={isOpen}
+        onClose={onClose}
+        size="lg"
+        title={initialData?.id ? 'Edit Subscription' : 'Add New Subscription'}
+        headerAction={
+          <button
+            type="button"
+            onClick={() => setIsReceiptModalOpen(true)}
+            className="px-3 min-h-[44px] rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Import details from subscription receipt"
+          >
+            <Upload className="w-3.5 h-3.5 text-[#94A3B8]" />
+            <span className="hidden sm:inline">Import Receipt</span>
+            <span className="sm:hidden">Import</span>
+          </button>
+        }
+        /* Actions are pinned below the scrolling form. */
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="w-full sm:w-auto px-4 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+              >
+                ← Back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full sm:w-auto px-5 py-3 min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form={SUBSCRIPTION_FORM_ID}
+              disabled={isSubmitDisabled}
+              className="w-full sm:w-auto px-6 py-3 min-h-[44px] bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#091512]" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <span>{initialData?.id ? 'Update Subscription' : 'Create Subscription'}</span>
               )}
-              <h2 id="modal-title" className="text-2xl sm:text-[28px] font-bold text-[#F5F7F6] tracking-tight leading-tight">
-                {initialData?.id ? 'Edit Subscription' : 'Add New Subscription'}
-              </h2>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsReceiptModalOpen(true)}
-                className="px-3 py-2 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer min-h-[38px]"
-                title="Import details from subscription receipt"
-              >
-                <Upload className="w-3.5 h-3.5 text-[#94A3B8]" />
-                <span className="hidden sm:inline">Import Receipt</span>
-                <span className="sm:hidden">Import</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close modal"
-                className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            </button>
           </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-7 overflow-y-auto pr-1.5 flex-1 min-h-0 pb-3">
+        }
+      >
+          {/* Form. The Sheet body owns the scroll; the submit button in the
+              footer targets this form by id. */}
+          <form id={SUBSCRIPTION_FORM_ID} onSubmit={handleSubmit} className="space-y-6 sm:space-y-7 pt-1 pb-3">
             {/* Name */}
             <div className="space-y-2">
               <label className="text-[13px] font-medium text-[#94A3B8] block">Subscription Name</label>
@@ -643,43 +652,8 @@ export default function SubscriptionModal({
                 className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
               />
             </div>
-
-            {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1A1D1D] shrink-0">
-              {onBack && (
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="w-full sm:w-auto px-4 py-3 rounded-xl min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
-                >
-                  ← Back
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading || !name.trim() || !price.trim() || isNaN(parseFloat(price)) || parseFloat(price) <= 0 || !nextBillingDate}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl min-h-[44px] bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-[#091512]" />
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <span>{initialData?.id ? 'Update Subscription' : 'Create Subscription'}</span>
-                )}
-              </button>
-            </div>
           </form>
-        </div>
-      </div>
+      </Sheet>
 
       {/* Receipt Import Review Modal */}
       <ReceiptImportModal

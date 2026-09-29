@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Calendar, DollarSign, FileText, Clock, Link2, Globe, Users, ExternalLink } from 'lucide-react';
+import { Calendar, DollarSign, FileText, Clock, Link2, Globe, Users, ExternalLink } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow,
   parseAccountLinks,
@@ -121,48 +122,91 @@ export default function SubscriptionDetailModal({
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="detail-modal-title"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl bg-[#0D0F10] border border-[#1F2425] rounded-2xl sm:rounded-3xl p-4 sm:p-7 space-y-6 max-h-[90dvh] overflow-y-auto my-auto shadow-2xl animate-in zoom-in-95 duration-200"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1F2425] pb-4 shrink-0">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <ServiceIcon
-              name={subscription.name}
-              category={subscription.category}
-              providerUrl={activeProviderUrl}
-              className="w-12 h-12 rounded-xl shrink-0"
-            />
-            <div className="min-w-0">
-              <h2 id="detail-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight truncate">
-                {subscription.name}
-              </h2>
-              <span className="text-xs text-[#9CA3AF] block mt-0.5 capitalize">
-                {subscription.billing_cycle} billing
-              </span>
-            </div>
-          </div>
+  /* Pinned in the Sheet footer so the actions stay reachable while the
+     detail sections scroll behind them. */
+  const actions = (
+    <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-3 text-xs">
+      {onRestoreRequest ? (
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onRestoreRequest(subscription);
+          }}
+          className="min-h-[44px] text-[#10B981] hover:text-[#34D399] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
+        >
+          Restore Subscription
+        </button>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onEdit(subscription);
+            }}
+            className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
+          >
+            Edit Subscription
+          </button>
 
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Close detail modal"
-            className="w-9 h-9 rounded-xl bg-[#131617] hover:bg-[#1A1E1F] flex items-center justify-center text-[#9CA3AF] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#222728] shrink-0"
+            onClick={() => {
+              onClose();
+              onPaymentReminderRequest(subscription);
+            }}
+            className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
           >
-            <X className="w-4 h-4" />
+            Set Reminder
           </button>
-        </div>
 
-        {/* 6 Detailed Sections Grid */}
+          <button
+            type="button"
+            onClick={handleManageWebsite}
+            className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
+          >
+            Manage Subscription
+          </button>
+
+          {onCancellationAssistance && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onCancellationAssistance(subscription);
+              }}
+              className="min-h-[44px] text-[#14B8A6] hover:text-[#2DD4BF] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
+            >
+              Cancellation Intelligence
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onDeleteRequest(subscription);
+            }}
+            className="min-h-[44px] text-[#EF4444] hover:text-[#F87171] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
+          >
+            Delete
+          </button>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      title={subscription.name}
+      description={`${subscription.billing_cycle} billing`}
+      footer={actions}
+    >
+        {/* 6 Detailed Sections Grid. The Sheet body owns the scroll. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Section 1: Costs & Billing */}
           <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3">
@@ -336,82 +380,7 @@ export default function SubscriptionDetailModal({
             </div>
           </div>
         </div>
-
-        {/* Bottom Actions Bar (Text Only, No Icons, Clean SaaS Spacing) */}
-        <div className="pt-4 border-t border-[#1F2425] flex flex-col gap-2 shrink-0">
-          <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-3 text-xs">
-            {onRestoreRequest ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onRestoreRequest(subscription);
-                }}
-                className="text-[#10B981] hover:text-[#34D399] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-              >
-                Restore Subscription
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onEdit(subscription);
-                  }}
-                  className="text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-                >
-                  Edit Subscription
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onPaymentReminderRequest(subscription);
-                  }}
-                  className="text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-                >
-                  Set Reminder
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleManageWebsite}
-                  className="text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-                >
-                  Manage Subscription
-                </button>
-
-                {onCancellationAssistance && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onCancellationAssistance(subscription);
-                    }}
-                    className="text-[#14B8A6] hover:text-[#2DD4BF] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-                  >
-                    Cancellation Intelligence
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onDeleteRequest(subscription);
-                  }}
-                  className="text-[#EF4444] hover:text-[#F87171] font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

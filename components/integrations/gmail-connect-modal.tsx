@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ArrowLeft, Link2, Link2Off } from 'lucide-react';
+import { Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ArrowLeft, Link2, Link2Off } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
@@ -208,51 +209,27 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Connect Gmail"
-        className="w-full max-w-lg bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden"
-      >
-        {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between bg-[#000000]">
-          <div className="flex items-center gap-3">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                aria-label="Back to Add Subscription menu"
-                className="w-8 h-8 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            <div className="w-8 h-8 rounded-xl bg-[#14B8A6]/10 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] shrink-0">
-              <Mail className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[#F5F7F6] tracking-tight">
-                Connect Gmail
-              </h3>
-              <p className="text-[11px] text-[#94A3B8]">
-                Automatic Email Receipt Discovery
-              </p>
-            </div>
-          </div>
-
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="md"
+      title="Connect Gmail"
+      description="Automatic Email Receipt Discovery"
+      headerAction={
+        onBack ? (
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Close modal completely"
-            className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
+            onClick={onBack}
+            aria-label="Back to Add Subscription menu"
+            className="w-11 h-11 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
           >
-            <X className="w-4.5 h-4.5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-5">
+        ) : null
+      }
+    >
+        {/* Modal Body. The Sheet body owns the scroll. */}
+        <div className="space-y-5 pt-1">
           {error && (
             <div className="p-3 rounded-xl bg-[#D9363E]/10 border border-[#D9363E]/25 text-[#F87171] text-xs leading-relaxed">
               {error}
@@ -515,7 +492,6 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
