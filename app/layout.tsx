@@ -32,6 +32,22 @@ export const metadata: Metadata = {
   },
   description: "Track, manage, and optimize all your recurring subscriptions seamlessly.",
   applicationName: "SubHalt",
+  /**
+   * iOS ignores the manifest for the home screen and reads these instead, so
+   * without them "Add to Home Screen" produces a tiny text-only shortcut.
+   * Next serves `app/apple-icon.png` and `app/icon.svg` as the icon files
+   * themselves, so only the declaration is needed here.
+   */
+  appleWebApp: {
+    capable: true,
+    title: "SubHalt",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    // A numeric keypad in the price/phone fields is a feature; forcing
+    // telephone detection would break it.
+    telephone: false,
+  },
   keywords: [
     "subscription manager",
     "bill tracking",
