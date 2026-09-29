@@ -62,9 +62,9 @@ export function ContextualFab({ onAction }: ContextualFabProps) {
       aria-label={label}
       title={label}
       data-contextual-fab=""
-      // Below the not-yet-migrated z-50 modals; moves to z-55 with the dock
-      // once every overlay uses the Sheet primitive. See MobileDock.
-      className={`fixed right-4 z-35 lg:hidden w-(--spacing-fab) h-(--spacing-fab) rounded-2xl bg-[#14B8A6] text-[#091512] flex items-center justify-center shadow-lg hover:bg-[#0D9488] active:scale-95 transition-all duration-300 ease-out ${
+      // Just under the dock, and well under the Sheet overlay at z-70.
+      // See MobileDock.
+      className={`fixed right-4 z-55 lg:hidden w-(--spacing-fab) h-(--spacing-fab) rounded-2xl bg-[#14B8A6] text-[#091512] flex items-center justify-center shadow-lg hover:bg-[#0D9488] active:scale-95 transition-all duration-300 ease-out ${
         collapsed
           ? 'translate-y-[calc(100%+var(--spacing-dock)+var(--spacing-safe-b)+2rem)] opacity-0 pointer-events-none'
           : 'translate-y-0 opacity-100'

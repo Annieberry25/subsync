@@ -2,7 +2,8 @@
 
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, X, Loader2, CreditCard, ShieldCheck } from 'lucide-react';
+import { Check, X, Loader2, ShieldCheck } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { useToast } from '@/lib/hooks/use-toast';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
@@ -238,32 +239,34 @@ function PlansContent() {
       </div>
 
       {/* Checkout Payment Modal */}
-      {isCheckoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Confirm subscription payment"
-            className="w-full max-w-md bg-[#0F1111] border border-[#1A1D1D] rounded-2xl p-6 space-y-6 shadow-2xl animate-in zoom-in-95 duration-200 relative text-[#F5F7F6]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-[#1A1D1D]">
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-[#F5F7F6]" />
-                <h2 className="text-lg font-bold text-[#F5F7F6]">Confirm Subscription</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCheckoutOpen(false)}
-                aria-label="Close checkout"
-                className="text-[#94A3B8] hover:text-[#F5F7F6] p-1 rounded-lg hover:bg-[#1A1D1D] cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
+      <Sheet
+        open={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        size="sm"
+        title="Confirm Subscription"
+        footer={
+          <div className="flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsCheckoutOpen(false)}
+              className="px-4 py-3 min-h-[44px] rounded-full border border-[#232628] bg-[#141617] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-semibold cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={startCheckout}
+              disabled={processing}
+              className="px-6 py-3 min-h-[44px] rounded-full bg-[#1A1D1D] hover:bg-[#27272A] border border-[#2D3135] text-[#F5F7F6] text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {processing && <Loader2 className="w-4 h-4 animate-spin text-[#F5F7F6]" />}
+              <span>{processing ? 'Redirecting to checkout…' : 'Continue to Checkout ($4.99)'}</span>
+            </button>
+          </div>
+        }
+      >
             {/* Plan Summary */}
-            <div className="p-4 rounded-xl bg-[#141617] border border-[#232628] flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-[#141617] border border-[#232628] flex items-center justify-between mt-1">
               <div>
                 <h3 className="font-bold text-[#F5F7F6] text-base">SubHalt</h3>
                 <p className="text-xs text-[#94A3B8]">Monthly Billing</p>
@@ -275,35 +278,14 @@ function PlansContent() {
             </div>
 
             {/* Secure Checkout Note */}
-            <div className="p-3.5 rounded-xl bg-[#141617] border border-[#232628] flex items-center gap-3">
+            <div className="p-3.5 rounded-xl bg-[#141617] border border-[#232628] flex items-center gap-3 mt-4">
               <ShieldCheck className="w-4 h-4 text-[#14B8A6] shrink-0" />
               <span className="text-xs text-[#94A3B8]">
                 You&apos;ll be redirected to Paystack&apos;s secure checkout to complete your
                 $4.99 payment. Your upgrade is applied automatically on confirmation.
               </span>
             </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsCheckoutOpen(false)}
-                className="px-4 py-2.5 rounded-full border border-[#232628] bg-[#141617] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={startCheckout}
-                disabled={processing}
-                className="px-6 py-2.5 rounded-full bg-[#1A1D1D] hover:bg-[#27272A] border border-[#2D3135] text-[#F5F7F6] text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {processing && <Loader2 className="w-4 h-4 animate-spin text-[#F5F7F6]" />}
-                <span>{processing ? 'Redirecting to checkout…' : 'Continue to Checkout ($4.99)'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Sheet>
     </div>
   );
 }

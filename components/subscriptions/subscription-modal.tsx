@@ -79,17 +79,6 @@ export default function SubscriptionModal({
   const [prevInitialData, setPrevInitialData] = useState(initialData);
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
   if (isOpen !== prevIsOpen || initialData !== prevInitialData) {
     setPrevIsOpen(isOpen);
     setPrevInitialData(initialData);
@@ -129,8 +118,6 @@ export default function SubscriptionModal({
     }
     setFieldErrors({});
   }
-
-  if (!isOpen) return null;
 
   const handleNameChange = (val: string) => {
     setName(val);

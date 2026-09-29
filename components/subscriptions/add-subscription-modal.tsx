@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Forward, Link2, Sparkles, PlusCircle, ArrowRight } from 'lucide-react';
+import { Forward, Sparkles, PlusCircle, ArrowRight } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
 import { EmailForwardingModal } from '@/components/integrations/email-forwarding-modal';

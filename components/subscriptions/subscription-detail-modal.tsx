@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, DollarSign, FileText, Clock, Link2, Globe, Users, ExternalLink } from 'lucide-react';
+import { Calendar, DollarSign, FileText, Clock, Globe, Users, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow,
@@ -52,18 +52,7 @@ export default function SubscriptionDetailModal({
 }: SubscriptionDetailModalProps) {
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (isOpen && subscription) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, subscription]);
-
-  if (!isOpen || !subscription) return null;
+  if (!subscription) return null;
 
   const priceNum = Number(subscription.price) || 0;
   const formattedPrice = formatCurrency(priceNum, subscription.currency);

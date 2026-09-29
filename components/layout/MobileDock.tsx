@@ -38,11 +38,10 @@ export function MobileDock({ onOpenMore, moreOpen = false }: MobileDockProps) {
     <nav
       aria-label="Primary"
       data-mobile-dock=""
-      // Sits below every overlay. The modals that have not yet moved onto
-      // `components/ui/sheet.tsx` render at z-50, so the dock must stay under
-      // that until the migration in Phase 5 is complete; this value moves to
-      // z-60 once every overlay shares one primitive.
-      className={`fixed inset-x-0 bottom-0 z-40 lg:hidden transition-transform duration-300 ease-out ${
+      // Sits below every overlay. `components/ui/sheet.tsx` is the only
+      // overlay primitive now and renders at z-70, so the dock can sit at
+      // z-60 without painting over any dialog.
+      className={`fixed inset-x-0 bottom-0 z-60 lg:hidden transition-transform duration-300 ease-out ${
         collapsed || overlayOpen ? 'translate-y-full' : 'translate-y-0'
       }`}
     >
