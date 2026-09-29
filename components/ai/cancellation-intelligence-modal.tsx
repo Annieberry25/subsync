@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, ExternalLink, Calendar, ShieldAlert, CheckCircle, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { ExternalLink, Calendar, CheckCircle, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import {
   getKnownProviderManagementUrl,
   updateSubscription,
@@ -11,6 +11,7 @@ import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { formatCurrency, getNormalizedMonthlyPrice } from '@/lib/utils/metrics-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useInbox } from '@/lib/contexts/inbox-context';
+import Sheet from '@/components/ui/sheet';
 
 interface CancellationIntelligenceModalProps {
   isOpen: boolean;
@@ -72,41 +73,15 @@ export function CancellationIntelligenceModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Cancellation intelligence"
-        className="w-full max-w-lg bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden"
-      >
-        {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-[#1A1D1D] flex items-center justify-between bg-[#000000]">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-[#14B8A6]/10 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6]">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[#F5F7F6] tracking-tight">
-                Cancellation Intelligence
-              </h3>
-              <p className="text-[11px] text-[#94A3B8]">
-                {subscription.name} Guidance & Route
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close modal"
-            className="w-8 h-8 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors flex items-center justify-center cursor-pointer"
-          >
-            <X className="w-4.5 h-4.5" />
-          </button>
-        </div>
-
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="md"
+      title="Cancellation Intelligence"
+      description={`${subscription.name} Guidance & Route`}
+    >
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="space-y-5 pt-1">
           {/* Key Metrics / Savings Banner */}
           <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-[#121414] border border-[#1A1D1D]">
             <div>
@@ -163,7 +138,7 @@ export function CancellationIntelligenceModal({
                 type="button"
                 onClick={() => handleUpdateStatus('paused')}
                 disabled={updating}
-                className="px-3.5 py-2.5 rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] border border-[#3F3F46]/40 text-xs font-medium transition-colors cursor-pointer"
+                className="px-3.5 py-3 min-h-[44px] rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] border border-[#3F3F46]/40 text-xs font-medium transition-colors cursor-pointer"
               >
                 Mark as Paused
               </button>
@@ -171,7 +146,7 @@ export function CancellationIntelligenceModal({
                 type="button"
                 onClick={() => handleUpdateStatus('canceled')}
                 disabled={updating}
-                className="px-3.5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
+                className="px-3.5 py-3 min-h-[44px] rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
                 {updating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>Confirm Canceled</span>
@@ -179,7 +154,6 @@ export function CancellationIntelligenceModal({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

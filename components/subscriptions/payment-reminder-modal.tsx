@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Bell, Check } from 'lucide-react';
+import { useState } from 'react';
+import { Check } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
+import Sheet from '@/components/ui/sheet';
 
 interface PaymentReminderModalProps {
   isOpen: boolean;
@@ -29,7 +29,7 @@ const methodChoices: { id: MethodOption; label: string }[] = [
   { id: 'both', label: 'Email + Toast' },
 ];
 
-const emptySubscribe = () => () => {};
+const REMINDER_FORM_ID = 'payment-reminder-form';
 
 export default function PaymentReminderModal({
   isOpen,
@@ -39,7 +39,6 @@ export default function PaymentReminderModal({
 }: PaymentReminderModalProps) {
   const { toast } = useToast();
 
-  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [timing, setTiming] = useState<TimingOption>('3_days');
   const [customDate, setCustomDate] = useState('');
   const [method, setMethod] = useState<MethodOption>('both');
@@ -58,20 +57,6 @@ export default function PaymentReminderModal({
     setPrevIsOpen(false);
   }
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
-
-  if (!isOpen || !mounted) return null;
-
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -89,45 +74,35 @@ export default function PaymentReminderModal({
     onClose();
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="reminder-modal-title"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-[480px] bg-[#0F1111] border border-[#1A1D1D] rounded-t-[24px] sm:rounded-[20px] p-5 sm:p-6 space-y-4 sm:space-y-5 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col overflow-y-auto animate-in slide-in-from-bottom duration-200 sm:animate-in sm:zoom-in-95"
-      >
-        {/* Modal Header */}
-        <div className="flex items-start justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center shrink-0">
-                <Bell className="w-4 h-4 text-[#94A3B8]" />
-              </div>
-              <h2 id="reminder-modal-title" className="text-lg font-bold text-[#F5F7F6] tracking-tight">
-                Payment Reminder
-              </h2>
-            </div>
-            <p className="text-xs text-[#94A3B8] leading-relaxed">
-              Choose when you&apos;d like to be reminded before renewal.
-            </p>
-          </div>
+  return (
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      placement="bottom"
+      size="sm"
+      title="Payment Reminder"
+      description="Choose when you'd like to be reminded before renewal."
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close modal"
-            className="w-8 h-8 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D] shrink-0 mt-0.5"
+            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl border border-[#1A1D1D] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
           >
-            <X className="w-4 h-4" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={REMINDER_FORM_ID}
+            className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center justify-center"
+          >
+            Save Reminder
           </button>
         </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSave} className="space-y-4">
+      }
+    >
+        {/* Form Body. Actions live in the Sheet footer and submit via `form`. */}
+        <form id={REMINDER_FORM_ID} onSubmit={handleSave} className="space-y-4 pt-1">
           {/* Reminder Timing Section */}
           <div className="space-y-2">
             <label className="text-[13px] font-medium text-[#94A3B8] block">Reminder Timing</label>
@@ -199,25 +174,7 @@ export default function PaymentReminderModal({
             />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-3 border-t border-[#1A1D1D]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl border border-[#1A1D1D] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center justify-center"
-            >
-              Save Reminder
-            </button>
-          </div>
         </form>
-      </div>
-    </div>,
-    document.body
+    </Sheet>
   );
 }
