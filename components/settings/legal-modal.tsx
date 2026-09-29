@@ -1,6 +1,7 @@
 'use client';
 
-import { X, ShieldCheck, FileText } from 'lucide-react';
+import { ShieldCheck, FileText } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 
 interface LegalModalProps {
   isOpen: boolean;
@@ -16,24 +17,30 @@ export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
   const Icon = isPrivacy ? ShieldCheck : FileText;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-2xl bg-[#0F1111] border border-[#1A1D1D] rounded-[24px] overflow-hidden shadow-2xl space-y-0">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-[#1A1D1D] flex items-center justify-between bg-[#0D0F0F]">
-          <div className="flex items-center gap-3">
-            <Icon className="w-5 h-5 text-[#14B8A6]" />
-            <h2 className="text-xl font-bold text-[#F5F7F6] tracking-tight">{title}</h2>
-          </div>
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      title={
+        <span className="flex items-center gap-3">
+          <Icon className="w-5 h-5 text-[#14B8A6]" />
+          {title}
+        </span>
+      }
+      footer={
+        <div className="flex justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer"
+            className="px-5 py-2.5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            Close Document
           </button>
         </div>
-
+      }
+    >
         {/* Content Body */}
-        <div className="p-6 max-h-[60dvh] overflow-y-auto space-y-4 text-xs sm:text-sm text-[#94A3B8] leading-relaxed">
+        <div className="space-y-4 text-xs sm:text-sm text-[#94A3B8] leading-relaxed">
           {isPrivacy ? (
             <>
               <p className="font-medium text-[#F5F7F6]">Last updated: August 2026</p>
@@ -74,17 +81,6 @@ export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
             </>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#1A1D1D] bg-[#0D0F0F] flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
-          >
-            Close Document
-          </button>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

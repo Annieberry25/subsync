@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { CreditCard, X, Loader2 } from 'lucide-react';
+import { CreditCard, Loader2 } from 'lucide-react';
 import { useSettings } from '@/lib/contexts/user-settings-context';
 import { CustomSelect } from '@/components/ui/custom-select';
+import Sheet from '@/components/ui/sheet';
 
 interface AddPaymentModalProps {
   isOpen: boolean;
@@ -50,28 +51,38 @@ export function AddPaymentModal({ isOpen, onClose }: AddPaymentModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-      <div
-        className="w-full max-w-md bg-[#0F1111] border border-[#1A1D1D] rounded-2xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative text-[#F5F7F6]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Top Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-[#1A1D1D]">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-[#F5F7F6]" />
-            <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Add payment method</h2>
-          </div>
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="md"
+      title={
+        <span className="flex items-center gap-2">
+          <CreditCard className="w-5 h-5 text-[#F5F7F6]" />
+          Add payment method
+        </span>
+      }
+      footer={
+        <div className="flex items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="text-[#94A3B8] hover:text-[#F5F7F6] p-1 rounded-lg hover:bg-[#1A1D1D] transition-colors"
-            aria-label="Close modal"
+            className="h-11 px-4 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="add-payment-modal-form"
+            disabled={saving}
+            className="h-11 px-6 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />}
+            <span>Add payment method</span>
           </button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+      }
+    >
+        <form id="add-payment-modal-form" onSubmit={handleSubmit} className="space-y-4 pt-1">
           {/* Card Brand Selector */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[#94A3B8] block">Card type / Brand</label>
@@ -85,7 +96,7 @@ export function AddPaymentModal({ isOpen, onClose }: AddPaymentModalProps) {
               value={brand}
               onChange={(val) => setBrand(val)}
               ariaLabel="Card type / Brand"
-              className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6]"
+              className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6]"
             />
           </div>
 
@@ -98,7 +109,7 @@ export function AddPaymentModal({ isOpen, onClose }: AddPaymentModalProps) {
               value={cardNumber}
               onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
               placeholder="1234 5678 9012 3456"
-              className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors font-mono"
+              className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors font-mono"
             />
           </div>
 
@@ -106,7 +117,7 @@ export function AddPaymentModal({ isOpen, onClose }: AddPaymentModalProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-[#94A3B8] block">Expires (MM/YY)</label>
-              <div className="flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-[#1A1D1D] bg-[#0D0F0F]">
+              <div className="flex items-center gap-1.5 h-11 px-3.5 rounded-xl border border-[#1A1D1D] bg-[#0D0F0F]">
                 <input
                   type="text"
                   required
@@ -138,7 +149,7 @@ export function AddPaymentModal({ isOpen, onClose }: AddPaymentModalProps) {
                 value={cvc}
                 onChange={(e) => setCvc(e.target.value)}
                 placeholder="•••"
-                className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />
             </div>
           </div>
@@ -157,26 +168,7 @@ export function AddPaymentModal({ isOpen, onClose }: AddPaymentModalProps) {
             </label>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-10 px-4 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-10 px-6 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />}
-              <span>Add payment method</span>
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Sheet>
   );
 }

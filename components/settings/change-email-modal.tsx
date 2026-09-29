@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Lock, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, X, KeyRound } from 'lucide-react';
+import { Mail, Lock, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, KeyRound } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { useAuth } from '@/lib/contexts/user-settings-context';
 
 interface ChangeEmailModalProps {
@@ -84,36 +85,89 @@ export function ChangeEmailModal({ isOpen, onClose }: ChangeEmailModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-      <div
-        className="w-full max-w-md bg-[#0F1111] border border-[#1A1D1D] rounded-2xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative text-[#F5F7F6]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={handleResetAndClose}
-          className="absolute top-4 right-4 text-[#94A3B8] hover:text-[#F5F7F6] p-1 rounded-lg hover:bg-[#1A1D1D] transition-colors"
-          aria-label="Close dialog"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Modal Header */}
-        <div className="space-y-1 pr-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6]">
-              <Mail className="w-4 h-4" />
-            </div>
-            <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Change Email Address</h2>
+    <Sheet
+      open={isOpen}
+      onClose={handleResetAndClose}
+      size="md"
+      title={
+        <span className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] shrink-0">
+            <Mail className="w-4 h-4" />
+          </span>
+          Change Email Address
+        </span>
+      }
+      description={
+        <>
+          {step === 1 && 'Step 1 of 2: Re-authenticate your account'}
+          {step === 2 && 'Step 2 of 2: Enter your new email address'}
+          {step === 3 && 'Verification email dispatched'}
+        </>
+      }
+      footer={
+        step === 1 ? (
+          <div className="flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={handleResetAndClose}
+              className="h-11 px-4 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="change-email-step1-form"
+              className="h-11 px-5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Continue
+            </button>
           </div>
-          <p className="text-xs text-[#94A3B8]">
-            {step === 1 && 'Step 1 of 2: Re-authenticate your account'}
-            {step === 2 && 'Step 2 of 2: Enter your new email address'}
-            {step === 3 && 'Verification email dispatched'}
-          </p>
-        </div>
-
+        ) : step === 2 ? (
+          <div className="flex items-center justify-between gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setStep(1);
+              }}
+              disabled={loading}
+              className="h-11 px-3 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors disabled:opacity-50"
+            >
+              Back
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetAndClose}
+                disabled={loading}
+                className="h-11 px-4 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="change-email-step2-form"
+                disabled={loading}
+                className="h-11 px-5 rounded-xl bg-[#14B8A6] hover:opacity-90 disabled:opacity-50 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />}
+                <span>Send Verification Email</span>
+              </button>
+            </div>
+          </div>
+        ) : step === 3 ? (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleResetAndClose}
+              className="h-11 px-6 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Done
+            </button>
+          </div>
+        ) : null
+      }
+    >
         {/* Error Notification Banner */}
         {error && (
           <div className="p-3 rounded-xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-start gap-2 text-[#D9363E] text-xs leading-relaxed">
@@ -124,7 +178,7 @@ export function ChangeEmailModal({ isOpen, onClose }: ChangeEmailModalProps) {
 
         {/* Step 1: Re-authentication Form */}
         {step === 1 && (
-          <form onSubmit={handleStep1Submit} className="space-y-4">
+          <form id="change-email-step1-form" onSubmit={handleStep1Submit} className="space-y-4">
             <div className="p-3 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center gap-2.5 text-xs text-[#94A3B8]">
               <KeyRound className="w-4 h-4 text-[#14B8A6] shrink-0" />
               <span>For security, please enter your current password to authorize this email update.</span>
@@ -143,7 +197,7 @@ export function ChangeEmailModal({ isOpen, onClose }: ChangeEmailModalProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   autoFocus
-                  className="w-full h-10 pl-10 pr-10 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                  className="w-full h-11 pl-10 pr-10 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 />
                 <button
                   type="button"
@@ -156,34 +210,19 @@ export function ChangeEmailModal({ isOpen, onClose }: ChangeEmailModalProps) {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={handleResetAndClose}
-                className="h-9 px-4 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="h-9 px-5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Continue
-              </button>
-            </div>
           </form>
         )}
 
         {/* Step 2: Enter New Email */}
         {step === 2 && (
-          <form onSubmit={handleStep2Submit} className="space-y-4">
+          <form id="change-email-step2-form" onSubmit={handleStep2Submit} className="space-y-4">
             <div className="space-y-1">
               <label className="text-[12px] font-medium text-[#94A3B8] block">Current Email</label>
               <input
                 type="email"
                 disabled
                 value={currentEmail}
-                className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F]/60 text-[#94A3B8] cursor-not-allowed"
+                className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F]/60 text-[#94A3B8] cursor-not-allowed"
               />
             </div>
 
@@ -200,42 +239,11 @@ export function ChangeEmailModal({ isOpen, onClose }: ChangeEmailModalProps) {
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="newemail@example.com"
                   autoFocus
-                  className="w-full h-10 pl-10 pr-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                  className="w-full h-11 pl-10 pr-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setStep(1);
-                }}
-                disabled={loading}
-                className="h-9 px-3 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors disabled:opacity-50"
-              >
-                Back
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleResetAndClose}
-                  disabled={loading}
-                  className="h-9 px-4 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="h-9 px-5 rounded-xl bg-[#14B8A6] hover:opacity-90 disabled:opacity-50 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
-                >
-                  {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />}
-                  <span>Send Verification Email</span>
-                </button>
-              </div>
-            </div>
           </form>
         )}
 
@@ -256,18 +264,8 @@ export function ChangeEmailModal({ isOpen, onClose }: ChangeEmailModalProps) {
               Your account email will remain <span className="text-[#F5F7F6] font-medium">{currentEmail}</span> until the new address is verified.
             </div>
 
-            <div className="flex justify-end pt-1">
-              <button
-                type="button"
-                onClick={handleResetAndClose}
-                className="h-9 px-6 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Done
-              </button>
-            </div>
           </div>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }

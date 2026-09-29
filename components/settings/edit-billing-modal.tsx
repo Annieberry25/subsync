@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useSettings, type BillingDetails } from '@/lib/contexts/user-settings-context';
 import { CustomSelect } from '@/components/ui/custom-select';
+import Sheet from '@/components/ui/sheet';
 
 interface EditBillingModalProps {
   isOpen: boolean;
@@ -64,25 +65,33 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-      <div
-        className="w-full max-w-lg bg-[#0F1111] border border-[#1A1D1D] rounded-2xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-200 relative text-[#F5F7F6] max-h-[90dvh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Top Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-[#1A1D1D]">
-          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Edit billing information</h2>
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="md"
+      title="Edit billing information"
+      footer={
+        <div className="flex items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="text-[#94A3B8] hover:text-[#F5F7F6] p-1 rounded-lg hover:bg-[#1A1D1D] transition-colors"
-            aria-label="Close modal"
+            className="h-11 px-4 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="edit-billing-modal-form"
+            disabled={saving}
+            className="h-11 px-6 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />}
+            <span>Save</span>
           </button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+      }
+    >
+        <form id="edit-billing-modal-form" onSubmit={handleSubmit} className="space-y-4 pt-1">
           {/* Billing email */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-[#94A3B8] block">Billing email</label>
@@ -92,7 +101,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="you@example.com"
-              className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+              className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
 
@@ -105,7 +114,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               placeholder="Your full name"
-              className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+              className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
 
@@ -117,7 +126,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
               value={formData.country}
               onChange={(val) => setFormData({ ...formData, country: val })}
               ariaLabel="Country or region"
-              className="w-full h-10 min-h-0 py-0 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6]"
+              className="w-full h-11 min-h-0 py-0 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6]"
             />
           </div>
 
@@ -130,7 +139,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
               value={formData.addressLine1}
               onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
               placeholder="Umuchima, Ihiagwa, Owerri."
-              className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+              className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
 
@@ -142,7 +151,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
               value={formData.addressLine2 || ''}
               onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
               placeholder="Suite, apartment, unit, etc. (optional)"
-              className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+              className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
 
@@ -155,7 +164,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
               placeholder="Owerri"
-              className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+              className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
 
@@ -168,7 +177,7 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
                 value={formData.stateProvince || ''}
                 onChange={(e) => setFormData({ ...formData, stateProvince: e.target.value })}
                 placeholder="Imo"
-                className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />
             </div>
 
@@ -179,31 +188,12 @@ export function EditBillingModal({ isOpen, onClose }: EditBillingModalProps) {
                 value={formData.postalCode || ''}
                 onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                 placeholder="460106"
-                className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
               />
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-10 px-4 text-xs font-semibold rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-10 px-6 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {saving && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />}
-              <span>Save</span>
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Sheet>
   );
 }
