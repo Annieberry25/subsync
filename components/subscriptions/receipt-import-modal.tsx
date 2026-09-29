@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Upload, CheckCircle2, Sparkles, ArrowLeft, AlertCircle, FileSearch } from 'lucide-react';
+import { Upload, CheckCircle2, Sparkles, ArrowLeft, AlertCircle, FileSearch } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { ACCEPT_ATTRIBUTE, TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
 
@@ -130,58 +131,58 @@ export default function ReceiptImportModal({
   })();
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="receipt-modal-title"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[560px] bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90dvh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
-      >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
-          <div className="flex items-center gap-3">
-            {(onBack || onCancel) && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (reviewData) {
-                    setReviewData(null);
-                  } else if (onBack) {
-                    onBack();
-                  } else if (onCancel) {
-                    onCancel();
-                  }
-                }}
-                aria-label="Go back"
-                className="w-8 h-8 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            <div>
-              <h2 id="receipt-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">
-                Import Subscription Receipt
-              </h2>
-              <p className="text-xs text-[#94A3B8] mt-0.5">Extract provider details from receipt files or text confirmation</p>
-            </div>
-          </div>
-
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="md"
+      title="Import Subscription Receipt"
+      description="Extract provider details from receipt files or text confirmation"
+      headerAction={
+        (onBack || onCancel) ? (
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Close modal"
-            className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
+            onClick={() => {
+              if (reviewData) {
+                setReviewData(null);
+              } else if (onBack) {
+                onBack();
+              } else if (onCancel) {
+                onCancel();
+              }
+            }}
+            aria-label="Go back"
+            className="w-11 h-11 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
           >
-            <X className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="space-y-4 overflow-y-auto pr-1 flex-1 no-scrollbar">
+        ) : null
+      }
+      /* Primary action is pinned so it stays reachable while the form scrolls. */
+      footer={
+        !reviewData ? (
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            disabled={isAnalyzeDisabled}
+            className="w-full sm:w-auto px-5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Sparkles className="w-4 h-4 text-[#091512]" />
+            <span>{scan.isScanning ? 'Reading receipt…' : 'Extract Receipt Info'}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleConfirmExtracted}
+            className="w-full sm:w-auto px-6 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+          >
+            <CheckCircle2 className="w-4 h-4 text-[#091512]" />
+            <span>Confirm & Populate Form</span>
+          </button>
+        )
+      }
+    >
+        {/* Content Body. The Sheet body owns the scroll. */}
+        <div className="space-y-4 pt-1">
           {!reviewData ? (
             <>
               {/* Step 1: Upload or Paste Receipt */}
@@ -403,31 +404,6 @@ export default function ReceiptImportModal({
             </div>
           )}
         </div>
-
-        {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1A1D1D] shrink-0">
-          {!reviewData ? (
-            <button
-              type="button"
-              onClick={handleAnalyze}
-              disabled={isAnalyzeDisabled}
-              className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Sparkles className="w-4 h-4 text-[#091512]" />
-              <span>{scan.isScanning ? 'Reading receipt…' : 'Extract Receipt Info'}</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleConfirmExtracted}
-              className="px-6 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
-            >
-              <CheckCircle2 className="w-4 h-4 text-[#091512]" />
-              <span>Confirm & Populate Form</span>
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

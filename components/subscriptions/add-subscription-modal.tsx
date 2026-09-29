@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Mail, Forward, Link2, Sparkles, PlusCircle, ArrowRight } from 'lucide-react';
+import { Mail, Forward, Link2, Sparkles, PlusCircle, ArrowRight } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
 import { EmailForwardingModal } from '@/components/integrations/email-forwarding-modal';
 import LinkSubscriptionModal from './link-subscription-modal';
@@ -104,41 +105,15 @@ export default function AddSubscriptionModal({
 
   return (
     <>
-      {isOpen && activeSubModal === 'none' && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-          onClick={onClose}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-sub-title"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-xl bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[85dvh] sm:max-h-[80dvh] overflow-hidden"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0 mb-2">
-              <div>
-                <h2 id="add-sub-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">
-                  Add Subscription
-                </h2>
-                <p className="text-xs sm:text-sm text-[#94A3B8] mt-0.5">
-                  Choose how you want to add a subscription to SubHalt.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close modal"
-                className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Five Options Menu (Vertically Scrollable Text-Based Menu) */}
-            <div className="overflow-y-auto pr-1.5 sm:pr-2.5 flex-1 custom-scrollbar divide-y divide-[#1A1D1D]/50">
+      <Sheet
+        open={isOpen && activeSubModal === 'none'}
+        onClose={onClose}
+        size="md"
+        title="Add Subscription"
+        description="Choose how you want to add a subscription to SubHalt."
+      >
+            {/* Five Options Menu. The Sheet body owns the scroll. */}
+            <div className="pt-1 divide-y divide-[#1A1D1D]/50">
               {/* Option 1: Connect Gmail */}
               <button
                 type="button"
@@ -233,9 +208,7 @@ export default function AddSubscriptionModal({
                 </p>
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Sheet>
 
       {/* Sub-flow Modals */}
       <GmailConnectModal

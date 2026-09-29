@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Search, ShieldCheck, ExternalLink, ArrowLeft, Link2, CheckCircle2 } from 'lucide-react';
+import { Search, ShieldCheck, ExternalLink, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { getKnownProviderWebsite, getKnownProviderManagementUrl } from '@/lib/services/subscription-service';
 import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
@@ -112,65 +113,29 @@ export default function LinkSubscriptionModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="link-modal-title"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xl bg-[#0F1111] border border-[#1A1D1D] rounded-2xl sm:rounded-3xl p-5 sm:p-7 space-y-5 max-h-[90dvh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
-      >
-        {/* Header (Exact Match to User Screenshot) */}
-        <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-4 shrink-0">
-          <div className="flex items-center gap-3">
-            {step !== 'select' ? (
-              <button
-                type="button"
-                onClick={() => setStep('select')}
-                aria-label="Back to provider list"
-                className="w-8 h-8 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            ) : (
-              onBack && (
-                <button
-                  type="button"
-                  onClick={onBack}
-                  aria-label="Back to Add Subscription menu"
-                  className="w-8 h-8 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </button>
-              )
-            )}
-            <div>
-              <h2 id="link-modal-title" className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight flex items-center gap-2">
-                <Link2 className="w-5 h-5 text-[#94A3B8]" />
-                <span>Manage External Subscription</span>
-              </h2>
-              <p className="text-xs text-[#94A3B8] mt-0.5">
-                Access official provider pages to manage your subscriptions directly.
-              </p>
-            </div>
-          </div>
-
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="md"
+      title="Manage External Subscription"
+      description="Access official provider pages to manage your subscriptions directly."
+      headerAction={
+        (step !== 'select' || onBack) ? (
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Close modal"
-            className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
+            onClick={() => (step !== 'select' ? setStep('select') : onBack?.())}
+            aria-label={step !== 'select' ? 'Back to provider list' : 'Back to Add Subscription menu'}
+            className="w-11 h-11 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
           >
-            <X className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
-        </div>
-
-        {/* STEP 1: SELECT PROVIDER */}
+        ) : null
+      }
+    >
+        {/* STEP 1: SELECT PROVIDER. The Sheet body owns the scroll, so the
+            steps must not declare their own overflow containers. */}
         {step === 'select' && (
-          <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+          <div className="space-y-4 pt-1">
             {/* Search Input */}
             <div className="space-y-1.5">
               <label className="text-[12px] font-medium text-[#94A3B8] block">Search Provider or Service</label>
@@ -251,7 +216,7 @@ export default function LinkSubscriptionModal({
 
         {/* STEP 2: PROVIDER DIRECT MANAGEMENT SCREEN (Exact Match to User Screenshot) */}
         {step === 'manage' && (
-          <div className="space-y-5 overflow-y-auto pr-1 flex-1 text-center py-4">
+          <div className="space-y-5 text-center py-4">
             <div className="space-y-1.5 max-w-sm mx-auto">
               <h3 className="text-lg font-bold text-[#F5F7F6]">
                 Manage {activeName} Subscription
@@ -284,7 +249,7 @@ export default function LinkSubscriptionModal({
 
         {/* STEP 3: CONFIRMATION STATE (Triggered AFTER user clicks Open Provider) */}
         {step === 'confirm_subscribed' && (
-          <div className="space-y-5 overflow-y-auto pr-1 flex-1 text-center py-4">
+          <div className="space-y-5 text-center py-4">
             <div className="space-y-1.5 max-w-sm mx-auto">
               <h3 className="text-lg font-bold text-[#F5F7F6]">
                 Did you just subscribe?
@@ -317,7 +282,7 @@ export default function LinkSubscriptionModal({
 
         {/* STEP 4: NO EXISTING ACTIVE SUBSCRIPTION FOUND */}
         {step === 'no_existing' && (
-          <div className="space-y-5 overflow-y-auto pr-1 flex-1 text-center py-4">
+          <div className="space-y-5 text-center py-4">
             <div className="space-y-1.5 max-w-sm mx-auto">
               <h3 className="text-lg font-bold text-[#F5F7F6]">
                 No Active {activeName} Subscription
@@ -350,7 +315,6 @@ export default function LinkSubscriptionModal({
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }
