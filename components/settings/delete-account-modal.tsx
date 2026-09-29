@@ -3,6 +3,7 @@ import { clearLocalStorage } from '@/lib/safe-local-storage';
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import Sheet from '@/components/ui/sheet';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -16,8 +17,6 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const handleClose = () => {
     if (loading) return;
@@ -83,55 +82,14 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
-      onClick={handleClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-account-title"
-      aria-describedby="delete-account-desc"
-    >
-      <div
-        className="w-full max-w-md bg-[#0F1111] border border-[#1A1D1D] rounded-[20px] p-6 space-y-5 text-[#F5F7F6]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="space-y-1">
-          <h2 id="delete-account-title" className="text-lg font-bold text-[#D9363E] tracking-tight">
-            Delete Account
-          </h2>
-          <p id="delete-account-desc" className="text-xs text-[#94A3B8] leading-relaxed">
-            This action is permanent. All subscriptions, bills, and settings will be erased. Please enter your password to confirm.
-          </p>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="p-3 rounded-xl bg-[#D9363E]/10 border border-[#D9363E]/20 text-[#D9363E] text-xs leading-relaxed">
-            {error}
-          </div>
-        )}
-
-        {/* Password */}
-        <div className="space-y-1.5">
-          <label htmlFor="delete-password" className="text-[12px] font-medium text-[#94A3B8] block">
-            Current Password
-          </label>
-          <input
-            id="delete-password"
-            type={showPassword ? 'text' : 'password'}
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••••••"
-            autoFocus
-            disabled={loading}
-            className="w-full h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#D9363E] transition-colors disabled:opacity-50"
-          />
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-1">
+    <Sheet
+      open={isOpen}
+      onClose={handleClose}
+      size="sm"
+      title={<span className="text-[#D9363E]">Delete Account</span>}
+      description="This action is permanent. All subscriptions, bills, and settings will be erased. Please enter your password to confirm."
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
             type="button"
             onClick={handleClose}
@@ -150,7 +108,37 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
             <span>{loading ? 'Deleting…' : 'Delete My Account'}</span>
           </button>
         </div>
+      }
+    >
+      <div className="space-y-4 pt-1">
+        {/* Error */}
+        {error && (
+          <div className="p-3 rounded-xl bg-[#D9363E]/10 border border-[#D9363E]/20 text-[#D9363E] text-xs leading-relaxed">
+            {error}
+          </div>
+        )}
+
+        {/* Password. `data-sheet-autofocus` focuses it once the entrance
+            animation has started, which is also what scrolls it clear of the
+            on-screen keyboard on a phone. */}
+        <div className="space-y-1.5">
+          <label htmlFor="delete-password" className="text-[12px] font-medium text-[#94A3B8] block">
+            Current Password
+          </label>
+          <input
+            id="delete-password"
+            data-sheet-autofocus=""
+            type={showPassword ? 'text' : 'password'}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••••••"
+            autoComplete="current-password"
+            disabled={loading}
+            className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#D9363E] transition-colors disabled:opacity-50"
+          />
+        </div>
       </div>
-    </div>
+    </Sheet>
   );
 }

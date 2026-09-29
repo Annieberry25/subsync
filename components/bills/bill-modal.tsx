@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Check, ShieldCheck, Link as LinkIcon, Paperclip, AlertCircle, Building2, Globe, MapPin, Tag } from 'lucide-react';
+import { Check, ShieldCheck, Link as LinkIcon, Paperclip, AlertCircle, Building2, Globe, MapPin, Tag } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import type { BillPayment, BillFrequency, StandardBillCategory, VerifiedProvider } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { searchVerifiedProviders, getVerifiedProvider } from '@/lib/constants/verified-providers';
 import { useCurrency } from '@/lib/contexts/user-settings-context';
 import ProviderLogo from './provider-logo';
+
+const BILL_FORM_ID = 'bill-modal-form';
 
 interface BillModalProps {
   isOpen: boolean;
@@ -147,8 +150,6 @@ export default function BillModal({
     }
   }
 
-  if (!isOpen) return null;
-
   const handleSelectSuggestion = (sug: VerifiedProvider) => {
     setProviderName(sug.name);
     setCategory(sug.category);
@@ -210,36 +211,42 @@ export default function BillModal({
   };
 
   return (
-<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Record or edit a bill"
-        className="relative w-full max-w-2xl bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl shadow-2xl overflow-hidden my-8"
-      >
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-[#161F1D] flex items-center justify-between bg-[#0B0F0D]">
-          <div>
-            <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-[#14B8A6]" />
-              {initialData ? 'Edit Bill / Payment' : 'Record New Bill or Payment'}
-            </h2>
-            <p className="text-xs text-[#94A3B8] mt-0.5">
-              Keep track of recurring utilities, one-off charges, or custom service payments.
-            </p>
-          </div>
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      title={initialData ? 'Edit Bill / Payment' : 'Record New Bill or Payment'}
+      description="Keep track of recurring utilities, one-off charges, or custom service payments."
+      footer={
+        <div className="flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close modal"
-            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+            className="px-4 py-3 min-h-[44px] rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={BILL_FORM_ID}
+            disabled={submitting}
+            className="px-5 py-3 min-h-[44px] rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {submitting ? (
+              <span>Saving...</span>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                <span>{initialData ? 'Update Record' : 'Save Payment'}</span>
+              </>
+            )}
           </button>
         </div>
-
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80dvh] overflow-y-auto">
+      }
+    >
+      {/* Body. Scrolls inside the Sheet; the actions live in its footer and
+          submit through the form id. */}
+      <form id={BILL_FORM_ID} onSubmit={handleSubmit} className="space-y-5 pt-1">
           {errorMsg && (
             <div id="bill-error" className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -529,32 +536,7 @@ onChange={(e) => setStatus(e.target.value as 'paid' | 'pending' | 'overdue')}
             />
           </div>
 
-          {/* Footer Buttons */}
-          <div className="pt-3 border-t border-[#161F1D] flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {submitting ? (
-                <span>Saving...</span>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>{initialData ? 'Update Record' : 'Save Payment'}</span>
-                </>
-              )}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Sheet>
   );
 }

@@ -54,9 +54,11 @@ describe('BillModal', () => {
 
   it('shows a validation error and does not call onSave when provider name is missing', () => {
     const onSave = vi.fn();
-    const { container } = render(<BillModal isOpen onClose={vi.fn()} onSave={onSave} />);
+    render(<BillModal isOpen onClose={vi.fn()} onSave={onSave} />);
 
-    fireEvent.submit(container.querySelector('form') as HTMLFormElement);
+    // The Sheet renders through a portal, so the form is in `document.body`
+    // rather than the render container. Query it by id instead.
+    fireEvent.submit(document.getElementById('bill-modal-form') as HTMLFormElement);
 
     expect(screen.getByText('Please enter a provider or merchant name.')).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
