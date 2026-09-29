@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Upload, CheckCircle2, Sparkles, AlertCircle, Edit3, ArrowRight, FileSearch } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import type { ExtractedBillReceiptData } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
@@ -46,6 +47,7 @@ export default function ReceiptScanModal(props: ReceiptScanModalProps) {
 }
 
 function ReceiptScanModalBody({
+  isOpen,
   onClose,
   onConfirm,
 }: ReceiptScanModalProps) {
@@ -139,32 +141,55 @@ function ReceiptScanModalBody({
   const sourceLabel = scan.result ? TEXT_SOURCE_LABEL[scan.result.textSource] : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-[#090C0B] border border-[#161F1D] rounded-2xl shadow-2xl overflow-hidden my-8">
-        {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-[#161F1D] flex items-center justify-between bg-[#0B0F0D]">
-          <div>
-            <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-[#14B8A6]" />
-              {step === 'upload' ? 'Scan Bill or Receipt' : "Here's What We Found"}
-            </h2>
-            <p className="text-xs text-[#94A3B8] mt-0.5">
-              {step === 'upload'
-                ? 'Upload an invoice, screenshot, or paste receipt text to automatically extract details.'
-                : 'Inspect and confirm the extracted values before permanently saving.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      title={
+        <span className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-[#14B8A6]" />
+          {step === 'upload' ? 'Scan Bill or Receipt' : "Here's What We Found"}
+        </span>
+      }
+      description={
+        step === 'upload'
+          ? 'Upload an invoice, screenshot, or paste receipt text to automatically extract details.'
+          : 'Inspect and confirm the extracted values before permanently saving.'
+      }
+      footer={
+        step === 'confirm' ? (
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setStep('upload')}
+              className="px-3.5 py-2 min-h-[44px] rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Re-scan File</span>
+            </button>
 
-        {/* Modal Body */}
-        <div className="p-6 space-y-5">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 min-h-[44px] rounded-xl text-xs text-[#94A3B8] hover:text-[#F5F7F6]"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveConfirmed}
+                className="px-5 py-2.5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirm & Save</span>
+              </button>
+            </div>
+          </div>
+        ) : null
+      }
+    >
+        <div className="space-y-5">
           {scanError && (
             <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-red-400 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -411,40 +436,9 @@ function ReceiptScanModalBody({
                   />
                 </div>
               </div>
-
-              {/* Footer Confirmation Buttons */}
-              <div className="pt-3 border-t border-[#161F1D] flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setStep('upload')}
-                  className="px-3.5 py-2 rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Re-scan File</span>
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-4 py-2 rounded-xl text-xs text-[#94A3B8] hover:text-[#F5F7F6]"
-                  >
-                    Discard
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveConfirmed}
-                    className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Confirm & Save</span>
-                  </button>
-                </div>
-              </div>
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

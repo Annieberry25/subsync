@@ -7,6 +7,7 @@ import {
   Receipt, 
   AlertCircle,
 } from 'lucide-react';
+import Sheet from '@/components/ui/sheet';
 import type { BillPayment, ExtractedBillReceiptData } from '@/lib/types/bills.types';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
 import { storeReceiptFile, attachReceiptMetadata } from '@/lib/services/receipt-storage';
@@ -317,39 +318,36 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
       />
 
       {/* Free Plan Limit Reached Warning Modal */}
-      {showLimitWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#090C0B] border border-[#161F1D] rounded-2xl p-6 shadow-2xl text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
-              <AlertCircle className="w-6 h-6" />
-            </div>
-
-            <div>
-              <h3 className="text-base font-bold text-[#F5F7F6]">Bill Record Limit Reached</h3>
-              <p className="text-xs text-[#94A3B8] mt-1.5 leading-relaxed">
-                Free plan users can record up to {limits.maxBills} bills & payments. Upgrade to SubHalt Plus for higher limits and receipt scanning.
-              </p>
-            </div>
-
-            <div className="pt-2 flex items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setShowLimitWarning(false)}
-                className="px-4 py-2.5 rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6]"
-              >
-                Dismiss
-              </button>
-              <Link
-                href="/plans"
-                onClick={() => setShowLimitWarning(false)}
-                className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md"
-              >
-                Upgrade Plan
-              </Link>
-            </div>
+      <Sheet
+        open={showLimitWarning}
+        onClose={() => setShowLimitWarning(false)}
+        size="sm"
+        title="Bill Record Limit Reached"
+        description={`Free plan users can record up to ${limits.maxBills} bills & payments. Upgrade to SubHalt Plus for higher limits and receipt scanning.`}
+        headerAction={
+          <span className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <AlertCircle className="w-6 h-6" />
+          </span>
+        }
+        footer={
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowLimitWarning(false)}
+              className="px-4 py-2.5 min-h-[44px] rounded-xl border border-[#161F1D] text-xs font-medium text-[#94A3B8] hover:text-[#F5F7F6]"
+            >
+              Dismiss
+            </button>
+            <Link
+              href="/plans"
+              onClick={() => setShowLimitWarning(false)}
+              className="px-5 py-2.5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md"
+            >
+              Upgrade Plan
+            </Link>
           </div>
-        </div>
-      )}
+        }
+      />
     </div>
   );
 }

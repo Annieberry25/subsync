@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { X, ExternalLink, ShieldCheck, Calendar, MapPin, Tag, FileText, Trash2, Edit3, Info, Loader2 } from 'lucide-react';
+import { ExternalLink, ShieldCheck, Calendar, MapPin, Tag, FileText, Trash2, Edit3, Info, Loader2 } from 'lucide-react';
 import type { AttachedBillReceipt, BillPayment } from '@/lib/types/bills.types';
 import { formatCurrencyAmount, convertAmount } from '@/lib/services/currency-service';
 import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { getVerifiedProvider } from '@/lib/constants/verified-providers';
 import { createReceiptViewUrlForRow } from '@/lib/services/receipt-storage';
 import ProviderLogo from './provider-logo';
+import Sheet from '@/components/ui/sheet';
 
 function ReceiptRow({ receipt }: { receipt: AttachedBillReceipt }) {
   const [url, setUrl] = useState<string | null>(receipt.fileUrl ?? null);
@@ -91,47 +92,81 @@ export default function BillDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-[#090C0B] border border-[#161F1D] rounded-2xl shadow-2xl overflow-hidden my-8">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-[#161F1D] flex items-center justify-between bg-[#0B0F0D]">
-          <div className="flex items-center gap-3">
-            <ProviderLogo
-              name={bill.providerName}
-              officialUrl={bill.officialProviderUrl}
-              size="lg"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">
-                  {bill.providerName}
-                </h2>
-                {isVerified && (
-                  <span className="px-2 py-0.5 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/40 text-[#14B8A6] text-[10px] font-semibold flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" />
-                    Verified Biller
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#94A3B8] mt-0.5 flex items-center gap-2">
-                <span>{bill.category === 'Other' && bill.customCategory ? bill.customCategory : bill.category}</span>
-                <span>•</span>
-                <span className="capitalize text-[#F5F7F6]">{bill.status}</span>
-              </p>
-            </div>
-          </div>
-
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      size="lg"
+      title={
+        <span className="flex items-center gap-3">
+          <ProviderLogo
+            name={bill.providerName}
+            officialUrl={bill.officialProviderUrl}
+            size="lg"
+          />
+          <span className="flex flex-col items-start gap-0.5">
+            <span className="flex items-center gap-2">
+              <span className="text-lg font-bold text-[#F5F7F6] tracking-tight">
+                {bill.providerName}
+              </span>
+              {isVerified && (
+                <span className="px-2 py-0.5 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/40 text-[#14B8A6] text-[10px] font-semibold flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" />
+                  Verified Biller
+                </span>
+              )}
+            </span>
+            <span className="text-xs text-[#94A3B8] flex items-center gap-2">
+              <span>{bill.category === 'Other' && bill.customCategory ? bill.customCategory : bill.category}</span>
+              <span>•</span>
+              <span className="capitalize text-[#F5F7F6]">{bill.status}</span>
+            </span>
+          </span>
+        </span>
+      }
+      footer={
+        <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            onClick={onClose}
-            className="p-2 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#161F1D] transition-colors cursor-pointer"
+            onClick={() => {
+              onClose();
+              onDelete(bill.id);
+            }}
+            disabled={deletingId === bill.id}
+            className="px-3.5 py-2 min-h-[44px] rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            <X className="w-5 h-5" />
+            {deletingId === bill.id ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            <span>Delete Record</span>
           </button>
-        </div>
 
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 min-h-[44px] rounded-xl text-xs text-[#94A3B8] hover:text-[#F5F7F6]"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onEdit(bill);
+              }}
+              className="px-4 py-2 min-h-[44px] rounded-xl bg-[#161F1D] hover:bg-[#202B27] text-[#F5F7F6] text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span>Edit Payment</span>
+            </button>
+          </div>
+        </div>
+      }
+    >
         {/* Content Body */}
-        <div className="p-6 space-y-6 max-h-[80dvh] overflow-y-auto">
+        <div className="space-y-6">
           {/* Amount Card */}
           <div className="p-5 rounded-2xl bg-[#050706] border border-[#161F1D] flex items-center justify-between">
             <div>
@@ -248,48 +283,7 @@ export default function BillDetailModal({
             </div>
           )}
 
-          {/* Actions Footer */}
-          <div className="pt-4 border-t border-[#161F1D] flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onDelete(bill.id);
-              }}
-              disabled={deletingId === bill.id}
-              className="px-3.5 py-2 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              {deletingId === bill.id ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Trash2 className="w-4 h-4" />
-              )}
-              <span>Delete Record</span>
-            </button>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs text-[#94A3B8] hover:text-[#F5F7F6]"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onEdit(bill);
-                }}
-                className="px-4 py-2 rounded-xl bg-[#161F1D] hover:bg-[#202B27] text-[#F5F7F6] text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Edit3 className="w-4 h-4" />
-                <span>Edit Payment</span>
-              </button>
-            </div>
-          </div>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
