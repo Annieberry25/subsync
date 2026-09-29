@@ -239,7 +239,7 @@ export default function LinkSubscriptionModal({
               <button
                 type="button"
                 onClick={handleTrackPortfolio}
-                className="w-full h-10 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
+                className="w-full h-11 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
               >
                 Track {activeName} in SubHalt Portfolio
               </button>
@@ -272,7 +272,7 @@ export default function LinkSubscriptionModal({
               <button
                 type="button"
                 onClick={handleNotYet}
-                className="w-full h-10 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
+                className="w-full h-11 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
               >
                 <span>Not yet</span>
               </button>
@@ -308,7 +308,7 @@ export default function LinkSubscriptionModal({
               <button
                 type="button"
                 onClick={() => setStep('select')}
-                className="w-full h-10 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
+                className="w-full h-11 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
               >
                 Back to Provider List
               </button>

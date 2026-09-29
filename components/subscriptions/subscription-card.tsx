@@ -216,7 +216,7 @@ function SubscriptionCard({
             <button
               type="button"
               onClick={handleViewDetails}
-              className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+              className="w-full px-3.5 py-2.5 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
               role="menuitem"
             >
               <CreditCard className="w-3.5 h-3.5 text-[#14B8A6] shrink-0" />
@@ -227,7 +227,7 @@ function SubscriptionCard({
           <button
             type="button"
             onClick={handleEdit}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
             <Edit2 className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
@@ -237,7 +237,7 @@ function SubscriptionCard({
           <button
             type="button"
             onClick={handlePaymentReminder}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
             <Bell className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
@@ -247,7 +247,7 @@ function SubscriptionCard({
           <button
             type="button"
             onClick={handleManageSubscription}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
             <Settings className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
@@ -257,7 +257,7 @@ function SubscriptionCard({
           <button
             type="button"
             onClick={handleNotes}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
             <Clock className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
@@ -270,7 +270,7 @@ function SubscriptionCard({
             type="button"
             onClick={handleArchive}
             disabled={archiving}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F59E0B] hover:bg-[#F59E0B]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer disabled:opacity-50"
+            className="w-full px-3.5 py-2.5 min-h-[44px] text-xs font-medium text-[#F59E0B] hover:bg-[#F59E0B]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer disabled:opacity-50"
             role="menuitem"
           >
             {archiving ? (
@@ -284,7 +284,7 @@ function SubscriptionCard({
           <button
             type="button"
             onClick={handleDelete}
-            className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
+            className="w-full px-3.5 py-2.5 min-h-[44px] text-xs font-medium text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center gap-2.5 transition-colors text-left cursor-pointer"
             role="menuitem"
           >
             <Trash2 className="w-3.5 h-3.5 text-[#D9363E] shrink-0" />

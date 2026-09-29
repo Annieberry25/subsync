@@ -175,7 +175,7 @@ export default function SubscriptionFilters({
               type="button"
               onClick={onClearFilters}
               title="Clear all filters and search"
-              className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] bg-[#0D0F0F] border border-[#1A1D1D] flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+              className="h-11 px-3 rounded-lg text-[11px] font-medium text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] bg-[#0D0F0F] border border-[#1A1D1D] flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
             >
               <X className="w-3.5 h-3.5 text-[#94A3B8]" />
               <span>Clear</span>

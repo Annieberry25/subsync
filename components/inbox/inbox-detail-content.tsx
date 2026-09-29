@@ -141,7 +141,7 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
                 <button
                   type="button"
                   onClick={handleViewSubscription}
-                  className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center gap-1 min-h-[34px] whitespace-nowrap"
+                  className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center gap-1 min-h-[44px] whitespace-nowrap"
                 >
                   <span>View subscription</span>
                   <ChevronRight className="w-3.5 h-3.5 opacity-80" />

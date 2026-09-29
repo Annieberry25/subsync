@@ -304,7 +304,7 @@ export default function PayABillFlow({
                 <button
                   type="button"
                   onClick={handleContinueToPayment}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] active:bg-[#0B7A70] text-[#051310] text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer min-h-[40px] shrink-0"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] active:bg-[#0B7A70] text-[#051310] text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer min-h-[44px] shrink-0"
                 >
                   <span>Continue to {selectedProvider.name}</span>
                   <ExternalLink className="w-3.5 h-3.5" />

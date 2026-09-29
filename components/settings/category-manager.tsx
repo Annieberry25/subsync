@@ -271,7 +271,7 @@ export function CategoryManager({
           <button
             type="button"
             onClick={handleOpenAdd}
-            className="h-9 px-4 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md cursor-pointer active:scale-98"
+            className="h-11 px-4 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md cursor-pointer active:scale-98"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Add Category</span>
@@ -310,7 +310,7 @@ export function CategoryManager({
               onChange={(e) => setFormName(e.target.value)}
               placeholder="e.g. Netflix, Cloud Services, Work Tools..."
               autoFocus
-              className="w-full h-9 px-3 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+              className="w-full h-11 px-3 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
             />
           </div>
 
@@ -372,14 +372,14 @@ export function CategoryManager({
             <button
               type="button"
               onClick={handleCancelForm}
-              className="h-8.5 px-3.5 rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer"
+              className="h-11 px-3.5 rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!formName.trim() || submitting}
-              className="h-8.5 px-4 rounded-xl text-xs font-semibold text-[#091512] bg-[#14B8A6] hover:opacity-90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-11 px-4 rounded-xl text-xs font-semibold text-[#091512] bg-[#14B8A6] hover:opacity-90 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>{editingCategoryName ? 'Save Changes' : 'Create Category'}</span>
@@ -462,7 +462,7 @@ export function CategoryManager({
             <select
               value={reassignCategoryTarget}
               onChange={(e) => setReassignCategoryTarget(e.target.value)}
-              className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] cursor-pointer"
+              className="w-full h-11 px-3 text-xs font-medium rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] cursor-pointer"
             >
               {allCategories
                 .filter((c) => c !== deletingCategoryName)
