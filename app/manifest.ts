@@ -17,7 +17,7 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#101215',
+    background_color: '#000000',
     theme_color: '#000000',
     categories: ['finance', 'productivity', 'utilities'],
     icons: [
@@ -34,8 +34,10 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: 'any',
       },
       {
-        // Declared maskable as well: the mark is a centred glyph on a full-bleed
-        // plate, so it survives the circular and squircle crops Android applies.
+        // Maskable as well as `any`: these are full-bleed opaque squares, so
+        // the circular and squircle crops Android applies keep the plate
+        // edge-to-edge. Only the glyph is inset, and it stays within the
+        // 80% safe zone.
         src: '/icons/icon-512.png',
         sizes: '512x512',
         type: 'image/png',
