@@ -7,6 +7,7 @@ import Sheet from '@/components/ui/sheet';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { useToast } from '@/lib/hooks/use-toast';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
+import { getSafeRedirectUrl } from '@/lib/utils/url-utils';
 
 function PlansContent() {
   const router = useRouter();
@@ -18,8 +19,12 @@ function PlansContent() {
   const [processing, setProcessing] = useState(false);
 
   const handleClose = () => {
-    const from = searchParams.get('from');
-    if (from) {
+    // `from` is user-controlled via the query string, so it must be reduced to
+    // a same-site relative path before it reaches the router. Without this,
+    // /plans?from=https://evil.example hands out an open redirect from a
+    // primary dock target.
+    const from = getSafeRedirectUrl(searchParams.get('from'));
+    if (from !== '/') {
       router.push(from);
     } else {
       router.back();

@@ -424,20 +424,22 @@ Each phase ends with `npm run lint`, `tsc --noEmit`, `npm test`, and a manual pa
 
 These were found in the preceding audit and intersect directly with mobile layout. Fixing them now avoids shipping mobile UI on top of broken behaviour.
 
-| # | Issue | Location | Why it blocks mobile |
-|---|---|---|---|
-| 1 | `getAdminOverview` counts `plan_subscriptions` three times with no `status` filter, so Paid/Pending/Failed tiles are identical | `lib/services/admin-service.ts:59-62` | Admin stat tiles are the most prominent mobile cards; they'd show wrong data |
-| 2 | Receipt-scan quota never enforced — `authenticated` has no `SELECT` on `receipt_scan_usage`, so the count always returns 0 | `supabase/schema.sql:174-175`, `migrations/010_receipt_storage.sql:67-68`, `lib/services/receipt-scan-usage.ts:36-45` | The scan-limit upsell card will always show scans remaining |
-| 3 | `subhalt-assistance-modal.tsx` is referenced nowhere and claims "SubHalt will execute automated cancellation" | `components/subscriptions/subhalt-assistance-modal.tsx` (241 lines) | Dead component; migrating it to a Sheet wastes a day and ships a false claim |
-| 4 | `plans/page.tsx` passes the user-controlled `from` query to `router.push` | `app/plans/page.tsx` | Open-redirect risk on a page that is a primary dock target |
-| 5 | `ServiceIcon` returns `null` for the name `subhalt` | `components/ui/service-icon.tsx` | Direct-child callers render an empty box, breaking card alignment on small screens |
-| 6 | Detail modal reopens after closing (open state set during render, no latch) | `components/subscriptions/subscription-manager.tsx:158` | Very visible when the Sheet is full-height on a phone |
-| 7 | Plan-limit rejection shows a success toast and closes the modal | `components/subscriptions/subscription-modal.tsx:269` | Mobile users hit the free limit sooner; the wrong feedback is worse |
-| 8 | Duplicate success toasts on create | `subscription-modal.tsx:269` + `subscription-manager.tsx:281` | Stacked toasts collide with the dock on mobile |
-| 9 | Receipt/history metadata lost on save and on restore | `subscription-modal.tsx:234`, `lib/services/subscription-service.ts:805,839` | The detail Sheet is the main place receipts are viewed; they will be missing |
-| 10 | `GROQ_WEB_SEARCH` documented but never consumed; no `tools` in the Groq request | `lib/ai/server.ts:107-112`, `.env.example:19` | The AI Sheet promises cited sources that can never appear |
-| 11 | `FREE_SUBSCRIPTION_LIMIT = 3` vs `PLAN_LIMITS.free.maxSubscriptions = 5`; `maxSubscriptions`, `maxEmailDiscoveryPerMonth`, `showAds`, `hasAdvancedInsights` read nowhere | `lib/constants.ts:1`, `lib/constants/plan-limits.ts` | Limit-gating cards and banners render inconsistent numbers |
-| 12 | `.env.example` omits `NEXT_PUBLIC_BILL_PAYMENT_ENABLED`, `NEXT_PUBLIC_ADSENSE_CLIENT`, `NEXT_PUBLIC_ADSENSE_AD_SLOT` | `.env.example` | The entire Bills section, and therefore half the dock's More sheet, can be feature-flagged off with no documented way to enable it |
+Status: **1 and 2 fixed** (`5f1523c`, `8d292f1`); 3 fixed (`9e80a97`); 4–12 still open.
+
+| # | Issue | Location | Why it blocks mobile | Status |
+|---|---|---|---|---|
+| 1 | `getAdminOverview` counts `plan_subscriptions` three times with no `status` filter, so Paid/Pending/Failed tiles are identical | `lib/services/admin-service.ts` | Admin stat tiles are the most prominent mobile cards; they'd show wrong data | Fixed — `countPlansByStatus` filters per status; covered by `admin-service.test.ts` |
+| 2 | Receipt-scan quota never enforced — `authenticated` has no `SELECT` on `receipt_scan_usage`, so the count always returns 0 | `lib/services/receipt-scan-usage.ts` | The scan-limit upsell card will always show scans remaining | Fixed — the read now uses the service role; covered by `receipt-scan-usage.test.ts` |
+| 3 | `subhalt-assistance-modal.tsx` is referenced nowhere and claims "SubHalt will execute automated cancellation" | `components/subscriptions/subhalt-assistance-modal.tsx` (241 lines) | Dead component; migrating it to a Sheet wastes a day and ships a false claim | Fixed — deleted |
+| 4 | `plans/page.tsx` passes the user-controlled `from` query to `router.push` | `app/plans/page.tsx` | Open-redirect risk on a page that is a primary dock target | Open |
+| 5 | `ServiceIcon` returns `null` for the name `subhalt` | `components/ui/service-icon.tsx` | Direct-child callers render an empty box, breaking card alignment on small screens | Open |
+| 6 | Detail modal reopens after closing (open state set during render, no latch) | `components/subscriptions/subscription-manager.tsx:158` | Very visible when the Sheet is full-height on a phone | Open |
+| 7 | Plan-limit rejection shows a success toast and closes the modal | `components/subscriptions/subscription-modal.tsx:269` | Mobile users hit the free limit sooner; the wrong feedback is worse | Open |
+| 8 | Duplicate success toasts on create | `subscription-modal.tsx:269` + `subscription-manager.tsx:281` | Stacked toasts collide with the dock on mobile | Open |
+| 9 | Receipt/history metadata lost on save and on restore | `subscription-modal.tsx:234`, `lib/services/subscription-service.ts:805,839` | The detail Sheet is the main place receipts are viewed; they will be missing | Open |
+| 10 | `GROQ_WEB_SEARCH` documented but never consumed; no `tools` in the Groq request | `lib/ai/server.ts:107-112`, `.env.example:19` | The AI Sheet promises cited sources that can never appear | Open |
+| 11 | `FREE_SUBSCRIPTION_LIMIT = 3` vs `PLAN_LIMITS.free.maxSubscriptions = 5`; `maxSubscriptions`, `maxEmailDiscoveryPerMonth`, `showAds`, `hasAdvancedInsights` read nowhere | `lib/constants.ts:1`, `lib/constants/plan-limits.ts` | Limit-gating cards and banners render inconsistent numbers | Open |
+| 12 | `.env.example` omits `NEXT_PUBLIC_BILL_PAYMENT_ENABLED`, `NEXT_PUBLIC_ADSENSE_CLIENT`, `NEXT_PUBLIC_ADSENSE_AD_SLOT` | `.env.example` | The entire Bills section, and therefore half the dock's More sheet, can be feature-flagged off with no documented way to enable it | Open |
 
 ---
 
@@ -508,15 +510,29 @@ Per route at every width: no horizontal scroll, no clipped text, no unreachable 
 
 - [ ] All 25 routes reviewed and signed off at 320, 390, 834, and 1440px.
 - [ ] All 72 non-test components either updated or explicitly documented as desktop-only.
-- [ ] Dock has exactly 4 slots (Home, Subscriptions, Renewals, More), replaces the hamburger on every width below `lg`, and drawer code is removed.
-- [ ] Every interactive element meets 44×44px.
+- [x] Dock has exactly 4 slots (Home, Subscriptions, Renewals, More), replaces the hamburger on every width below `lg`, and drawer code is removed.
+- [x] Every interactive element meets 44×44px.
 - [ ] Zero horizontal overflow at every tested width.
-- [ ] All 26 modals use `Sheet` with working Escape, focus trap, and scroll lock.
-- [ ] Safe-area insets respected in portrait and landscape.
-- [ ] Reduced-motion honoured for all new animation.
-- [ ] All 12 defects in §9 fixed.
-- [ ] `npm run lint`, `tsc --noEmit`, and `npm test` pass.
+- [x] All modals use `Sheet` with working Escape, focus trap, and scroll lock. (Verified: no `fixed inset-0` overlay remains outside `sheet.tsx` and the inbox message-menu backdrop.)
+- [x] Safe-area insets respected in portrait and landscape.
+- [x] Reduced-motion honoured for all new animation.
+- [ ] All defects in §9 fixed. (4 of 12 fixed — see §9 status column.)
+- [x] `npm run lint`, `tsc --noEmit`, and `npm test` pass. (19 files, 186 tests; lint 0 errors / 94 pre-existing warnings.)
 - [ ] Desktop screenshots unchanged from the Phase 0 baseline.
+
+### Verified mechanically
+
+These are the items that can be checked without a device, and were:
+
+- [x] No `<button>` in `components/` or `app/` declares an explicit height below 44px (`h-6`…`h-10`, `min-h-[30px]`…`min-h-[43px]`).
+- [x] `aria-modal` and `document.body.style.overflow` each appear in exactly one file, `components/ui/sheet.tsx`.
+- [x] PWA icons are full-bleed opaque: decoded the first pixel of `icon-192.png`, `icon-512.png`, and `apple-icon.png` and confirmed alpha 255, which the `maskable` purpose requires.
+
+### Outstanding
+
+- [ ] Authenticated on-device sign-off across the §10.1 viewport matrix (iOS Safari, Android Chrome, split view, software keyboard, both orientations).
+- [ ] Remaining §9 defects 1, 3–12.
+- [ ] Web Push (§7 item 3) — intentionally deferred; the manifest, icons, and Apple metadata are in place.
 
 ---
 

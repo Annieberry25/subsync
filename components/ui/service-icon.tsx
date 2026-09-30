@@ -165,7 +165,23 @@ export function ServiceIcon({
   }
 
   if (norm === 'subhalt') {
-    return null;
+    // SubHalt is our own brand, not a third-party logo, so there is no domain
+    // to resolve and no logo.dev entry. This used to return null, which
+    // removed the element entirely: any caller rendering <ServiceIcon> as a
+    // direct flex child lost an alignment box and the row collapsed on narrow
+    // screens. Render the brand mark in a box of the requested size instead.
+    return (
+      <div
+        className={`${className} rounded-xl bg-[#000000] border border-[#14B8A6]/30 flex items-center justify-center shrink-0`}
+        role="img"
+        aria-label="SubHalt"
+      >
+        <span className="flex items-center gap-[18%] h-[54%]" aria-hidden="true">
+          <span className="w-[22%] h-full rounded-full bg-[#14B8A6]" />
+          <span className="w-[22%] h-full rounded-full bg-[#14B8A6]" />
+        </span>
+      </div>
+    );
   }
 
   const token = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN;
