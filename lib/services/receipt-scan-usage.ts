@@ -6,14 +6,14 @@
  * endpoint without bound. This module records each scan and reads the count
  * back for quota checks.
  *
- * Reads go through the caller's RLS-scoped session client (users can read their
- * own rows). Writes use the service role because quota rows must be
- * non-forgeable.
+ * Both reads and writes go through the service role. `receipt_scan_usage` is
+ * granted to `service_role` only: quota rows must be non-forgeable, and a
+ * client-readable counter would be trivially defeated. The `userId` passed in
+ * always comes from a verified session, never from request input.
  */
-import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
-import type { Database } from '@/lib/types/database.types';
 
 export type ReceiptScanSource = 'upload' | 'paste' | 'email' | 'gmail';
 
@@ -24,28 +24,41 @@ export function startOfCurrentMonthUtc(now: Date = new Date()): string {
 
 /**
  * Counts scans used in the current calendar month.
- * Fails open (returns 0) so a database hiccup never blocks a paying user;
- * the endpoint's own rate limiter is the backstop.
+ *
+ * Reads used to run through the caller's RLS-scoped session client, but the
+ * table grants `SELECT` to `service_role` alone. Every read therefore failed
+ * with a permission error, the catch below turned that into `0`, and the
+ * quota never tripped — free accounts got unlimited provider-backed scans
+ * while the UI showed the limit as untouched.
+ *
+ * Fails open on a genuine database error so a hiccup does not block a paying
+ * user, but logs at error level because an unreadable counter means the quota
+ * is not actually being enforced.
  */
 export async function countReceiptScansThisMonth(
-  supabase: SupabaseClient<Database>,
   userId: string,
   now: Date = new Date()
 ): Promise<number> {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    logger.error('[receipt-scan-usage] service role key missing; quota cannot be enforced');
+    return 0;
+  }
   try {
-    const { count, error } = await supabase
+    const { count, error } = await createAdminClient()
       .from('receipt_scan_usage')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .gte('created_at', startOfCurrentMonthUtc(now));
 
     if (error) {
-      logger.warn('[receipt-scan-usage] count failed', { message: error.message });
+      logger.error('[receipt-scan-usage] count failed; quota not enforced', {
+        message: error.message,
+      });
       return 0;
     }
     return count ?? 0;
   } catch (err) {
-    logger.warn('[receipt-scan-usage] count threw', { message: String(err) });
+    logger.error('[receipt-scan-usage] count threw; quota not enforced', { message: String(err) });
     return 0;
   }
 }
@@ -63,12 +76,7 @@ export async function recordReceiptScan(
     return;
   }
   try {
-    const admin = createSupabaseClient<Database>(
-      env.NEXT_PUBLIC_SUPABASE_URL,
-      env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false } }
-    );
-    const { error } = await admin
+    const { error } = await createAdminClient()
       .from('receipt_scan_usage')
       .insert({ user_id: userId, source });
     if (error) {

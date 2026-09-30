@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   // enforced here rather than only described in the UI.
   const limits = getPlanLimits(getPlanTier(user));
   if (Number.isFinite(limits.maxReceiptScansPerMonth)) {
-    const used = await countReceiptScansThisMonth(supabase, user.id);
+    const used = await countReceiptScansThisMonth(user.id);
     if (used >= limits.maxReceiptScansPerMonth) {
       return fail(
         429,
