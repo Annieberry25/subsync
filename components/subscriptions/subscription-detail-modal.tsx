@@ -11,6 +11,7 @@ import {
   getKnownProviderManagementUrl
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
+import { toAbsoluteUrl } from '@/lib/utils/url-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
 
@@ -98,17 +99,19 @@ export default function SubscriptionDetailModal({
     ? rawStartDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
 
+  /* Resolved once so the footer action and the handler can never disagree. */
+  const manageSubscriptionUrl =
+    getKnownProviderManagementUrl(subscription.name) || activeProviderUrl;
+
   const handleManageWebsite = () => {
-    const knownManagementUrl = getKnownProviderManagementUrl(subscription.name);
-    const targetUrl = knownManagementUrl || activeProviderUrl;
-    if (targetUrl) {
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      toast.error(
-        'No website or management portal link is available for this subscription.',
-        'No URL configured'
-      );
+    if (manageSubscriptionUrl) {
+      window.open(manageSubscriptionUrl, '_blank', 'noopener,noreferrer');
+      return;
     }
+    // A dead control that only reports "no URL configured" gave the user no way
+    // out. Without a portal link the useful action is to let them supply one.
+    onClose();
+    onEdit(subscription);
   };
 
   /* Pinned in the Sheet footer so the actions stay reachable while the
@@ -155,7 +158,7 @@ export default function SubscriptionDetailModal({
             onClick={handleManageWebsite}
             className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
           >
-            Manage Subscription
+            {manageSubscriptionUrl ? 'Manage Subscription' : 'Add Provider Link'}
           </button>
 
           {onCancellationAssistance && (
@@ -295,7 +298,7 @@ export default function SubscriptionDetailModal({
                     </div>
                     {link.url && (
                       <a
-                        href={link.url}
+                        href={toAbsoluteUrl(link.url) || link.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-2.5 py-1 rounded-lg bg-[#1F2425] hover:bg-[#2A3032] text-[#F5F7F6] text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0 border border-[#2A3032]"

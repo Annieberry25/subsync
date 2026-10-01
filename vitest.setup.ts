@@ -18,6 +18,8 @@ vi.mock('next/image', () => ({
       src: string;
       alt: string;
     };
+    // `unoptimized` is a Next.js-only prop; forwarding it makes React warn.
+    delete (rest as Record<string, unknown>).unoptimized;
     const style = fill
       ? { ...(rest.style as object), position: 'absolute', inset: 0, width: '100%', height: '100%' }
       : rest.style;

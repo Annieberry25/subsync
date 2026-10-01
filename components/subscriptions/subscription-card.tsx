@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, Link2, Trash2, Loader2 } from 'lucide-react';
 import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, getKnownProviderManagementUrl, parseAccountLinks, archiveSubscription } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
+import { toAbsoluteUrl } from '@/lib/utils/url-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
 
@@ -162,13 +163,22 @@ function SubscriptionCard({
     }
   };
 
+  const manageSubscriptionUrl =
+    getKnownProviderManagementUrl(subscription.name) ||
+    getProviderManagementUrl(subscription.name, subscription.provider_url);
+
   const handleManageSubscription = () => {
     setMenuOpen(false);
-    const targetUrl = getKnownProviderManagementUrl(subscription.name) || getProviderManagementUrl(subscription.name, subscription.provider_url);
-    if (targetUrl) {
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    if (manageSubscriptionUrl) {
+      window.open(manageSubscriptionUrl, '_blank', 'noopener,noreferrer');
     } else {
-      toast.info(`Managing ${subscription.name} settings coming soon.`, 'Feature Pending');
+      // Previously this reported "coming soon", which is a dead end. Sending
+      // the user to the form is the only action that can actually fix it.
+      toast.info(
+        `Add a provider link for ${subscription.name} to open its billing portal from here.`,
+        'Add Provider Link'
+      );
+      onViewDetails?.(subscription);
     }
   };
 
@@ -398,19 +408,36 @@ function SubscriptionCard({
             <span>Subscription Accounts</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {accountLinks.map((link) => (
-              <a
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-medium text-[#14B8A6] hover:text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer"
-                title={`Open ${link.label || 'Account'} link: ${link.url}`}
-              >
-                <span>{link.label || 'Account'}</span>
-                <ExternalLink className="w-3 h-3 text-[#94A3B8]" />
-              </a>
-            ))}
+            {accountLinks.map((link) => {
+              /* An empty href resolves to the current page, so a label-only
+                 account was a self-referential link that just reloaded the app.
+                 Render those as plain text, and upgrade scheme-less URLs so the
+                 link actually leaves the site. */
+              const href = toAbsoluteUrl(link.url);
+              const label = link.label || 'Account';
+              return href ? (
+                <a
+                  key={link.id}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-medium text-[#14B8A6] hover:text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer"
+                  title={`Open ${label} link: ${href}`}
+                >
+                  <span>{label}</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-[#94A3B8]" />
+                </a>
+              ) : (
+                <span
+                  key={link.id}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0B0D0D] text-xs font-medium text-[#9CA3AF] border border-[#1A1D1D]"
+                  title={`${label} has no link yet — add one in the subscription form`}
+                >
+                  <span>{label}</span>
+                  <Link2 className="w-3.5 h-3.5 text-[#4B5563]" />
+                </span>
+              );
+            })}
           </div>
         </div>
       )}

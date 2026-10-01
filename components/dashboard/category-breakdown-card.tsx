@@ -34,6 +34,15 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
 
   let accumulatedPercentage = 0;
 
+  /* The centre text has to live inside the ring, so the amount steps down in
+     size as the formatted string gets longer: "$25.00" (6 chars) renders at
+     18/20px, anything past 8 chars drops a step, and past 11 chars — ₦1,500.00,
+     $123,456.78 — drops again. `truncate` on the line is the backstop, so a
+     pathological total degrades to an ellipsis rather than a collision. */
+  const totalLabel = formatCurrency(totalMonthlySpend, defaultCurrency);
+  const totalTextSize =
+    totalLabel.length > 11 ? 'text-sm' : totalLabel.length > 8 ? 'text-base' : 'text-lg';
+
   return (
     <div className={isEmbedded ? "space-y-4 sm:space-y-6" : "p-4 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-4 sm:space-y-6"}>
       {/* Header */}
@@ -54,7 +63,7 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
         <div className={isEmbedded ? "grid grid-cols-1 gap-6 items-center" : "grid grid-cols-1 lg:grid-cols-12 gap-6 items-center"}>
           {/* Donut Chart with Center Total Spend */}
           <div className={isEmbedded ? "flex flex-col items-center justify-center relative py-2" : "lg:col-span-5 flex flex-col items-center justify-center relative py-2"}>
-            <div className="relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center">
+            <div className={isEmbedded ? "relative w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center" : "relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center"}>
               <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 180 180">
                 {/* Background Ring */}
                 <circle
@@ -94,17 +103,26 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
                 })}
               </svg>
 
-              {/* Center Content */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-2">
-                <span className="text-[11px] sm:text-[13px] font-medium text-[#94A3B8] uppercase tracking-wider block">
-                  Total Monthly
-                </span>
-                <span className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight block">
-                  {formatCurrency(totalMonthlySpend, defaultCurrency)}
-                </span>
-                <span className="text-[11px] sm:text-[13px] text-[#94A3B8] block">
-                  {breakdown.length} {breakdown.length === 1 ? 'category' : 'categories'}
-                </span>
+              {/* Center Content. The donut hole is r=68 with an 18px stroke, so
+                  the usable inner diameter is 2*(68-9) = 118 of the 180 viewBox —
+                  about 65% of the box. Content is capped to that width and the
+                  amount steps down in size as it gets longer, otherwise wide
+                  amounts like $1,234.56 spill across the ring. */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-[62%] text-center">
+                  <span className="block text-[9px] sm:text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider truncate">
+                    Total Monthly
+                  </span>
+                  <span
+                    className={`block font-bold text-[#F5F7F6] tracking-tight truncate leading-tight ${totalTextSize}`}
+                    title={totalLabel}
+                  >
+                    {totalLabel}
+                  </span>
+                  <span className="block text-[9px] sm:text-[10px] text-[#94A3B8] truncate">
+                    {breakdown.length} {breakdown.length === 1 ? 'category' : 'categories'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -117,7 +135,7 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
               return (
                 <div
                   key={item.category}
-                  className="py-3 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4"
+                  className={isEmbedded ? "py-2.5 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4" : "py-3 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4"}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span

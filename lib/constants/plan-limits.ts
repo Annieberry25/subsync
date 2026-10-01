@@ -3,40 +3,112 @@ export interface PlanLimits {
   maxBills: number;
   maxReceiptScansPerMonth: number;
   maxEmailDiscoveryPerMonth: number;
+  /** Account links per single subscription. Free is one, Plus is unlimited. */
+  maxAccountLinksPerSubscription: number;
   showAds: boolean;
   hasAdvancedInsights: boolean;
+  /** Gmail Connect: OAuth grant, inbox scanning, automatic detection. */
+  hasGmailConnect: boolean;
+  /** Email Forwarding: the personal auto-import address for receipt forwarding. */
+  hasEmailForwarding: boolean;
 }
 
 export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
   free: {
-    maxSubscriptions: 5,
+    // Mirrors FREE_SUBSCRIPTION_LIMIT in lib/constants.ts (which derives from
+    // this row), so the enforced and advertised free-tier caps are one value.
+    maxSubscriptions: 3,
     maxBills: 10,
     maxReceiptScansPerMonth: 3,
-    maxEmailDiscoveryPerMonth: 5,
+    maxEmailDiscoveryPerMonth: 0,
+    // One account per subscription on free; a second is an upgrade prompt.
+    maxAccountLinksPerSubscription: 1,
     showAds: true,
     hasAdvancedInsights: false,
+    // Both are Plus-only. Free stays on the basic paths: add manually, import a
+    // receipt, subscribe through a provider.
+    hasGmailConnect: false,
+    hasEmailForwarding: false,
   },
   plus: {
     maxSubscriptions: 50,
     maxBills: 100,
     maxReceiptScansPerMonth: 50,
     maxEmailDiscoveryPerMonth: 100,
+    maxAccountLinksPerSubscription: Infinity,
     showAds: false,
     hasAdvancedInsights: true,
+    hasGmailConnect: true,
+    hasEmailForwarding: true,
   },
   pro: {
     maxSubscriptions: Infinity,
     maxBills: Infinity,
     maxReceiptScansPerMonth: Infinity,
     maxEmailDiscoveryPerMonth: Infinity,
+    maxAccountLinksPerSubscription: Infinity,
     showAds: false,
     hasAdvancedInsights: true,
+    hasGmailConnect: true,
+    hasEmailForwarding: true,
   },
 };
+
+/** Free caps users at three subscriptions; anything past that is a Plus upgrade. */
+export const FREE_SUBSCRIPTION_LIMIT = PLAN_LIMITS.free.maxSubscriptions;
+
+/**
+ * Feature keys used to mark a UI affordance as Plus-only. Kept as a union so a
+ * typo fails to compile rather than silently rendering no badge.
+ */
+export type PlusFeature = 'gmail' | 'emailForwarding' | 'advancedInsights';
+
+/**
+ * Whether a feature is included in the user's plan. Single source of truth for
+ * both the "PLUS" badge on locked affordances and the gate that blocks the
+ * action, so a badge can never disagree with the enforcement.
+ */
+export function hasPlanFeature(tier: string, feature: PlusFeature): boolean {
+  const limits = getPlanLimits(tier);
+  switch (feature) {
+    case 'gmail':
+      return limits.hasGmailConnect;
+    case 'emailForwarding':
+      return limits.hasEmailForwarding;
+    case 'advancedInsights':
+      return limits.hasAdvancedInsights;
+    default:
+      return false;
+  }
+}
 
 export function getPlanLimits(tier: 'free' | 'plus' | 'pro' | string): PlanLimits {
   const normTier = (tier || 'free').toLowerCase();
   if (normTier === 'plus') return PLAN_LIMITS.plus;
   if (normTier === 'pro' || normTier === 'premium') return PLAN_LIMITS.pro;
   return PLAN_LIMITS.free;
+}
+
+/**
+ * True when a user has reached the active-subscription cap for their tier.
+ * Paid tiers (maxSubscriptions: Infinity) never cap. Shared by the UI gates
+ * and the write-path enforcement so every caller agrees on the same limit.
+ */
+export function hasReachedSubscriptionCap(opts: { tier: string; activeCount: number }): boolean {
+  const { maxSubscriptions } = getPlanLimits(opts.tier);
+  return maxSubscriptions !== Infinity && opts.activeCount >= maxSubscriptions;
+}
+
+/**
+ * True when a subscription already has as many account links as the tier allows.
+ * Free allows one; a second attempt is an upgrade prompt rather than a silent
+ * save-time rejection, so the user finds out while they are looking at the
+ * control rather than after filling in the form.
+ */
+export function hasReachedAccountLinkCap(opts: { tier: string; linkCount: number }): boolean {
+  const { maxAccountLinksPerSubscription } = getPlanLimits(opts.tier);
+  return (
+    maxAccountLinksPerSubscription !== Infinity &&
+    opts.linkCount >= maxAccountLinksPerSubscription
+  );
 }

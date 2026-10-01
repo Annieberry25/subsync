@@ -418,26 +418,31 @@ button.btn-pill {
 .table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  /* Keep the table swipeable on touch while hiding the scrollbar chrome. The
+     visible bar sat below the rows on mobile, added its own height to the
+     card, and gave no useful affordance — the provider column is already
+     pinned, so it is also not needed as a scroll-position hint. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.table-scroll::-webkit-scrollbar {
+  display: none;
 }
 
-@media (min-width: 768px) {
-  .table-sticky-col {
-    position: sticky;
-    left: 0;
-    z-index: 1;
-    /* Must match the table surface, otherwise scrolled content shows through
-       the pinned column. */
-    background-color: #0b0d0d;
-  }
-  .table-sticky-col::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: -1px;
-    width: 1px;
-    background-color: #1A1D1D;
-  }
+/* The first column is pinned so the provider name stays anchored while the rest
+   of the row scrolls under it. This deliberately applies at every width, not
+   just >=768px: the mobile list view relies on it, since the table is wider than
+   a phone and is horizontally scrollable. */
+.table-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  /* Must match the table surface, otherwise scrolled content shows through
+     the pinned column. Exposed as a variable so a highlighted row can tint
+     its pinned cell to match the rest of the row; a plain `bg-*` utility
+     cannot win here because this rule is unlayered and outranks Tailwind's
+     utilities layer. */
+  background-color: var(--table-sticky-bg, #0b0d0d);
 }
 
 /* Chart canvases need a deterministic height or the container collapses to

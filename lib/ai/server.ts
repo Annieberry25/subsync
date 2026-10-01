@@ -3,9 +3,12 @@ import { logger } from '@/lib/logger';
 /**
  * Server-only AI integration for the SubHalt assistant.
  *
- * Uses the Groq API (free tier — fast inference on open models). Web search is
- * provided through Groq's built-in tools, so no separate search provider is
- * needed when using a Groq model that supports them.
+ * Uses the Groq API (free tier — fast inference on open models). Live web
+ * search is provided through GPT-OSS's built-in browser search tool (powered by
+ * Exa), so no separate search provider is needed. The legacy `groq/compound`
+ * systems that provided search through `executed_tools` were decommissioned on
+ * 2026-09-21; request bodies therefore enable search generically via the
+ * `tools: [{ type: "browser_search" }]` flag on the models that support it.
  *
  * IMPORTANT: This module must only be imported from Route Handlers / Server
  * Components. It reads server-only env vars. Do not import it into client
@@ -14,13 +17,54 @@ import { logger } from '@/lib/logger';
  * Env vars:
  *   GROQ_API_KEY    (required for live AI answers; app degrades gracefully without it)
  *   GROQ_MODEL      (optional, default: openai/gpt-oss-120b)
- *   GROQ_WEB_SEARCH (optional, "false" disables web search usage)
+ *   GROQ_WEB_SEARCH (optional, default "true"; "false" disables the browser-search tool)
  */
 
 const GROQ_API_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
 export const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-120b';
+export const GROQ_WEB_SEARCH_ENABLED =
+  (process.env.GROQ_WEB_SEARCH ?? 'true').toLowerCase() === 'true';
 const apiKey = process.env.GROQ_API_KEY?.trim() || '';
+
+/**
+ * GPT-OSS models that accept the `browser_search` built-in tool. When
+ * GROQ_WEB_SEARCH=true and the configured model is not in this list, search is
+ * skipped rather than risking a 400 from an unsupported tool type.
+ */
+const BROWSER_SEARCH_MODELS = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'openai/gpt-oss-safeguard-20b'];
+
+export function supportsBrowserSearch(model: string): boolean {
+  return BROWSER_SEARCH_MODELS.includes(model);
+}
+
+/**
+ * Extracts cited sources from a Groq chat message into the app's common shape.
+ * Handles the Compound-era `executed_tools[].search_results[]` payload as well
+ * as a flat `citations` array returned by browser-search responses.
+ */
+export interface AiMessagePayload {
+  content?: string;
+  executed_tools?: {
+    search_results?: {
+      results?: { title?: string; url?: string; content?: string }[];
+    };
+  }[];
+  citations?: { title?: string; url?: string; uri?: string }[];
+}
+
+export function extractSources(message: AiMessagePayload | undefined): { title: string; uri: string }[] {
+  if (!message) return [];
+  const fromTools =
+    message.executed_tools?.flatMap((t) => t.search_results?.results ?? []) ?? [];
+  const fromCitations = Array.isArray(message.citations) ? message.citations : [];
+  return [...fromTools, ...fromCitations]
+    .map((r) => ({
+      title: r.title || r.url || (r as { uri?: string }).uri || 'Source',
+      uri: r.url || (r as { uri?: string }).uri || '',
+    }))
+    .filter((s) => s.uri);
+}
 
 export function isAiConfigured(): boolean {
   return Boolean(apiKey);
@@ -111,6 +155,10 @@ async function callGroq(params: {
     max_tokens: 2048,
   };
 
+  if (GROQ_WEB_SEARCH_ENABLED && supportsBrowserSearch(GROQ_MODEL)) {
+    body.tools = [{ type: 'browser_search' }];
+  }
+
   const res = await fetch(GROQ_API_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -133,16 +181,7 @@ async function callGroq(params: {
   }
 
   const data = (await res.json()) as {
-    choices?: {
-      message?: {
-        content?: string;
-        executed_tools?: {
-          search_results?: {
-            results?: { title?: string; url?: string; content?: string }[];
-          };
-        }[];
-      };
-    }[];
+    choices?: { message?: AiMessagePayload }[];
   };
 
   const message = data.choices?.[0]?.message;
@@ -153,13 +192,7 @@ async function callGroq(params: {
     throw new Error('The model returned no text. Try rephrasing your question.');
   }
 
-  const searchResults =
-    message?.executed_tools?.flatMap((t) => t.search_results?.results ?? []) ?? [];
-  const sources = searchResults
-    .map((r) => ({ title: r.title || r.url || 'Source', uri: r.url || '' }))
-    .filter((s) => s.uri);
-
-  return { text, sources };
+  return { text, sources: extractSources(message) };
 }
 
 /**

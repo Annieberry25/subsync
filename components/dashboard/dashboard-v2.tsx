@@ -27,8 +27,7 @@ import { useToast } from '@/lib/hooks/use-toast';
 import { useCurrency, usePlan } from '@/lib/contexts/user-settings-context';
 
 import { PersonalizedHeader } from './personalized-header';
-import { UpcomingRenewalsSpotlight } from '@/components/subscriptions/upcoming-renewals-spotlight';
-import { MostExpensivePlanCard } from './most-expensive-plan-card';
+import { DashboardOverviewCard } from './dashboard-overview-card';
 import { SmartInsightCard } from './smart-insight-card';
 import { AdBanner } from './ad-banner';
 
@@ -37,7 +36,7 @@ import PaymentReminderModal from '@/components/subscriptions/payment-reminder-mo
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import UpgradeModal from '@/components/subscriptions/upgrade-modal';
 
-import { SavingsRecommendations } from '@/components/ai/savings-recommendations';
+
 import { CancellationIntelligenceModal } from '@/components/ai/cancellation-intelligence-modal';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 
@@ -47,7 +46,6 @@ import {
   CreditCard,
   Wallet,
   AlertCircle,
-  ChevronRight,
 } from 'lucide-react';
 
 function renderFormattedCurrency(amount: number, currency = 'USD') {
@@ -59,36 +57,32 @@ function renderFormattedCurrency(amount: number, currency = 'USD') {
   );
 }
 
-function MetricCardLink({
-  href,
+/* Deliberately a plain card, not a Link. These four figures are read-only
+   roll-ups with no single destination — "Monthly Spend" is not one page and
+   "Potential Savings" is a computed suggestion, not a record — so the previous
+   hrefs sent people somewhere that did not explain the number they clicked. The
+   hover chevron that advertised a link is gone with it. */
+function MetricCard({
   title,
   icon,
   children,
 }: {
-  href: string;
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <Link
-      href={href}
-      title={`${title} — open related page`}
-      className="group px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#2A2E2E] transition-colors flex flex-col justify-between min-h-[96px] sm:min-h-[104px]"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {icon}
-          <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block truncate">
-            {title}
-          </span>
-        </div>
-        <ChevronRight className="w-3.5 h-3.5 text-[#94A3B8] opacity-0 group-hover:opacity-100 -translate-x-0.5 group-hover:translate-x-0 transition-all duration-200 shrink-0" />
+    <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-between min-h-[96px] sm:min-h-[104px]">
+      <div className="flex items-center gap-1.5 min-w-0">
+        {icon}
+        <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block truncate">
+          {title}
+        </span>
       </div>
       <div className="mt-1 sm:mt-1.5">
         {children}
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -186,7 +180,7 @@ const handleSave = async (
       }
       setIsModalOpen(false);
       void loadData();
-      return synced ? id : null;
+      return id;
     }
 
     if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
@@ -203,7 +197,7 @@ const handleSave = async (
     }
     setIsModalOpen(false);
     void loadData();
-    return synced && created ? created.id : null;
+    return created ? created.id : null;
   };
 
   const handleConfirmDelete = async () => {
@@ -249,7 +243,6 @@ const handleSave = async (
     () => calculatePotentialSavings(activeSubscriptions, defaultCurrency, exchangeRates),
     [activeSubscriptions, defaultCurrency, exchangeRates]
   );
-
   const overdueCount = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -333,78 +326,46 @@ const handleSave = async (
       ) : (
         <StatGrid>
           {/* Card 1: Monthly Spend */}
-          <MetricCardLink
-            href="/subscriptions"
+          <MetricCard
             title="Monthly Spend"
             icon={<Wallet className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
           >
             {renderFormattedCurrency(monthlySpend, defaultCurrency)}
-            <span className="text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8] block mt-1">
-              Normalized monthly expense ({defaultCurrency})
-            </span>
-          </MetricCardLink>
+          </MetricCard>
 
           {/* Card 2: Renewing This Week */}
-          <MetricCardLink
-            href="/renewals"
+          <MetricCard
             title="Renewing This Week"
             icon={<Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
           >
             <span className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
               {renewingThisWeek}
             </span>
-            <span className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]">
-              Due in next 7 days
-            </span>
-          </MetricCardLink>
+          </MetricCard>
 
           {/* Card 3: Active Plans */}
-          <MetricCardLink
-            href="/subscriptions"
+          <MetricCard
             title="Active Plans"
             icon={<CreditCard className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
           >
             <span className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
               {activeCount}
             </span>
-            <span className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]">
-              Active & trial subscriptions
-            </span>
-          </MetricCardLink>
+          </MetricCard>
 
           {/* Card 4: Potential Savings */}
-          <MetricCardLink
-            href="/subscriptions?sort=price_desc"
+          <MetricCard
             title="Potential Savings"
             icon={<DollarSign className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
           >
             {renderFormattedCurrency(potentialSavings, defaultCurrency)}
-            <span className="block mt-1 text-xs sm:text-[13px] font-normal leading-tight text-[#94A3B8]">
-              From paused/trial plans ({defaultCurrency})
-            </span>
-          </MetricCardLink>
+          </MetricCard>
         </StatGrid>
       )}
 
-      {/* 3. DESKTOP 2-COLUMN: UPCOMING RENEWALS | MOST EXPENSIVE PLAN */}
+      {/* 3. OVERVIEW: UPCOMING RENEWALS | MOST EXPENSIVE PLAN | SAVINGS RECOMMENDATIONS | SPENDING BY CATEGORY */}
       {!loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-          <div className="lg:col-span-3 min-w-0">
-            <UpcomingRenewalsSpotlight
-              subscriptions={activeSubscriptions}
-            />
-          </div>
-          <div className="lg:col-span-2 min-w-0">
-            <MostExpensivePlanCard
-              subscriptions={activeSubscriptions}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 4. FINANCIAL OVERVIEW: SAVINGS RECOMMENDATIONS & SPENDING BY CATEGORY */}
-      {!loading && (
-        <SavingsRecommendations
+        <DashboardOverviewCard
           subscriptions={subscriptions}
           activeSubscriptions={activeSubscriptions}
           onReviewSubscription={handleReviewSubscription}
@@ -460,6 +421,7 @@ const handleSave = async (
         onClose={() => setCancellationSub(null)}
         subscription={cancellationSub}
         onStatusUpdated={loadData}
+        onReviewSubscription={handleReviewSubscription}
       />
 
       <SubscriptionDetailModal

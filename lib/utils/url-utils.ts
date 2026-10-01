@@ -46,6 +46,22 @@ export function getAuthCallbackUrl(): string {
 }
 
 /**
+ * Upgrades a hand-typed URL to an absolute one by adding a scheme.
+ *
+ * Provider and account links are typed by users, so they are commonly stored
+ * without a protocol ("netflix.com/account"). Passed straight into an href the
+ * browser resolves that as a *relative* path, so the link silently navigated
+ * nowhere (or reloaded the current page when the value was empty) instead of
+ * opening the provider. Returns null for blank input so callers can decide to
+ * render plain text rather than a broken link.
+ */
+export function toAbsoluteUrl(raw?: string | null): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+/**
  * Sanitizes a redirect path parameter to prevent open-redirect security vulnerabilities.
  * Ensures the target is a relative path starting with '/' and not '//' or containing scheme delimiters.
  */

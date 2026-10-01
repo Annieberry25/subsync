@@ -8,7 +8,8 @@ import { Sheet } from '@/components/ui/sheet';
 import { getVisibleNavItems, isNavItemActive, type NavItem } from '@/lib/nav';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { useAuth } from '@/lib/contexts/user-settings-context';
-import { createClient } from '@/lib/supabase/client';
+import { signOutAndRedirect } from '@/lib/auth/sign-out';
+import { useToast } from '@/lib/hooks/use-toast';
 
 /** Already reachable from a dedicated dock slot, so they are not repeated here. */
 const DOCK_ROUTE_HREFS = new Set(['/', '/subscriptions', '/renewals']);
@@ -23,7 +24,7 @@ export function MoreSheet({ open, onClose }: MoreSheetProps) {
   const router = useRouter();
   const { unreadCount } = useInbox();
   const { isAdmin } = useAuth();
-  const supabase = createClient();
+  const { toast } = useToast();
 
   const visibleNavItems = useMemo(() => getVisibleNavItems(isAdmin), [isAdmin]);
   const inboxItem = useMemo(
@@ -51,14 +52,17 @@ export function MoreSheet({ open, onClose }: MoreSheetProps) {
     Boolean(item.children && isNavItemActive(pathname, item.href));
 
   const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // Continue to redirect even if signOut fails; session cookies will still
-      // be cleared client-side.
+    const ok = await signOutAndRedirect();
+
+    if (ok) {
+      router.push('/login');
+      router.refresh();
+      return;
     }
-    router.push('/login');
-    router.refresh();
+
+    /* No redirect on failure: the cookie survives, so /login would bounce back
+       to the dashboard and the tap would appear to do nothing. */
+    toast.error('Could not sign you out. Please try again.', 'Sign Out Failed');
   };
 
   const closeThen = (fn: () => void) => () => {

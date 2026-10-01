@@ -11,6 +11,7 @@ import { AnalyticsChartSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import UpgradeModal from '@/components/subscriptions/upgrade-modal';
+import { PlusBadge } from '@/components/ui/plus-badge';
 import { 
   Download, 
   Upload, 
@@ -179,10 +180,11 @@ export default function ExportPage() {
         <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-4">
           <div className="flex items-center gap-3">
             <FileSpreadsheet className="w-5 h-5 text-[#94A3B8]" />
-            <div>
+            <div className="flex items-center gap-2">
               <h3 className="text-[18px] font-semibold text-[#F5F7F6] leading-[24px]">CSV Spreadsheet Data</h3>
-              <p className="text-[15px] text-[#94A3B8]">Export formatted CSV or import existing CSV backup spreadsheets.</p>
+              {!isPlus && <PlusBadge />}
             </div>
+            <p className="text-[15px] text-[#94A3B8]">Export formatted CSV or import existing CSV backup spreadsheets.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -212,10 +214,11 @@ export default function ExportPage() {
         <div className="p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-4">
           <div className="flex items-center gap-3">
             <FileCode className="w-5 h-5 text-[#94A3B8]" />
-            <div>
+            <div className="flex items-center gap-2">
               <h3 className="text-[18px] font-semibold text-[#F5F7F6] leading-[24px]">JSON Full Data Backup</h3>
-              <p className="text-[15px] text-[#94A3B8]">Export raw structured JSON dataset or restore previous backups.</p>
+              {!isPlus && <PlusBadge />}
             </div>
+            <p className="text-[15px] text-[#94A3B8]">Export raw structured JSON dataset or restore previous backups.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">

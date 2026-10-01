@@ -3,9 +3,9 @@
 import { Bell } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { BrandMark } from '@/components/ui/brand-logo';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { useSettings } from '@/lib/contexts/user-settings-context';
-import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
 
 interface HeaderProps {
   hasUnreadNotifications?: boolean;
@@ -24,14 +24,17 @@ export default function Header({ hasUnreadNotifications, onOpenAskSubHalt }: Hea
       {/*
         The hamburger is gone below `lg`, replaced by the floating dock. The
         sidebar that normally carries the SubHalt brand is hidden at these
-        widths, so the mark moves here rather than leaving the corner empty.
+        widths, so the brand moves here rather than leaving the corner empty.
+        The mark rather than the wordmark: on a phone the header has to share
+        its row with the notification and Ask buttons, and the full wordmark
+        crowds them out.
       */}
       <Link
         href="/"
         aria-label="SubHalt home"
-        className="lg:hidden w-9 h-9 shrink-0 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] text-sm font-bold tracking-tight"
+        className="lg:hidden shrink-0 flex items-center"
       >
-        S
+        <BrandMark size={30} priority />
       </Link>
       <div className="hidden lg:block" />
 
@@ -43,7 +46,6 @@ export default function Header({ hasUnreadNotifications, onOpenAskSubHalt }: Hea
             onClick={onOpenAskSubHalt}
             className="px-3 sm:px-3.5 py-1.5 min-h-[44px] rounded-lg bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] border border-[#3F3F46]/40 text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer"
           >
-            <SubHaltAvatar size="sm" />
             <span className="hidden sm:inline">Ask SubHalt Assistant</span>
             <span className="sm:hidden">Ask SubHalt</span>
           </button>

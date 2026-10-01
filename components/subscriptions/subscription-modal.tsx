@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, Plus, Trash2, Globe, Upload, Link2, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Trash2, Upload, Link2, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow, 
@@ -11,12 +11,16 @@ import {
   getKnownProviderAccountUrl,
   parseAccountLinks,
   cleanNotesUserText,
-  formatNotesWithAccountLinks
+  formatNotesWithAccountLinks,
+  getSubscriptionHistoryState,
+  parseAttachedReceipts,
 } from '@/lib/services/subscription-service';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
+import { usePlan } from '@/lib/contexts/user-settings-context';
+import { hasReachedAccountLinkCap } from '@/lib/constants/plan-limits';
 import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-modal';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
 
@@ -28,6 +32,8 @@ interface SubscriptionModalProps {
   initialData?: SubscriptionRow | null;
   /** File carried over from the receipt import step, uploaded after save. */
   pendingReceiptFile?: File | null;
+  /** Opens the upgrade sheet when a Plus-only feature is attempted. */
+  onRequireUpgrade?: () => void;
 }
 
 const categories = ['Streaming', 'Software', 'Utilities', 'Fitness', 'Finance', 'Education', 'Gaming', 'Other'] as const;
@@ -55,8 +61,10 @@ export default function SubscriptionModal({
   onSave,
   initialData,
   pendingReceiptFile,
+  onRequireUpgrade,
 }: SubscriptionModalProps) {
   const { toast } = useToast();
+  const { planTier } = usePlan();
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -71,6 +79,8 @@ export default function SubscriptionModal({
   const [isUserEditedUrl, setIsUserEditedUrl] = useState(false);
   const [accountLinks, setAccountLinks] = useState<AccountLink[]>([]);
   const [notes, setNotes] = useState('');
+  const [cheaperPlanName, setCheaperPlanName] = useState('');
+  const [cheaperPlanPrice, setCheaperPlanPrice] = useState('');
 
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -99,6 +109,10 @@ export default function SubscriptionModal({
       
       setAccountLinks(parseAccountLinks(initialData));
       setNotes(cleanNotesUserText(initialData.notes));
+      setCheaperPlanName(initialData.cheaper_plan_name || '');
+      setCheaperPlanPrice(
+        initialData.cheaper_plan_price != null ? String(initialData.cheaper_plan_price) : ''
+      );
     } else {
       setName('');
       setPrice('');
@@ -115,6 +129,8 @@ export default function SubscriptionModal({
       setIsUserEditedUrl(false);
       setAccountLinks([]);
       setNotes('');
+      setCheaperPlanName('');
+      setCheaperPlanPrice('');
     }
     setFieldErrors({});
   }
@@ -136,16 +152,26 @@ export default function SubscriptionModal({
     if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
   };
 
-  const handleUrlChange = (val: string) => {
-    setProviderUrl(val);
-    setIsUserEditedUrl(true);
-  };
-
   const handleAddAccountLink = () => {
+    /* Free allows a single account per subscription. The check happens on the
+       click rather than at save so the user is told while looking at the
+       control, and so an existing single row on a free account is not silently
+       overwritten. */
+    if (hasReachedAccountLinkCap({ tier: planTier, linkCount: accountLinks.length })) {
+      onRequireUpgrade?.();
+      return;
+    }
+
     const knownAccountUrl = getKnownProviderAccountUrl(name);
     setAccountLinks((prev) => [
       ...prev,
-      { id: `link-${Date.now()}`, label: 'Personal', url: knownAccountUrl || '' },
+      {
+        id: `link-${Date.now()}`,
+        label: prev.length === 0 ? 'Personal' : `Account ${prev.length + 1}`,
+        // Pre-filled from the provider table so the user never has to paste the
+        // profile URL themselves. Still editable for providers we don't know.
+        url: knownAccountUrl || '',
+      },
     ]);
   };
 
@@ -158,6 +184,14 @@ export default function SubscriptionModal({
   const handleRemoveAccountLink = (id: string) => {
     setAccountLinks((prev) => prev.filter((item) => item.id !== id));
   };
+
+  /* False once the tier's account-link cap is met, which drives both the Plus
+     badge and the inline upgrade hint. Derived rather than stored so removing a
+     row immediately re-enables the button. */
+  const canAddAnotherAccount = !hasReachedAccountLinkCap({
+    tier: planTier,
+    linkCount: accountLinks.length,
+  });
 
   const handleConfirmReceiptData = (extracted: ExtractedReceiptData) => {
     if (extracted.name) {
@@ -215,13 +249,32 @@ export default function SubscriptionModal({
     setLoading(true);
     const parsedPrice = parseFloat(price);
 
+    // A cheaper tier only counts when both halves are present: a name with no
+    // price (or the reverse) cannot produce a "save $X/mo" figure, so it is
+    // discarded rather than shown as a half-configured recommendation.
+    const trimmedCheaperName = cheaperPlanName.trim();
+    const parsedCheaperPrice = parseFloat(cheaperPlanPrice);
+    const hasCheaperPlan =
+      trimmedCheaperName.length > 0 &&
+      !isNaN(parsedCheaperPrice) &&
+      parsedCheaperPrice >= 0;
+
     // Filter valid account links (must have a label or url)
     const validAccountLinks = accountLinks.filter(
       (link) => (link.label && link.label.trim().length > 0) || (link.url && link.url.trim().length > 0)
     );
 
-    // Format notes with embedded account links fallback
-    const formattedNotes = formatNotesWithAccountLinks(notes, validAccountLinks);
+    // Rebuild the notes metadata blocks from the row being edited. The form
+    // only holds the user-visible text, so without this an ordinary edit would
+    // strip [AttachedReceipts: ...] and [HistoryState: ...] — silently erasing
+    // the row's attachments and, for an archived/deleted row, resurrecting it
+    // into the active list.
+    const formattedNotes = formatNotesWithAccountLinks(
+      notes,
+      validAccountLinks,
+      initialData ? getSubscriptionHistoryState(initialData).metadata ?? null : null,
+      initialData ? parseAttachedReceipts(initialData) : null
+    );
 
     try {
       const savedId = await onSave(
@@ -239,9 +292,15 @@ export default function SubscriptionModal({
           provider_url: providerUrl.trim() || null,
           account_links: validAccountLinks,
           notes: formattedNotes,
+          cheaper_plan_name: hasCheaperPlan ? trimmedCheaperName : null,
+          cheaper_plan_price: hasCheaperPlan ? parsedCheaperPrice : null,
         },
         initialData?.id
       );
+
+      // null means the caller handled the submit itself (e.g. a plan-limit
+      // gate opened the upgrade modal) — do not toast success or close.
+      if (!savedId) return;
 
       if (pendingReceiptFile && savedId) {
         const stored = await storeReceiptFile({
@@ -256,10 +315,6 @@ export default function SubscriptionModal({
         }
       }
 
-      toast.success(
-        initialData?.id ? `Updated "${name}" successfully.` : `Added "${name}" subscription!`,
-        initialData?.id ? 'Subscription Updated' : 'Subscription Created'
-      );
       onClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save subscription.';
@@ -269,8 +324,16 @@ export default function SubscriptionModal({
     }
   };
 
-  const isSubmitDisabled =
-    loading || !name.trim() || !price.trim() || isNaN(parseFloat(price)) || parseFloat(price) <= 0 || !nextBillingDate;
+  /* Previously this required name, a parsable price > 0, and a next billing
+     date. That combination had two failure modes the user hit directly:
+       - a dead button with no visible reason, because validateForm() only runs
+         on submit and submit was impossible;
+       - an unescapable trap, since an existing row with a null
+         next_billing_date left the button disabled forever, so the date could
+         never be set and the row could never be saved.
+     Disabling only while saving keeps the control interactive; validateForm()
+     then reports the specific problems inline. */
+  const isSubmitDisabled = loading;
 
   return (
     <>
@@ -306,7 +369,7 @@ export default function SubscriptionModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-5 py-3 min-h-[44px] text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
+              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
             >
               Cancel
             </button>
@@ -314,7 +377,7 @@ export default function SubscriptionModal({
               type="submit"
               form={SUBSCRIPTION_FORM_ID}
               disabled={isSubmitDisabled}
-              className="w-full sm:w-auto px-6 py-3 min-h-[44px] bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -501,24 +564,15 @@ export default function SubscriptionModal({
               )}
             </div>
 
-            {/* Provider Website Field */}
-            <div className="space-y-2">
-              <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-[#94A3B8]" />
-                <span>Provider URL</span>
-              </label>
-              <input
-                type="url"
-                placeholder=""
-                value={providerUrl}
-                onChange={(e) => handleUrlChange(e.target.value)}
-                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
-              />
-            </div>
+            {/* No Provider URL input. The website is resolved from the provider
+                name and the account-link table, so asking for it by hand only
+                produced values that disagreed with the ones SubHalt already
+                knew. `providerUrl` is still derived and still saved — it just
+                has no field of its own. See handleNameChange. */}
 
             {/* Subscription Accounts Section */}
             <div className="space-y-4 pt-1">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
                   <Link2 className="w-3.5 h-3.5 text-[#94A3B8]" />
                   <span>Subscription Accounts</span>
@@ -526,12 +580,28 @@ export default function SubscriptionModal({
                 <button
                   type="button"
                   onClick={handleAddAccountLink}
+                  title={
+                    canAddAnotherAccount
+                      ? 'Add another account link'
+                      : 'Multiple accounts per subscription are a Plus feature'
+                  }
                   className="text-xs font-semibold text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5 text-[#14B8A6]" />
                   <span>Add account link</span>
                 </button>
               </div>
+
+              {/* No "Plus" badge here on purpose. The section itself is a normal
+                  part of adding a subscription; only the attempt to go past one
+                  account is Plus, and that is explained when it happens rather
+                  than advertised up front. */}
+              {!canAddAnotherAccount && (
+                <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+                  Your plan includes one account per subscription. Upgrade to Plus to add
+                  multiple accounts — family, work, or a second profile.
+                </p>
+              )}
 
               {accountLinks.length === 0 ? (
                 <div className="p-3.5 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-xs text-[#94A3B8]">
@@ -542,17 +612,30 @@ export default function SubscriptionModal({
                   {accountLinks.map((link, idx) => {
                     const customUrl = link.url ? link.url.trim() : '';
                     const knownAccountUrl = getKnownProviderAccountUrl(name);
+                    const knownWebsite = getKnownProviderWebsite(name);
 
-                    let effectiveAccountUrl: string | null = null;
-                    if (customUrl) {
-                      effectiveAccountUrl = customUrl.startsWith('http://') || customUrl.startsWith('https://')
-                        ? customUrl
-                        : `https://${customUrl}`;
-                    } else if (knownAccountUrl) {
-                      effectiveAccountUrl = knownAccountUrl;
-                    }
+                    /* Fallback chain, most specific first. The link icon is only
+                       disabled when we have nothing at all to send the user to,
+                       because a dead icon reads as a broken feature rather than
+                       as "we don't know this provider". The provider's own site
+                       is a usable destination even when the deep account path is
+                       unknown — signing in there is the point, and the account URL
+                       is already pre-filled from the table wherever we know it. */
+                    const effectiveAccountUrl = [
+                      customUrl,
+                      knownAccountUrl,
+                      providerUrl,
+                      knownWebsite,
+                    ]
+                      .filter((value): value is string => Boolean(value && value.trim()))
+                      .map((value) =>
+                        value.startsWith('http://') || value.startsWith('https://')
+                          ? value
+                          : `https://${value}`
+                      )[0] ?? null;
 
                     const hasAccountUrl = Boolean(effectiveAccountUrl);
+                    const usesKnownAccountPath = !customUrl && Boolean(knownAccountUrl);
 
                     return (
                       <div key={link.id} className="space-y-3 pt-2 pb-1 border-b border-[#1A1D1D]/40 last:border-b-0">
@@ -584,9 +667,15 @@ export default function SubscriptionModal({
 
                         {/* Account URL */}
                         <div className="space-y-2">
-                          <label className="text-[13px] font-medium text-[#94A3B8] block">Account URL</label>
+                          <label
+                            htmlFor={`account-url-${link.id}`}
+                            className="text-[13px] font-medium text-[#94A3B8] block"
+                          >
+                            Account URL
+                          </label>
                           <div className="flex items-center gap-2">
                             <input
+                              id={`account-url-${link.id}`}
                               type="url"
                               placeholder=""
                               value={link.url || ''}
@@ -601,9 +690,12 @@ export default function SubscriptionModal({
                                 className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer"
                                 title={
                                   customUrl
-                                    ? 'Open custom account URL in new tab'
-                                    : `Open ${name || 'provider'} account destination in new tab`
+                                    ? 'Open your saved account URL in a new tab'
+                                    : usesKnownAccountPath
+                                      ? `Open your ${name || 'provider'} account page in a new tab to sign in`
+                                      : `Open ${name || 'the provider'}’s website in a new tab to sign in and manage your account`
                                 }
+                                aria-label={`Open ${name || 'provider'} account in a new tab`}
                               >
                                 <ExternalLink className="w-4 h-4" />
                               </a>
@@ -611,8 +703,9 @@ export default function SubscriptionModal({
                               <button
                                 type="button"
                                 disabled
-                                title="Enter an Account URL or select a known provider to open account destination"
+                                title="Type a provider name above so we can open its account page"
                                 className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#94A3B8] flex items-center justify-center transition-colors opacity-40 cursor-not-allowed"
+                                aria-label="No provider page available yet"
                               >
                                 <ExternalLink className="w-4 h-4" />
                               </button>
@@ -624,6 +717,38 @@ export default function SubscriptionModal({
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Cheaper plan tier, used by Savings Intelligence to recommend a
+                downgrade instead of a straight cancellation. */}
+            <div className="space-y-2 pt-1">
+              <label className="text-[13px] font-medium text-[#94A3B8] block">
+                Cheaper Plan Tier{' '}
+                <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">
+                  (Optional)
+                </span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="e.g. Basic Plan"
+                  aria-label="Cheaper plan name"
+                  value={cheaperPlanName}
+                  onChange={(e) => setCheaperPlanName(e.target.value)}
+                  className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                />
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  aria-label="Cheaper plan price"
+                  value={cheaperPlanPrice}
+                  onChange={(e) => setCheaperPlanPrice(e.target.value)}
+                  className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                />
+              </div>
             </div>
 
             {/* Notes */}

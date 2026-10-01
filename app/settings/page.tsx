@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { signOutAndRedirect } from '@/lib/auth/sign-out';
 import {
   User,
   Shield,
@@ -132,7 +133,7 @@ function SettingsContent() {
           id: 'subhalt_local_subscription',
           user_id: '',
           name: 'SubHalt',
-          price: 4.99,
+          price: 3.99,
           currency: 'USD',
           billing_cycle: 'monthly',
           category: 'Software',
@@ -187,15 +188,16 @@ function SettingsContent() {
   };
 
   const handleAccountDeleted = async () => {
-    try {
-      await supabase.auth.signOut();
+    const ok = await signOutAndRedirect();
+
+    if (ok) {
       router.push('/login');
       router.refresh();
-    } catch {
-      // If signOut fails, still attempt navigation to login
-      router.push('/login');
-      router.refresh();
+      return;
     }
+
+    // The session cookie survived, so /login would bounce back to the dashboard.
+    toast.error('Could not sign you out. Please try again.', 'Sign Out Failed');
   };
 
   const handleExportData = () => {
@@ -402,7 +404,7 @@ function SettingsContent() {
             </h3>
             <p className="text-xs text-[#94A3B8]">
               {isPlus
-                ? 'Single monthly payment secured by Paystack. ($4.99/month)'
+                ? 'Single monthly payment secured by Paystack. ($3.99/month)'
                 : 'Intelligence for everyday tasks'}
             </p>
           </div>

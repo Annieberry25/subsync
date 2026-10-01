@@ -135,7 +135,7 @@ export default function UpgradeModal({
                 <p className="text-[11px] text-[#94A3B8] mt-0.5">Unlimited management tools</p>
               </div>
               <div className="text-right">
-                <span className="text-xl font-bold text-[#F5F7F6]">$4.99</span>
+                <span className="text-xl font-bold text-[#F5F7F6]">$3.99</span>
                 <span className="text-xs text-[#94A3B8] font-normal">/mo</span>
               </div>
             </div>
@@ -153,7 +153,7 @@ export default function UpgradeModal({
 
             <p className="text-[11px] text-[#94A3B8] flex items-center gap-1.5 justify-center text-center">
               <ShieldCheck className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-              Secure checkout powered by Paystack — $4.99/month.
+              Secure checkout powered by Paystack — $3.99/month.
             </p>
 
             <div className="space-y-2 pt-1">
@@ -165,15 +165,27 @@ export default function UpgradeModal({
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-3.5 h-3.5 text-[#14B8A6] shrink-0 mt-0.5" />
-                  <span>Advanced reminder controls</span>
+                  <span>Gmail Connect</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-3.5 h-3.5 text-[#14B8A6] shrink-0 mt-0.5" />
-                  <span>Advanced Smart Insights</span>
+                  <span>Email Forwarding</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-3.5 h-3.5 text-[#14B8A6] shrink-0 mt-0.5" />
-                  <span>Export subscription data (CSV/JSON)</span>
+                  <span>Advanced reminder controls &amp; alerts</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-3.5 h-3.5 text-[#14B8A6] shrink-0 mt-0.5" />
+                  <span>Advanced Smart Insights &amp; metrics</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-3.5 h-3.5 text-[#14B8A6] shrink-0 mt-0.5" />
+                  <span>Portfolio data export (CSV/JSON)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="w-3.5 h-3.5 text-[#14B8A6] shrink-0 mt-0.5" />
+                  <span>Family &amp; shared subscription tracking</span>
                 </li>
               </ul>
             </div>

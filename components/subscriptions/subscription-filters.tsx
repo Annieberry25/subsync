@@ -70,40 +70,67 @@ export default function SubscriptionFilters({
           />
         </div>
 
-        {/* Filter Groups */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto shrink-0">
+        {/* Filter Groups. Status and Sort share one horizontal row: on mobile
+            each collapses to a single icon button that expands its own menu,
+            which keeps two labelled selects from wrapping onto three lines
+            beside the search box. From `sm` up the labels come back, where
+            there is room for them. */}
+        <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto shrink-0">
           {/* Status Select */}
-          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-            <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#94A3B8] shrink-0">
+          <div className="flex items-center gap-2 sm:flex-initial">
+            <div className="hidden sm:flex items-center gap-1.5 text-[13px] font-medium text-[#94A3B8] shrink-0">
               <Filter className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
               <span>Status:</span>
             </div>
-            
-            <div className="flex-1 sm:flex-initial min-w-[120px]">
+
+            <div className="sm:hidden">
               <CustomSelect
                 options={statusOptions}
                 value={selectedStatus}
                 onChange={onStatusChange}
                 ariaLabel="Filter subscriptions by status"
-                minWidth="w-full sm:min-w-[125px]"
+                iconOnly
+                icon={<Filter className="w-4 h-4" />}
+              />
+            </div>
+
+            <div className="hidden sm:block sm:min-w-[125px]">
+              <CustomSelect
+                options={statusOptions}
+                value={selectedStatus}
+                onChange={onStatusChange}
+                ariaLabel="Filter subscriptions by status"
+                minWidth="sm:min-w-[125px]"
               />
             </div>
           </div>
 
           {/* Sort Select */}
-          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-            <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#94A3B8] shrink-0">
+          <div className="flex items-center gap-2 sm:flex-initial">
+            <div className="hidden sm:flex items-center gap-1.5 text-[13px] font-medium text-[#94A3B8] shrink-0">
               <ArrowUpDown className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
               <span>Sort:</span>
             </div>
 
-            <div className="flex-1 sm:flex-initial min-w-[180px]">
+            <div className="sm:hidden">
               <CustomSelect
                 options={sortOptions}
                 value={sortBy}
                 onChange={onSortChange}
                 ariaLabel="Sort subscriptions"
-                minWidth="w-full sm:min-w-[200px]"
+                iconOnly
+                icon={<ArrowUpDown className="w-4 h-4" />}
+                alignRight={true}
+              />
+            </div>
+
+            <div className="hidden sm:block sm:min-w-[200px]">
+              <CustomSelect
+                options={sortOptions}
+                value={sortBy}
+                onChange={onSortChange}
+                ariaLabel="Sort subscriptions"
+                minWidth="sm:min-w-[200px]"
                 alignRight={true}
               />
             </div>

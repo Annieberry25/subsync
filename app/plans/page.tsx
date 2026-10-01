@@ -184,7 +184,7 @@ function PlansContent() {
               <div className="space-y-3 border-b border-[#1A1D1D]/80 pb-8">
                 <h2 className="text-3xl sm:text-4xl font-bold text-[#F5F7F6]">Plus</h2>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-4xl sm:text-5xl font-extrabold text-[#F5F7F6]">$4.99</span>
+                  <span className="text-4xl sm:text-5xl font-extrabold text-[#F5F7F6]">$3.99</span>
                   <span className="text-base text-[#94A3B8]">/month</span>
                 </div>
               </div>
@@ -222,11 +222,19 @@ function PlansContent() {
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-[#14B8A6] shrink-0 mt-0.5" />
-                    <span>Advanced reminder controls & alerts</span>
+                    <span>Gmail Connect</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-[#14B8A6] shrink-0 mt-0.5" />
-                    <span>Advanced Smart Insights & metrics</span>
+                    <span>Email Forwarding</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <Check className="w-5 h-5 text-[#14B8A6] shrink-0 mt-0.5" />
+                    <span>Advanced reminder controls &amp; alerts</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <Check className="w-5 h-5 text-[#14B8A6] shrink-0 mt-0.5" />
+                    <span>Advanced Smart Insights &amp; metrics</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-[#14B8A6] shrink-0 mt-0.5" />
@@ -234,7 +242,7 @@ function PlansContent() {
                   </li>
                   <li className="flex items-start gap-3">
                     <Check className="w-5 h-5 text-[#14B8A6] shrink-0 mt-0.5" />
-                    <span>Family & shared subscription tracking</span>
+                    <span>Family &amp; shared subscription tracking</span>
                   </li>
                 </ul>
               </div>
@@ -265,7 +273,7 @@ function PlansContent() {
               className="px-6 py-3 min-h-[44px] rounded-full bg-[#1A1D1D] hover:bg-[#27272A] border border-[#2D3135] text-[#F5F7F6] text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
             >
               {processing && <Loader2 className="w-4 h-4 animate-spin text-[#F5F7F6]" />}
-              <span>{processing ? 'Redirecting to checkout…' : 'Continue to Checkout ($4.99)'}</span>
+              <span>{processing ? 'Redirecting to checkout…' : 'Continue to Checkout ($3.99)'}</span>
             </button>
           </div>
         }
@@ -277,7 +285,7 @@ function PlansContent() {
                 <p className="text-xs text-[#94A3B8]">Monthly Billing</p>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-extrabold text-[#F5F7F6]">$4.99</span>
+                <span className="text-2xl font-extrabold text-[#F5F7F6]">$3.99</span>
                 <span className="text-xs text-[#94A3B8] block">/ month</span>
               </div>
             </div>
@@ -287,7 +295,7 @@ function PlansContent() {
               <ShieldCheck className="w-4 h-4 text-[#14B8A6] shrink-0" />
               <span className="text-xs text-[#94A3B8]">
                 You&apos;ll be redirected to Paystack&apos;s secure checkout to complete your
-                $4.99 payment. Your upgrade is applied automatically on confirmation.
+                $3.99 payment. Your upgrade is applied automatically on confirmation.
               </span>
             </div>
       </Sheet>

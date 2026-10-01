@@ -5,7 +5,7 @@ import { Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ArrowLef
 import Sheet from '@/components/ui/sheet';
 import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
-import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
+import { hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
 import { createSubscription, fetchSubscriptions, filterActiveSubscriptions, getKnownProviderWebsite } from '@/lib/services/subscription-service';
 import { mapBillCategoryToSubscriptionCategory } from '@/lib/services/receipt-discovery';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -50,7 +50,7 @@ function toBillingCycle(raw: string): BillingCycle {
 
 export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequireUpgrade, autoScan }: GmailConnectModalProps) {
   const { isGmailConnected, gmailEmail, setGmailConnection } = useSettings();
-  const { isPlus } = usePlan();
+  const { planTier } = usePlan();
   const { addInboxItem } = useInbox();
   const { toast } = useToast();
 
@@ -133,7 +133,7 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
     const { data: currentData } = await fetchSubscriptions();
     const activeCount = currentData ? filterActiveSubscriptions(currentData).length : 0;
 
-    if (!isPlus && activeCount >= FREE_SUBSCRIPTION_LIMIT) {
+    if (hasReachedSubscriptionCap({ tier: planTier, activeCount })) {
       setImporting(false);
       onClose();
       if (onRequireUpgrade) {

@@ -7,7 +7,11 @@ const mocks = vi.hoisted(() => ({
   pathname: '/',
   unreadCount: 0,
   isAdmin: false,
-  signOut: vi.fn(async () => {}),
+  // supabase-js resolves with { error }, it does not reject on auth failures,
+  // so the default success shape has to mirror that rather than return undefined.
+  signOut: vi.fn(async () => ({ error: null as { message: string } | null })),
+  fetchCleared: vi.fn(),
+  toastError: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
   billsEnabled: false,
@@ -45,6 +49,15 @@ vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: { signOut: mocks.signOut } }),
 }));
 
+vi.mock('@/lib/hooks/use-toast', () => ({
+  useToast: () => ({ toast: { error: mocks.toastError, success: vi.fn(), info: vi.fn() } }),
+}));
+
+/* The auth cookie is httpOnly, so the real sign-out is a server call. Stub it
+   rather than letting the helper reach the network. */
+globalThis.fetch = ((..._args: unknown[]) =>
+  mocks.fetchCleared()) as unknown as typeof fetch;
+
 // The flag is read at module load, so it has to be mocked before nav.ts
 // evaluates it.
 vi.mock('@/lib/config/feature-flags', () => ({
@@ -59,6 +72,14 @@ beforeEach(() => {
   mocks.isAdmin = false;
   mocks.billsEnabled = false;
   mocks.signOut.mockClear();
+  mocks.signOut.mockResolvedValue({ error: null });
+  mocks.fetchCleared.mockReset();
+  mocks.fetchCleared.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ cleared: true }),
+  });
+  mocks.toastError.mockClear();
   mocks.push.mockClear();
   mocks.refresh.mockClear();
 });
@@ -250,18 +271,35 @@ describe('MoreSheet', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
 
-    expect(mocks.signOut).toHaveBeenCalledTimes(1);
     expect(mocks.push).toHaveBeenCalledWith('/login');
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
-  it('still redirects when signOut rejects, so a failed sign-out cannot strand the user', async () => {
-    mocks.signOut.mockRejectedValueOnce(new Error('network down'));
+  it('redirects once the server confirms the session was cleared', async () => {
+    /* The cookie is httpOnly, so the client cannot clear it — /api/auth/signout
+       does that on the server. Redirecting is only safe once it reports back. */
+    mocks.fetchCleared.mockResolvedValue({ ok: true, status: 200, json: async () => ({ cleared: true }) });
     renderSheet();
 
     await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
 
     expect(mocks.push).toHaveBeenCalledWith('/login');
+    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+
+  it('reports an error and does NOT redirect when the session cannot be cleared', async () => {
+    /* Redirecting with a live cookie bounces off /login via the middleware and
+       looks exactly like a dead button, so the user gets told instead. */
+    mocks.fetchCleared.mockResolvedValue({ ok: false, status: 500, json: async () => ({ cleared: false }) });
+    mocks.signOut.mockResolvedValue({ error: { message: 'still broken' } });
+    renderSheet();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
+
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledTimes(1);
   });
 
   it('surfaces the deployed build SHA for support diagnostics', () => {

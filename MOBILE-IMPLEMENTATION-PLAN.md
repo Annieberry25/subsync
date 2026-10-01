@@ -424,7 +424,7 @@ Each phase ends with `npm run lint`, `tsc --noEmit`, `npm test`, and a manual pa
 
 These were found in the preceding audit and intersect directly with mobile layout. Fixing them now avoids shipping mobile UI on top of broken behaviour.
 
-Status: **1 and 2 fixed** (`5f1523c`, `8d292f1`); 3 fixed (`9e80a97`); 4–12 still open.
+Status: **1–5 and 7–12 fixed**; 6 was already correct. The free-subscription cap is additionally enforced on the write path (`createSubscription`), not only in the browser gates.
 
 | # | Issue | Location | Why it blocks mobile | Status |
 |---|---|---|---|---|
@@ -433,13 +433,13 @@ Status: **1 and 2 fixed** (`5f1523c`, `8d292f1`); 3 fixed (`9e80a97`); 4–12 st
 | 3 | `subhalt-assistance-modal.tsx` is referenced nowhere and claims "SubHalt will execute automated cancellation" | `components/subscriptions/subhalt-assistance-modal.tsx` (241 lines) | Dead component; migrating it to a Sheet wastes a day and ships a false claim | Fixed — deleted |
 | 4 | `plans/page.tsx` passes the user-controlled `from` query to `router.push` | `app/plans/page.tsx` | Open-redirect risk on a page that is a primary dock target | Open |
 | 5 | `ServiceIcon` returns `null` for the name `subhalt` | `components/ui/service-icon.tsx` | Direct-child callers render an empty box, breaking card alignment on small screens | Open |
-| 6 | Detail modal reopens after closing (open state set during render, no latch) | `components/subscriptions/subscription-manager.tsx:158` | Very visible when the Sheet is full-height on a phone | Open |
-| 7 | Plan-limit rejection shows a success toast and closes the modal | `components/subscriptions/subscription-modal.tsx:269` | Mobile users hit the free limit sooner; the wrong feedback is worse | Open |
-| 8 | Duplicate success toasts on create | `subscription-modal.tsx:269` + `subscription-manager.tsx:281` | Stacked toasts collide with the dock on mobile | Open |
-| 9 | Receipt/history metadata lost on save and on restore | `subscription-modal.tsx:234`, `lib/services/subscription-service.ts:805,839` | The detail Sheet is the main place receipts are viewed; they will be missing | Open |
-| 10 | `GROQ_WEB_SEARCH` documented but never consumed; no `tools` in the Groq request | `lib/ai/server.ts:107-112`, `.env.example:19` | The AI Sheet promises cited sources that can never appear | Open |
-| 11 | `FREE_SUBSCRIPTION_LIMIT = 3` vs `PLAN_LIMITS.free.maxSubscriptions = 5`; `maxSubscriptions`, `maxEmailDiscoveryPerMonth`, `showAds`, `hasAdvancedInsights` read nowhere | `lib/constants.ts:1`, `lib/constants/plan-limits.ts` | Limit-gating cards and banners render inconsistent numbers | Open |
-| 12 | `.env.example` omits `NEXT_PUBLIC_BILL_PAYMENT_ENABLED`, `NEXT_PUBLIC_ADSENSE_CLIENT`, `NEXT_PUBLIC_ADSENSE_AD_SLOT` | `.env.example` | The entire Bills section, and therefore half the dock's More sheet, can be feature-flagged off with no documented way to enable it | Open |
+| 6 | Detail modal reopens after closing (open state set during render, no latch) | `components/subscriptions/subscription-manager.tsx:179` | Very visible when the Sheet is full-height on a phone | Already correct — the effect is guarded by `!isDetailOpen`; no change needed |
+| 7 | Plan-limit rejection shows a success toast and closes the modal | `components/subscriptions/subscription-modal.tsx:259` | Mobile users hit the free limit sooner; the wrong feedback is worse | Fixed — when the caller's `onSave` returns `null` (limit gate) the modal now stays open and toasts nothing; the upgrade modal is the only feedback |
+| 8 | Duplicate success toasts on create | `subscription-modal.tsx:259` + `subscription-manager.tsx:319` | Stacked toasts collide with the dock on mobile | Fixed — the modal no longer toasts; the manager/dashboard handler owns success/offline toasts (one source). Offline saves now return the saved id so the modal still closes |
+| 9 | Receipt/history metadata lost on save and on restore | `subscription-modal.tsx:224`, `lib/services/subscription-service.ts:733,756,772,795,829,863` | The detail Sheet is the main place receipts are viewed; they will be missing | Fixed — **worse than reported**: editing *any* subscription stripped `[AttachedReceipts]` and `[HistoryState]` because the form only held user text, so editing an archived/deleted row resurrected it into the active list. The six service rewrite sites (archive/soft-delete/restore × local+remote) also dropped receipts. All now rebuild notes via `rebuildNotesPreservingReceipts` / explicit metadata args; covered by 4 new tests |
+| 10 | `GROQ_WEB_SEARCH` documented but never consumed; no `tools` in the Groq request | `lib/ai/server.ts:107-112`, `.env.example:19` | The AI Sheet promises cited sources that can never appear | Fixed — `GROQ_WEB_SEARCH` (default `true`) now adds `tools: [{ type: "browser_search" }]` on GPT-OSS models; sources parsed from `executed_tools` and `citations`; covered by `server.test.ts`. Legacy `groq/compound*` references removed (decommissioned 2026-09-21) | Fixed |
+| 11 | `FREE_SUBSCRIPTION_LIMIT = 3` vs `PLAN_LIMITS.free.maxSubscriptions = 5`; `maxSubscriptions`, `maxEmailDiscoveryPerMonth`, `showAds`, `hasAdvancedInsights` read nowhere | `lib/constants.ts:1`, `lib/constants/plan-limits.ts` | Limit-gating cards and banners render inconsistent numbers | Fixed — free cap is now `3` everywhere: `FREE_SUBSCRIPTION_LIMIT` derives from `PLAN_LIMITS.free.maxSubscriptions` (single source of truth); all UI gates and the write path use `hasReachedSubscriptionCap`; covered by `plan-limits.test.ts` | Fixed |
+| 12 | `.env.example` omits `NEXT_PUBLIC_BILL_PAYMENT_ENABLED`, `NEXT_PUBLIC_ADSENSE_CLIENT`, `NEXT_PUBLIC_ADSENSE_AD_SLOT` | `.env.example` | The entire Bills section, and therefore half the dock's More sheet, can be feature-flagged off with no documented way to enable it | Fixed — documented under a new "Feature flags" section | Fixed |
 
 ---
 
@@ -516,9 +516,12 @@ Per route at every width: no horizontal scroll, no clipped text, no unreachable 
 - [x] All modals use `Sheet` with working Escape, focus trap, and scroll lock. (Verified: no `fixed inset-0` overlay remains outside `sheet.tsx` and the inbox message-menu backdrop.)
 - [x] Safe-area insets respected in portrait and landscape.
 - [x] Reduced-motion honoured for all new animation.
-- [ ] All defects in §9 fixed. (4 of 12 fixed — see §9 status column.)
-- [x] `npm run lint`, `tsc --noEmit`, and `npm test` pass. (19 files, 186 tests; lint 0 errors / 94 pre-existing warnings.)
+- [x] All defects in §9 fixed. (All 12 resolved: 11 fixed, 6 was already correct — see §9 status column.)
+- [x] `npm run lint`, `tsc --noEmit`, `npm test`, and `npm run build` pass. (28 files, 259 tests; lint 0 errors / 88 pre-existing warnings.)
 - [ ] Desktop screenshots unchanged from the Phase 0 baseline.
+- [ ] Dashboard overview layout renders as intended on a real device: renewals
+      full width, two-up row below, hairline between most-expensive and savings.
+      jsdom cannot evaluate the grid or the divider spacing.
 
 ### Verified mechanically
 
@@ -527,12 +530,142 @@ These are the items that can be checked without a device, and were:
 - [x] No `<button>` in `components/` or `app/` declares an explicit height below 44px (`h-6`…`h-10`, `min-h-[30px]`…`min-h-[43px]`).
 - [x] `aria-modal` and `document.body.style.overflow` each appear in exactly one file, `components/ui/sheet.tsx`.
 - [x] PWA icons are full-bleed opaque: decoded the first pixel of `icon-192.png`, `icon-512.png`, and `apple-icon.png` and confirmed alpha 255, which the `maskable` purpose requires.
+- [x] The free-tier cap has exactly one value: `FREE_SUBSCRIPTION_LIMIT` derives from `PLAN_LIMITS.free.maxSubscriptions`, and every gate plus the write path routes through `hasReachedSubscriptionCap`.
+- [x] `GROQ_WEB_SEARCH` is actually consumed (`tools: [{ type: 'browser_search' }]`) and the dead `groq/compound*` references are gone.
+- [x] Static overflow scan over bills, settings, profile, export, help, plans, and auth: no fixed `w-[Npx]`/`min-w-[Npx]` above 375px, no `100vw`, no `<table>` without an overflow or responsive-table guard, no negative-margin/absolute-offset escapes. The only unprefixed `grid-cols-N` is the category icon picker's intentional 5-column phone layout.
 
 ### Outstanding
 
 - [ ] Authenticated on-device sign-off across the §10.1 viewport matrix (iOS Safari, Android Chrome, split view, software keyboard, both orientations).
-- [ ] Remaining §9 defects 1, 3–12.
+- [ ] Per-route responsive sign-off for bills, settings, profile, export, help, plans, and auth (§6), plus a zero-horizontal-overflow check at 320/390/834/1440px. (Static scan is clean — see "Verified mechanically"; a browser pass is still required to confirm.)
 - [ ] Web Push (§7 item 3) — intentionally deferred; the manifest, icons, and Apple metadata are in place.
+- [ ] Push the local commit backlog and confirm the deployed `data-build` matches `HEAD`.
+
+### SubHalt audit batch (UI/behavior)
+
+Fixed and covered by tests:
+
+- **Provider logos never rendered.** `ServiceIcon` returned generated initials for
+  *every* provider unless `NEXT_PUBLIC_LOGO_DEV_TOKEN` was set, because the
+  no-token branch returned a monogram unconditionally. Logos now try logo.dev
+  (when a token exists) and then two keyless favicon sources before degrading.
+  5 tests in `components/ui/__tests__/service-icon.test.tsx`.
+- **Dead "Visit" account links.** Account-link URLs are hand-typed and often
+  stored without a scheme, so `href="netflix.com/account"` resolved as a
+  *relative* path and navigated nowhere; an empty URL produced `href=""`, which
+  reloaded the page. Both the card and the detail sheet now normalize via
+  `toAbsoluteUrl` (`lib/utils/url-utils.ts`) and render scheme-less or blank
+  links as plain text.
+- **Inert "Create Subscription" button.** It was disabled until name/price/date
+  were all valid, so `validateForm()` could never run to explain why — and an
+  existing row with a null `next_billing_date` could never be saved at all. It
+  is now disabled only while saving, and reports the missing fields inline.
+- **"Manage Subscription" dead ends.** Replaced "coming soon" toasts with
+  `getKnownProviderManagementUrl(name) || provider_url`, falling back to
+  "Add Provider Link" that opens the edit form. The cancellation sheet no longer
+  falls back to `https://google.com` while claiming a "verified management
+  route".
+- **Archive did not refresh.** `handleArchiveSubscription` existed in the manager
+  but was never passed to the card or table, so the archived row stayed visible.
+- **Dashboard overview was split across two cards.** Upcoming Renewals and Most
+  Expensive Plan sat in one row (3/5 | 2/5) while Savings Recommendations and
+  Spending by Category sat in a second card, so the same four sections read as
+  unrelated widgets. `components/dashboard/dashboard-overview-card.tsx` now
+  lays them out as three surfaces: Upcoming Renewals stays put but spans the
+  full grid width, with a two-up row below holding Most Expensive Plan +
+  Savings Recommendations on the left (split by a hairline) and Spending by
+  Category on the right. `MostExpensivePlanCard` gained an `isEmbedded` prop
+  (matching `CategoryBreakdownCard`) so it drops its own padding/surface inside
+  the left card, and `SavingsRecommendations` was reduced to
+  `SavingsRecommendationsSection`, which no longer renders a card or the
+  category column. 5 tests in
+  `components/dashboard/__tests__/dashboard-overview-card.test.tsx`.
+- **Savings recommendations were visually noisy and inconsistent.** The section
+  header carried an "Ask SubHalt" button plus a hairline rule, the primary
+  action was a wide "See savings" text button, and the 224px donut made the
+  category card taller than its neighbour. Now: "Ask SubHalt" moved into each
+  recommendation's action row beside "Review subscription"; "See savings" is an
+  eye icon button that reveals its label on hover/focus (with `aria-label` for
+  assistive tech); a 44px dropdown beside the title collapses the section via
+  `aria-expanded`/`aria-controls`; the hairline under the title is gone; and the
+  category card's embedded donut, centre text, and row padding are scaled down
+  while the two-up row drops `items-start` so both cards stretch to equal
+  height. Each recommendation now leads with a `ServiceIcon` plus a small muted
+  label carrying the service name from `sub.name` (the "High-Cost Subscription:"
+  / "Upcoming Renewal:" / "Active Trial:" prefixes are gone), the savings amount
+  is a large bold "Save up to $X/mo" headline derived from
+  `getNormalizedMonthlyPrice` rather than a pill, and "Review subscription" is
+  the white primary action. 9 tests in
+  `components/ai/__tests__/savings-recommendations.test.tsx`.
+- **Most Expensive Plan repeated table data.** It showed
+  `Streaming • Renews 2026-10-14` and a "N% of monthly spend" badge, all of
+  which the Subscriptions page already shows. It is now one line per plan —
+  logo, name, amount, and an inline `Manage Plan` link — and the normalized
+  monthly figure only appears when it differs from the billed price. 7 tests in
+  `components/dashboard/__tests__/most-expensive-plan-card.test.tsx`.
+- Receipt/history metadata preservation, PDF xref repair, currency session
+  refresh, duplicate dashboard/header/manager controls, and the mobile
+  status/sort row are covered by the suites listed in §12.
+
+### Savings Intelligence (cancellation modal)
+
+- [x] **"Mark as Paused" removed** in favour of a ghost **"Keep it"** button that
+      dismisses the recommendation without mutating the row.
+- [x] **Confirmation gate.** The confirm button no longer writes directly; it
+      opens a `ConfirmDialog` — "Did you complete cancellation on
+      [service]'s site?" with Cancel / "Yes, I canceled". Only on confirm does it
+      write `status: 'canceled'` and `end_date: today`.
+- [x] **Undo window.** After a successful write the sheet swaps to an 8s undo
+      panel; `Undo` restores `status: 'active'` and clears `end_date`. Implemented
+      inside the sheet rather than the toast, because `useToast` has no action
+      slot and extending it would reach outside the modal.
+- [x] **Downgrade vs cancel recommendation.** Reads optional
+      `cheaper_plan_name` / `cheaper_plan_price`; renders
+      "Recommended: Downgrade to [plan] — save $X/mo" and a "Confirm Downgraded"
+      button, else "Recommended: Cancel" and "Confirm Canceled". A tier with a
+      name but no price is treated as absent. The provider-site link is
+      byte-identical in both branches (asserted by a test).
+- [x] **Title** renamed to "Savings Intelligence"; subtitle stays
+      "[Service] Guidance & Route" with the name from the row.
+- [x] **Chrome stripped back to essentials.** The renewal banner (date +
+      "cancel within N days" urgency copy), the "Official Cancellation Route"
+      heading, the "SubHalt identified the verified management route…"
+      preamble, and the "Track Status in SubHalt" heading with its
+      instruction paragraph are all gone. What remains is the savings pair,
+      the recommended action, the provider link, and the two buttons — the
+      four elements the user actually acts on. A test asserts each removed
+      string is absent and that the link survives.
+      The "no management link yet" hint is deliberately kept: without it a
+      row with no URL gives no way to discover how to add one.
+- [x] **Total Savings** added as a derived figure:
+      `calculateTotalSavings()` sums the annualized price of `status === 'canceled'`
+      rows, shown as a dashboard stat card beside "Potential Savings". It is
+      recomputed from the rows, so reopening or undoing a cancellation lowers it
+      again — no persisted counter, no drift.
+- [ ] **Run the migration.** `cheaper_plan_name` and `cheaper_plan_price` were
+      added to `supabase/schema.sql` and `database.types.ts`; existing databases
+      need `ALTER TABLE public.subscriptions ADD COLUMN cheaper_plan_name TEXT,
+      ADD COLUMN cheaper_plan_price NUMERIC(10, 2) CHECK (cheaper_plan_price >= 0);`
+      Until that runs, the columns will not exist and PostgREST will reject the
+      write, so the form and the downgrade branch will fail at runtime.
+- [ ] **Renewal reminders** stop via `status = 'canceled'`, which is the
+      mechanism the rest of the app already keys off. Verified only at the data
+      level — no authenticated pass yet.
+- [ ] **"Keep it"** only closes the sheet. There is no `dismissed_at` column, so
+      the recommendation is not suppressed on the next visit. Add one if the
+      recommendation should stay dismissed.
+
+Still open — these need a product decision, not a code fix:
+
+- [ ] **Confirm-subscription UI** — the review/confirm step of the add flow.
+- [ ] **"Subscribe through provider"** — whether adding a subscription should
+      deep-link into the provider's own checkout, and which providers.
+- [ ] **Bills & Payment "no checkout page"** — whether SubHalt is meant to take
+      payment itself or only track bills. This is gated on
+      `NEXT_PUBLIC_BILL_PAYMENT_ENABLED` and cannot be settled without knowing
+      the intended model.
+- [ ] Plus: `PLAN_LIMITS.plus.maxSubscriptions` is `50` while the plan copy says
+      unlimited. Align the number or the copy.
 
 ---
 

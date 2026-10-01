@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
   payment_method TEXT,
   provider_url TEXT,
   notes TEXT,
+  cheaper_plan_name TEXT,
+  cheaper_plan_price NUMERIC(10, 2) CHECK (cheaper_plan_price >= 0),
   account_links JSONB,
   receipts JSONB,
   is_synced BOOLEAN,

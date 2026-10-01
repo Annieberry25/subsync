@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getSafeRedirectUrl, getSiteUrl, getAuthCallbackUrl } from '@/lib/utils/url-utils';
+import { getSafeRedirectUrl, getSiteUrl, getAuthCallbackUrl, toAbsoluteUrl } from '@/lib/utils/url-utils';
 
 const ORIG_ENV = { ...process.env };
 
@@ -62,5 +62,28 @@ describe('getAuthCallbackUrl', () => {
   it('appends /auth/callback to the site URL', () => {
     process.env.NEXT_PUBLIC_SITE_URL = 'https://subhalt.app';
     expect(getAuthCallbackUrl()).toBe('https://subhalt.app/auth/callback');
+  });
+});
+
+describe('toAbsoluteUrl', () => {
+  it('adds https:// to hand-typed URLs that have no scheme', () => {
+    // Regression: these were used directly as href values, so the browser
+    // resolved them as relative paths and the link went nowhere.
+    expect(toAbsoluteUrl('netflix.com/account')).toBe('https://netflix.com/account');
+    expect(toAbsoluteUrl('spotify.com')).toBe('https://spotify.com');
+    expect(toAbsoluteUrl('  github.com/settings  ')).toBe('https://github.com/settings');
+  });
+
+  it('leaves URLs that already have a scheme untouched', () => {
+    expect(toAbsoluteUrl('https://netflix.com')).toBe('https://netflix.com');
+    expect(toAbsoluteUrl('http://netflix.com')).toBe('http://netflix.com');
+    expect(toAbsoluteUrl('HTTPS://NETFLIX.COM')).toBe('HTTPS://NETFLIX.COM');
+  });
+
+  it('returns null for blank input so callers can skip rendering a link', () => {
+    expect(toAbsoluteUrl('')).toBeNull();
+    expect(toAbsoluteUrl('   ')).toBeNull();
+    expect(toAbsoluteUrl(null)).toBeNull();
+    expect(toAbsoluteUrl(undefined)).toBeNull();
   });
 });

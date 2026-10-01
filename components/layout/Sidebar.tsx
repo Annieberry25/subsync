@@ -6,6 +6,9 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { BrandMark, BrandWordmark } from '@/components/ui/brand-logo';
+import { signOutAndRedirect } from '@/lib/auth/sign-out';
+import { useToast } from '@/lib/hooks/use-toast';
 import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import {
@@ -36,6 +39,7 @@ export default function Sidebar({ isCollapsed = false, onToggleCollapse }: Sideb
 const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
   const { isPlus } = usePlan();
   const { unreadCount } = useInbox();
+  const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -84,19 +88,30 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
   }, [showProfileMenu]);
 
   const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      // Continue to redirect even if signOut fails; session cookies will still be cleared client-side.
+    const ok = await signOutAndRedirect();
+
+    if (ok) {
+      setShowProfileMenu(false);
+      router.push('/login');
+      router.refresh();
+      return;
     }
-    router.push('/login');
-    router.refresh();
+
+    // Deliberately no redirect here: the session cookie is still valid, so
+    // /login would immediately bounce back to the dashboard and the click would
+    // look inert. Say what went wrong instead.
+    toast.error('Could not sign you out. Please try again.', 'Sign Out Failed');
   };
 
   const avatarUrl = user?.user_metadata?.avatar_url;
-  const effectiveFullName = contextFullName?.trim() || user?.user_metadata?.full_name?.trim();
+  const effectiveFullName =
+    contextFullName?.trim() ||
+    user?.user_metadata?.full_name?.trim() ||
+    user?.user_metadata?.name?.trim();
   const effectiveEmail = contextEmail || user?.email || '';
-  const userName = effectiveFullName || (effectiveEmail ? effectiveEmail.split('@')[0] : 'User');
+  /* No generic "User" fallback: when neither a name nor an email is available
+     the row renders the email line alone rather than inventing an identity. */
+  const userName = effectiveFullName || (effectiveEmail ? effectiveEmail.split('@')[0] : '');
 
   const getInitials = (name?: string): string | null => {
     if (!name || !name.trim()) return null;
@@ -137,19 +152,19 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
   const content = (collapsed: boolean) => (
     <div className="flex flex-col justify-between h-full bg-[#000000] overflow-y-auto overflow-x-hidden">
       <div>
-        {/* Brand Logo */}
+        {/* Brand Logo. Collapsed rails show the mark alone; the wordmark is far
+            too wide for the 76px rail and would be clipped to a sliver. */}
         <div className={`border-b border-[#121414] flex items-center ${collapsed ? 'justify-center px-0 pt-5 pb-4' : 'justify-between px-5 pt-5 pb-4'}`}>
           <Link
             href="/"
             title="SubHalt"
+            aria-label="SubHalt home"
             className={`flex items-center group ${collapsed ? 'justify-center' : 'gap-3'}`}
           >
             {collapsed ? (
-              <span className="w-8 h-8 rounded-lg bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] text-sm font-bold tracking-tight">
-                S
-              </span>
+              <BrandMark size={32} priority />
             ) : (
-              <span className="font-bold text-lg text-[#14B8A6] tracking-tight">SubHalt</span>
+              <BrandWordmark height={26} priority />
             )}
           </Link>
         </div>
@@ -302,7 +317,7 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
               setShowProfileMenu(!showProfileMenu);
             }}
             aria-label="User profile options"
-            title={collapsed ? userName : undefined}
+            title={collapsed ? userName || 'Account' : undefined}
             aria-expanded={!collapsed && showProfileMenu}
             className={`w-full ${collapsed ? 'flex items-center justify-center p-2' : 'flex items-center justify-between p-2.5'} rounded-xl border transition-colors text-left group cursor-pointer ${
               showProfileMenu
@@ -314,7 +329,7 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
               {avatarUrl ? (
                 <Image
                   src={avatarUrl}
-                  alt={userName}
+                  alt={userName || 'Account'}
                   width={32}
                   height={32}
                   className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#14B8A6]/40"
@@ -327,9 +342,11 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
               )}
               {!collapsed && (
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-semibold text-[#F5F7F6] tracking-tight truncate block">
-                    {userName}
-                  </span>
+                  {userName && (
+                    <span className="text-xs font-semibold text-[#F5F7F6] tracking-tight truncate block">
+                      {userName}
+                    </span>
+                  )}
                   <span className="text-[11px] text-[#94A3B8] truncate block">
                     {effectiveEmail}
                   </span>

@@ -4,6 +4,9 @@ import {
   fetchSubscriptions,
   archiveSubscription,
   deleteSubscription,
+  softDeleteSubscription,
+  restoreSubscription,
+  parseAttachedReceipts,
   type SubscriptionRow,
 } from '@/lib/services/subscription-service';
 
@@ -179,6 +182,81 @@ describe('archiveSubscription', () => {
 
     expect(result.data).toBeNull();
     expect(result.error?.message).toContain('missing');
+  });
+
+  it('preserves attached receipts while adding the archived marker', async () => {
+    const row = makeSubRow({
+      status: 'active',
+      receipts: [{ id: 'r1', fileName: 'invoice.pdf', uploadDate: '2026-01-01' }],
+    });
+    mocks.setResults([
+      { data: row, error: null },
+      { data: row, error: null },
+    ]);
+
+    await archiveSubscription('sub_1');
+
+    const notesArg = mocks.chain.update.mock.calls[0][0] as { notes: string };
+    expect(notesArg.notes).toContain('[HistoryState:');
+    expect(notesArg.notes).toContain('[AttachedReceipts:');
+    expect(notesArg.notes).toContain('invoice.pdf');
+  });
+});
+
+describe('softDeleteSubscription', () => {
+  it('preserves attached receipts while adding the deleted marker', async () => {
+    const row = makeSubRow({
+      status: 'active',
+      receipts: [{ id: 'r1', fileName: 'keepme.pdf', uploadDate: '2026-01-01' }],
+    });
+    mocks.setResults([
+      { data: row, error: null },
+      { data: row, error: null },
+    ]);
+
+    await softDeleteSubscription('sub_1');
+
+    const notesArg = mocks.chain.update.mock.calls[0][0] as { notes: string };
+    expect(notesArg.notes).toContain('"state":"deleted"');
+    expect(notesArg.notes).toContain('keepme.pdf');
+  });
+});
+
+describe('restoreSubscription', () => {
+  it('clears the history marker but keeps attached receipts', async () => {
+    const row = makeSubRow({
+      status: 'active',
+      notes: 'user note\n[HistoryState: {"state":"archived","previousStatus":"trial"}]',
+      receipts: [{ id: 'r1', fileName: 'restore.pdf', uploadDate: '2026-01-01' }],
+    });
+    mocks.setResults([
+      { data: row, error: null },
+      { data: row, error: null },
+    ]);
+
+    await restoreSubscription('sub_1');
+
+    const notesArg = mocks.chain.update.mock.calls[0][0] as { notes: string };
+    expect(notesArg.notes).not.toContain('[HistoryState:');
+    expect(notesArg.notes).toContain('[AttachedReceipts:');
+    expect(notesArg.notes).toContain('restore.pdf');
+    expect(notesArg.notes).toContain('user note');
+  });
+
+  it('restores the previous status carried by the history marker', async () => {
+    const row = makeSubRow({
+      status: 'active',
+      notes: '[HistoryState: {"state":"archived","previousStatus":"paused"}]',
+    });
+    mocks.setResults([
+      { data: row, error: null },
+      { data: row, error: null },
+    ]);
+
+    await restoreSubscription('sub_1');
+
+    const updateArg = mocks.chain.update.mock.calls[0][0] as { status?: string };
+    expect(updateArg.status).toBe('paused');
   });
 });
 

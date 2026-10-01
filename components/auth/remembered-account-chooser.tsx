@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ChevronRight } from 'lucide-react';
 import { RememberedAccount } from '@/lib/auth/remembered-accounts';
 import { Button } from '@/components/ui/button';
+import { BrandWordmark } from '@/components/ui/brand-logo';
 
 interface RememberedAccountChooserProps {
   accounts: RememberedAccount[];
@@ -39,7 +40,7 @@ export function RememberedAccountChooser({
     <div>
       {/* 1. Logo/brand */}
       <div className="flex flex-col items-center justify-center space-y-2 mb-6">
-        <span className="text-xl font-bold text-[#14B8A6] tracking-tight">SubHalt</span>
+        <BrandWordmark height={30} priority />
       </div>
 
       {/* 2. Header text */}

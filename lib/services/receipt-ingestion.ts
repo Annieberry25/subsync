@@ -4,7 +4,7 @@
  * paths do not depend on any browser session.
  */
 import { env } from '@/lib/env';
-import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
+import { getPlanLimits, hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/lib/types/database.types';
 import { getKnownProviderWebsite } from '@/lib/services/subscription-service';
@@ -133,21 +133,21 @@ export async function ingestReceiptDraft(
   }
 
   const plus = await isPlusUser(admin, userId);
-  if (!plus) {
-    const { count } = await admin
-      .from('subscriptions')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .not('status', 'eq', 'canceled');
-    if (typeof count === 'number' && count >= FREE_SUBSCRIPTION_LIMIT) {
-      return {
-        status: 'limit_reached',
-        name: trimmedName,
-        price: draft.price,
-        currency: draft.currency,
-        error: `Upgrade to Plus to track more than ${FREE_SUBSCRIPTION_LIMIT} subscriptions.`,
-      };
-    }
+  const tier = plus ? 'plus' : 'free';
+  const { count } = await admin
+    .from('subscriptions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .not('status', 'eq', 'canceled');
+  if (hasReachedSubscriptionCap({ tier, activeCount: typeof count === 'number' ? count : 0 })) {
+    const limit = getPlanLimits(tier).maxSubscriptions;
+    return {
+      status: 'limit_reached',
+      name: trimmedName,
+      price: draft.price,
+      currency: draft.currency,
+      error: `Upgrade to Plus to track more than ${limit} subscriptions.`,
+    };
   }
 
   const { data: sub, error } = await admin

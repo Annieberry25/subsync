@@ -14,8 +14,13 @@ interface FabAction {
 }
 
 const ROUTE_ACTIONS: { match: (pathname: string) => boolean; action: FabAction }[] = [
+  /* Add-subscription lives only in the subscriptions menu. It used to also
+     appear on the dashboard and renewals, where the action was ambiguous: the
+     dashboard's own "Add Subscription" button already covers it, and on
+     renewals a floating "Add subscription" reads as "add this renewal" rather
+     than "open a new record". */
   {
-    match: (p) => p === '/' || p.startsWith('/subscriptions') || p.startsWith('/renewals'),
+    match: (p) => p.startsWith('/subscriptions'),
     action: { label: 'Add subscription', href: '/subscriptions?add=true', icon: Plus },
   },
   {

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowLeft, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { BrandWordmark } from '@/components/ui/brand-logo';
 import {
   getRememberedAccounts,
   saveRememberedAccount,
@@ -290,7 +291,7 @@ export function LoginFlow() {
 
           {/* Logo/brand */}
           <div className="flex flex-col items-center justify-center space-y-2 mb-6">
-            <span className="text-xl font-bold text-[#14B8A6] tracking-tight">SubHalt</span>
+            <BrandWordmark height={30} priority />
           </div>
 
           {/* Heading */}

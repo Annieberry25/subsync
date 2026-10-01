@@ -1,12 +1,11 @@
 'use client';
 
-import React, { memo, useMemo } from 'react';
-import { PiggyBank, Eye, HelpCircle, ArrowRight, ShieldAlert, Sparkles } from 'lucide-react';
+import React, { memo, useMemo, useState } from 'react';
+import { PiggyBank, Eye, ChevronDown } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { useCurrency } from '@/lib/contexts/user-settings-context';
 import { formatCurrency, getNormalizedMonthlyPrice } from '@/lib/utils/metrics-utils';
-import { CategoryBreakdownCard } from '@/components/dashboard/category-breakdown-card';
-import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
+import { ServiceIcon } from '@/components/ui/service-icon';
 
 interface SavingsRecommendationsProps {
   subscriptions: SubscriptionRow[];
@@ -16,7 +15,9 @@ interface SavingsRecommendationsProps {
   onAskSubHalt: (question: string) => void;
 }
 
-export const SavingsRecommendations = memo(function SavingsRecommendations({
+/* Section only — the surrounding card, and the spending-by-category column it
+   used to sit next to, are now owned by the shared dashboard overview card. */
+export const SavingsRecommendationsSection = memo(function SavingsRecommendationsSection({
   subscriptions,
   activeSubscriptions,
   onReviewSubscription,
@@ -24,6 +25,7 @@ export const SavingsRecommendations = memo(function SavingsRecommendations({
   onAskSubHalt,
 }: SavingsRecommendationsProps) {
   const { defaultCurrency } = useCurrency();
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const activeSubs = activeSubscriptions || subscriptions.filter(
     (s) => s.status === 'active' || s.status === 'trial'
@@ -34,9 +36,8 @@ export const SavingsRecommendations = memo(function SavingsRecommendations({
     id: string;
     sub: SubscriptionRow;
     type: 'duplicate' | 'expensive' | 'renewal' | 'unused';
-    title: string;
     description: string;
-    potentialSaveText: string;
+    monthlySavings: number;
   }> = [];
 
   // 1. Expensive subscriptions (Over $20/mo)
@@ -47,9 +48,8 @@ export const SavingsRecommendations = memo(function SavingsRecommendations({
       id: 'expensive-' + expensive.id,
       sub: expensive,
       type: 'expensive',
-      title: `High-Cost Subscription: ${expensive.name}`,
       description: `Billed at ${formatCurrency(expensive.price, expensive.currency || defaultCurrency)}/${expensive.billing_cycle}. Reviewing unused features could save you up to ${formatCurrency(monthly * 12, defaultCurrency)}/year.`,
-      potentialSaveText: `Save ${formatCurrency(monthly, defaultCurrency)}/mo`,
+      monthlySavings: monthly,
     });
   }
 
@@ -66,9 +66,8 @@ export const SavingsRecommendations = memo(function SavingsRecommendations({
       id: 'renewal-' + renewalNear.id,
       sub: renewalNear,
       type: 'renewal',
-      title: `Upcoming Renewal: ${renewalNear.name}`,
       description: `Renews on ${renewalNear.next_billing_date}. Cancel or pause now if you're not planning to continue.`,
-      potentialSaveText: `Save ${formatCurrency(renewalNear.price, renewalNear.currency || defaultCurrency)}`,
+      monthlySavings: getNormalizedMonthlyPrice(renewalNear),
     });
   }
 
@@ -79,9 +78,8 @@ export const SavingsRecommendations = memo(function SavingsRecommendations({
       id: 'trial-' + trialSub.id,
       sub: trialSub,
       type: 'unused',
-      title: `Active Trial: ${trialSub.name}`,
       description: `Currently on a free/discounted trial period. Decide before auto-renewal begins.`,
-      potentialSaveText: `Save ${formatCurrency(trialSub.price, trialSub.currency || defaultCurrency)}/mo`,
+      monthlySavings: getNormalizedMonthlyPrice(trialSub),
     });
   }
 
@@ -92,89 +90,116 @@ export const SavingsRecommendations = memo(function SavingsRecommendations({
       id: 'fallback-' + firstSub.id,
       sub: firstSub,
       type: 'unused',
-      title: `Portfolio Optimization: ${firstSub.name}`,
       description: `Check your tier and feature usage to ensure you're getting maximum value.`,
-      potentialSaveText: `Save ${formatCurrency(firstSub.price, firstSub.currency || defaultCurrency)}/mo`,
+      monthlySavings: getNormalizedMonthlyPrice(firstSub),
     });
   }
 
   return (
-    <div className="rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] p-5 sm:p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
-        {/* SECTION 1: Savings Recommendations */}
-        <div className="space-y-4 min-w-0">
-          <div className="flex items-center justify-between gap-3 border-b border-[#1A1D1D] pb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <PiggyBank className="w-5 h-5 text-[#94A3B8] shrink-0" />
-              <h3 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">
-                Savings Recommendations
-              </h3>
-            </div>
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <PiggyBank className="w-5 h-5 text-[#94A3B8] shrink-0" />
+          <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">
+            Savings Recommendations
+          </h2>
+        </div>
 
-            <button
-              type="button"
-              onClick={() => onAskSubHalt('How much could I save on my subscriptions?')}
-              className="px-3.5 py-1.5 rounded-lg bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] text-xs font-medium border border-[#3F3F46]/40 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-            >
-              <SubHaltAvatar size="sm" className="w-4 h-4 rounded-md border-0 bg-transparent" />
-              <span>Ask SubHalt</span>
-            </button>
-          </div>
+        <button
+          type="button"
+          onClick={() => setIsExpanded((prev) => !prev)}
+          aria-expanded={isExpanded}
+          aria-controls="savings-recommendations-list"
+          className="w-11 h-11 rounded-lg bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] border border-[#3F3F46]/40 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+        >
+          <ChevronDown
+            className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          />
+          <span className="sr-only">
+            {isExpanded ? 'Hide' : 'Show'} savings recommendations
+          </span>
+        </button>
+      </div>
 
-          {recommendations.length > 0 ? (
-            <div className="space-y-4">
-              {recommendations.slice(0, 2).map((item) => (
-                <div
-                  key={item.id}
-                  className="space-y-3 pb-1"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <span className="text-sm font-semibold text-[#F5F7F6] block truncate">
-                        {item.title}
-                      </span>
-                      <p className="text-xs text-[#94A3B8] leading-relaxed">
-                        {item.description}
-                      </p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-[#F5F7F6] text-[#091512] text-[11px] font-bold shrink-0">
-                      {item.potentialSaveText}
+      {isExpanded && (
+      <div id="savings-recommendations-list" className="mt-4 space-y-4">
+        {recommendations.length > 0 ? (
+          <div className="space-y-4">
+            {recommendations.slice(0, 2).map((item) => (
+              <div
+                key={item.id}
+                /* `group` + the hover/focus classes below drive the reveal: the
+                   service label and the eye button stay out of the resting state
+                   so the headline and the copy are what you actually read. */
+                className="group/item space-y-3 pb-1"
+              >
+                <div className="space-y-2 min-w-0">
+                  <div className="flex items-center gap-2.5 min-w-0 opacity-0 transition-opacity duration-150 group-hover/item:opacity-100 group-focus-within/item:opacity-100">
+                    <ServiceIcon
+                      name={item.sub.name}
+                      category={item.sub.category}
+                      providerUrl={item.sub.provider_url}
+                      className="w-7 h-7 rounded-lg shrink-0"
+                    />
+                    <span className="text-xs text-[#94A3B8] truncate">
+                      {item.sub.name}
                     </span>
                   </div>
 
-                  {/* Clean text-based action buttons: See savings (white primary) | Review subscription (subtle dark) */}
-                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  <span className="block text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight leading-tight">
+                    Save up to {formatCurrency(item.monthlySavings, defaultCurrency)}/mo
+                  </span>
+
+                  <p className="text-xs text-[#94A3B8] leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  {/* The eye icon is a resting affordance; only the "See savings"
+                      label is hover/focus-revealed. `invisible` alongside
+                      `opacity-0` so the label is genuinely removed from the
+                      render rather than left as a transparent layer that can
+                      still paint over the headline. */}
+                  <div
+                    className="group relative"
+                  >
                     <button
                       type="button"
                       onClick={() => onSeeSavings(item.sub)}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#F5F7F6] hover:bg-white text-[#091512] text-[11px] font-semibold transition-colors cursor-pointer"
+                      aria-label="See savings"
+                      className="w-11 h-11 rounded-lg bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] border border-[#3F3F46]/40 flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md bg-[#F5F7F6] text-[#091512] text-[11px] font-semibold whitespace-nowrap opacity-0 invisible transition-opacity group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible"
                     >
                       See savings
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => onReviewSubscription(item.sub)}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] text-[11px] font-medium border border-[#3F3F46]/40 transition-colors cursor-pointer"
-                    >
-                      Review subscription
-                    </button>
+                    </span>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="py-2 text-xs text-[#94A3B8]">
-              No active savings recommendations at this time. Add more subscriptions to see optimization insights.
-            </div>
-          )}
-        </div>
 
-        {/* SECTION 2: Spending by Category (Desktop Divider Between Columns) */}
-        <div className="border-t lg:border-t-0 lg:border-l border-[#1A1D1D] pt-6 lg:pt-0 lg:pl-10 min-w-0">
-          <CategoryBreakdownCard subscriptions={activeSubs} isEmbedded={true} />
-        </div>
+                  {/* Ask SubHalt takes the white primary slot. Review moved to
+                      the Savings Intelligence sheet as a plain link. */}
+                  <button
+                    type="button"
+                    onClick={() => onAskSubHalt('How much could I save on my subscriptions?')}
+                    className="px-3.5 py-1.5 rounded-lg bg-[#F5F7F6] hover:bg-white text-[#091512] text-[11px] font-semibold transition-colors cursor-pointer"
+                  >
+                    Ask SubHalt
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-2 text-xs text-[#94A3B8]">
+            No active savings recommendations at this time. Add more subscriptions to see optimization insights.
+          </div>
+        )}
       </div>
+      )}
     </div>
   );
 });

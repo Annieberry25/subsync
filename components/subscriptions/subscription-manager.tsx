@@ -2,8 +2,8 @@
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, AlertCircle, LayoutGrid, List, Mail, UploadCloud, Forward } from 'lucide-react';
-import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
+import { Plus, AlertCircle, LayoutGrid, List } from 'lucide-react';
+import { hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
 import { 
   fetchSubscriptions, 
   createSubscription, 
@@ -29,14 +29,12 @@ import { useToast } from '@/lib/hooks/use-toast';
 import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import UpgradeModal from './upgrade-modal';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
-import { EmailForwardingModal } from '@/components/integrations/email-forwarding-modal';
 
 import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
-  const { isPlus, isPremium } = usePlan();
-  const { isGmailConnected } = useSettings();
+  const { planTier } = usePlan();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -57,31 +55,17 @@ export default function SubscriptionManager() {
 
   const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
 
-  const [isForwardingModalOpen, setIsForwardingModalOpen] = useState(false);
-
-  // View Mode: 'table' (default list/table) or 'grid' (cards)
+  // View Mode: 'table' (list) or 'grid' (cards)
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
-  /**
-   * The table is `min-w-[760px]` and needs horizontal scrolling, which is
-   * unusable on a phone. Below `md` the cards are rendered regardless of the
-   * saved preference, and the toggle that sets it is hidden to match.
-   *
-   * This reads a media query rather than duplicating the breakpoint in CSS
-   * because the value decides *which component tree* renders, not just its
-   * styling.
-   */
-  const [isWideViewport, setIsWideViewport] = useState(true);
-
-  useEffect(() => {
-    const query = window.matchMedia('(min-width: 768px)');
-    const sync = () => setIsWideViewport(query.matches);
-    sync();
-    query.addEventListener('change', sync);
-    return () => query.removeEventListener('change', sync);
-  }, []);
-
-  const isTableView = isWideViewport && viewMode === 'table';
+  /* The list view is offered at every width. It used to be gated behind
+     `isWideViewport` (>=768px) with the toggle hidden on phones, on the
+     assumption that a 700px-min table is unusable on a small screen. That is
+     not true of this table: `.table-scroll` scrolls it horizontally and the
+     provider column is pinned, so the name stays readable while the remaining
+     columns scroll under it. Hiding the toggle also meant a phone could never
+     reach the list view at all. */
+  const isTableView = viewMode === 'table';
 
   // Detail View Modal state
   const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
@@ -305,10 +289,10 @@ export default function SubscriptionManager() {
         toast.warning('Saved on this device only — it will sync to your account when you are back online.', 'Offline Save');
       }
       await loadData();
-      return synced ? id : null;
+      return id;
     }
 
-    if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
+    if (hasReachedSubscriptionCap({ tier: planTier, activeCount: activeSubscriptions.length })) {
       setIsUpgradeModalOpen(true);
       return null;
     }
@@ -321,7 +305,7 @@ export default function SubscriptionManager() {
       toast.warning('Added on this device only — it will sync to your account when you are back online.', 'Offline Save');
     }
     await loadData();
-    return synced && created ? created.id : null;
+    return created ? created.id : null;
   };
 
   // Handle Archive
@@ -425,73 +409,24 @@ export default function SubscriptionManager() {
             <h2 className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight shrink-0">
               Subscriptions
             </h2>
-            <span
-              className="px-2.5 py-1 rounded-full bg-[#14B8A6]/10 border border-[#14B8A6]/20 text-[#14B8A6] text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"
-              title={`${activeSubscriptions.length} active subscription${activeSubscriptions.length === 1 ? '' : 's'} being tracked`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6]" />
-              {activeSubscriptions.length} active
-            </span>
           </div>
           <p className="text-xs sm:text-sm text-[#94A3B8] mt-1 font-normal leading-relaxed">
             Track every subscription, renewal, and payment in one place.
           </p>
         </div>
 
-        {/* Right: Import Sources + View Mode + Primary Action */}
+        {/* Right: View Mode + Primary Action.
+
+            The Gmail / receipt / forwarding icon trio that used to live here is
+            gone: every one of those paths is already a first-class option
+            inside the Add Subscription menu, so the row duplicated it. The
+            Gmail modal is still mounted below because the OAuth callback opens
+            it. */}
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap lg:flex-nowrap">
-          {/* Import Sources Group */}
+          {/* Layout View Toggle. Shown at every width — the list view works on
+              a phone via horizontal scroll with the provider column pinned. */}
           <div
-            className="flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 gap-1"
-            role="group"
-            aria-label="Import subscription sources"
-          >
-            <button
-              type="button"
-              onClick={() => setIsGmailModalOpen(true)}
-              title={isGmailConnected ? 'Gmail connected — manage settings' : 'Connect Gmail to auto-discover subscriptions'}
-              aria-label={isGmailConnected ? 'Gmail Settings' : 'Connect Gmail'}
-              className="relative w-9 h-9 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <Mail className="w-4 h-4" />
-              {isGmailConnected && (
-                <span
-                  className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#14B8A6]"
-                  title="Gmail Sync Active"
-                  aria-hidden="true"
-                />
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setAddPathInitial('receipt');
-                setIsAddPathModalOpen(true);
-              }}
-              title="Upload Receipt — extract subscription details from a receipt"
-              aria-label="Upload Receipt"
-              className="w-9 h-9 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <UploadCloud className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsForwardingModalOpen(true)}
-              title="Email Forwarding — forward receipts to your SubHalt inbox"
-              aria-label="Email Forwarding"
-              className="w-9 h-9 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <Forward className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Layout View Toggle — md and up only. Below md the table is
-              replaced by cards (see `isTableView` below), so offering a choice
-              would present a control that cannot change anything. */}
-          <div
-            className="hidden md:flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 gap-1"
+            className="flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 gap-1 shrink-0"
             role="group"
             aria-label="View mode"
           >
@@ -501,7 +436,7 @@ export default function SubscriptionManager() {
               title="List View"
               aria-label="Table view"
               aria-pressed={viewMode === 'table'}
-              className={`w-9 h-9 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              className={`w-11 h-11 sm:w-9 sm:h-9 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-[#14B8A6] text-[#091512] font-semibold'
                   : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
@@ -515,7 +450,7 @@ export default function SubscriptionManager() {
               title="Cards View"
               aria-label="Grid view"
               aria-pressed={viewMode === 'grid'}
-              className={`w-9 h-9 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              className={`w-11 h-11 sm:w-9 sm:h-9 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[#14B8A6] text-[#091512] font-semibold'
                   : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
@@ -525,10 +460,12 @@ export default function SubscriptionManager() {
             </button>
           </div>
 
+          {/* Desktop only. Below `lg` the contextual FAB in the dock is the add
+              affordance, so a second copy here competed with it. */}
           <button
             type="button"
             onClick={() => setIsAddPathModalOpen(true)}
-            className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
+            className="hidden lg:inline-flex px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-sm font-semibold items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
           >
             <Plus className="w-4 h-4 text-[#091512]" />
             <span>Add Subscription</span>
@@ -576,6 +513,7 @@ export default function SubscriptionManager() {
               onSelectSubscription={handleSelectSubscription}
               onEdit={handleEditSubscription}
               onDeleteRequest={handleDeleteRequest}
+              onArchiveRequest={handleArchiveSubscription}
               onPaymentReminderRequest={(item) => setReminderSubscription(item)}
               onOpenNotes={(item) => setNotesSub(item)}
               reminders={reminders}
@@ -604,6 +542,7 @@ export default function SubscriptionManager() {
                 onViewDetails={handleSelectSubscription}
                 onEdit={handleEditSubscription}
                 onDeleteRequest={handleDeleteRequest}
+                onArchiveRequest={handleArchiveSubscription}
                 onPaymentReminderRequest={(item) => setReminderSubscription(item)}
                 onOpenNotes={(item) => setNotesSub(item)}
                 reminderInfo={reminders[sub.id] || null}
@@ -746,6 +685,11 @@ export default function SubscriptionManager() {
         onSave={handleSave}
         initialData={editingSubscription}
         pendingReceiptFile={pendingReceiptFile}
+        onRequireUpgrade={() => {
+          // Close the form so the upgrade sheet is not stacked behind it.
+          setIsModalOpen(false);
+          setIsUpgradeModalOpen(true);
+        }}
       />
 
       {/* Dedicated Notes Editor Modal */}
@@ -810,12 +754,6 @@ export default function SubscriptionManager() {
         }}
         onSuccess={loadData}
         autoScan={gmailAutoScan}
-      />
-
-      <EmailForwardingModal
-        isOpen={isForwardingModalOpen}
-        onClose={() => setIsForwardingModalOpen(false)}
-        onSuccess={loadData}
       />
     </div>
   );

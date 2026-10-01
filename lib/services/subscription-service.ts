@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
 import type { Database } from '@/lib/types/database.types';
+import { getPlanLimits, hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
 
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 export type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row'];
@@ -406,6 +407,27 @@ export function formatNotesWithAccountLinks(
   return parts.length > 0 ? parts.join('\n') : null;
 }
 
+/**
+ * Rebuilds a row's notes for an archive/delete/restore transition while keeping
+ * every metadata block the caller does not explicitly set — attached receipts
+ * above all. `formatNotesWithAccountLinks` drops `[AttachedReceipts: ...]`
+ * unless receipts are passed, so every call site that rewrites an existing row's
+ * notes must route through here or the attachments are silently destroyed.
+ */
+function rebuildNotesPreservingReceipts(
+  subscription: SubscriptionRow,
+  userNotes: string | null | undefined,
+  links: AccountLink[],
+  historyState: HistoryStateMetadata | null
+): string | null {
+  return formatNotesWithAccountLinks(
+    userNotes,
+    links,
+    historyState,
+    parseAttachedReceipts(subscription)
+  );
+}
+
 export function filterActiveSubscriptions(subscriptions: SubscriptionRow[]): SubscriptionRow[] {
   return subscriptions.filter((sub) => getSubscriptionHistoryState(sub).state === 'active');
 }
@@ -567,6 +589,29 @@ export async function createSubscription(
     } = await supabase.auth.getUser();
 
     if (user) {
+      // Plan-tier cap enforced on the write path itself, not just the UI, so
+      // any caller (add flow, Gmail import, offline sync re-create) is bounded.
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan_tier')
+        .eq('id', user.id)
+        .maybeSingle();
+      const tier = profile?.plan_tier || 'free';
+      const { count } = await supabase
+        .from('subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .not('status', 'eq', 'canceled');
+      const activeCount = typeof count === 'number' ? count : 0;
+      if (hasReachedSubscriptionCap({ tier, activeCount })) {
+        const limit = getPlanLimits(tier).maxSubscriptions;
+        return {
+          data: null,
+          error: new Error(`Upgrade to Plus to track more than ${limit} subscriptions.`),
+          synced: false,
+        };
+      }
+
       const { data, error } = await supabase
         .from('subscriptions')
         .insert({
@@ -706,7 +751,7 @@ export async function archiveSubscription(id: string): Promise<SubscriptionWrite
       previousStatus: localRow.status,
       archivedAt: new Date().toISOString(),
     };
-    const newNotes = formatNotesWithAccountLinks(userNotes, links, historyMetadata);
+    const newNotes = rebuildNotesPreservingReceipts(localRow, userNotes, links, historyMetadata);
     return updateSubscription(id, { notes: newNotes });
   }
 
@@ -726,10 +771,10 @@ export async function archiveSubscription(id: string): Promise<SubscriptionWrite
   const historyMetadata: HistoryStateMetadata = {
     state: 'archived',
     previousStatus: sub.status,
-    archivedAt: new Date().toISOString(),
-  };
+      archivedAt: new Date().toISOString(),
+    };
 
-  const newNotes = formatNotesWithAccountLinks(userNotes, links, historyMetadata);
+  const newNotes = rebuildNotesPreservingReceipts(sub, userNotes, links, historyMetadata);
 
   return await updateSubscription(id, { notes: newNotes });
 }
@@ -745,7 +790,7 @@ export async function softDeleteSubscription(id: string): Promise<SubscriptionWr
       previousStatus: localRow.status,
       deletedAt: new Date().toISOString(),
     };
-    const newNotes = formatNotesWithAccountLinks(userNotes, links, historyMetadata);
+    const newNotes = rebuildNotesPreservingReceipts(localRow, userNotes, links, historyMetadata);
     return updateSubscription(id, { notes: newNotes });
   }
 
@@ -768,7 +813,7 @@ export async function softDeleteSubscription(id: string): Promise<SubscriptionWr
     deletedAt: new Date().toISOString(),
   };
 
-  const newNotes = formatNotesWithAccountLinks(userNotes, links, historyMetadata);
+  const newNotes = rebuildNotesPreservingReceipts(sub, userNotes, links, historyMetadata);
 
   return await updateSubscription(id, { notes: newNotes });
 }
@@ -802,7 +847,7 @@ export async function restoreSubscription(id: string): Promise<SubscriptionWrite
   if (localRow) {
     const links = parseAccountLinks(localRow);
     const userNotes = cleanNotesUserText(localRow.notes);
-    const newNotes = formatNotesWithAccountLinks(userNotes, links, null);
+    const newNotes = rebuildNotesPreservingReceipts(localRow, userNotes, links, null);
     const result = await updateSubscription(id, {
       notes: newNotes,
       status: 'active',
@@ -836,7 +881,7 @@ export async function restoreSubscription(id: string): Promise<SubscriptionWrite
 
   const links = parseAccountLinks(sub);
   const userNotes = cleanNotesUserText(sub.notes);
-  const newNotes = formatNotesWithAccountLinks(userNotes, links, null);
+  const newNotes = rebuildNotesPreservingReceipts(sub, userNotes, links, null);
 
   const restoredStatus = metadata?.previousStatus || 'active';
 

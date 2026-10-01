@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Upload, CheckCircle2, Sparkles, AlertCircle, Edit3, ArrowRight, FileSearch } from 'lucide-react';
+import { X, Upload, CheckCircle2, Sparkles, AlertCircle, Edit3, FileSearch } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import type { ExtractedBillReceiptData } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
@@ -289,14 +289,9 @@ function ReceiptScanModalBody({
                   className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {scan.isScanning ? (
-                    <>
-                      <span className="animate-pulse">Reading receipt…</span>
-                    </>
+                    <span className="animate-pulse">Reading receipt…</span>
                   ) : (
-                    <>
-                      <span>Extract Receipt Details</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
+                    <span>Extract Receipt Details</span>
                   )}
                 </button>
               </div>

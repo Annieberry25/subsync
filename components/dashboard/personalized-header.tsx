@@ -51,6 +51,9 @@ export const PersonalizedHeader = memo(function PersonalizedHeader({
     loadUser();
   }, [supabase]);
 
+  /* Resolves the best available identity. Deliberately returns '' rather than a
+     generic "User" placeholder: a bare "User" reads as though the account name
+     were literally "user", which is worse than showing the greeting alone. */
   const getDisplayName = () => {
     if (contextFullName?.trim()) {
       return contextFullName.trim();
@@ -58,12 +61,15 @@ export const PersonalizedHeader = memo(function PersonalizedHeader({
     if (user?.user_metadata?.full_name?.trim()) {
       return user.user_metadata.full_name.trim();
     }
+    if (user?.user_metadata?.name?.trim()) {
+      return user.user_metadata.name.trim();
+    }
     const currentEmail = contextEmail || user?.email;
     if (currentEmail) {
       const emailName = currentEmail.split('@')[0];
       return emailName.charAt(0).toUpperCase() + emailName.slice(1);
     }
-    return 'User';
+    return '';
   };
 
   const displayName = getDisplayName();
@@ -74,7 +80,7 @@ export const PersonalizedHeader = memo(function PersonalizedHeader({
       {/* Left: Greeting + Subtitle */}
       <div className="min-w-0 break-words">
         <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">
-          {greeting}, {displayName}.
+          {greeting}{displayName ? `, ${displayName}` : ''}.
         </h2>
         <p className="text-xs sm:text-sm text-[#94A3B8] font-normal leading-relaxed mt-0.5 block">
           {renewingThisWeekCount > 0

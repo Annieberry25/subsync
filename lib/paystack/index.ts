@@ -16,8 +16,8 @@ import { convertAmount, fetchExchangeRates } from '@/lib/services/currency-servi
 export const PLUS_PLAN = {
   name: 'SubHalt Plus',
   tier: 'plus',
-  price: 4.99,
-  amountCents: 499,
+  price: 3.99,
+  amountCents: 399,
   currency: 'USD',
   interval: 'monthly',
   durationDays: 30,
@@ -38,7 +38,7 @@ export interface PlanCharge {
 /**
  * Convert the USD list price to a naira charge using the latest USD→NGN rate,
  * falling back to the bundled rate when the API is unreachable. Charging a
- * hardcoded naira amount would drift from the displayed $4.99, and USD is not
+ * hardcoded naira amount would drift from the displayed $3.99, and USD is not
  * accepted on all Paystack merchant accounts, so we convert server-side.
  */
 export async function getPlanCharge(): Promise<PlanCharge> {

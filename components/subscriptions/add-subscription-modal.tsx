@@ -3,10 +3,13 @@
 import { useState } from 'react';
 import { Forward, Sparkles, PlusCircle, ArrowRight } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
+import { PlusBadge } from '@/components/ui/plus-badge';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
 import { EmailForwardingModal } from '@/components/integrations/email-forwarding-modal';
 import LinkSubscriptionModal from './link-subscription-modal';
 import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-modal';
+import { usePlan } from '@/lib/contexts/user-settings-context';
+import { hasPlanFeature } from '@/lib/constants/plan-limits';
 import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
 
 type AddPath = 'gmail' | 'forwarding' | 'link' | 'receipt';
@@ -40,6 +43,7 @@ export default function AddSubscriptionModal({
   onRequireUpgrade,
   initialPath = null,
 }: AddSubscriptionModalProps) {
+  const { planTier } = usePlan();
   const [activeSubModal, setActiveSubModal] = useState<'none' | AddPath>('none');
   const [receiptProviderName, setReceiptProviderName] = useState<string | undefined>(undefined);
   const [appliedInitialPath, setAppliedInitialPath] = useState<AddPath | null>(null);
@@ -114,16 +118,27 @@ export default function AddSubscriptionModal({
       >
             {/* Five Options Menu. The Sheet body owns the scroll. */}
             <div className="pt-1 divide-y divide-[#1A1D1D]/50">
-              {/* Option 1: Connect Gmail */}
+              {/* Option 1: Connect Gmail (Plus). A free user sees the "Plus"
+                  marker and is sent to upgrade instead of the OAuth flow. */}
               <button
                 type="button"
-                onClick={() => setActiveSubModal('gmail')}
+                onClick={() => {
+                  if (!hasPlanFeature(planTier, 'gmail')) {
+                    onClose();
+                    onRequireUpgrade?.();
+                    return;
+                  }
+                  setActiveSubModal('gmail');
+                }}
                 className="w-full p-3.5 sm:p-4 rounded-xl hover:bg-[#1A1D1D] transition-colors duration-200 text-left group cursor-pointer my-1"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
-                    Connect Gmail
-                  </h3>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
+                      Connect Gmail
+                    </h3>
+                    {!hasPlanFeature(planTier, 'gmail') && <PlusBadge />}
+                  </div>
                   <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:translate-x-1 transition-all" />
                 </div>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
@@ -131,16 +146,26 @@ export default function AddSubscriptionModal({
                 </p>
               </button>
 
-              {/* Option 2: Email Forwarding */}
+              {/* Option 2: Email Forwarding (Plus). */}
               <button
                 type="button"
-                onClick={() => setActiveSubModal('forwarding')}
+                onClick={() => {
+                  if (!hasPlanFeature(planTier, 'emailForwarding')) {
+                    onClose();
+                    onRequireUpgrade?.();
+                    return;
+                  }
+                  setActiveSubModal('forwarding');
+                }}
                 className="w-full p-3.5 sm:p-4 rounded-xl hover:bg-[#1A1D1D] transition-colors duration-200 text-left group cursor-pointer my-1"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
-                    Email Forwarding
-                  </h3>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
+                      Email Forwarding
+                    </h3>
+                    {!hasPlanFeature(planTier, 'emailForwarding') && <PlusBadge />}
+                  </div>
                   <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:translate-x-1 transition-all" />
                 </div>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">

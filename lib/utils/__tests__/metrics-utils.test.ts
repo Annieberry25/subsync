@@ -147,6 +147,7 @@ describe('getMostExpensiveSubscriptions', () => {
   });
 });
 
+
 describe('formatCurrency', () => {
   it('formats USD amounts', () => {
     expect(formatCurrency(12.5, 'USD')).toBe('$12.50');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useSyncExternalStore } from 'react';
+import { useState, useRef, useEffect, useCallback, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
@@ -19,6 +19,15 @@ interface CustomSelectProps {
   alignRight?: boolean;
   variant?: 'default' | 'borderless' | 'compact' | 'inline';
   showCheckmark?: boolean;
+  /**
+   * Collapses the trigger to a single square icon button. The menu itself is
+   * unchanged, so positioning, outside-click dismissal, scroll-to-close and
+   * keyboard handling all still apply. The current value is announced through
+   * the accessible name rather than drawn as text, which is what makes it
+   * safe to hide it on a narrow screen.
+   */
+  iconOnly?: boolean;
+  icon?: ReactNode;
 }
 
 const emptySubscribe = () => () => {};
@@ -33,6 +42,8 @@ export function CustomSelect({
   alignRight = false,
   variant = 'default',
   showCheckmark = true,
+  iconOnly = false,
+  icon,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -173,6 +184,36 @@ export function CustomSelect({
     : null;
 
   const isInline = variant === 'inline' || variant === 'borderless' || variant === 'compact';
+
+  const triggerLabel = selectedOption?.label || value;
+
+  if (iconOnly) {
+    return (
+      <div ref={containerRef} className="relative inline-block">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          onKeyDown={handleKeyDown}
+          aria-label={`${ariaLabel}: ${triggerLabel}`}
+          aria-expanded={isOpen}
+          className={`w-11 h-11 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer group outline-none focus:outline-none hover:bg-[#1A1D1D] ${className}`}
+        >
+          <span
+            className={`flex items-center justify-center transition-colors ${
+              isOpen
+                ? 'text-[#14B8A6]'
+                : 'text-[#94A3B8] group-hover:text-[#F5F7F6]'
+            }`}
+          >
+            {icon}
+          </span>
+        </button>
+
+        {portalMenu}
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className={`relative text-left ${className.includes('w-full') ? 'w-full' : 'inline-block'}`}>

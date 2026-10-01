@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, CheckCircle2, Sparkles, ArrowLeft, AlertCircle, FileSearch } from 'lucide-react';
+import { Upload, CheckCircle2, ArrowLeft, AlertCircle, FileSearch } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { ACCEPT_ATTRIBUTE, TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
@@ -166,7 +166,6 @@ export default function ReceiptImportModal({
             disabled={isAnalyzeDisabled}
             className="w-full sm:w-auto px-5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Sparkles className="w-4 h-4 text-[#091512]" />
             <span>{scan.isScanning ? 'Reading receipt…' : 'Extract Receipt Info'}</span>
           </button>
         ) : (

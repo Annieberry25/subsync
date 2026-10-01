@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowLeft, AtSign, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { BrandWordmark } from '@/components/ui/brand-logo';
 import { saveRememberedAccount } from '@/lib/auth/remembered-accounts';
 import { getAuthCallbackUrl } from '@/lib/utils/url-utils';
 
@@ -260,7 +261,7 @@ export function SignupFlow() {
         <div>
           {/* Logo/brand */}
           <div className="flex flex-col items-center justify-center space-y-2 mb-6">
-            <span className="text-xl font-bold text-[#14B8A6] tracking-tight">SubHalt</span>
+            <BrandWordmark height={30} priority />
           </div>
 
           {/* Heading */}

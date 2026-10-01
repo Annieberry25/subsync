@@ -415,10 +415,45 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     if (typeof window !== 'undefined') {
       safeSetItem('subhalt_default_currency', newCurrency);
     }
-    const { error } = await supabase.auth.updateUser({
-      data: { default_currency: newCurrency },
-    });
-    if (error) throw error;
+
+    const error = await persistUserMetadata({ default_currency: newCurrency });
+
+    if (error) {
+      // The local value is deliberately kept: the whole app reads the currency
+      // from context and localStorage, so reverting would silently undo a change
+      // the user can see applied everywhere. What failed is only the sync to the
+      // account, and the previous behaviour reported that as a bare
+      // "Auth session missing" while the UI showed the new value, which reads
+      // like the app contradicting itself.
+      logger.warn('[user-settings] default currency not synced to account', {
+        newCurrency,
+        code: error.code,
+        message: error.message,
+      });
+      throw new Error(
+        'Saved on this device, but we could not sync it to your account because your sign-in session has expired. Sign out and back in to save it to your profile.'
+      );
+    }
+  };
+
+  /**
+   * Writes to `user_metadata`. A short-lived or already-refreshed access token
+   * makes `updateUser` fail with `Auth session missing` even though the user is
+   * signed in, so a single silent refresh is attempted first.
+   */
+  const persistUserMetadata = async (
+    data: Record<string, unknown>
+  ): Promise<{ code?: string; message: string } | null> => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (!refreshed.session) {
+        return { code: 'auth_session_missing', message: 'No active session' };
+      }
+    }
+
+    const { error } = await supabase.auth.updateUser({ data });
+    return error ?? null;
   };
 
   const updateNotificationPreferences = async (prefs: Partial<NotificationPreferences>) => {

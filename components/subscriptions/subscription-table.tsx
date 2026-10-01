@@ -22,13 +22,6 @@ interface SubscriptionTableProps {
   onDismissReminder?: (subscription: SubscriptionRow) => void;
 }
 
-const statusDotColors: Record<string, string> = {
-  active: 'bg-[#14B8A6]',
-  trial: 'bg-[#F59E0B]',
-  paused: 'bg-[#6B7280]',
-  canceled: 'bg-[#D9363E]',
-};
-
 function getPlanName(sub: SubscriptionRow): string {
   const cleanNotes = cleanNotesUserText(sub?.notes);
   if (cleanNotes) {
@@ -176,7 +169,13 @@ function SubscriptionTable({
               if (targetUrl) {
                 window.open(targetUrl, '_blank', 'noopener,noreferrer');
               } else {
-                toast.info(`Managing ${activeSubForMenu.name} coming soon.`, 'Manage Plan');
+                // A "coming soon" toast is a dead end; open the form so the
+                // user can actually add the portal link.
+                toast.info(
+                  `Add a provider link for ${activeSubForMenu.name} to open its billing portal from here.`,
+                  'Add Provider Link'
+                );
+                onSelectSubscription(activeSubForMenu);
               }
             }}
             className="w-full px-3.5 py-2.5 min-h-[40px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] flex items-center gap-2.5 transition-colors text-left cursor-pointer"
@@ -251,7 +250,15 @@ function SubscriptionTable({
           provider name stays anchored while the other columns scroll under it. */}
       <div className="w-full table-scroll">
         <table className="w-full text-left border-collapse min-w-[700px]">
-          <thead className="sticky top-(--spacing-header) z-20">
+          {/* `top-0`, not the app-header offset. This table sits inside
+              `.table-scroll` (overflow-x: auto), and an element with any
+              non-visible overflow is itself a scroll container — so the thead's
+              nearest scrollport is that div, not the page. Offsetting by the
+              56/64px app-header height therefore pushed the header *down into*
+              the body rows, and since it carries a solid background and z-20 it
+              painted over them, leaving the header visible and every
+              subscription hidden. */}
+          <thead className="sticky top-0 z-20">
             <tr className="border-b border-[#1A1D1D] text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF] bg-[#0B0D0D]">
               <th className="py-3.5 px-5 font-semibold table-sticky-col">Provider</th>
               <th className="py-3.5 px-4 font-semibold">Plan</th>
@@ -262,9 +269,8 @@ function SubscriptionTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1A1D1D] text-xs sm:text-sm">
-            {subscriptions.map((sub, index) => {
+            {subscriptions.map((sub) => {
               const formattedPrice = formatCurrency(Number(sub.price), sub.currency);
-              const statusDotStyle = statusDotColors[sub.status] || statusDotColors.active;
               const planName = getPlanName(sub);
 
               const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
@@ -302,7 +308,14 @@ function SubscriptionTable({
                   }`}
                 >
                   {/* Provider (Logo + Name) */}
-                  <td className="py-4 px-5 whitespace-nowrap">
+                  <td
+                    className="py-4 px-5 whitespace-nowrap table-sticky-col"
+                    style={
+                      isHighlighted
+                        ? ({ '--table-sticky-bg': 'rgba(20, 184, 166, 0.15)' } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
                     <div className="flex items-center gap-3">
                       <ServiceIcon
                         name={sub.name}
