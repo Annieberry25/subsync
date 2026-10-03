@@ -23,3 +23,24 @@ export const SESSION_COOKIE_OPTIONS: CookieOptions = {
   secure: isHttps(),
   sameSite: 'lax',
 };
+
+/**
+ * Auth cookie attributes for `createBrowserClient`.
+ *
+ * The browser client persists auth state through `document.cookie`, and browsers
+ * silently discard any script-written cookie carrying HttpOnly. That breaks the
+ * PKCE handshake: `signInWithOAuth` / `signInWithOtp` must stash the code
+ * verifier before leaving for the provider, so with httpOnly the verifier never
+ * lands and `/auth/callback` fails `exchangeCodeForSession` — which is what
+ * surfaced as `/login?error=Could not authenticate`. The same applies to the
+ * session stored after `verifyOtp` / `signUp`.
+ *
+ * So the browser client must opt out. Sessions this app mints itself (password
+ * sign-in, OAuth callback) are still written by the server above and keep the
+ * httpOnly guarantee.
+ */
+export const BROWSER_SESSION_COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: false,
+  secure: isHttps(),
+  sameSite: 'lax',
+};

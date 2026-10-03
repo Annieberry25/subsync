@@ -16,7 +16,7 @@ import {
 import { RememberedAccountChooser } from './remembered-account-chooser';
 import { getSiteUrl, getAuthCallbackUrl } from '@/lib/utils/url-utils';
 
-export function LoginFlow() {
+export function LoginFlow({ initialError }: { initialError?: string } = {}) {
   const [step, setStep] = useState<'chooser' | 'email' | 'password' | 'otp'>(() =>
     getRememberedAccounts().length > 0 ? 'chooser' : 'email'
   );
@@ -28,7 +28,7 @@ export function LoginFlow() {
 
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const router = useRouter();

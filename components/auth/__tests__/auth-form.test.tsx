@@ -75,6 +75,14 @@ describe('AuthForm', () => {
     expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
   });
 
+  it('surfaces an error handed back by the OAuth callback', () => {
+    render(<AuthForm initialError="Sign-in could not be completed. Please try again." />);
+
+    expect(
+      screen.getByText('Sign-in could not be completed. Please try again.')
+    ).toBeInTheDocument();
+  });
+
   it('signs in with the entered email and password', async () => {
     const user = userEvent.setup();
     const { container } = render(<AuthForm />);

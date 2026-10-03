@@ -7,10 +7,19 @@ export const metadata: Metadata = {
   alternates: { canonical: '/login' },
 };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <div className="w-full min-h-[calc(100vh-120px)] flex flex-col items-center justify-center px-4 py-8 animate-page-transition">
-      <AuthForm initialMode="login" />
+      <AuthForm
+        initialMode="login"
+        initialError={typeof error === 'string' ? error : undefined}
+      />
     </div>
   );
 }
