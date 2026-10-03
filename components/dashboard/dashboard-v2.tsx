@@ -91,9 +91,15 @@ export default function DashboardV2() {
   const { defaultCurrency, exchangeRates } = useCurrency();
   const { isPlus } = usePlan();
 
-  const initialCache = getCachedSubscriptions();
-  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initialCache || []);
-  const [loading, setLoading] = useState(!initialCache);
+  /* The localStorage cache must not seed this state. On the server
+     getCachedSubscriptions() returns null (no window), but on the client it
+     returns the cached rows — so seeding here would render the skeleton on the
+     server and the real cards on the client. That mismatch is not confined to
+     the metric icons: every `!loading` gate below (AdBanner, overdue banner,
+     overview, insight) disagrees too. Both sides start identical and the cache
+     is adopted after mount instead. */
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Modal & Dialog states
@@ -134,6 +140,10 @@ export default function DashboardV2() {
 
   useEffect(() => {
     let active = true;
+    const cached = getCachedSubscriptions();
+    if (cached) {
+      setSubscriptions(cached);
+    }
     fetchSubscriptions().then(({ data, error: err }) => {
       if (!active) return;
       if (err && subscriptions.length === 0) {
