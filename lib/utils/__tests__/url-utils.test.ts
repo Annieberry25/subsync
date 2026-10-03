@@ -59,9 +59,22 @@ describe('getSiteUrl', () => {
 });
 
 describe('getAuthCallbackUrl', () => {
-  it('appends /auth/callback to the site URL', () => {
+  it('appends /auth/callback to the site URL when there is no browser', () => {
     process.env.NEXT_PUBLIC_SITE_URL = 'https://subhalt.app';
     expect(getAuthCallbackUrl()).toBe('https://subhalt.app/auth/callback');
+  });
+
+  // Regression: the PKCE verifier is stored on the origin that starts the flow,
+  // so a redirectTo on a different host breaks the callback.
+  it('uses the live browser origin even when NEXT_PUBLIC_SITE_URL differs', () => {
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://subhalt.xyz';
+    vi.stubGlobal('window', {
+      location: { origin: 'https://www.subhalt.xyz' },
+    });
+
+    expect(getAuthCallbackUrl()).toBe('https://www.subhalt.xyz/auth/callback');
+
+    vi.unstubAllGlobals();
   });
 });
 

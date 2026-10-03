@@ -39,9 +39,20 @@ export function getSiteUrl(): string {
 
 /**
  * Returns the full callback URL for OAuth sign-in operations.
- * Uses getSiteUrl() which dynamically handles browser origin and environment fallback.
+ *
+ * In the browser this always uses the live origin. The PKCE code verifier is
+ * written as a cookie on the host that started the flow, so a `redirectTo` on
+ * any other host delivers the callback somewhere that cookie does not exist
+ * and `exchangeCodeForSession` fails. Honouring NEXT_PUBLIC_SITE_URL here broke
+ * that whenever the configured domain differed from the one being visited
+ * (e.g. subhalt.xyz vs www.subhalt.xyz). Server-side callers still fall back to
+ * the configured site URL.
  */
 export function getAuthCallbackUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin.replace(/\/+$/, '')}/auth/callback`;
+  }
+
   return `${getSiteUrl()}/auth/callback`;
 }
 
