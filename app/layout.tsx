@@ -8,7 +8,7 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.com";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.xyz";
 
 /**
  * `viewportFit: "cover"` is what makes `env(safe-area-inset-*)` resolve to a

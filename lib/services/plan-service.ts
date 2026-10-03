@@ -34,7 +34,7 @@ export async function syncPlusPurchaseRecord({ addInboxItem }: PlusPurchaseOptio
     start_date: new Date().toISOString().split('T')[0],
     status: 'active',
     payment_method: 'Card',
-    provider_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.com',
+    provider_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.xyz',
     notes: 'SubHalt Plus — single monthly payment secured via Paystack.',
   });
 

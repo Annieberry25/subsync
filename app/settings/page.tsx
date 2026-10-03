@@ -53,7 +53,7 @@ import SubscriptionDetailModal from '@/components/subscriptions/subscription-det
 
 type SettingsSection = 'account' | 'plan' | 'preferences' | 'privacy' | 'help';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.xyz';
 
 function SettingsContent() {
   const router = useRouter();

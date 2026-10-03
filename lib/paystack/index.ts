@@ -55,7 +55,7 @@ export async function getPlanCharge(): Promise<PlanCharge> {
 const PAYSTACK_API = 'https://api.paystack.co';
 
 export function getSiteUrl(): string {
-  return env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.com';
+  return env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.xyz';
 }
 
 export function isPaystackConfigured(): boolean {

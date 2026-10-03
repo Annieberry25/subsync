@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { BILL_PAYMENT_ENABLED } from "@/lib/config/feature-flags";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.com";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.xyz";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
