@@ -7,12 +7,12 @@ import { SESSION_COOKIE_OPTIONS } from '@/lib/supabase/cookie-options';
  *
  * ## Why this endpoint exists
  *
- * The auth cookie is written `httpOnly: true` by the middleware, on the server
- * (lib/supabase/cookie-options.ts). Browsers refuse to let JavaScript read or
- * clear an httpOnly cookie — a `document.cookie` write carrying HttpOnly is
- * silently ignored — so the browser client's `signOut()` could never remove the
- * session. The middleware kept resolving a signed-in user and /login bounced
- * straight back to the dashboard, making the button look dead.
+ * It is the one place that decides what "signed out" means: the auth cookies
+ * are expired on the response the browser actually receives, so the middleware
+ * stops resolving a signed-in user and /login stops bouncing straight back to
+ * the dashboard. Expiring them on a throwaway NextResponse instead silently
+ * drops the Set-Cookie headers, which is exactly how a session used to survive
+ * logout.
  *
  * ## Why the cookie is deleted here rather than via supabase.auth.signOut()
  *

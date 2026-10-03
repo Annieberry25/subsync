@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { saveRememberedAccount } from '@/lib/auth/remembered-accounts';
 import { fetchExchangeRates, DEFAULT_EXCHANGE_RATES } from '@/lib/services/currency-service';
 import { logger } from '@/lib/logger';
 import { safeGetItem, safeSetItem, safeParseJSON } from '@/lib/safe-local-storage';
@@ -239,6 +240,21 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
       // 3. Apply authenticated Supabase user metadata
       if (user) {
+        // Keep the saved-accounts list in step with the live session. Password
+        // and one-time-code sign-ins record themselves in their own flow, but
+        // the OAuth route leaves the browser on /auth/callback and then a hard
+        // redirect, so nothing runs in between to record the account. Without
+        // this, a Google user's first sign-in is the only one the chooser never
+        // learns about.
+        if (user.email) {
+          saveRememberedAccount({
+            email: user.email,
+            displayName: user.user_metadata?.full_name,
+            username: user.user_metadata?.username,
+            avatarUrl: user.user_metadata?.avatar_url,
+          });
+        }
+
         setEmailState(user.email || '');
         const meta = user.user_metadata || {};
 

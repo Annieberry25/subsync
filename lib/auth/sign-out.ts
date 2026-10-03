@@ -5,12 +5,14 @@
  *
  * ## Why a server endpoint is required
  *
- * The auth cookie is written `httpOnly: true` by the middleware, on the server
- * (lib/supabase/cookie-options.ts). Browsers refuse to let JavaScript read or
- * delete an httpOnly cookie — a `document.cookie` write carrying HttpOnly is
- * silently dropped — so the browser client's `signOut()` never removed the
- * cookie, the middleware kept resolving a signed-in user, and /login bounced
- * straight back to the dashboard. The button appeared to do nothing.
+ * The browser client's `signOut()` only clears cookies it can see, and it can
+ * be racing the app's own storage writes. Expiring the auth cookies on a
+ * response this app controls is deterministic: the middleware stops resolving a
+ * signed-in user, so /login no longer bounces straight back to the dashboard.
+ * Historically this was also the only way to clear an httpOnly cookie; the
+ * shared cookie options are no longer httpOnly (see
+ * `lib/supabase/cookie-options.ts` for why), but the endpoint remains the
+ * single place that decides what "signed out" means.
  *
  * ## Why nothing else is awaited
  *

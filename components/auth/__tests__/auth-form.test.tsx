@@ -20,6 +20,12 @@ const mocks = vi.hoisted(() => {
     loginFetch,
     signInWithPassword,
     signUp,
+    signInWithOtp,
+    verifyOtp,
+    updateUser,
+    resend,
+    signInWithOAuth,
+    resetPasswordForEmail,
     auth: { signInWithPassword, signUp, signInWithOtp, verifyOtp, updateUser, resend, signInWithOAuth, resetPasswordForEmail },
   };
 });
@@ -47,6 +53,10 @@ beforeEach(() => {
   });
   vi.stubGlobal('fetch', mocks.loginFetch);
   mocks.signUp.mockResolvedValue({ data: { session: null, user: null }, error: null });
+  mocks.signInWithOAuth.mockResolvedValue({
+    data: { provider: 'google', url: 'https://example.supabase.co/auth/v1/authorize' },
+    error: null,
+  });
 });
 
 describe('AuthForm', () => {
@@ -55,8 +65,56 @@ describe('AuthForm', () => {
 
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+  });
+
+  /**
+   * Apple is disabled on the Supabase project. `signInWithOAuth` against a
+   * disabled provider cannot return a session, so the button was a dead control
+   * that made Google look broken too — both buttons sat above the divider and
+   * neither could be told apart from a working one.
+   */
+  it('does not offer providers that are disabled on the Supabase project', () => {
+    render(<AuthForm />);
+
+    expect(screen.queryByRole('button', { name: 'Continue with Apple' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * The redirectTo must be the origin the flow started on: the PKCE code
+   * verifier is a cookie on that host, so a redirectTo built from
+   * NEXT_PUBLIC_SITE_URL delivered the callback somewhere it did not exist and
+   * `exchangeCodeForSession` failed.
+   */
+  it('starts Google sign-in against the live browser origin', async () => {
+    const user = userEvent.setup();
+    render(<AuthForm />);
+
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+
+    await waitFor(() =>
+      expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      })
+    );
+  });
+
+  it('surfaces an actionable message when the provider is disabled', async () => {
+    const user = userEvent.setup();
+    mocks.signInWithOAuth.mockResolvedValue({
+      data: { provider: 'google', url: null },
+      error: new Error('Provider is not enabled'),
+    });
+
+    render(<AuthForm />);
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Google sign-in is not enabled for this project/)
+      ).toBeInTheDocument()
+    );
   });
 
   it('renders the signup flow when initialMode is signup', () => {
