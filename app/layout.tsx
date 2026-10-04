@@ -1,7 +1,22 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
+
+/**
+ * Google AdSense loader, inlined rather than imported from lib/config/adsense.
+ *
+ * It has to live here so this file deploys on its own. The shared constant is
+ * part of a larger change to that module which is not going out with this
+ * commit, and importing a symbol that does not exist in the deployed revision
+ * fails the build outright — which would ship nothing at all.
+ *
+ * Keep it in sync with ADSENSE_CLIENT in lib/config/adsense.ts when that change
+ * does land.
+ */
+const ADSENSE_CLIENT = "ca-pub-4851652738657758";
+const ADSENSE_LOADER_SRC = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -97,6 +112,29 @@ export default function RootLayout({
         data-build={process.env.NEXT_PUBLIC_BUILD_SHA}
         className="min-h-full bg-[#101215] text-white font-sans overscroll-y-none"
       >
+        {/*
+          The AdSense loader, site-wide, for account verification.
+
+          `beforeInteractive` is required rather than the default
+          `afterInteractive`: verification crawlers read the server-rendered HTML
+          and look for this exact script, so it has to be in the document Next
+          sends rather than appended after hydration. Next only honours the
+          strategy from the root layout, which is where this sits.
+
+          This does not enable auto ads. That is a dashboard setting, and the
+          loader places nothing until something pushes to `window.adsbygoogle`
+          — which nothing does until an ad slot is configured. So the site shows
+          no ad and no placeholder in the meantime.
+
+          Requires the matching `script-src` allowance in next.config.ts; the
+          Content-Security-Policy there would otherwise block it.
+        */}
+        <Script
+          async
+          src={ADSENSE_LOADER_SRC}
+          crossOrigin="anonymous"
+          strategy="beforeInteractive"
+        />
         <AppShell>{children}</AppShell>
       </body>
     </html>
