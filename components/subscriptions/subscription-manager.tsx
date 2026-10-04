@@ -576,17 +576,15 @@ export default function SubscriptionManager() {
             </p>
           </div>
 
-          {!hasActiveFilters && (
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={() => setIsAddPathModalOpen(true)}
-                className="px-6 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold transition-all cursor-pointer"
-              >
-                Add Your First Subscription
-              </button>
-            </div>
-          )}
+          {/*
+            No call to action here on purpose. Adding one meant three of them
+            existed at once: this one, the header's "Add Subscription" (which is
+            desktop-only, `hidden lg:inline-flex`), and the contextual FAB in the
+            dock. The header row and the FAB between them already cover every
+            width, so this was a third control opening the same modal — and the
+            most prominent one, sitting below a heading that read as though it
+            were the only way to start.
+          */}
         </div>
       )}
 

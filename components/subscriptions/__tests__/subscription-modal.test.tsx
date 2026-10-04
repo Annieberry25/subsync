@@ -185,6 +185,50 @@ describe('SubscriptionModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  /**
+   * The cheaper-plan tier was a hand-entered "downgrade instead of cancel" hint.
+   * It is gone from the form, so the payload must not carry the keys either:
+   * PostgREST rejects the whole write if a key names a column the table does not
+   * have ("Could not find the 'cheaper_plan_name' column"), so leaving them in
+   * the payload broke saving even with both inputs removed.
+   */
+  it('does not offer a cheaper-plan tier and omits it from the saved payload', async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderOpen();
+
+    expect(screen.queryByLabelText('Cheaper plan name')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Cheaper plan price')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Cheaper Plan Tier/i)).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
+    await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+    await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const payload = onSave.mock.calls[0][0];
+    expect(payload).not.toHaveProperty('cheaper_plan_name');
+    expect(payload).not.toHaveProperty('cheaper_plan_price');
+  });
+
+  it('preserves an existing cheaper-plan tier when editing, since the key is omitted', async () => {
+    const user = userEvent.setup();
+    const existing = {
+      ...makeSubscription(),
+      cheaper_plan_name: 'Basic',
+      cheaper_plan_price: 8,
+    };
+    const { onSave } = renderOpen(existing);
+
+    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const payload = onSave.mock.calls[0][0];
+    // updateSubscription applies a partial update, so omitting the keys leaves
+    // whatever was already stored intact rather than nulling it.
+    expect(payload).not.toHaveProperty('cheaper_plan_name');
+    expect(payload).not.toHaveProperty('cheaper_plan_price');
+  });
+
   it('stays open and does not toast success when the caller gates the save (null)', async () => {
     const user = userEvent.setup();
     // onSave returns null when the plan-limit gate rejects the create.

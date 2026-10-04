@@ -176,4 +176,32 @@ describe('SubscriptionManager view toggle', () => {
     await user.click(screen.getByRole('button', { name: 'Table view' }));
     expect(await screen.findByRole('columnheader', { name: 'Provider' })).toBeInTheDocument();
   });
+
+  /**
+   * Regression: the empty state rendered an "Add Your First Subscription"
+   * button, which made three controls open the same modal — that one, the
+   * header's "Add Subscription" (desktop only, `hidden lg:inline-flex`), and the
+   * contextual FAB in the dock. The empty state is now text only.
+   */
+  it('offers no competing add button in the empty state', async () => {
+    mockSubscriptions.value = [];
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText('No subscriptions added yet')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add Your First Subscription/i })).toBeNull();
+
+    // The header action and the FAB between them still cover every width.
+    expect(screen.getByRole('button', { name: 'Add Subscription' })).toBeInTheDocument();
+  });
+
+  it('still offers no add button when filters exclude every row', async () => {
+    const user = userEvent.setup();
+    render(<SubscriptionManager />);
+    await screen.findByRole('columnheader', { name: 'Provider' });
+
+    await user.type(screen.getByPlaceholderText(/search/i), 'zzzznomatch');
+
+    expect(await screen.findByText('No matching subscriptions')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add Your First Subscription/i })).toBeNull();
+  });
 });

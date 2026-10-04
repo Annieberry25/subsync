@@ -79,8 +79,6 @@ export default function SubscriptionModal({
   const [isUserEditedUrl, setIsUserEditedUrl] = useState(false);
   const [accountLinks, setAccountLinks] = useState<AccountLink[]>([]);
   const [notes, setNotes] = useState('');
-  const [cheaperPlanName, setCheaperPlanName] = useState('');
-  const [cheaperPlanPrice, setCheaperPlanPrice] = useState('');
 
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -109,10 +107,6 @@ export default function SubscriptionModal({
       
       setAccountLinks(parseAccountLinks(initialData));
       setNotes(cleanNotesUserText(initialData.notes));
-      setCheaperPlanName(initialData.cheaper_plan_name || '');
-      setCheaperPlanPrice(
-        initialData.cheaper_plan_price != null ? String(initialData.cheaper_plan_price) : ''
-      );
     } else {
       setName('');
       setPrice('');
@@ -129,8 +123,6 @@ export default function SubscriptionModal({
       setIsUserEditedUrl(false);
       setAccountLinks([]);
       setNotes('');
-      setCheaperPlanName('');
-      setCheaperPlanPrice('');
     }
     setFieldErrors({});
   }
@@ -246,18 +238,8 @@ export default function SubscriptionModal({
     e.preventDefault();
     if (!validateForm()) return;
 
-    setLoading(true);
+setLoading(true);
     const parsedPrice = parseFloat(price);
-
-    // A cheaper tier only counts when both halves are present: a name with no
-    // price (or the reverse) cannot produce a "save $X/mo" figure, so it is
-    // discarded rather than shown as a half-configured recommendation.
-    const trimmedCheaperName = cheaperPlanName.trim();
-    const parsedCheaperPrice = parseFloat(cheaperPlanPrice);
-    const hasCheaperPlan =
-      trimmedCheaperName.length > 0 &&
-      !isNaN(parsedCheaperPrice) &&
-      parsedCheaperPrice >= 0;
 
     // Filter valid account links (must have a label or url)
     const validAccountLinks = accountLinks.filter(
@@ -292,8 +274,6 @@ export default function SubscriptionModal({
           provider_url: providerUrl.trim() || null,
           account_links: validAccountLinks,
           notes: formattedNotes,
-          cheaper_plan_name: hasCheaperPlan ? trimmedCheaperName : null,
-          cheaper_plan_price: hasCheaperPlan ? parsedCheaperPrice : null,
         },
         initialData?.id
       );
@@ -717,38 +697,6 @@ export default function SubscriptionModal({
                   })}
                 </div>
               )}
-            </div>
-
-            {/* Cheaper plan tier, used by Savings Intelligence to recommend a
-                downgrade instead of a straight cancellation. */}
-            <div className="space-y-2 pt-1">
-              <label className="text-[13px] font-medium text-[#94A3B8] block">
-                Cheaper Plan Tier{' '}
-                <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">
-                  (Optional)
-                </span>
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  placeholder="e.g. Basic Plan"
-                  aria-label="Cheaper plan name"
-                  value={cheaperPlanName}
-                  onChange={(e) => setCheaperPlanName(e.target.value)}
-                  className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
-                />
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  aria-label="Cheaper plan price"
-                  value={cheaperPlanPrice}
-                  onChange={(e) => setCheaperPlanPrice(e.target.value)}
-                  className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
-                />
-              </div>
             </div>
 
             {/* Notes */}

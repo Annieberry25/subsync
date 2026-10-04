@@ -3,20 +3,7 @@ import Script from "next/script";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
-
-/**
- * Google AdSense loader, inlined rather than imported from lib/config/adsense.
- *
- * It has to live here so this file deploys on its own. The shared constant is
- * part of a larger change to that module which is not going out with this
- * commit, and importing a symbol that does not exist in the deployed revision
- * fails the build outright — which would ship nothing at all.
- *
- * Keep it in sync with ADSENSE_CLIENT in lib/config/adsense.ts when that change
- * does land.
- */
-const ADSENSE_CLIENT = "ca-pub-4851652738657758";
-const ADSENSE_LOADER_SRC = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+import { ADSENSE_LOADER_SRC } from "@/lib/config/adsense";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",

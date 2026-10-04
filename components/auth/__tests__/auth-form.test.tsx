@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderToStaticMarkup } from 'react-dom/server';
 import * as React from 'react';
 import AuthForm from '@/components/auth/auth-form';
 
@@ -114,6 +115,80 @@ describe('AuthForm', () => {
       expect(
         screen.getByText(/Google sign-in is not enabled for this project/)
       ).toBeInTheDocument()
+    );
+  });
+
+  /**
+   * Regression: both `step` and `rememberedAccounts` used to be seeded by
+   * getRememberedAccounts() in a useState initializer. That reads localStorage,
+   * so it runs in the browser render but returns [] on the server — the server
+   * emitted the email step while the client emitted the chooser, a hydration
+   * mismatch on every /login visit for anyone who had signed in before. Seeding
+   * with the SSR-safe value and promoting in an effect fixes it.
+   *
+   * renderToStaticMarkup does not run effects, which is exactly the point: it
+   * shows what the server emits. It must not depend on browser-only storage.
+   * (`render` cannot assert this — testing-library's act() flushes effects
+   * before it returns, so the chooser is already up by the first assertion.)
+   */
+  it('renders the email step server-side even when accounts are saved', () => {
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'user@example.com', displayName: 'User', lastUsed: 1 },
+      ])
+    );
+
+    const html = renderToStaticMarkup(<AuthForm />);
+
+    expect(html).toContain('Email Address');
+    expect(html).toContain('Continue with Google');
+    expect(html).not.toContain('Choose an account to continue');
+    expect(html).not.toContain('user@example.com');
+  });
+
+  it('promotes to the account chooser after mount when accounts are saved', async () => {
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'user@example.com', displayName: 'User', lastUsed: 1 },
+      ])
+    );
+
+    render(<AuthForm />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Choose an account to continue')).toBeInTheDocument()
+    );
+    expect(screen.getByText('user@example.com')).toBeInTheDocument();
+  });
+
+  /**
+   * Regression: the chooser only offered password/one-time-code accounts plus a
+   * link to the email form, so after signing out of a Google account the
+   * "Continue with Google" button was a tap out of sight and read as broken
+   * social sign-in.
+   */
+  it('keeps Google sign-in reachable from the account chooser', async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'user@example.com', displayName: 'User', lastUsed: 1 },
+      ])
+    );
+
+    render(<AuthForm />);
+    await waitFor(() => screen.getByText('Choose an account to continue'));
+
+    const googleButton = screen.getByRole('button', { name: 'Continue with Google' });
+    await user.click(googleButton);
+
+    await waitFor(() =>
+      expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      })
     );
   });
 

@@ -6,6 +6,7 @@ import {
   ADSENSE_AD_SLOT,
   ADSENSE_CLIENT,
   ADSENSE_ENABLED,
+  ADSENSE_LOADER_SRC,
 } from '@/lib/config/adsense';
 
 declare global {
@@ -22,12 +23,26 @@ interface AdBannerProps {
 
 let adsenseScriptLoaded = false;
 
+/**
+ * Loads the AdSense library only if it is not already on the page.
+ *
+ * The root layout now serves the loader from the document head
+ * (`strategy="beforeInteractive"`, for AdSense verification), so on every page
+ * that script is already present by the time this runs. The module-level flag
+ * alone cannot see it — it only tracks injections made through this function — so
+ * a second adsbygoogle.js would be appended, and loading the library twice
+ * resets AdSense's own state and invalidates it.
+ */
 function loadAdsenseScript() {
   if (adsenseScriptLoaded || typeof window === 'undefined') return;
+  if (document.querySelector(`script[src="${ADSENSE_LOADER_SRC}"]`)) {
+    adsenseScriptLoaded = true;
+    return;
+  }
   adsenseScriptLoaded = true;
   const script = document.createElement('script');
   script.async = true;
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+  script.src = ADSENSE_LOADER_SRC;
   script.crossOrigin = 'anonymous';
   document.head.appendChild(script);
 }

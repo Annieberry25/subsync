@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowLeft, Zap } from 'lucide-react';
@@ -10,20 +10,52 @@ import { BrandWordmark } from '@/components/ui/brand-logo';
 import { describeOAuthError } from '@/lib/auth/oauth-errors';
 import type { SocialAuthProviderId } from '@/lib/supabase/cookie-options';
 import {
-  getRememberedAccounts,
   saveRememberedAccount,
   removeRememberedAccount,
+  subscribeRememberedAccounts,
+  getRememberedAccountsSnapshot,
+  getRememberedAccountsServerSnapshot,
   RememberedAccount,
 } from '@/lib/auth/remembered-accounts';
 import { RememberedAccountChooser } from './remembered-account-chooser';
 import { SocialAuthButtons } from './social-auth-buttons';
 import { getSiteUrl, getAuthCallbackUrl } from '@/lib/utils/url-utils';
 
+type LoginStep = 'chooser' | 'email' | 'password' | 'otp';
+
 export function LoginFlow({ initialError }: { initialError?: string } = {}) {
-  const [step, setStep] = useState<'chooser' | 'email' | 'password' | 'otp'>(() =>
-    getRememberedAccounts().length > 0 ? 'chooser' : 'email'
+  /**
+   * The saved-accounts list is localStorage, i.e. an external store, so it is
+   * read through useSyncExternalStore rather than seeded into useState.
+   *
+   * A useState initializer runs during render on the client only, so the server
+   * emitted the email step while the client emitted the account chooser — a
+   * hydration mismatch on every /login visit for anyone who had signed in
+   * before, which React reports by discarding the server markup and re-rendering
+   * the client tree. useSyncExternalStore takes an explicit server snapshot, so
+   * the server and the hydration render both agree on "no accounts" and React
+   * promotes to the chooser itself once the client store reports the real list.
+   *
+   * Promoted with `useState` + `useEffect` instead, it type-checks and passes
+   * tests but trips react-hooks/set-state-in-effect, and it still renders the
+   * email step for one frame before swapping — which is what made the Google
+   * button look like it vanished after signing out.
+   */
+  const rememberedAccounts = useSyncExternalStore(
+    subscribeRememberedAccounts,
+    getRememberedAccountsSnapshot,
+    getRememberedAccountsServerSnapshot
   );
-  const [rememberedAccounts, setRememberedAccounts] = useState<RememberedAccount[]>(() => getRememberedAccounts());
+
+  /**
+   * `null` means "the user has not picked a step yet", so the landing step is
+   * derived from whether any accounts are saved. Deriving it here rather than
+   * pushing it into an effect keeps the landing screen a pure function of the
+   * store, with no extra render pass.
+   */
+  const [requestedStep, setRequestedStep] = useState<LoginStep | null>(null);
+  const step: LoginStep = requestedStep ?? (rememberedAccounts.length > 0 ? 'chooser' : 'email');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,10 +72,11 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
   const supabase = createClient();
 
   const handleRemoveAccount = (emailToRemove: string) => {
+    // removeRememberedAccount notifies the store, which re-renders with the new
+    // list; no local copy of it is kept.
     const updated = removeRememberedAccount(emailToRemove);
-    setRememberedAccounts(updated);
     if (updated.length === 0 && step === 'chooser') {
-      setStep('email');
+      setRequestedStep('email');
     }
   };
 
@@ -51,7 +84,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
     setEmail(account.email);
     setError(null);
     setSuccess(null);
-    setStep('password');
+    setRequestedStep('password');
   };
 
   const handleEmailSubmit = (e: React.FormEvent) => {
@@ -63,7 +96,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
       setError('Please enter a valid email address.');
       return;
     }
-    setStep('password');
+    setRequestedStep('password');
   };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
@@ -165,7 +198,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
 
       if (otpErr) throw otpErr;
 
-      setStep('otp');
+      setRequestedStep('otp');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to send one-time code.');
     } finally {
@@ -259,10 +292,12 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
           accounts={rememberedAccounts}
           onSelectAccount={handleSelectAccount}
           onRemoveAccount={handleRemoveAccount}
+          onSocialAuth={handleSocialAuth}
+          socialLoading={socialLoading}
           onUseAnotherAccount={() => {
             setError(null);
             setSuccess(null);
-            setStep('email');
+            setRequestedStep('email');
           }}
         />
       )}
@@ -277,7 +312,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
                 onClick={() => {
                   setError(null);
                   setSuccess(null);
-                  setStep('chooser');
+                  setRequestedStep('chooser');
                 }}
                 className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
               >
@@ -357,7 +392,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
               onClick={() => {
                 setError(null);
                 setSuccess(null);
-                setStep('email');
+                setRequestedStep('email');
               }}
               className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
             >
@@ -382,7 +417,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
                   onClick={() => {
                     setError(null);
                     setSuccess(null);
-                    setStep('email');
+                    setRequestedStep('email');
                   }}
                   className="text-xs text-[#14B8A6] hover:underline font-semibold shrink-0 cursor-pointer"
                 >
@@ -468,7 +503,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
               onClick={() => {
                 setError(null);
                 setSuccess(null);
-                setStep('email');
+                setRequestedStep('email');
               }}
               className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
             >
@@ -533,7 +568,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
             onClick={() => {
               setError(null);
               setSuccess(null);
-              setStep('password');
+              setRequestedStep('password');
             }}
             className="w-full text-xs sm:text-sm font-semibold h-10.5 sm:h-11 rounded-full"
           >

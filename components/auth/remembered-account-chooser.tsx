@@ -6,12 +6,21 @@ import { ChevronRight } from 'lucide-react';
 import { RememberedAccount } from '@/lib/auth/remembered-accounts';
 import { Button } from '@/components/ui/button';
 import { BrandWordmark } from '@/components/ui/brand-logo';
+import type { SocialAuthProviderId } from '@/lib/supabase/cookie-options';
+import { SocialAuthButtons } from './social-auth-buttons';
 
 interface RememberedAccountChooserProps {
   accounts: RememberedAccount[];
   onSelectAccount: (account: RememberedAccount) => void;
   onRemoveAccount?: (email: string) => void;
   onUseAnotherAccount: () => void;
+  /**
+   * Starts an OAuth sign-in. Optional so the chooser still renders in isolation
+   * (tests, storybook), but the login flow always passes it.
+   */
+  onSocialAuth?: (provider: SocialAuthProviderId) => void;
+  /** Id of the provider currently awaiting redirect, if any. */
+  socialLoading?: string | null;
 }
 
 export function RememberedAccountChooser({
@@ -19,6 +28,8 @@ export function RememberedAccountChooser({
   onSelectAccount,
   onRemoveAccount,
   onUseAnotherAccount,
+  onSocialAuth,
+  socialLoading = null,
 }: RememberedAccountChooserProps) {
   const getInitials = (account: RememberedAccount) => {
     const nameStr = account.displayName || account.username || account.email;
@@ -107,17 +118,32 @@ export function RememberedAccountChooser({
         <div className="flex-1 h-px bg-[#1A1D1D]" />
       </div>
 
-      {/* 5. Log in to another account */}
+      {/*
+       * 5. Social sign-in.
+       *
+       * The chooser is a dead end for anyone who signed in with Google: it only
+       * offers password/one-time-code accounts and a link to the email form, so
+       * after signing out the Google button was one tap out of sight and read as
+       * "Google sign-in is broken". Keeping the providers here means every
+       * reachable step of the login flow shows them.
+       */}
+      {onSocialAuth && (
+        <SocialAuthButtons loadingProvider={socialLoading} onSelect={onSocialAuth} />
+      )}
+
+      {/* 6. Log in to another account */}
       <Button
         variant="secondary"
         size="md"
         onClick={onUseAnotherAccount}
-        className="w-full text-xs sm:text-sm font-semibold h-10 sm:h-10.5 rounded-full"
+        className={`w-full text-xs sm:text-sm font-semibold h-10 sm:h-10.5 rounded-full ${
+          onSocialAuth ? 'mt-3' : ''
+        }`}
       >
         Log in to another account
       </Button>
 
-      {/* 6. Sign-up footer */}
+      {/* 7. Sign-up footer */}
       <div className="text-center mt-7 pt-1">
         <p className="text-xs text-[#94A3B8]">
           Don&apos;t have an account?{' '}
