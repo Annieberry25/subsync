@@ -56,7 +56,13 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              // pagead2.googlesyndication.com serves the AdSense loader declared
+              // in app/layout.tsx. Without this the script is blocked outright and
+              // AdSense verification cannot see it. Serving actual ad units later
+              // will additionally need frame-src for googleads.g.doubleclick.net
+              // and connect-src for the same host — not required while the loader
+              // runs with auto ads off and no ad units pushed.
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https://img.logo.dev https://*.googleusercontent.com data: blob:",
               "font-src 'self' https://fonts.gstatic.com data:",

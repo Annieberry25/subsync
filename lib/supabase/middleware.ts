@@ -2,11 +2,34 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE_OPTIONS } from '@/lib/supabase/cookie-options';
 
+/**
+ * Paths that must stay reachable without a session.
+ *
+ * `/api` routes manage their own auth, so the redirect below would otherwise
+ * swallow every unauthenticated API call.
+ *
+ * The three metadata routes are here because crawlers fetch them *before* any
+ * page, and this middleware is in front of all of them. The matcher only
+ * excludes a fixed list of image extensions, so `.txt`, `.xml` and
+ * `.webmanifest` fell through to the auth redirect and every one of them
+ * answered with the login page:
+ *
+ *   /robots.txt            -> login page HTML instead of robots directives
+ *   /sitemap.xml           -> login page HTML instead of a sitemap
+ *   /manifest.webmanifest  -> login page HTML, so the PWA manifest never loaded
+ *
+ * AdSense verification reads the robots file first, so this blocked it directly.
+ * Compare on a segment boundary rather than a bare prefix so a route like
+ * `/robots.txt.bak` cannot slip through on the strength of its prefix.
+ */
+const PUBLIC_ROUTES = ['/api', '/robots.txt', '/sitemap.xml', '/manifest.webmanifest'] as const;
+
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
 export async function updateSession(request: NextRequest) {
-  // API routes manage their own auth, so sign-in and other endpoints must be
-  // reachable without a session (the /login redirect below would otherwise
-  // swallow every unauthenticated API call).
-  if (request.nextUrl.pathname.startsWith('/api')) {
+  if (isPublicRoute(request.nextUrl.pathname)) {
     return NextResponse.next({ request });
   }
 
