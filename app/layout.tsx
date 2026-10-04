@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
-import { ADSENSE_LOADER_SRC } from "@/lib/config/adsense";
+import { ADSENSE_CLIENT, ADSENSE_LOADER_SRC } from "@/lib/config/adsense";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -83,6 +82,20 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  /**
+   * AdSense's own alternative verification method: a meta tag naming the
+   * publisher account. Google accepts either this or the loader script, so
+   * having both means site verification does not hang on a single mechanism.
+   *
+   * The script tag is the one you asked for, but it depends on how Next chooses
+   * to serialise a third-party script in the App Router, and getting that wrong
+   * is invisible locally -- the URL still appears in the HTML, just not as a
+   * script element, which is all the checker matches on. This tag is emitted
+   * natively by Next's metadata pipeline, so it cannot be reshaped that way.
+   */
+  other: {
+    'google-adsense-account': ADSENSE_CLIENT,
+  },
 };
 
 export default function RootLayout({
@@ -102,26 +115,34 @@ export default function RootLayout({
         {/*
           The AdSense loader, site-wide, for account verification.
 
-          `beforeInteractive` is required rather than the default
-          `afterInteractive`: verification crawlers read the server-rendered HTML
-          and look for this exact script, so it has to be in the document Next
-          sends rather than appended after hydration. Next only honours the
-          strategy from the root layout, which is where this sits.
+          This is a literal <script> element on purpose. It was previously
+          rendered with next/script and strategy="beforeInteractive", which looks
+          equivalent but is not: that emits a <link rel="preload"> in the head
+          plus an inline bootstrap that calls window.next_s.push([...]), and the
+          actual <script src> is only created at runtime by client-side JS. The
+          served HTML therefore contained the adsbygoogle.js URL but no script
+          element referencing it at all.
 
-          This does not enable auto ads. That is a dashboard setting, and the
-          loader places nothing until something pushes to `window.adsbygoogle`
-          — which nothing does until an ad slot is configured. So the site shows
-          no ad and no placeholder in the meantime.
+          AdSense verification fetches the page and pattern-matches the HTML. It
+          does not run JavaScript, so it saw no loader script and rejected the
+          site with "We couldn't verify your site" even though the URL was
+          present. React hoists a plain <script async src> into <head> during SSR,
+          which produces exactly the markup Google's snippet asks for.
 
-          Requires the matching `script-src` allowance in next.config.ts; the
+          Combined with the google-adsense-account meta tag in `metadata.other`,
+          which is the officially supported alternative verification method and is
+          emitted natively, so verification no longer depends on either mechanism
+          alone.
+
+          This does not enable auto ads. That is a dashboard-side setting, and the
+          loader places nothing until something pushes to window.adsbygoogle —
+          which nothing does until an ad slot is configured. So no ad and no
+          placeholder render in the meantime.
+
+          Requires the matching script-src allowance in next.config.ts; the
           Content-Security-Policy there would otherwise block it.
         */}
-        <Script
-          async
-          src={ADSENSE_LOADER_SRC}
-          crossOrigin="anonymous"
-          strategy="beforeInteractive"
-        />
+        <script async src={ADSENSE_LOADER_SRC} crossOrigin="anonymous" />
         <AppShell>{children}</AppShell>
       </body>
     </html>
