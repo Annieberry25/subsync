@@ -15,7 +15,11 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22, not 20: pdfjs-dist v6 calls Promise.withResolvers unconditionally,
+          # which only exists from Node 22. Under 20 every receipt-PDF test throws
+          # TypeError before it can assert anything. Matches the local toolchain
+          # (Node 24) closely enough and the Vercel runtime.
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
