@@ -8,6 +8,13 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    env:
+      # lib/env.ts validates at import time, so `next build` cannot even collect
+      # page data without these two. Actions has no .env.local, so fall back to
+      # inert placeholders; nothing in CI serves traffic. Real values win if the
+      # secrets are ever configured.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'ci-placeholder-key' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
