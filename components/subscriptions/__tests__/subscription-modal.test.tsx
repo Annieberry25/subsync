@@ -49,7 +49,20 @@ function makeSubscription(overrides: Partial<SubscriptionRow> = {}): Subscriptio
   };
 }
 
-function renderOpen(initialData?: SubscriptionRow | null, savedId: string | null = 'sub_new') {
+/**
+ * The sheet moves focus to its first focusable element on the next animation
+ * frame (`components/ui/sheet.tsx`) rather than on mount, so the entrance
+ * animation can start from a visible state. Typing before that frame lands
+ * sends every keystroke after it to whichever element stole focus — in this
+ * modal that is the Import Receipt button — leaving the provider name partial
+ * and the derived account URL empty. Awaiting one frame here makes the
+ * hand-off deterministic instead of a 16ms race.
+ */
+function nextFrame() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function renderOpen(initialData?: SubscriptionRow | null, savedId: string | null = 'sub_new') {
   const onClose = vi.fn();
   const onSave = vi.fn(async () => savedId);
   const onRequireUpgrade = vi.fn();
@@ -71,6 +84,7 @@ function renderOpen(initialData?: SubscriptionRow | null, savedId: string | null
       onRequireUpgrade={onRequireUpgrade}
     />
   );
+  await nextFrame();
   return { onClose, onSave, onRequireUpgrade, container: view.container };
 }
 
@@ -79,8 +93,8 @@ beforeEach(() => {
 });
 
 describe('SubscriptionModal', () => {
-  it('rounds the footer actions to match the Back button', () => {
-    renderOpen();
+  it('rounds the footer actions to match the Back button', async () => {
+    await renderOpen();
 
     const cancel = screen.getByRole('button', { name: 'Cancel' });
     const create = screen.getByRole('button', { name: 'Create Subscription' });
@@ -102,8 +116,8 @@ describe('SubscriptionModal', () => {
     expect(screen.getByRole('button', { name: /Back/ }).className).toContain('rounded-xl');
   });
 
-  it('has no Provider URL input; the website is resolved from the provider name', () => {
-    renderOpen();
+  it('has no Provider URL input; the website is resolved from the provider name', async () => {
+    await renderOpen();
 
     // The field was removed: it only produced values that disagreed with the
     // ones SubHalt already derives from the provider name.
@@ -116,7 +130,7 @@ describe('SubscriptionModal', () => {
 
   it('derives and saves the provider website without an input for it', async () => {
     const user = userEvent.setup();
-    const { onSave } = renderOpen();
+    const { onSave } = await renderOpen();
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
@@ -132,8 +146,8 @@ describe('SubscriptionModal', () => {
     expect(onSave.mock.calls[0][0].provider_url).toMatch(/^https:\/\//);
   });
 
-  it('renders create mode with empty fields and a submit button that is ready', () => {
-    const { onSave } = renderOpen();
+  it('renders create mode with empty fields and a submit button that is ready', async () => {
+    const { onSave } = await renderOpen();
 
     expect(screen.getByRole('heading', { name: 'Add New Subscription' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro')).toBeInTheDocument();
@@ -144,7 +158,7 @@ describe('SubscriptionModal', () => {
 
   it('stays clickable on empty fields and reports what is missing instead of silently doing nothing', async () => {
     const user = userEvent.setup();
-    const { onSave } = renderOpen();
+    const { onSave } = await renderOpen();
 
     // The button must not be inert: clicking it has to explain the problem.
     await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
@@ -156,7 +170,7 @@ describe('SubscriptionModal', () => {
 
   it('calls onSave with the entered values and closes without a duplicate toast', async () => {
     const user = userEvent.setup();
-    const { onClose, onSave } = renderOpen();
+    const { onClose, onSave } = await renderOpen();
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
@@ -194,7 +208,7 @@ describe('SubscriptionModal', () => {
    */
   it('does not offer a cheaper-plan tier and omits it from the saved payload', async () => {
     const user = userEvent.setup();
-    const { onSave } = renderOpen();
+    const { onSave } = await renderOpen();
 
     expect(screen.queryByLabelText('Cheaper plan name')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Cheaper plan price')).not.toBeInTheDocument();
@@ -217,7 +231,7 @@ describe('SubscriptionModal', () => {
       cheaper_plan_name: 'Basic',
       cheaper_plan_price: 8,
     };
-    const { onSave } = renderOpen(existing);
+    const { onSave } = await renderOpen(existing);
 
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 
@@ -232,7 +246,7 @@ describe('SubscriptionModal', () => {
   it('stays open and does not toast success when the caller gates the save (null)', async () => {
     const user = userEvent.setup();
     // onSave returns null when the plan-limit gate rejects the create.
-    const { onClose, onSave } = renderOpen(undefined, null);
+    const { onClose, onSave } = await renderOpen(undefined, null);
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
@@ -245,7 +259,7 @@ describe('SubscriptionModal', () => {
 
   it('does not call onSave when required fields are empty', async () => {
     const user = userEvent.setup();
-    const { onSave } = renderOpen();
+    const { onSave } = await renderOpen();
 
     await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
 
@@ -260,7 +274,7 @@ describe('SubscriptionModal', () => {
         '[AttachedReceipts: [{"id":"r1","fileName":"invoice.pdf","uploadDate":"2026-01-01"}]]',
       receipts: [],
     });
-    const { onSave } = renderOpen(initialData);
+    const { onSave } = await renderOpen(initialData);
 
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 
@@ -278,7 +292,7 @@ describe('SubscriptionModal', () => {
   it('prefills edit mode and calls onSave with the subscription id', async () => {
     const user = userEvent.setup();
     const initialData = makeSubscription();
-    const { onSave } = renderOpen(initialData);
+    const { onSave } = await renderOpen(initialData);
 
     expect(screen.getByRole('heading', { name: 'Edit Subscription' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Netflix')).toBeInTheDocument();
@@ -303,7 +317,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
   it('auto-fills the account URL from the provider instead of asking the user to paste it', async () => {
     const user = userEvent.setup();
-    renderOpen();
+    await renderOpen();
 
     await user.type(
       screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
@@ -317,7 +331,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
   it('sends a free user to upgrade when adding a second account', async () => {
     const user = userEvent.setup();
-    const { onRequireUpgrade } = renderOpen();
+    const { onRequireUpgrade } = await renderOpen();
 
     await user.type(
       screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
@@ -336,7 +350,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
   it('does not badge the account section; it explains the limit on attempt', async () => {
     const user = userEvent.setup();
-    renderOpen();
+    await renderOpen();
 
     // No badge up front: the section is a normal part of adding a subscription.
     expect(screen.queryByTestId('plus-badge')).not.toBeInTheDocument();
@@ -350,7 +364,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
   it('keeps the account link icon active for a known provider', async () => {
     const user = userEvent.setup();
-    renderOpen();
+    await renderOpen();
 
     await user.type(
       screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
@@ -366,7 +380,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
   it('falls back to the provider website when the deep account path is unknown', async () => {
     const user = userEvent.setup();
-    renderOpen();
+    await renderOpen();
 
     await user.click(screen.getByRole('button', { name: /Add account link/ }));
     // Clearing the field leaves only the fallback chain, which for a provider we
@@ -379,7 +393,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
   it('keeps the link icon disabled only when nothing is known at all', async () => {
     const user = userEvent.setup();
-    renderOpen();
+    await renderOpen();
 
     // No provider name and no stored URL: there is genuinely nowhere to send them.
     await user.click(screen.getByRole('button', { name: /Add account link/ }));
@@ -390,7 +404,7 @@ describe('SubscriptionModal subscription accounts', () => {
   it('lets a Plus user add several accounts without an upgrade prompt', async () => {
     mocks.planTier = 'plus';
     const user = userEvent.setup();
-    const { onRequireUpgrade } = renderOpen();
+    const { onRequireUpgrade } = await renderOpen();
 
     const addButton = screen.getByRole('button', { name: /Add account link/ });
     await user.click(addButton);
@@ -404,7 +418,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
   it('re-enables adding once a row is removed', async () => {
     const user = userEvent.setup();
-    const { onRequireUpgrade } = renderOpen();
+    const { onRequireUpgrade } = await renderOpen();
 
     const addButton = screen.getByRole('button', { name: /Add account link/ });
     await user.click(addButton);
@@ -419,7 +433,7 @@ describe('SubscriptionModal subscription accounts', () => {
   it('labels the second and later account rows distinctly', async () => {
     mocks.planTier = 'plus';
     const user = userEvent.setup();
-    renderOpen();
+    await renderOpen();
 
     const addButton = screen.getByRole('button', { name: /Add account link/ });
     await user.click(addButton);
