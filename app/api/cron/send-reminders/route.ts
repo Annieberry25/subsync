@@ -40,6 +40,11 @@ export const dynamic = 'force-dynamic';
  */
 
 const PUSH_LEAD_DAYS = 10;
+/**
+ * Widest email lead the reminder sheet can save — `EMAIL_LEAD_CHOICES` tops out at
+ * 14. Kept next to PUSH_LEAD_DAYS because the query horizon is a function of both.
+ */
+const MAX_EMAIL_LEAD_DAYS = 14;
 const MAX_PUSH_PER_RUN = 400;
 const MAX_EMAILS_PER_RUN = 200;
 /** Ceiling on emails per run, independent of how many rows opted in. */
@@ -93,14 +98,19 @@ export async function GET(request: Request) {
   try {
     const supabase = createAdminClient();
     const cycle = utcCycleKey();
-    const today = utcDateOffset(0);
     const overdueFloor = utcDateOffset(-OVERDUE_CEILING_DAYS);
 
-    // The widest window either channel can need. Email leads are user-chosen and
-    // bounded by the check constraint, but the column is not the one being trusted
-    // here — the widest value a row can hold is, so the query cannot miss an
-    // opted-in row that a narrower window would have excluded.
-    const horizon = utcDateOffset(PUSH_LEAD_DAYS);
+    /*
+     * The widest window either channel can need.
+     *
+     * Both leads are user-chosen, and the schema only asserts they are positive —
+     * the email control offers up to 14 days — so the horizon has to come from the
+     * largest lead the UI can produce rather than from the push default. Sizing it
+     * at PUSH_LEAD_DAYS alone would drop every 11–14 day email reminder from the
+     * query entirely: no row, no preference check, no mail, and no error anywhere
+     * to say so.
+     */
+    const horizon = utcDateOffset(Math.max(PUSH_LEAD_DAYS, MAX_EMAIL_LEAD_DAYS));
 
     const { data: rows, error } = await supabase
       .from('subscriptions')
