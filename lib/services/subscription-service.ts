@@ -1,7 +1,12 @@
 import { createClient } from '@/lib/supabase/client';
+import { USER_CACHE_CLEARED_EVENT } from '@/lib/auth/user-storage';
 import { logger } from '@/lib/logger';
 import type { Database } from '@/lib/types/database.types';
-import { getPlanLimits, hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
+import {
+  getEffectiveTier,
+  getPlanLimits,
+  hasReachedSubscriptionCap,
+} from '@/lib/constants/plan-limits';
 
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 export type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row'];
@@ -440,7 +445,36 @@ export function filterDeletedSubscriptions(subscriptions: SubscriptionRow[]): Su
   return subscriptions.filter((sub) => getSubscriptionHistoryState(sub).state === 'deleted');
 }
 
+/**
+ * Whether a row has already been soft-deleted.
+ *
+ * The history state is carried in the notes metadata, so a deleted row still
+ * looks like a normal subscription to anything that only reads `status`. That is
+ * what let the delete action be reachable twice on an already-deleted row.
+ */
+export function isSubscriptionDeleted(subscription: SubscriptionRow): boolean {
+  return getSubscriptionHistoryState(subscription).state === 'deleted';
+}
+
 let cachedSubscriptions: SubscriptionRow[] | null = null;
+
+/**
+ * Drops the in-memory copy after a sign-out or an account switch.
+ *
+ * Without this the module-level array outlives the localStorage wipe, because
+ * `getCachedSubscriptions()` falls back to it whenever the key is absent. So
+ * clearing storage alone left the previous account's subscriptions resident in
+ * the tab and handed them to the next account — which is why logging out and
+ * signing in as someone else "still did not work".
+ *
+ * Listens for the event rather than being called directly so that sign-out does
+ * not have to import this module (and with it the Supabase client).
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener(USER_CACHE_CLEARED_EVENT, () => {
+    cachedSubscriptions = null;
+  });
+}
 
 export type SubscriptionWriteResult = {
   data: SubscriptionRow | null;
@@ -452,6 +486,32 @@ const LOCAL_SUBSCRIPTION_USER_ID = 'user_mock';
 
 export function isLocalOnlySubscription(subscription: Pick<SubscriptionRow, 'user_id'>): boolean {
   return subscription.user_id === LOCAL_SUBSCRIPTION_USER_ID;
+}
+
+/**
+ * Overdue means the next billing date has already passed, compared at local
+ * midnight, on a row that is not canceled.
+ *
+ * Single definition on purpose: the subscriptions list, the dashboard's overdue
+ * banner, the renewals page and Past Activities all answer "is this overdue?",
+ * and they previously each carried their own copy. They drifted — the renewals
+ * page restricted itself to `active`/`trial` while the dashboard accepted any
+ * non-canceled status — so a paused row counted as overdue in one place and not
+ * the other.
+ *
+ * Exported because Past Activities synthesises activity entries from overdue rows
+ * and must agree with all of them.
+ */
+export function isOverdueSubscription(
+  subscription: Pick<SubscriptionRow, 'status' | 'next_billing_date'>,
+  now: Date = new Date()
+): boolean {
+  if (subscription.status === 'canceled') return false;
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const nextBilling = new Date(subscription.next_billing_date);
+  if (Number.isNaN(nextBilling.getTime())) return false;
+  return nextBilling.getTime() < today.getTime();
 }
 
 export function getCachedSubscriptions(): SubscriptionRow[] | null {
@@ -549,9 +609,26 @@ export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | 
     }
 
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // No session: there is nothing to fetch, and returning the cache here is how
+    // a previous account's rows end up rendered for whoever is signed in now.
+    if (!user) {
+      writeCachedSubscriptions([]);
+      return { data: [], error: null };
+    }
+
+    // Scoped to the caller explicitly, even though RLS already enforces
+    // `auth.uid() = user_id`. Defence in depth: the browser client uses the
+    // publishable key, so a policy that is ever dropped, renamed or made
+    // permissive would otherwise expose every row in the table, and an
+    // unfiltered `select('*')` is exactly the query that would do it.
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
+      .eq('user_id', user.id)
       .order('next_billing_date', { ascending: true })
       .limit(500);
 
@@ -560,7 +637,15 @@ export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | 
       // by id so renamed rows never duplicate.
       const current = getCachedSubscriptions() || [];
       const remoteIds = new Set(data.map((remote) => remote.id));
-      const localOnly = current.filter((local) => !remoteIds.has(local.id));
+      // Only rows this user owns may survive the merge. Cached rows are not
+      // user-scoped at the key level, so a row belonging to someone else would
+      // otherwise be carried forward forever (and, if still marked local-only,
+      // re-INSERTed under this user's id by syncPendingSubscriptions).
+      const localOnly = current.filter(
+        (local) =>
+          !remoteIds.has(local.id) &&
+          (isLocalOnlySubscription(local) || local.user_id === user.id)
+      );
       const merged = [...localOnly, ...data];
       writeCachedSubscriptions(merged);
       return { data: merged, error: null };
@@ -568,12 +653,17 @@ export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | 
     if (error) {
       const dbError = new Error(error.message);
       logger.warn('[subscription-service] fetchSubscriptions DB error, using cache', { message: error.message });
-      return { data: cached, error: dbError };
+      // Do not fall back to the cache on a query failure: if the failure was an
+      // auth failure the cache is the previous account's data.
+      return { data: [], error: dbError };
     }
   } catch (err) {
     const dbError = err instanceof Error ? err : new Error(String(err));
-    logger.error('[subscription-service] fetchSubscriptions exception, using cache', err);
-    return { data: cached, error: dbError };
+    logger.error('[subscription-service] fetchSubscriptions exception', err);
+    // Same reasoning as the error branch above: an exception can be an auth
+    // failure, and answering with the cache would surface the previous account's
+    // rows. An empty list is the safe failure.
+    return { data: [], error: dbError };
   }
 
   return { data: cached, error: null };
@@ -591,19 +681,22 @@ export async function createSubscription(
     if (user) {
       // Plan-tier cap enforced on the write path itself, not just the UI, so
       // any caller (add flow, Gmail import, offline sync re-create) is bounded.
+      // is_admin is read here too: an admin resolves to the unlimited tier, so
+      // the operator account is not capped while running the app.
       const { data: profile } = await supabase
         .from('profiles')
-        .select('plan_tier')
+        .select('plan_tier, is_admin')
         .eq('id', user.id)
         .maybeSingle();
-      const tier = profile?.plan_tier || 'free';
+      const isAdmin = profile?.is_admin === true;
+      const tier = getEffectiveTier(profile?.plan_tier, isAdmin);
       const { count } = await supabase
         .from('subscriptions')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .not('status', 'eq', 'canceled');
       const activeCount = typeof count === 'number' ? count : 0;
-      if (hasReachedSubscriptionCap({ tier, activeCount })) {
+      if (hasReachedSubscriptionCap({ tier, activeCount, isAdmin })) {
         const limit = getPlanLimits(tier).maxSubscriptions;
         return {
           data: null,

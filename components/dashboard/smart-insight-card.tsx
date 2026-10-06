@@ -1,32 +1,12 @@
 'use client';
 
-import React, { useState, memo } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
   ChevronDown,
   Lightbulb,
 } from 'lucide-react';
-import { calculateCategoryBreakdown } from '@/lib/utils/analytics-utils';
-import {
-  calculateAnnualSpend,
-  getNormalizedMonthlyPrice,
-  formatCurrency,
-} from '@/lib/utils/metrics-utils';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-
-interface SmartInsightCardProps {
-  subscriptions: SubscriptionRow[];
-}
-
-interface SmartInsightCandidate {
-  id: string;
-  title: string;
-  category: 'actionable' | 'informational' | 'neutral';
-  priority: number;
-  preview: string;
-  observation: string;
-  meaning: string;
-  recommendation: string;
-}
+import { getTopInsight } from '@/lib/insights/generate-insights';
 
 /**
  * SMART INSIGHT ENGINE & ACCORDION PRESENTATION DIRECTIVE:
@@ -37,246 +17,37 @@ interface SmartInsightCandidate {
  * 5. Conversational Copy: Friendly, natural, supportive tone (no corporate jargon).
  * 6. Vertical Spacing: Clean breathing room between title, heading, and advice text.
  * 7. Accordion Interaction: Smooth 200-300ms inline expansion toggle.
+ *
+ * The generation rules live in lib/insights/generate-insights.ts, shared with the
+ * push notifier so both agree on what counts as a new insight.
  */
-export const SmartInsightCard = memo(function SmartInsightCard({ subscriptions }: SmartInsightCardProps) {
+export const SmartInsightCard = memo(function SmartInsightCard({ subscriptions }: { subscriptions: SubscriptionRow[] }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const activeSubs = subscriptions.filter(
-    (sub) => sub.status === 'active' || sub.status === 'trial'
-  );
-  const pausedSubs = subscriptions.filter((sub) => sub.status === 'paused');
-  const canceledSubs = subscriptions.filter((sub) => sub.status === 'canceled');
-  const categoryBreakdown = calculateCategoryBreakdown(subscriptions);
-  const totalAnnualSpend = calculateAnnualSpend(subscriptions);
+  const selectedInsight = getTopInsight(subscriptions);
 
-  const candidates: SmartInsightCandidate[] = [];
+  // Announced so the insight notifier can tell a *new* insight from the same one
+  // still showing. Without this the notification would repeat every time the
+  // dashboard re-rendered with an unchanged subscription list.
+  const insightIdRef = useRef<string | null>(null);
 
-  // 1. Genuine Duplicate Subscriptions (Strictly verified - NEVER guess!)
-  const nameCounts: Record<string, number> = {};
-  activeSubs.forEach((sub) => {
-    const normalized = sub.name.trim().toLowerCase();
-    nameCounts[normalized] = (nameCounts[normalized] || 0) + 1;
-  });
-  const exactDuplicateName = Object.keys(nameCounts).find(
-    (name) => nameCounts[name] > 1
-  );
+  useEffect(() => {
+    const id = selectedInsight?.id ?? null;
+    if (id === insightIdRef.current) return;
+    insightIdRef.current = id;
+    if (!id) return;
 
-  const knownVideoStreaming = [
-    'netflix',
-    'disney+',
-    'hulu',
-    'hbo max',
-    'max',
-    'amazon prime video',
-    'apple tv+',
-  ];
-  const activeVideoSubs = activeSubs.filter(
-    (sub) =>
-      sub.category === 'Streaming' &&
-      knownVideoStreaming.some((k) => sub.name.toLowerCase().includes(k))
-  );
-
-  if (exactDuplicateName) {
-    const dupName =
-      activeSubs.find(
-        (s) => s.name.trim().toLowerCase() === exactDuplicateName
-      )?.name || exactDuplicateName;
-    candidates.push({
-      id: 'duplicate-services-exact',
-      title: 'Duplicate Services',
-      category: 'actionable',
-      priority: 95,
-      preview: 'Potential duplicate subscription detected.',
-      observation: `You have more than one active subscription for ${dupName}.`,
-      meaning: `Having duplicate accounts often means you're accidentally being billed twice.`,
-      recommendation: `Check your account settings to see if you can merge or cancel one of them.`,
+    void fetch('/api/push/insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ insightId: id }),
+    }).catch(() => {
+      // Fire-and-forget: the card must render whether or not the notifier
+      // responds, and a failed announcement is not worth surfacing.
     });
-  } else if (activeVideoSubs.length >= 3) {
-    candidates.push({
-      id: 'duplicate-services-streaming',
-      title: 'Potential Savings',
-      category: 'actionable',
-      priority: 95,
-      preview: 'Multiple video streaming subscriptions active.',
-      observation: `You're currently subscribed to ${activeVideoSubs.length} video streaming services (${activeVideoSubs
-        .slice(0, 3)
-        .map((s) => s.name)
-        .join(', ')}).`,
-      meaning: `It's easy to pay for several streaming apps at once without watching all of them.`,
-      recommendation: `Pausing or rotating services you aren't using right now is a simple way to save each month.`,
-    });
-  }
+  }, [selectedInsight?.id]);
 
-  // 2. Spending Trend & Addition Velocity
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-  const recentSubs = activeSubs.filter((sub) => {
-    const dateStr = sub.created_at || sub.start_date;
-    if (!dateStr) return false;
-    const subDate = new Date(dateStr);
-    return subDate >= thirtyDaysAgo && subDate <= now;
-  });
-
-  if (recentSubs.length >= 2) {
-    const recentIncrease = recentSubs.reduce(
-      (acc, s) => acc + getNormalizedMonthlyPrice(s),
-      0
-    );
-    candidates.push({
-      id: 'spending-trend-velocity',
-      title: 'Spending Trend',
-      category: 'actionable',
-      priority: 90,
-      preview: 'Monthly subscription spending increased this month.',
-      observation: `Your monthly spending went up by ${formatCurrency(
-        recentIncrease
-      )} after adding ${recentSubs.length} new services this month.`,
-      meaning: `Adding multiple services quickly can cause your monthly total to jump.`,
-      recommendation: `Take a quick moment to review these new additions and make sure they're all still worth keeping.`,
-    });
-  } else if (recentSubs.length === 1) {
-    const recentSub = recentSubs[0];
-    const monthlyIncrease = getNormalizedMonthlyPrice(recentSub);
-    candidates.push({
-      id: 'spending-trend-single',
-      title: 'Spending Trend',
-      category: 'actionable',
-      priority: 88,
-      preview: 'Monthly subscription spending increased recently.',
-      observation: `Your monthly spending went up by ${formatCurrency(
-        monthlyIncrease
-      )} after adding ${recentSub.name}.`,
-      meaning: `Even single new subscriptions naturally increase your regular monthly total over time.`,
-      recommendation: `It's worth checking if this new service replaces an older plan you no longer need.`,
-    });
-  }
-
-  // 3. Spending Habits: Billing Frequency Distribution
-  if (activeSubs.length >= 3) {
-    const monthlyCount = activeSubs.filter(
-      (s) => s.billing_cycle === 'monthly'
-    ).length;
-    const yearlyCount = activeSubs.filter(
-      (s) => s.billing_cycle === 'yearly'
-    ).length;
-
-    const monthlyPct = (monthlyCount / activeSubs.length) * 100;
-    const yearlyPct = (yearlyCount / activeSubs.length) * 100;
-
-    if (monthlyPct >= 75) {
-      candidates.push({
-        id: 'spending-habit-monthly',
-        title: 'Billing Flexibility',
-        category: 'informational',
-        priority: 85,
-        preview: 'Most of your subscriptions use monthly billing.',
-        observation: `${monthlyPct.toFixed(
-          0
-        )}% of your active subscriptions are billed on a monthly basis.`,
-        meaning: `Monthly billing gives you great flexibility, but annual plans often come with a nice discount.`,
-        recommendation: `If there are services you plan to keep long-term, switching to annual billing could save you 15–20%.`,
-      });
-    } else if (yearlyPct >= 60) {
-      candidates.push({
-        id: 'spending-habit-yearly',
-        title: 'Annual Savings',
-        category: 'informational',
-        priority: 85,
-        preview: "You're taking full advantage of annual discounts.",
-        observation: `${yearlyPct.toFixed(
-          0
-        )}% of your active subscriptions are billed annually.`,
-        meaning: `This locks in the lowest rates for your favorite services.`,
-        recommendation: `Just keep an eye on renewal dates so annual charges don't catch you off guard.`,
-      });
-    }
-  }
-
-  // 4. Annual Run-Rate Projection
-  if (totalAnnualSpend > 0) {
-    candidates.push({
-      id: 'annual-projection',
-      title: 'Annual Projection',
-      category: 'informational',
-      priority: 80,
-      preview: 'Here is your projected annual subscription cost.',
-      observation: `At your current rate, you'll spend about ${formatCurrency(
-        totalAnnualSpend
-      )} on subscriptions this year.`,
-      meaning: `Small monthly costs can add up to a significant total over twelve months.`,
-      recommendation: `Checking in on your plans once or twice a year is a great way to keep your budget on track.`,
-    });
-  }
-
-  // 5. Category Concentration & Portfolio Balance
-  if (categoryBreakdown.length >= 3) {
-    const sortedBreakdown = [...categoryBreakdown].sort(
-      (a, b) => b.percentage - a.percentage
-    );
-    const topTwoPct =
-      sortedBreakdown[0].percentage + sortedBreakdown[1].percentage;
-
-    if (topTwoPct >= 75) {
-      candidates.push({
-        id: 'portfolio-balance',
-        title: 'Category Concentration',
-        category: 'informational',
-        priority: 70,
-        preview: 'Your spending is concentrated in two main categories.',
-        observation: `${topTwoPct.toFixed(0)}% of your subscription budget goes toward ${sortedBreakdown[0].category} and ${sortedBreakdown[1].category}.`,
-        meaning: `When most of your budget goes to two areas, smaller subscriptions elsewhere can easily slip by.`,
-        recommendation: `A quick look across all categories can help ensure your spending stays balanced.`,
-      });
-    }
-  }
-
-  // 6. Savings Progress
-  const totalInactive = pausedSubs.length + canceledSubs.length;
-  if (totalInactive >= 2) {
-    candidates.push({
-      id: 'savings-progress',
-      title: 'Savings Progress',
-      category: 'informational',
-      priority: 65,
-      preview: "You're actively keeping subscription costs low.",
-      observation: `You currently have ${totalInactive} paused or canceled subscriptions in your account.`,
-      meaning: `Pausing services you aren't using right now is a smart way to protect your monthly budget.`,
-      recommendation: `Keep them paused until you need them again—we'll keep your account settings ready.`,
-    });
-  }
-
-  // 7. Neutral Fallback Message
-  if (subscriptions.length > 0) {
-    candidates.push({
-      id: 'everything-looks-good',
-      title: 'Subscription Overview',
-      category: 'neutral',
-      priority: 10,
-      preview: 'Your subscriptions look healthy and balanced.',
-      observation: 'All of your active subscriptions look steady and well-managed.',
-      meaning: "We haven't spotted any unexpected price jumps, recent surges, or duplicate services.",
-      recommendation: "Everything is in good shape! We'll keep monitoring your renewals and let you know if anything changes.",
-    });
-  }
-
-  // 8. Empty State Insight
-  if (subscriptions.length === 0) {
-    candidates.push({
-      id: 'no-subscriptions',
-      title: 'Getting Started',
-      category: 'neutral',
-      priority: 1,
-      preview: 'Add subscriptions to get personalized insights.',
-      observation: "You haven't added any recurring subscriptions to your dashboard yet.",
-      meaning: "Once you add your active plans, we'll start analyzing spending trends and helpful savings tips.",
-      recommendation: "Add your first subscription whenever you're ready to get started.",
-    });
-  }
-
-  // Pick top 1 candidate based on priority
-  candidates.sort((a, b) => b.priority - a.priority);
-  const selectedInsight = candidates[0];
+  if (!selectedInsight) return null;
 
   return (
     <div
@@ -339,7 +110,3 @@ export const SmartInsightCard = memo(function SmartInsightCard({ subscriptions }
     </div>
   );
 });
-
-
-
-

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, memo } from 'react';
+import { useEffect, useState, memo, useSyncExternalStore } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -15,21 +15,70 @@ interface PersonalizedHeaderProps {
   onAskSubHalt?: () => void;
 }
 
-function getGreeting() {
-  const hour = new Date().getHours();
+/**
+ * Both helpers take the instant rather than reading the clock themselves.
+ *
+ * They used to call `new Date()` internally and be passed to useState as an
+ * initialiser, which runs during render on the server *and* the client. The two
+ * sides then disagreed — production runs in UTC, the browser in local time — and
+ * React reported:
+ *
+ *   Warning: Text content did not match.
+ *   + Good morning        (client)
+ *   - Good evening        (server)
+ *
+ * The date string had the same defect via toLocaleDateString, which is
+ * timezone-sensitive for the same reason.
+ *
+ * Making them pure means the caller decides which instant to render, so the
+ * value can be pinned to one that both sides agree on.
+ */
+export function getGreeting(now: Date): string {
+  const hour = now.getHours();
   if (hour >= 5 && hour < 12) return 'Good morning';
   if (hour >= 12 && hour < 17) return 'Good afternoon';
   if (hour >= 17 && hour < 22) return 'Good evening';
   return 'Good night';
 }
 
-function getFormattedDateString() {
-  const d = new Date();
-  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-  const day = d.getDate();
-  const month = d.toLocaleDateString('en-US', { month: 'short' });
-  const year = d.getFullYear();
+export function getFormattedDateString(now: Date): string {
+  const weekday = now.toLocaleDateString('en-US', { weekday: 'short' });
+  const day = now.getDate();
+  const month = now.toLocaleDateString('en-US', { month: 'short' });
+  const year = now.getFullYear();
   return `${weekday}, ${day} ${month} ${year}`;
+}
+
+/**
+ * The clock, read as an external store.
+ *
+ * `useSyncExternalStore` is used rather than a `mounted` flag set in an effect
+ * for two reasons: the hydration render is then guaranteed to use the server
+ * snapshot, so the first client render matches the server byte for byte; and it
+ * does not need setState inside an effect, which this repo treats as an error.
+ *
+ * There is deliberately no subscription. The greeting is a coarse label, not a
+ * countdown — leaving a tab open across noon would otherwise re-render the
+ * header for no visible benefit.
+ */
+const NO_SUBSCRIBE = () => () => {};
+
+/**
+ * Cached so the reference is stable. useSyncExternalStore compares snapshots
+ * with Object.is, so returning a fresh Date on every call would spin React in an
+ * infinite loop.
+ */
+let nowSnapshot: Date | null = null;
+
+function getNowSnapshot(): Date | null {
+  if (typeof window === 'undefined') return null;
+  if (!nowSnapshot) nowSnapshot = new Date();
+  return nowSnapshot;
+}
+
+/** Server, and the hydration render. Null means "no clock yet". */
+function getServerNowSnapshot(): Date | null {
+  return null;
 }
 
 export const PersonalizedHeader = memo(function PersonalizedHeader({
@@ -38,8 +87,8 @@ export const PersonalizedHeader = memo(function PersonalizedHeader({
 }: PersonalizedHeaderProps) {
   const { fullName: contextFullName, email: contextEmail } = useAuth();
   const [user, setUser] = useState<User | null>(null);
-  const [greeting] = useState<string>(getGreeting);
-  const [formattedDate] = useState<string>(getFormattedDateString);
+
+  const now = useSyncExternalStore(NO_SUBSCRIBE, getNowSnapshot, getServerNowSnapshot);
 
   const supabase = createClient();
 
@@ -74,6 +123,15 @@ export const PersonalizedHeader = memo(function PersonalizedHeader({
 
   const displayName = getDisplayName();
 
+  /**
+   * Before the clock resolves — during SSR and the hydration render — fall back
+   * to a timezone-free greeting. It has to render as a complete sentence, because
+   * an empty greeting would briefly read "Ada." with no salutation, and it must
+   * be identical on both sides of hydration, which is the entire point.
+   */
+  const greeting = now ? getGreeting(now) : 'Welcome';
+  const formattedDate = now ? getFormattedDateString(now) : '';
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
       <h1 className="sr-only">Dashboard</h1>
@@ -91,9 +149,11 @@ export const PersonalizedHeader = memo(function PersonalizedHeader({
 
       {/* Right: Date */}
       <div className="text-left sm:text-right shrink-0">
-        <span className="text-xs sm:text-sm font-medium text-[#94A3B8] block">
-          {formattedDate}
-        </span>
+        {formattedDate && (
+          <span className="text-xs sm:text-sm font-medium text-[#94A3B8] block">
+            {formattedDate}
+          </span>
+        )}
       </div>
     </div>
   );

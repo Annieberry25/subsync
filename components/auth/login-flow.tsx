@@ -80,10 +80,33 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
     }
   };
 
+  /**
+   * Selecting a remembered account.
+   *
+   * A Google account goes straight back through Google instead of into a password
+   * or code form. Neither applies to it: there is no password to type, and a
+   * one-time code only reaches an inbox that account may never check — so offering
+   * it was a dead end for exactly the people most likely to have signed in with
+   * Google.
+   */
   const handleSelectAccount = (account: RememberedAccount) => {
     setEmail(account.email);
     setError(null);
     setSuccess(null);
+
+    if (account.provider === 'google') {
+      handleSocialAuth('google');
+      return;
+    }
+
+    if (account.provider === 'password') {
+      setRequestedStep('password');
+      return;
+    }
+
+    // Legacy rows with no stored provider. A password form is the safe default
+    // here: it is the historical behaviour, and the user can reach the code or
+    // Google from that step if the account has no password.
     setRequestedStep('password');
   };
 
@@ -142,6 +165,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
           displayName: data.user.user_metadata?.full_name,
           username: data.user.user_metadata?.username,
           avatarUrl: data.user.user_metadata?.avatar_url,
+          provider: 'password',
         });
       }
 
@@ -191,7 +215,12 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
     try {
       const { error: otpErr } = await supabase.auth.signInWithOtp({
         email: email.trim(),
+        // createUser: false — this is sign-in, so an unknown address must fail
+        // rather than silently create an account. Without it, typing someone
+        // else's email would register them, and the "code sent" message would be
+        // the only clue.
         options: {
+          shouldCreateUser: false,
           emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/`,
         },
       });
@@ -220,6 +249,8 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
       const { data, error: verifyErr } = await supabase.auth.verifyOtp({
         email: email.trim(),
         token: otpCode.trim(),
+        // 'email' is the token type Supabase issues for a signInWithOtp code.
+        // It accepts the 6-digit code from the email template's {{ .Token }}.
         type: 'email',
       });
 
@@ -231,6 +262,10 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
           displayName: data.user.user_metadata?.full_name,
           username: data.user.user_metadata?.username,
           avatarUrl: data.user.user_metadata?.avatar_url,
+          // The code works for any account, so this is recorded as 'otp' rather
+          // than 'password' — otherwise the chooser would show a password form
+          // for an account that has never had one.
+          provider: 'otp',
         });
       }
 
@@ -525,15 +560,30 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             {/* Label outside input */}
             <div className="space-y-1.5 text-left">
-              <label className="text-xs font-medium text-[#94A3B8] block">Verification code</label>
+              <label className="text-xs font-medium text-[#94A3B8] block">
+                6-digit verification code
+              </label>
               <input
                 type="text"
                 required
                 value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                placeholder=""
-                className="w-full px-4 py-2 text-center text-base sm:text-lg font-mono tracking-widest rounded-xl bg-[#000000] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]/60 transition-colors h-10.5 sm:h-11"
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                /* Numeric keypad and no autocorrect/spellcheck: a pasted code
+                   should not gain spaces or capitals from another app. */
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                maxLength={6}
+                aria-label="6-digit verification code"
+                aria-describedby="otp-code-hint"
+                className="w-full px-4 py-2 text-center text-base sm:text-lg font-mono tracking-widest rounded-xl bg-[#000000] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8]/40 focus:outline-none focus:border-[#14B8A6]/60 transition-colors h-10.5 sm:h-11"
               />
+              <p id="otp-code-hint" className="text-[11px] text-[#94A3B8]/80">
+                Enter the numbers from the email. No dashes or spaces.
+              </p>
             </div>
 
             <Button type="submit" size="md" loading={loading} className="w-full font-semibold h-10.5 sm:h-11 rounded-full">

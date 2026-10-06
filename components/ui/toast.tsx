@@ -10,11 +10,20 @@ const icons = {
   warning: AlertTriangle,
 };
 
+/**
+ * Colour is carried by the icon and the text only.
+ *
+ * These previously included a `border-<colour>/40` and the container added a
+ * `border`, so each toast drew attention as a coloured card. A notification that
+ * competes with the page for attention stops reading as a confirmation, and the
+ * status is already unambiguous from the icon. The surface stays the neutral
+ * app token so it keeps the documented glass treatment.
+ */
 const styles = {
-  success: 'border-[#14B8A6]/40 text-[#14B8A6]',
-  error: 'border-rose-500/40 text-rose-400',
-  info: 'border-[#14B8A6]/40 text-[#14B8A6]',
-  warning: 'border-amber-500/40 text-amber-400',
+  success: 'text-[#14B8A6]',
+  error: 'text-rose-400',
+  info: 'text-[#14B8A6]',
+  warning: 'text-amber-400',
 };
 
 export function ToastContainer() {
@@ -43,7 +52,7 @@ export function ToastContainer() {
           >
             <div
               key={toast.shakeKey || 'initial'}
-              className={`flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl border bg-black/10 backdrop-blur-sm shadow-xl transition-all ${
+              className={`flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#0D0F0F]/90 backdrop-blur-sm shadow-xl transition-all ${
                 toast.shakeKey ? 'animate-subtle-shake' : 'animate-in slide-in-from-bottom-5 fade-in duration-200'
               } ${styles[toast.type]}`}
             >

@@ -3,6 +3,8 @@ import {
   hasReachedSubscriptionCap,
   hasReachedAccountLinkCap,
   hasPlanFeature,
+  getEffectiveTier,
+  ADMIN_EFFECTIVE_TIER,
   FREE_SUBSCRIPTION_LIMIT,
   PLAN_LIMITS,
 } from '@/lib/constants/plan-limits';
@@ -88,5 +90,47 @@ describe('hasReachedAccountLinkCap', () => {
   it('treats an unknown tier as free so nobody gets extra accounts by accident', () => {
     expect(hasReachedAccountLinkCap({ tier: '', linkCount: 1 })).toBe(true);
     expect(hasReachedAccountLinkCap({ tier: 'banana', linkCount: 1 })).toBe(true);
+  });
+});
+
+describe('admin access', () => {
+  it('resolves an admin to the unlimited tier regardless of stored tier', () => {
+    expect(getEffectiveTier('free', true)).toBe(ADMIN_EFFECTIVE_TIER);
+    expect(getEffectiveTier('plus', true)).toBe(ADMIN_EFFECTIVE_TIER);
+    expect(getEffectiveTier(null, true)).toBe(ADMIN_EFFECTIVE_TIER);
+  });
+
+  it('leaves a non-admin tier untouched', () => {
+    expect(getEffectiveTier('free', false)).toBe('free');
+    expect(getEffectiveTier('plus', false)).toBe('plus');
+    expect(getEffectiveTier(undefined, false)).toBe('free');
+  });
+
+  it('does not cap an admin subscription count even far past the free limit', () => {
+    // The regression this guards: the operator account was capped at three
+    // subscriptions while being the only account able to manage everyone's.
+    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3, isAdmin: true })).toBe(false);
+    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 40, isAdmin: true })).toBe(false);
+    // Without the flag the same count is still capped.
+    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3 })).toBe(true);
+  });
+
+  it('does not cap an admin account links per subscription', () => {
+    expect(hasReachedAccountLinkCap({ tier: 'free', linkCount: 1, isAdmin: true })).toBe(false);
+    expect(hasReachedAccountLinkCap({ tier: 'free', linkCount: 9, isAdmin: true })).toBe(false);
+    expect(hasReachedAccountLinkCap({ tier: 'free', linkCount: 1 })).toBe(true);
+  });
+
+  it('unlocks every Plus-only feature for an admin on the free tier', () => {
+    expect(hasPlanFeature('free', 'gmail', true)).toBe(true);
+    expect(hasPlanFeature('free', 'emailForwarding', true)).toBe(true);
+    expect(hasPlanFeature('free', 'advancedInsights', true)).toBe(true);
+    // Same feature on the same stored tier without the flag stays locked.
+    expect(hasPlanFeature('free', 'gmail')).toBe(false);
+  });
+
+  it('drops ads for an admin, since ads are a paid-tier perk', () => {
+    expect(getPlanLimits('free', true).showAds).toBe(false);
+    expect(getPlanLimits('free', true).maxBills).toBe(Infinity);
   });
 });

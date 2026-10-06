@@ -3,6 +3,9 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { saveRememberedAccount } from '@/lib/auth/remembered-accounts';
+import { getAuthProvider } from '@/lib/auth/auth-provider';
+import { ensureCacheOwnership } from '@/lib/auth/user-storage';
+import { getEffectiveTier } from '@/lib/constants/plan-limits';
 import { fetchExchangeRates, DEFAULT_EXCHANGE_RATES } from '@/lib/services/currency-service';
 import { logger } from '@/lib/logger';
 import { safeGetItem, safeSetItem, safeParseJSON } from '@/lib/safe-local-storage';
@@ -240,6 +243,12 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
       // 3. Apply authenticated Supabase user metadata
       if (user) {
+        // Drop any cache left behind by a different account before it can be read
+        // as this user's data. Sign-out clears these too, but that path can be
+        // skipped (expired session, second tab, cookie cleared by hand), and the
+        // caches are not scoped per user at the key level.
+        ensureCacheOwnership(user.id);
+
         // Keep the saved-accounts list in step with the live session. Password
         // and one-time-code sign-ins record themselves in their own flow, but
         // the OAuth route leaves the browser on /auth/callback and then a hard
@@ -252,6 +261,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
             displayName: user.user_metadata?.full_name,
             username: user.user_metadata?.username,
             avatarUrl: user.user_metadata?.avatar_url,
+            provider: getAuthProvider(user),
           });
         }
 
@@ -689,9 +699,26 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     [defaultCurrency, exchangeRates]
   );
 
+  /**
+   * `planTier` is exposed as the *effective* tier.
+   *
+   * This is the single highest-leverage place for admin access: every UI gate in
+   * the app reads `isPlus` or `planTier` from this context rather than calling
+   * getPlanLimits itself, so resolving admin here covers the export page, the
+   * plans page, the settings panels, the sidebar, the dashboard's cap notice and
+   * the ad banner in one move. The stored tier is untouched, so removing admin
+   * access reverts it on the next load.
+   */
+  const effectiveTier: 'free' | 'plus' = getEffectiveTier(planTier, isAdmin) === 'free' ? 'free' : 'plus';
+
   const planValue = useMemo<PlanContextValue>(
-    () => ({ planTier, isPlus: planTier === 'plus', isPremium: planTier === 'plus', updatePlanTier }),
-    [planTier]
+    () => ({
+      planTier: effectiveTier,
+      isPlus: effectiveTier === 'plus',
+      isPremium: effectiveTier === 'plus',
+      updatePlanTier,
+    }),
+    [effectiveTier]
   );
 
   const authValue = useMemo<AuthContextValue>(

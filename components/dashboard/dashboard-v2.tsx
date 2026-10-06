@@ -21,6 +21,7 @@ import {
   calculatePotentialSavings,
   formatCurrency,
 } from '@/lib/utils/metrics-utils';
+import { saveReminderPreference } from '@/lib/services/reminder-preferences';
 import { MetricCardSkeleton } from '@/components/ui/skeleton';
 import { StatGrid } from '@/components/ui/stat-grid';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -140,10 +141,21 @@ export default function DashboardV2() {
 
   useEffect(() => {
     let active = true;
-    const cached = getCachedSubscriptions();
-    if (cached) {
-      setSubscriptions(cached);
-    }
+    // Deferred to a microtask rather than set synchronously here.
+    //
+    // Two reasons, and the second is the important one: a sync setState in an
+    // effect is a cascading render (the lint rule flags it), and it would render
+    // the cached list during the hydration pass — the server has no localStorage,
+    // so it emits an empty dashboard and the client would immediately disagree.
+    // Reading the cache in an initializer is not an option either, for the same
+    // reason. A microtask lands after hydration and before paint.
+    queueMicrotask(() => {
+      if (!active) return;
+      const cached = getCachedSubscriptions();
+      if (cached) {
+        setSubscriptions(cached);
+      }
+    });
     fetchSubscriptions().then(({ data, error: err }) => {
       if (!active) return;
       if (err && subscriptions.length === 0) {
@@ -226,10 +238,21 @@ const handleSave = async (
     }
   };
 
-  const handleSaveReminder = (subId: string, data: { timing: string; method: string; note?: string }) => {
+  const handleSaveReminder = async (
+    subId: string,
+    data: { emailLeadDays: number | null; pushLeadDays: number | null; note?: string }
+  ) => {
+    // The localStorage copy keeps the on-screen badge working offline; the database
+    // copy is the one the reminder cron reads.
     const updated = {
       ...reminders,
-      [subId]: { ...data, dismissed: false },
+      [subId]: {
+        timing: data.emailLeadDays ? `${data.emailLeadDays}_days` : 'push_only',
+        method: data.emailLeadDays ? 'both' : 'push',
+        emailLeadDays: data.emailLeadDays,
+        pushLeadDays: data.pushLeadDays,
+        dismissed: false,
+      },
     };
     setReminders(updated);
     try {
@@ -237,7 +260,25 @@ const handleSave = async (
     } catch {
       // Ignore storage errors
     }
-    toast.success('Payment reminder configured.', 'Reminder Set');
+
+    const saved = await saveReminderPreference({
+      subscriptionId: subId,
+      emailLeadDays: data.emailLeadDays,
+      pushLeadDays: data.pushLeadDays,
+      note: data.note ?? null,
+    });
+
+    // Not a silent success: a preference that only reached localStorage is one the
+    // server-side cron cannot see, so the reminder would never arrive.
+    if (!saved) {
+      toast.warning(
+        'Reminder saved on this device, but not synced. It may not fire — check your connection and try again.',
+        'Reminder Not Synced'
+      );
+      return;
+    }
+
+    toast.success('Reminder saved.', 'Reminder Set');
   };
 
   // Metrics with User Default Currency
@@ -309,7 +350,13 @@ const handleSave = async (
             </div>
           </div>
           <Link
-            href="/renewals"
+            /* `from=alert` marks this as the deep link out of the overdue banner.
+               The renewals page uses it to keep the Back to Dashboard control and
+               lead with overdue; arriving from the nav menu it does the opposite.
+               Both orders are deliberate — someone who clicked "View Overdue"
+               wants the overdue rows first, someone who opened Renewals from the
+               menu wants what is coming up. */
+            href="/renewals?from=alert"
             className="w-full sm:w-auto text-center px-3.5 py-2.5 min-h-[44px] flex items-center justify-center rounded-xl bg-[#D9363E]/20 hover:bg-[#D9363E]/30 text-[#D9363E] font-semibold text-xs transition-colors shrink-0 cursor-pointer border border-[#D9363E]/30"
           >
             View Overdue

@@ -8,6 +8,8 @@ export type ActivityType =
   | 'edited'
   | 'renewed'
   | 'archived'
+  /** Past Activities entry synthesised from a subscription whose billing date passed. */
+  | 'overdue'
   | 'deleted'
   | 'restored'
   | 'reminder_sent'

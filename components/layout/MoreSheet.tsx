@@ -52,11 +52,12 @@ export function MoreSheet({ open, onClose }: MoreSheetProps) {
     Boolean(item.children && isNavItemActive(pathname, item.href));
 
   const handleSignOut = async () => {
+    // Clears the caches and performs a hard navigation to /login itself, so there
+    // is no client-side push here — see lib/auth/sign-out.ts for why.
     const ok = await signOutAndRedirect();
 
     if (ok) {
-      router.push('/login');
-      router.refresh();
+      onClose();
       return;
     }
 

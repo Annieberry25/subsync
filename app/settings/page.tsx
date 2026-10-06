@@ -5,6 +5,13 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import {
+  getPushPermissionState,
+  isPushSupported,
+  enablePushNotifications,
+  disablePushNotifications,
+  type PushPermissionState,
+} from '@/lib/push/client';
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
 import {
   User,
@@ -94,6 +101,19 @@ function SettingsContent() {
   const { addInboxItem } = useInbox();
 
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
+
+  /* Push permission, read from the browser rather than stored: it is a property
+     of this device and this browser, and can be revoked outside the app at any
+     time, so a persisted flag would report notifications as on when they cannot
+     arrive. */
+  const [pushPermission, setPushPermission] = useState<PushPermissionState>('default');
+  const [pushSupported, setPushSupported] = useState(true);
+  const [pushToggling, setPushToggling] = useState(false);
+
+  useEffect(() => {
+    setPushSupported(isPushSupported());
+    setPushPermission(getPushPermissionState());
+  }, []);
   const [isEditBillingOpen, setIsEditBillingOpen] = useState(false);
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [isViewSubscriptionOpen, setIsViewSubscriptionOpen] = useState(false);
@@ -188,11 +208,11 @@ function SettingsContent() {
   };
 
   const handleAccountDeleted = async () => {
+    // Clears the caches and performs a hard navigation to /login itself, so there
+    // is no client-side push here — see lib/auth/sign-out.ts for why.
     const ok = await signOutAndRedirect();
 
     if (ok) {
-      router.push('/login');
-      router.refresh();
       return;
     }
 
@@ -751,16 +771,83 @@ function SettingsContent() {
             </button>
           </div>
 
-          {/* Row 5: Email Digests */}
+          {/* Row 5: Push Notifications */}
+          {/*
+            Browser permission, not just an app preference.
+
+            The switch reflects whether this device can actually receive a push.
+            Turning it on has to grant the permission — which browsers only allow
+            from a click — so it cannot be a plain toggle: `requestPermission()`
+            called outside a gesture resolves to denied without a prompt, and Chrome
+            treats repeated programmatic requests as grounds to block the origin.
+            Until this exists there is nowhere in the app to enable push at all.
+          */}
           <div className="p-4 flex items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold text-[#F5F7F6] block">Email Digests</span>
-              <span className="text-[11px] text-[#94A3B8]">Upcoming renewal summaries & price changes</span>
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-[#F5F7F6] block">
+                Push Notifications
+              </span>
+              <span className="text-[11px] text-[#94A3B8] block">
+                {pushPermission === 'unsupported'
+                  ? 'Not supported by this browser'
+                  : pushPermission === 'denied'
+                    ? 'Blocked for this site — allow them in your browser settings'
+                    : pushPermission === 'granted'
+                      ? 'Renewal reminders, weekly recap & new insights'
+                      : 'Renewal reminders, weekly recap & new insights'}
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={pushPermission === 'granted'}
+              aria-label="Push notifications"
+              disabled={!pushSupported || pushToggling}
+              onClick={async () => {
+                if (pushToggling) return;
+                setPushToggling(true);
+                try {
+                  if (pushPermission === 'granted') {
+                    await disablePushNotifications();
+                  } else {
+                    // Only reachable from this click, which is what makes the
+                    // permission prompt legal.
+                    await enablePushNotifications();
+                  }
+                  setPushPermission(getPushPermissionState());
+                } finally {
+                  setPushToggling(false);
+                }
+              }}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out disabled:cursor-not-allowed disabled:opacity-50 ${
+                pushPermission === 'granted' ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                  pushPermission === 'granted' ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Row 6: Email Digests */}
+          <div className="p-4 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-[#F5F7F6] block">
+                Renewal Emails
+              </span>
+              <span className="text-[11px] text-[#94A3B8] block">
+                {notificationPreferences.email
+                  ? 'Emails at the lead time you chose per subscription'
+                  : 'Off — renewal reminders are sent as push instead'}
+              </span>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={notificationPreferences.email}
+              aria-label="Renewal emails"
               onClick={async () => {
                 const val = !notificationPreferences.email;
                 await updateNotificationPreferences({ email: val });

@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
+  assign: vi.fn(),
   billsEnabled: false,
 }));
 
@@ -71,6 +72,15 @@ beforeEach(() => {
   mocks.unreadCount = 0;
   mocks.isAdmin = false;
   mocks.billsEnabled = false;
+  mocks.assign.mockClear();
+  mocks.push.mockClear();
+  mocks.refresh.mockClear();
+  // jsdom's location.assign is "not implemented" and logs a console error, so it
+  // is replaced for the duration of each test.
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { ...window.location, assign: mocks.assign, origin: 'http://localhost:3000' },
+  });
   mocks.signOut.mockClear();
   mocks.signOut.mockResolvedValue({ error: null });
   mocks.fetchCleared.mockReset();
@@ -266,13 +276,17 @@ describe('MoreSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('signs out and redirects to login', async () => {
+  it('signs out and hard-navigates to login', async () => {
     renderSheet();
 
     await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
 
-    expect(mocks.push).toHaveBeenCalledWith('/login');
-    expect(mocks.refresh).toHaveBeenCalled();
+    /* A hard navigation, not router.push(). A client-side push keeps the React
+       tree alive, so providers that loaded the outgoing account on mount keep
+       serving it — the sidebar went on showing the previous email and plan, and
+       module state stayed resident. See lib/auth/sign-out.ts. */
+    expect(mocks.assign).toHaveBeenCalledWith('/login');
+    expect(mocks.push).not.toHaveBeenCalled();
   });
 
   it('redirects once the server confirms the session was cleared', async () => {
@@ -283,8 +297,7 @@ describe('MoreSheet', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
 
-    expect(mocks.push).toHaveBeenCalledWith('/login');
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.assign).toHaveBeenCalledWith('/login');
     expect(mocks.toastError).not.toHaveBeenCalled();
   });
 

@@ -81,19 +81,30 @@ export function parseRecipientUserId(recipient: string): string | null {
   return tagMatch ? tagMatch[1] : null;
 }
 
-async function fetchProfileForUserId(admin: AdminClient, userId: string): Promise<{ plan_tier: string | null } | null> {
+async function fetchProfileForUserId(
+  admin: AdminClient,
+  userId: string
+): Promise<{ plan_tier: string | null; is_admin: boolean } | null> {
   const { data, error } = await admin
     .from('profiles')
-    .select('plan_tier')
+    .select('plan_tier, is_admin')
     .eq('id', userId)
     .maybeSingle();
   if (error || !data) return null;
-  return { plan_tier: data.plan_tier };
+  return { plan_tier: data.plan_tier, is_admin: data.is_admin === true };
 }
 
+/**
+ * Admins count as Plus regardless of `plan_tier`.
+ *
+ * The receipt paths enforce the cap server-side, so resolving admin here matters:
+ * without it, an operator account scanning receipts hits the free limit while the
+ * client UI — which resolves admin — says the features are unlocked.
+ */
 export async function isPlusUser(admin: AdminClient, userId: string): Promise<boolean> {
   const profile = await fetchProfileForUserId(admin, userId);
   if (!profile) return false;
+  if (profile.is_admin) return true;
   return profile.plan_tier === 'plus' || profile.plan_tier === 'premium';
 }
 

@@ -19,9 +19,10 @@ import {
   filterDeletedSubscriptions, 
   restoreSubscription, 
   permanentlyDeleteSubscription, 
-  getRestoredHistory, 
-  type SubscriptionRow, 
-  type RestoredHistoryRecord 
+  getRestoredHistory,
+  isOverdueSubscription,
+  type SubscriptionRow,
+  type RestoredHistoryRecord
 } from '@/lib/services/subscription-service';
 import {
   fetchActivityLog,
@@ -71,8 +72,47 @@ const ACTIVITY_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: 'deleted', label: 'Subscriptions Deleted' },
   { value: 'restored', label: 'Subscriptions Restored' },
   { value: 'reminder_sent', label: 'Reminders Sent' },
+  { value: 'overdue', label: 'Overdue Subscriptions' },
   { value: 'updated', label: 'Information Updated' },
 ];
+
+/**
+ * Overdue subscriptions, rendered as activity entries on Past Activities.
+ *
+ * These are derived from the subscription rows rather than recorded, so they
+ * appear here without having to be logged when a billing date lapses, and they
+ * disappear again on their own once the date is updated. Synthesising
+ * `ActivityRecord`s means they flow through the existing list, filter dropdown,
+ * pagination and detail modal with no bespoke markup.
+ */
+function buildOverdueActivities(subscriptions: SubscriptionRow[]): ActivityRecord[] {
+  return subscriptions
+    .filter((sub) => isOverdueSubscription(sub))
+    .map((sub) => {
+      const daysOverdue = Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date(sub.next_billing_date).getTime()) / (1000 * 60 * 60 * 24)
+        )
+      );
+      return {
+        id: `overdue_${sub.id}`,
+        subscriptionId: sub.id,
+        subscriptionName: sub.name,
+        type: 'overdue' as const,
+        title: `${sub.name} payment is overdue`,
+        description:
+          daysOverdue === 1
+            ? 'Payment was due yesterday.'
+            : `Payment was due ${daysOverdue} days ago.`,
+        // The billing date, so overdue entries sort alongside real history.
+        timestamp: sub.next_billing_date,
+        amount: Number(sub.price) || undefined,
+        currency: sub.currency || undefined,
+      } satisfies ActivityRecord;
+    })
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+}
 
 interface ActivityMessageItemProps {
   activity: ActivityRecord;
@@ -354,9 +394,12 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
   const deletedList = useMemo(() => filterDeletedSubscriptions(subscriptions), [subscriptions]);
 
   const filteredActivities = useMemo(() => {
-    if (activityFilter === 'all') return activities;
-    return activities.filter((act) => act.type === activityFilter);
-  }, [activities, activityFilter]);
+    // Only Past Activities carries the derived overdue entries; the archive,
+    // deleted and restored tabs are about records and should not gain them.
+    const base = section === 'all' ? [...activities, ...buildOverdueActivities(subscriptions)] : activities;
+    if (activityFilter === 'all') return base;
+    return base.filter((act) => act.type === activityFilter);
+  }, [activities, activityFilter, section, subscriptions]);
 
   const paginatedActivities = useMemo(
     () => filteredActivities.slice(0, visibleCountActivities),

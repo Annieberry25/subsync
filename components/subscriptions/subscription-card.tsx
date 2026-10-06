@@ -197,7 +197,7 @@ function SubscriptionCard({
       if (error) {
         toast.error(error.message, 'Archiving Failed');
       } else {
-        toast.success(`Moved "${subscription.name}" to History → Archive.`, 'Subscription Archived');
+        toast.success(`Moved "${subscription.name}" to Archive.`, 'Subscription Archived');
       }
     }
     setArchiving(false);

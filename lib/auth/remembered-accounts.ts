@@ -8,6 +8,16 @@ export interface RememberedAccount {
   username?: string;
   avatarUrl?: string;
   lastUsed: number;
+  /**
+   * How this account was last authenticated.
+   *
+   * Needed because a password step is wrong for an account that has no password.
+   * A Google-only account reached through the chooser used to be dropped straight
+   * into a password form that could never succeed, with no error and no way back.
+   * Absent on accounts saved before this existed, which are treated as password
+   * accounts — the historical behaviour.
+   */
+  provider?: 'password' | 'google' | 'apple' | 'otp';
 }
 
 const STORAGE_KEY = 'subhalt_remembered_accounts';
@@ -90,7 +100,9 @@ export function getRememberedAccounts(): RememberedAccount[] {
   return getRememberedAccountsSnapshot();
 }
 
-export function saveRememberedAccount(account: Omit<RememberedAccount, 'lastUsed'> & { lastUsed?: number }) {
+export function saveRememberedAccount(
+  account: Omit<RememberedAccount, 'lastUsed'> & { lastUsed?: number }
+) {
   if (typeof window === 'undefined') return;
   try {
     const current = getRememberedAccountsSnapshot();
@@ -101,6 +113,9 @@ export function saveRememberedAccount(account: Omit<RememberedAccount, 'lastUsed
       displayName: account.displayName || (existingIndex >= 0 ? current[existingIndex].displayName : undefined),
       username: account.username || (existingIndex >= 0 ? current[existingIndex].username : undefined),
       avatarUrl: account.avatarUrl || (existingIndex >= 0 ? current[existingIndex].avatarUrl : undefined),
+      provider:
+        account.provider ||
+        (existingIndex >= 0 ? current[existingIndex].provider : undefined),
       lastUsed: Date.now(),
     };
 

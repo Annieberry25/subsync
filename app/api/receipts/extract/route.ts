@@ -94,7 +94,12 @@ export async function POST(request: Request) {
 
   // Quota: a vision call costs a provider request, so the plan limit is
   // enforced here rather than only described in the UI.
-  const limits = getPlanLimits(getPlanTier(user));
+  const { data: callerProfile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .maybeSingle();
+  const limits = getPlanLimits(getPlanTier(user), callerProfile?.is_admin === true);
   if (Number.isFinite(limits.maxReceiptScansPerMonth)) {
     const used = await countReceiptScansThisMonth(user.id);
     if (used >= limits.maxReceiptScansPerMonth) {

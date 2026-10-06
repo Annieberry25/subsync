@@ -3,10 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const mockSubscriptions = vi.hoisted(() => ({ value: [] as unknown[] }));
+const mockRouter = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+const mockSearchParams = vi.hoisted(() => ({ value: new URLSearchParams() }));
 
 vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => mockSearchParams.value,
+  useRouter: () => mockRouter,
 }));
 
 vi.mock('next/image', () => ({
@@ -135,6 +137,9 @@ const rows = [
 describe('SubscriptionManager view toggle', () => {
   beforeEach(() => {
     mockSubscriptions.value = rows;
+    mockSearchParams.value = new URLSearchParams();
+    mockRouter.push.mockReset();
+    mockRouter.replace.mockReset();
   });
 
   it('renders the list/grid toggle without a breakpoint-gated hidden class', async () => {
@@ -203,5 +208,87 @@ describe('SubscriptionManager view toggle', () => {
 
     expect(await screen.findByText('No matching subscriptions')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Add Your First Subscription/i })).toBeNull();
+  });
+
+  /**
+   * Overdue rows belong on the dashboard's overdue banner and in the dedicated
+   * "Overdue Subscriptions" section on /renewals, not mixed into the main list.
+   * The definition matches the one those two already use.
+   */
+  it('keeps overdue subscriptions off the main list', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const overdueDate = yesterday.toISOString().split('T')[0];
+
+    mockSubscriptions.value = [
+      { ...rows[0], id: 'sub-overdue', name: 'Overdue Netflix', next_billing_date: overdueDate },
+      { ...rows[0], id: 'sub-current', name: 'Current Netflix', next_billing_date: '2099-01-01' },
+    ];
+
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText('Current Netflix')).toBeInTheDocument();
+    expect(screen.queryByText('Overdue Netflix')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The inbox builds `?highlight=<id>&detail=true` links from a stored
+ * subscription name, so a link can outlive the row: if the subscription was moved
+ * to Deleted in the meantime, the deep link resolved to a deleted row and the
+ * normal detail sheet opened. Its actions do not apply there — Edit was rejected
+ * by the save path (losing the change with only a generic error) and Move to
+ * Deleted re-ran a delete the user had already done.
+ */
+describe('SubscriptionManager deleted deep link', () => {
+  const deletedRow = {
+    ...rows[0],
+    id: 'sub-deleted',
+    name: 'Hulu',
+    notes: 'Standard plan [HistoryState: {"state":"deleted","deletedAt":"2026-10-01T00:00:00.000Z"}]',
+  };
+
+  beforeEach(() => {
+    mockSubscriptions.value = [deletedRow];
+    mockRouter.push.mockReset();
+    mockRouter.replace.mockReset();
+    mockSearchParams.value = new URLSearchParams('highlight=sub-deleted&detail=true');
+  });
+
+  it('shows a read-only notice instead of the editable detail sheet', async () => {
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText(/Hulu is in Deleted/)).toBeInTheDocument();
+    expect(screen.getByText(/nothing to edit here/i)).toBeInTheDocument();
+
+    // None of the detail sheet's live-subscription actions are offered.
+    expect(screen.queryByRole('button', { name: 'Edit Subscription' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Set Reminder' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Move to Deleted/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Restore Subscription/i })).toBeNull();
+  });
+
+  it('offers a way out to the active list and to Deleted', async () => {
+    const user = userEvent.setup();
+    render(<SubscriptionManager />);
+    await screen.findByText(/Hulu is in Deleted/);
+
+    await user.click(screen.getByRole('button', { name: 'Go to Deleted' }));
+    expect(mockRouter.push).toHaveBeenCalledWith('/history/deleted');
+
+    await user.click(screen.getByRole('button', { name: 'Back to subscriptions' }));
+    await waitFor(() => expect(screen.queryByText(/Hulu is in Deleted/)).not.toBeInTheDocument());
+  });
+
+  it('still opens the detail sheet for a live row behind the same link', async () => {
+    // Same code path, an id that is not in Deleted: guards the fix against
+    // swallowing deep links that should still open the detail sheet.
+    mockSubscriptions.value = rows;
+    mockSearchParams.value = new URLSearchParams('highlight=sub-1&detail=true');
+
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByRole('button', { name: 'Edit Subscription' })).toBeInTheDocument();
+    expect(screen.queryByText(/is in Deleted/)).toBeNull();
   });
 });

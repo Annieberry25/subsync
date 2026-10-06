@@ -192,6 +192,102 @@ describe('AuthForm', () => {
     );
   });
 
+/**
+ * Regression: selecting a remembered account always dropped into the password
+ * step, regardless of how that account authenticates. A Google account has no
+ * password, so the form could only ever fail, and the one-time code it falls back
+ * to lands in an inbox that account may never open. It now returns through Google,
+ * the provider that actually created it.
+ */
+it('returns a Google account through Google instead of a password or code form', async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'google@example.com', displayName: 'Google User', lastUsed: 1, provider: 'google' },
+      ])
+    );
+    mocks.signInWithOAuth.mockResolvedValue({
+      data: { provider: 'google', url: 'https://example.supabase.co/auth/v1/authorize' },
+      error: null,
+    });
+
+    render(<AuthForm />);
+    await waitFor(() => screen.getByText('Choose an account to continue'));
+
+    await user.click(screen.getByText('google@example.com'));
+
+    await waitFor(() =>
+      expect(mocks.signInWithOAuth).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: 'google' })
+      )
+    );
+    // Neither form is shown: no code requested, no password prompt.
+    expect(mocks.signInWithOtp).not.toHaveBeenCalled();
+    expect(screen.queryByRole('heading', { name: 'Enter your password' })).not.toBeInTheDocument();
+    expect(screen.queryByText('6-digit verification code')).not.toBeInTheDocument();
+  });
+
+  it('still shows the password form for a password account', async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'pw@example.com', displayName: 'PW User', lastUsed: 1, provider: 'password' },
+      ])
+    );
+
+    render(<AuthForm />);
+    await waitFor(() => screen.getByText('Choose an account to continue'));
+
+    await user.click(screen.getByText('pw@example.com'));
+
+    expect(screen.getByRole('heading', { name: 'Enter your password' })).toBeInTheDocument();
+    expect(mocks.signInWithOtp).not.toHaveBeenCalled();
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Accounts saved before the provider field existed have none. The password form
+   * is the historical behaviour and the safe default here: the user can still
+   * reach the code or Google from that step, whereas guessing "Google" would send
+   * a password account into an OAuth round trip it never asked for.
+   */
+  it('falls back to the password form for a legacy account with no stored provider', async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([{ email: 'legacy@example.com', displayName: 'Legacy', lastUsed: 1 }])
+    );
+
+    render(<AuthForm />);
+    await waitFor(() => screen.getByText('Choose an account to continue'));
+
+    await user.click(screen.getByText('legacy@example.com'));
+
+    expect(screen.getByRole('heading', { name: 'Enter your password' })).toBeInTheDocument();
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  it('requests the code without creating an account for an unknown address', async () => {
+    const user = userEvent.setup();
+    mocks.signInWithOtp.mockResolvedValue({ data: {}, error: null });
+
+    render(<AuthForm />);
+    await user.type(screen.getByRole('textbox'), 'user@example.com');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: /one-time code|code/i }));
+
+    await waitFor(() =>
+      expect(mocks.signInWithOtp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'user@example.com',
+          options: expect.objectContaining({ shouldCreateUser: false }),
+        })
+      )
+    );
+  });
+
   it('renders the signup flow when initialMode is signup', () => {
     render(<AuthForm initialMode="signup" />);
 

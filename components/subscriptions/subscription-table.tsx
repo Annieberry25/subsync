@@ -213,7 +213,7 @@ function SubscriptionTable({
                 if (error) {
                   toast.error(error.message, 'Archiving Failed');
                 } else {
-                  toast.success(`Moved "${targetSub.name}" to History → Archive.`, 'Subscription Archived');
+                  toast.success(`Moved "${targetSub.name}" to Archive.`, 'Subscription Archived');
                 }
               }
             }}

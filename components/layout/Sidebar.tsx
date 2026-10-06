@@ -88,12 +88,12 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
   }, [showProfileMenu]);
 
   const handleSignOut = async () => {
+    // Clears the caches and performs a hard navigation to /login itself, so there
+    // is no client-side push here — see lib/auth/sign-out.ts for why.
     const ok = await signOutAndRedirect();
 
     if (ok) {
       setShowProfileMenu(false);
-      router.push('/login');
-      router.refresh();
       return;
     }
 

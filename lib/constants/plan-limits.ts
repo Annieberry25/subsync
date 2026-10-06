@@ -68,8 +68,12 @@ export type PlusFeature = 'gmail' | 'emailForwarding' | 'advancedInsights';
  * both the "PLUS" badge on locked affordances and the gate that blocks the
  * action, so a badge can never disagree with the enforcement.
  */
-export function hasPlanFeature(tier: string, feature: PlusFeature): boolean {
-  const limits = getPlanLimits(tier);
+export function hasPlanFeature(
+  tier: string,
+  feature: PlusFeature,
+  isAdmin = false
+): boolean {
+  const limits = getPlanLimits(tier, isAdmin);
   switch (feature) {
     case 'gmail':
       return limits.hasGmailConnect;
@@ -82,7 +86,26 @@ export function hasPlanFeature(tier: string, feature: PlusFeature): boolean {
   }
 }
 
-export function getPlanLimits(tier: 'free' | 'plus' | 'pro' | string): PlanLimits {
+/**
+ * Admin gets every paid capability, regardless of plan_tier.
+ *
+ * Deliberately resolved here rather than at each call site. The tier is read in
+ * half a dozen places (the write-path cap, the UI gates, the ad banner, the
+ * Gmail and forwarding prompts) and threading an `isAdmin` flag through all of
+ * them is how one of them gets missed — which is what happened: an admin was
+ * capped at three subscriptions while also being the only account able to manage
+ * everyone's.
+ *
+ * An operator account that cannot use the product it operates is not a tier, it
+ * is a lockout.
+ */
+export const ADMIN_EFFECTIVE_TIER = 'pro';
+
+export function getPlanLimits(
+  tier: 'free' | 'plus' | 'pro' | string,
+  isAdmin = false
+): PlanLimits {
+  if (isAdmin) return PLAN_LIMITS[ADMIN_EFFECTIVE_TIER];
   const normTier = (tier || 'free').toLowerCase();
   if (normTier === 'plus') return PLAN_LIMITS.plus;
   if (normTier === 'pro' || normTier === 'premium') return PLAN_LIMITS.pro;
@@ -90,12 +113,25 @@ export function getPlanLimits(tier: 'free' | 'plus' | 'pro' | string): PlanLimit
 }
 
 /**
+ * The tier a caller should enforce against: admin's effective tier, otherwise
+ * their stored one. Use this at every enforcement point so admin access cannot
+ * be forgotten in one of them.
+ */
+export function getEffectiveTier(tier: string | null | undefined, isAdmin = false): string {
+  return isAdmin ? ADMIN_EFFECTIVE_TIER : tier || 'free';
+}
+
+/**
  * True when a user has reached the active-subscription cap for their tier.
  * Paid tiers (maxSubscriptions: Infinity) never cap. Shared by the UI gates
  * and the write-path enforcement so every caller agrees on the same limit.
  */
-export function hasReachedSubscriptionCap(opts: { tier: string; activeCount: number }): boolean {
-  const { maxSubscriptions } = getPlanLimits(opts.tier);
+export function hasReachedSubscriptionCap(opts: {
+  tier: string;
+  activeCount: number;
+  isAdmin?: boolean;
+}): boolean {
+  const { maxSubscriptions } = getPlanLimits(opts.tier, opts.isAdmin);
   return maxSubscriptions !== Infinity && opts.activeCount >= maxSubscriptions;
 }
 
@@ -105,8 +141,12 @@ export function hasReachedSubscriptionCap(opts: { tier: string; activeCount: num
  * save-time rejection, so the user finds out while they are looking at the
  * control rather than after filling in the form.
  */
-export function hasReachedAccountLinkCap(opts: { tier: string; linkCount: number }): boolean {
-  const { maxAccountLinksPerSubscription } = getPlanLimits(opts.tier);
+export function hasReachedAccountLinkCap(opts: {
+  tier: string;
+  linkCount: number;
+  isAdmin?: boolean;
+}): boolean {
+  const { maxAccountLinksPerSubscription } = getPlanLimits(opts.tier, opts.isAdmin);
   return (
     maxAccountLinksPerSubscription !== Infinity &&
     opts.linkCount >= maxAccountLinksPerSubscription

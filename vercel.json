@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/gmail-rescan",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/send-reminders",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-recap",
+      "schedule": "0 10 * * 6"
     }
   ],
   "headers": [

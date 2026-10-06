@@ -2,7 +2,7 @@
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, AlertCircle, LayoutGrid, List } from 'lucide-react';
+import { Plus, AlertCircle, LayoutGrid, List, Trash2 } from 'lucide-react';
 import { hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
 import { 
   fetchSubscriptions, 
@@ -11,9 +11,16 @@ import {
   softDeleteSubscription,
   archiveSubscription,
   filterActiveSubscriptions,
+  isOverdueSubscription,
+  isSubscriptionDeleted,
   type SubscriptionRow,
-  type SubscriptionInsert 
+  type SubscriptionInsert
 } from '@/lib/services/subscription-service';
+import {
+  fetchReminderPreferences,
+  saveReminderPreference,
+  type ReminderPreference,
+} from '@/lib/services/reminder-preferences';
 
 import SubscriptionCard from './subscription-card';
 import SubscriptionTable from './subscription-table';
@@ -71,6 +78,18 @@ export default function SubscriptionManager() {
   const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  /**
+   * A deep link that resolves to a deleted row.
+   *
+   * Kept separate from `selectedDetailSub` so the notice renders as page content
+   * instead of inside the detail sheet: the sheet's whole layout assumes a live
+   * subscription and its actions are the ones that do not apply here.
+   */
+  const [deletedTarget, setDeletedTarget] = useState<SubscriptionRow | null>(null);
+
+  /** The `highlight` param whose deep link has already been acted on. */
+  const [resolvedHighlight, setResolvedHighlight] = useState<string | null>(null);
+
   // Add Subscription Modal State
   const [isAddPathModalOpen, setIsAddPathModalOpen] = useState(false);
   const [addPathInitial, setAddPathInitial] = useState<'gmail' | 'forwarding' | 'link' | 'receipt' | null>(null);
@@ -102,12 +121,43 @@ export default function SubscriptionManager() {
     }
   });
 
+  /* Server-side reminder preferences, keyed by subscription id.
+     Loaded so the reminder sheet shows what is actually saved rather than
+     resetting to defaults every time it is opened. */
+  const [reminderPrefs, setReminderPrefs] = useState<ReminderPreference[]>([]);
 
+  useEffect(() => {
+    let active = true;
+    fetchReminderPreferences().then((prefs) => {
+      if (!active) return;
+      setReminderPrefs(prefs);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const handleSaveReminder = (subId: string, data: { timing: string; method: string; note?: string }) => {
+  const reminderPrefBySub = useMemo(() => {
+    const map = new Map<string, ReminderPreference>();
+    for (const pref of reminderPrefs) map.set(pref.subscriptionId, pref);
+    return map;
+  }, [reminderPrefs]);
+
+  const handleSaveReminder = async (
+    subId: string,
+    data: { emailLeadDays: number | null; pushLeadDays: number | null; note?: string }
+  ) => {
+    // localStorage first so the on-screen badge updates even if the write below
+    // fails; the database copy is what the cron actually reads.
     const updated = {
       ...reminders,
-      [subId]: { ...data, dismissed: false },
+      [subId]: {
+        timing: data.emailLeadDays ? `${data.emailLeadDays}_days` : 'push_only',
+        method: data.emailLeadDays ? 'both' : 'push',
+        emailLeadDays: data.emailLeadDays,
+        pushLeadDays: data.pushLeadDays,
+        dismissed: false,
+      },
     };
     setReminders(updated);
     try {
@@ -115,7 +165,38 @@ export default function SubscriptionManager() {
     } catch {
       // Ignore storage errors
     }
-    toast.success(`Payment reminder configured for subscription.`, 'Reminder Set');
+
+    const saved = await saveReminderPreference({
+      subscriptionId: subId,
+      emailLeadDays: data.emailLeadDays,
+      pushLeadDays: data.pushLeadDays,
+      note: data.note ?? null,
+    });
+
+    if (saved) {
+      setReminderPrefs((prev) => [
+        ...prev.filter((p) => p.subscriptionId !== subId),
+        {
+          subscriptionId: subId,
+          emailLeadDays: data.emailLeadDays,
+          pushLeadDays: data.pushLeadDays,
+          note: data.note ?? null,
+        },
+      ]);
+    }
+
+    // The local copy succeeded, so saying "reminder saved" and then having nothing
+    // arrive at the renewal would be the worst outcome: the user has no way to tell
+    // the difference between "saved" and "saved locally but the server never sees it".
+    if (!saved) {
+      toast.warning(
+        'Reminder saved on this device, but not synced. It may not fire — check your connection and try again.',
+        'Reminder Not Synced'
+      );
+      return;
+    }
+
+    toast.success('Reminder saved.', 'Reminder Set');
   };
 
   const handleDismissReminder = (sub: SubscriptionRow) => {
@@ -159,8 +240,23 @@ export default function SubscriptionManager() {
     if (paramSort) setSortBy(paramSort);
   }
 
-  // Open detail view modal if search parameter detail=true is specified.
-  if (paramHighlight && searchParams.get('detail') === 'true' && !loading && subscriptions.length > 0 && !isDetailOpen) {
+  /*
+    * Open the detail view when search parameter detail=true is specified.
+
+    * `resolvedHighlight` records which param has already been acted on. It is
+    * required, not an optimisation: this is a render-phase adjustment, so it
+    * re-runs on every render until the state it writes matches what it reads.
+    * Guarding only on `deletedTarget` would mean dismissing the notice sets it
+    * back to null and the next render re-opens the notice it just closed.
+    */
+  if (
+    paramHighlight &&
+    searchParams.get('detail') === 'true' &&
+    !loading &&
+    subscriptions.length > 0 &&
+    !isDetailOpen &&
+    resolvedHighlight !== paramHighlight
+  ) {
     const decodedParam = decodeURIComponent(paramHighlight).toLowerCase().trim();
     const match = subscriptions.find(
       (s) =>
@@ -169,8 +265,21 @@ export default function SubscriptionManager() {
         s.name.toLowerCase().trim() === decodedParam
     );
     if (match) {
-      setSelectedDetailSub(match);
-      setIsDetailOpen(true);
+      setResolvedHighlight(paramHighlight);
+      /*
+       * A deep link can point at a row that has since been moved to Deleted —
+       * the inbox builds these links from a stored subscription name, so they go
+       * stale that way. Opening the normal detail sheet there offered Edit, Set
+       * Reminder and Move to Deleted on a deleted row: edits were rejected by the
+       * save path, losing the change, and Move to Deleted re-ran a delete the
+       * user had already performed. Shown as a read-only notice instead.
+       */
+      if (isSubscriptionDeleted(match)) {
+        setDeletedTarget(match);
+      } else {
+        setSelectedDetailSub(match);
+        setIsDetailOpen(true);
+      }
     }
   }
 
@@ -300,7 +409,7 @@ export default function SubscriptionManager() {
     const { data: created, error: err, synced } = await createSubscription(data);
     if (err) throw err;
     if (synced) {
-      toast.success('New subscription added to your portfolio.', 'Subscription Created');
+      toast.success('Subscription created successfully.', 'Subscription Created');
     } else {
       toast.warning('Added on this device only — it will sync to your account when you are back online.', 'Offline Save');
     }
@@ -314,7 +423,7 @@ export default function SubscriptionManager() {
     if (err) {
       toast.error(err.message, 'Archiving Failed');
     } else {
-      toast.success(`Moved "${sub.name}" to History → Archive.`, 'Subscription Archived');
+      toast.success(`Moved "${sub.name}" to Archive.`, 'Subscription Archived');
       await loadData();
     }
   };
@@ -322,6 +431,25 @@ export default function SubscriptionManager() {
   // Handle Soft Delete Confirmation
   const handleConfirmDelete = async () => {
     if (!deletingSubscription) return;
+
+    // Guard a second click. The confirm button stays mounted while the request is
+    // in flight, and a second tap used to fire a second softDelete for the same
+    // id — two "moved to Deleted" toasts, and a second write against a row that
+    // was already gone.
+    if (deleteLoading) return;
+
+    // The row may already be soft-deleted: the detail view stays open behind the
+    // dialog, and deleting from there then reopening it left this reachable.
+    if (isSubscriptionDeleted(deletingSubscription)) {
+      toast.info(
+        `"${deletingSubscription.name}" has already been moved to Deleted.`,
+        'Already Deleted'
+      );
+      setDeletingSubscription(null);
+      setDeleteReturnToDetailSub(null);
+      return;
+    }
+
     setDeleteLoading(true);
 
     const { error: err } = await softDeleteSubscription(deletingSubscription.id);
@@ -330,7 +458,7 @@ export default function SubscriptionManager() {
     if (err) {
       toast.error(err.message, 'Deletion Failed');
     } else {
-      toast.success(`Moved "${deletingSubscription.name}" to History → Deleted.`, 'Subscription Moved to Deleted');
+      toast.success(`Moved "${deletingSubscription.name}" to Deleted.`, 'Subscription Moved to Deleted');
       setDeletingSubscription(null);
       setDeleteReturnToDetailSub(null);
       await loadData();
@@ -347,9 +475,14 @@ export default function SubscriptionManager() {
   // Active Subscriptions
   const activeSubscriptions = filterActiveSubscriptions(subscriptions);
 
-  // Filter and Sort active subscriptions
+  /**
+   * Overdue rows are kept off this list and surfaced in Past Activities instead.
+   * Filtered here rather than in `fetchSubscriptions` so they remain available to
+   * the dashboard's overdue banner and the renewals page.
+   */
   const filteredSubscriptions = useMemo(() => {
     return activeSubscriptions
+      .filter((sub) => !isOverdueSubscription(sub))
       .filter((sub) => {
         const matchesSearch = sub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (sub.notes && sub.notes.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -478,6 +611,51 @@ export default function SubscriptionManager() {
         <div className="p-4 rounded-2xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-center gap-3 text-[#D9363E] text-xs">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/*
+        A deep link to a row that is now in Deleted.
+        Rendered above the filters rather than as a sheet: nothing here is
+        editable, so the detail layout — which is built around editing a live
+        subscription — would be misleading even read-only.
+      */}
+      {deletedTarget && (
+        <div className="p-5 sm:p-6 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-3">
+          <div className="flex items-start gap-3">
+            <Trash2 className="w-5 h-5 text-[#94A3B8] shrink-0 mt-0.5" />
+            <div className="min-w-0 space-y-1">
+              <h3 className="text-sm font-medium text-[#F5F7F6]/90 truncate">
+                {deletedTarget.name} is in Deleted
+              </h3>
+              <p className="text-xs text-[#94A3B8]/80">
+                This subscription was moved to Deleted, so there is nothing to edit here. Restore it
+                to change its details or track it again.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setDeletedTarget(null)}
+              className="min-h-[44px] text-xs text-[#D1D5DB] hover:text-white cursor-pointer bg-transparent border-0 p-0"
+            >
+              Back to subscriptions
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                /* `deletedTarget` is left in place: the router navigates away from this page,
+                   and clearing it first would unmount the notice mid-transition.
+                   No id is passed because the Deleted page has its own layout and
+                   does not read a highlight param, so one would be ignored. */
+                router.push('/history/deleted');
+              }}
+              className="min-h-[44px] text-xs text-[#14B8A6] hover:text-[#2DD4BF] cursor-pointer bg-transparent border-0 p-0"
+            >
+              Go to Deleted
+            </button>
+          </div>
         </div>
       )}
 
@@ -712,7 +890,7 @@ export default function SubscriptionManager() {
         onConfirm={handleConfirmDelete}
         loading={deleteLoading}
         title={`Move "${deletingSubscription?.name}" to Deleted?`}
-        description="This subscription will be removed from your active list and moved to History → Deleted where you can review or restore it anytime."
+        description="This subscription will be removed from your active list and moved to Deleted where you can review or restore it anytime."
         confirmText="Move to Deleted"
         variant="danger"
       />
@@ -735,6 +913,16 @@ export default function SubscriptionManager() {
         }}
         subscriptionName={reminderSubscription?.name || ''}
         nextBillingDate={reminderSubscription?.next_billing_date}
+        initialEmailLeadDays={
+          reminderSubscription
+            ? reminderPrefBySub.get(reminderSubscription.id)?.emailLeadDays ?? null
+            : null
+        }
+        initialPushLeadDays={
+          reminderSubscription
+            ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadDays ?? null
+            : null
+        }
       />
 
       {/* Premium Upgrade Modal */}

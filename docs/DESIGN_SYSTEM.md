@@ -172,3 +172,106 @@ Before considering any screen complete, ask:
 - Would someone enjoy using this every day?
 
 If the answer is "no" to any of these, refine the design before shipping.
+Welcome Message
+Hey friend! Welcome to the subHalt hut! I'm your new spending tracker, here to help you find missing subscriptions and stop wasting money on forgotten subscriptions and save money. Let's get started!' (Please implement this as a welcome screen or modal that pops up after a new user signs up. Add a button below it that says 'Get Started' or 'Continue' so they can proceed to the dashboard. Do not touch anything else.)
+
+Success Messages
+Examples:
+Nice one! You’re now tracking Netflix.
+Great choice! Pausing Canva saves you ₦8,000 every month.
+(Celebrate actions without overdoing it.)
+
+ Renewal Reminders
+Examples:
+😳 Hey buddy! This is your final reminder before Netflix renews tomorrow. Come check it out.
+📅 Heads up! Spotify renews in 3 days.
+Clear first. Friendly second.
+
+⏳ Trial Messages
+Examples:
+⏳ Your free trial ends in 3 days. Decide before you’re charged.
+🎉 Welcome! Your free trial starts today.
+Always explain what happens next.
+
+🌚 Empty States
+Instead of:
+No renewals.
+Use:
+🌚 Fear not. Nothing renews today. Enjoy the peace of mind. 😌
+Instead of:
+No subscriptions.
+Use something like:
+📦 Your subscription shelf is empty. Add your first subscription to get started.
+
+The goal is to make empty states feel inviting.
+
+📈 Price Changes
+Examples:
+📈 Heads up! Spotify’s monthly price has changed since your last renewal.
+Always explain what changed.
+
+🌐 Error Messages
+Instead of:
+Request failed.
+Use:
+😕 We couldn’t complete that right now. Please check your connection and try again.
+Instead of:
+Unknown error.
+Use:
+Something unexpected happened. We’re on it—please try again in a moment.
+Human, but not overly casual.
+
+Emoji Guidelines
+Emojis are part of the brand, but they’re used with purpose.
+Situation
+Emoji
+
+
+
+
+Success
+🎉
+Reminder
+📅
+Final Reminder
+😳
+Trial
+⏳
+Spending
+💰
+Savings
+💜
+Price Increase
+📈
+Calm / Empty State
+🌚 😌
+Warning
+⚠️
+Error
+😕
+
+Rule:
+Use one or two emojis maximum in a message.
+Emojis should support the message, not distract from it.
+
+Writing Principles
+Every message should answer one of these questions:
+What happened?
+What should I do?
+Do I need to worry?
+What changed?
+Can I relax?
+If a message doesn’t help the user, rewrite it.
+
+🥹 One thing I’d like to add
+I don’t want “Hey buddy” to become repetitive.
+Let’s make it part of the Voice Library.
+For example, SubSync can rotate naturally between:
+Hey buddy!
+Hey there!
+Good news!
+Heads up!
+You’re all set!
+Nice one!
+Great choice!
+That way, the app feels alive without feeling random. We can even make sure important messages, like final renewal reminders, always stay consistent while less critical messages have a little variety.

@@ -31,6 +31,13 @@ const envSchema = z.object({
   MAILGUN_SIGNING_KEY: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   ENABLE_BACKGROUND_GMAIL_SCAN: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  EMAIL_FROM_DOMAIN: z.string().optional(),
+  SUPABASE_WEBHOOK_SECRET: z.string().optional(),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
 });
 
 function loadEnv() {
@@ -53,6 +60,13 @@ function loadEnv() {
     MAILGUN_SIGNING_KEY: process.env.MAILGUN_SIGNING_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
     ENABLE_BACKGROUND_GMAIL_SCAN: process.env.ENABLE_BACKGROUND_GMAIL_SCAN,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
+    EMAIL_FROM_DOMAIN: process.env.EMAIL_FROM_DOMAIN,
+    SUPABASE_WEBHOOK_SECRET: process.env.SUPABASE_WEBHOOK_SECRET,
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+    VAPID_SUBJECT: process.env.VAPID_SUBJECT,
   });
 
   if (!parsed.success) {

@@ -1,5 +1,7 @@
 'use client';
 
+import { clearUserScopedStorage } from '@/lib/auth/user-storage';
+
 /**
  * Signs the user out and reports whether the browser session was cleared.
  *
@@ -30,6 +32,16 @@
 const SIGN_OUT_TIMEOUT_MS = 5000;
 
 export async function signOutAndRedirect(): Promise<boolean> {
+  // 1. Clear first, before any network call.
+  //
+  // The caches were written under one global key per feature, so the next person
+  // to sign in on this browser inherited them -- including one path that INSERTed
+  // them into the new account. Clearing before the request means an unreachable
+  // Supabase, a timeout, or a thrown error leaves nothing behind; clearing after
+  // would mean a failed sign-out silently keeps the previous user's data on the
+  // device. `ensureCacheOwnership` is the backstop for when this never runs.
+  clearUserScopedStorage();
+
   try {
     const res = await fetch('/api/auth/signout', {
       method: 'POST',
@@ -44,7 +56,25 @@ export async function signOutAndRedirect(): Promise<boolean> {
     }
 
     const body = (await res.json().catch(() => null)) as { cleared?: boolean } | null;
-    return body?.cleared === true;
+    if (body?.cleared !== true) return false;
+
+    // 2. Hard navigation, not router.push().
+    //
+    // This is the part that made account switching unusable. A client-side push
+    // to /login keeps the React tree alive, so every provider that loaded the
+    // outgoing account once on mount keeps serving it: the sidebar still showed
+    // the previous email and plan, and their billing details. It also leaves
+    // module state resident, so the in-memory subscription cache survived even
+    // though localStorage had been wiped.
+    //
+    // Assigning the location discards the tree and re-evaluates every module, so
+    // the next account genuinely starts from nothing. Worth the full page load:
+    // the alternative is a login screen that still knows who signed out.
+    //
+    // `assign` rather than `replace` so Back does not return to an authenticated
+    // page rendering the previous session's data.
+    window.location.assign('/login');
+    return true;
   } catch (err) {
     console.error('[auth] sign-out failed:', err);
     return false;

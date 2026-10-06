@@ -70,6 +70,8 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
 
   const [showLimitWarning, setShowLimitWarning] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // planTier is already the effective tier (usePlan resolves admin to it), so the
+  // bill cap is lifted for admins here without a second is_admin read.
   const limits = useMemo(() => getPlanLimits(planTier), [planTier]);
 
   const loadData = useCallback(async () => {
