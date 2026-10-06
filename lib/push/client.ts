@@ -34,6 +34,26 @@ export function isPushSupported(): boolean {
 }
 
 /**
+ * Whether this device has a subscription the server knows about.
+ *
+ * Permission alone is not the answer: the browser can be granted permission
+ * while the row was never written (the POST failed, the VAPID key was missing,
+ * the session had expired). A switch driven by `Notification.permission` would
+ * then read ON for a device that will never receive anything, so the UI checks
+ * for the subscription itself.
+ */
+export async function hasPushSubscription(): Promise<boolean> {
+  if (!('serviceWorker' in navigator)) return false;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration(SERVICE_WORKER_PATH);
+    const subscription = await registration?.pushManager.getSubscription();
+    return subscription !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Decodes a base64url VAPID key into bytes for `applicationServerKey`.
  *
  * Backed by a fresh `ArrayBuffer` rather than a `Uint8Array` view so the result
@@ -77,9 +97,12 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null
 /**
  * Asks for permission, subscribes, and stores the endpoint server-side.
  *
- * Returns the resulting permission state rather than throwing, because every
- * failure here is a normal outcome on some browser or device and the caller
- * should tell the user which one happened.
+ * Returns the resulting *permission* state rather than throwing, because every
+ * failure here is a normal outcome on some browser or device. Permission is not
+ * the same as being subscribed, though: a missing VAPID key or a rejected POST
+ * leaves the user granted with no row on the server. Callers that display an on/off
+ * state must therefore read `hasPushSubscription()`, and treat "granted but not
+ * subscribed" as a failure worth reporting.
  */
 export async function enablePushNotifications(): Promise<PushPermissionState> {
   if (!isPushSupported()) return 'unsupported';
@@ -89,10 +112,10 @@ export async function enablePushNotifications(): Promise<PushPermissionState> {
   if (permission !== 'granted') return permission as PushPermissionState;
 
   const publicKey = await getVapidPublicKey();
-  if (!publicKey) return 'denied';
+  if (!publicKey) return 'granted';
 
   const registration = await registerServiceWorker();
-  if (!registration) return 'denied';
+  if (!registration) return 'granted';
 
   try {
     const existing = await registration.pushManager.getSubscription();
@@ -114,7 +137,7 @@ export async function enablePushNotifications(): Promise<PushPermissionState> {
 
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-      return 'denied';
+      return 'granted';
     }
 
     const res = await fetch(SUBSCRIBE_ENDPOINT, {
@@ -126,9 +149,15 @@ export async function enablePushNotifications(): Promise<PushPermissionState> {
       }),
     });
 
-    return res.ok ? 'granted' : 'denied';
+    if (res.ok) return 'granted';
+
+    // The server never recorded it. Leaving the browser subscribed would keep a
+    // subscription alive that nothing will ever push to, and would make
+    // `hasPushSubscription` report ON while the cron sees no endpoint.
+    await subscription.unsubscribe().catch(() => undefined);
+    return 'granted';
   } catch {
-    return 'denied';
+    return 'granted';
   }
 }
 

@@ -4,6 +4,7 @@ import { env } from '@/lib/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/logger';
 import { sendPushToUser } from '@/lib/push/send';
+import { isoWeekStart } from '@/lib/utils/iso-week';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,10 +27,11 @@ export const dynamic = 'force-dynamic';
  * purchases, and the daily reminder cron sits at 09:00 so the two do not collide.
  *
  * ## Idempotency
- * Guarded by an activity_log row keyed to the ISO week, so a retried or
- * overlapping run cannot send the recap twice. Retries here are plausible: Vercel
- * will re-run a cron that overruns its window, and this sends one message per user
- * rather than per subscription.
+ * Guarded by an activity_log row keyed to the Monday of the current ISO week
+ * (`lib/utils/iso-week.ts`), so a retried or overlapping run cannot send the
+ * recap twice, and a new week re-arms the check on its own. Retries here are
+ * plausible: Vercel will re-run a cron that overruns its window, and this sends
+ * one message per user rather than per subscription.
  */
 
 const MAX_USERS_PER_RUN = 500;
@@ -49,24 +51,6 @@ function isAuthorized(request: Request): boolean {
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
     request.headers.get('x-upstream-auth');
   return header !== null && constantTimeEqual(header, secret);
-}
-
-/**
- * Monday 00:00 UTC of the week containing `date`.
- *
- * Used as the idempotency window rather than an ISO week label. The label is
- * correct but needs a date comparison the database cannot make against a string,
- * so the Monday boundary gives the same "once per week" guarantee with a plain
- * `gte` on a real timestamp.
- *
- * Exported so the weekly-rollover property is testable; the cron itself is the only
- * caller.
- */
-export function isoWeekStart(date: Date): string {
-  const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  const dayNumber = (target.getUTCDay() + 6) % 7;
-  target.setUTCDate(target.getUTCDate() - dayNumber);
-  return target.toISOString();
 }
 
 export async function GET(request: Request) {

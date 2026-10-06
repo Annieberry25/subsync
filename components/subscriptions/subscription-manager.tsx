@@ -915,13 +915,13 @@ export default function SubscriptionManager() {
         nextBillingDate={reminderSubscription?.next_billing_date}
         initialEmailLeadDays={
           reminderSubscription
-            ? reminderPrefBySub.get(reminderSubscription.id)?.emailLeadDays ?? null
-            : null
+            ? reminderPrefBySub.get(reminderSubscription.id)?.emailLeadDays
+            : undefined
         }
         initialPushLeadDays={
           reminderSubscription
-            ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadDays ?? null
-            : null
+            ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadDays
+            : undefined
         }
       />
 

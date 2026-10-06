@@ -21,7 +21,11 @@ import {
   calculatePotentialSavings,
   formatCurrency,
 } from '@/lib/utils/metrics-utils';
-import { saveReminderPreference } from '@/lib/services/reminder-preferences';
+import {
+  saveReminderPreference,
+  fetchReminderPreferences,
+  type ReminderPreference,
+} from '@/lib/services/reminder-preferences';
 import { MetricCardSkeleton } from '@/components/ui/skeleton';
 import { StatGrid } from '@/components/ui/stat-grid';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -125,6 +129,17 @@ export default function DashboardV2() {
     }
   });
 
+  /* Server-backed reminder preferences, loaded so the sheet shows what the cron
+     will actually do. With no row the cron pushes at 10 days and never emails,
+     which is exactly what the sheet must display by default. */
+  const [reminderPrefs, setReminderPrefs] = useState<ReminderPreference[]>([]);
+
+  const reminderPrefBySub = useMemo(() => {
+    const map = new Map<string, ReminderPreference>();
+    for (const pref of reminderPrefs) map.set(pref.subscriptionId, pref);
+    return map;
+  }, [reminderPrefs]);
+
   const loadData = useCallback(async (showToast = false) => {
     setLoading(true);
     const { data, error: err } = await fetchSubscriptions();
@@ -167,6 +182,10 @@ export default function DashboardV2() {
     }).catch(() => {
       if (!active) return;
       setLoading(false);
+    });
+    fetchReminderPreferences().then((prefs) => {
+      if (!active) return;
+      setReminderPrefs(prefs);
     });
     return () => {
       active = false;
@@ -277,6 +296,18 @@ const handleSave = async (
       );
       return;
     }
+
+    // Keep the in-memory copy current so reopening the sheet shows what was just
+    // saved rather than the pre-save value.
+    setReminderPrefs((prev) => [
+      ...prev.filter((p) => p.subscriptionId !== subId),
+      {
+        subscriptionId: subId,
+        emailLeadDays: data.emailLeadDays,
+        pushLeadDays: data.pushLeadDays,
+        note: data.note ?? null,
+      },
+    ]);
 
     toast.success('Reminder saved.', 'Reminder Set');
   };
@@ -466,6 +497,16 @@ const handleSave = async (
         }}
         subscriptionName={reminderSubscription?.name || ''}
         nextBillingDate={reminderSubscription?.next_billing_date}
+        initialEmailLeadDays={
+          reminderSubscription
+            ? reminderPrefBySub.get(reminderSubscription.id)?.emailLeadDays
+            : undefined
+        }
+        initialPushLeadDays={
+          reminderSubscription
+            ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadDays
+            : undefined
+        }
       />
 
       <UpgradeModal

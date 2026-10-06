@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { Check, BellRing, Mail } from 'lucide-react';
@@ -18,7 +18,12 @@ interface PaymentReminderModalProps {
   }) => void;
   subscriptionName: string;
   nextBillingDate?: string;
-  /** Existing saved preference, so reopening the sheet shows what is set. */
+  /**
+   * Existing saved preference, so reopening the sheet shows what is set.
+   *
+   * `undefined` = nothing saved yet (push defaults on, email defaults off);
+   * `null` = the user explicitly turned that channel off.
+   */
   initialEmailLeadDays?: number | null;
   initialPushLeadDays?: number | null;
 }
@@ -65,13 +70,24 @@ export default function PaymentReminderModal({
 }: PaymentReminderModalProps) {
   const { toast } = useToast();
 
-  const [emailEnabled, setEmailEnabled] = useState(initialEmailLeadDays !== null);
+  /*
+   * Three states, not two. `undefined` means no saved preference exists, `null`
+   * means the user turned the channel off. Push defaults on with no preference
+   * (matching the cron, which pushes with or without a row), email defaults off
+   * with no preference (matching the cron, which never emails without a row):
+   *
+   *   push:  !== null  -> true for undefined (no row) and for a lead; false for null
+   *   email: != null   -> true only for a lead; false for both undefined and null
+   *
+   * The asymmetry is the whole point — `?? null` when reading a pref out of the
+   * map would erase the difference and show push OFF for a reminder the cron
+   * sends anyway.
+   */
+  const [emailEnabled, setEmailEnabled] = useState(initialEmailLeadDays != null);
   const [emailLeadDays, setEmailLeadDays] = useState<number>(
     initialEmailLeadDays ?? DEFAULT_EMAIL_LEAD_DAYS
   );
-  const [pushEnabled, setPushEnabled] = useState(
-    initialPushLeadDays !== null || initialPushLeadDays === undefined
-  );
+  const [pushEnabled, setPushEnabled] = useState(initialPushLeadDays !== null);
   const [pushLeadDays, setPushLeadDays] = useState<number>(
     initialPushLeadDays ?? DEFAULT_PUSH_LEAD_DAYS
   );
@@ -83,9 +99,9 @@ export default function PaymentReminderModal({
     // Re-seed from props each time it opens. Without this the sheet kept the last
     // values edited for a *different* subscription, so setting 3 days on Netflix
     // and then opening Spotify showed 3 days already selected for it.
-    setEmailEnabled(initialEmailLeadDays !== null);
+    setEmailEnabled(initialEmailLeadDays != null);
     setEmailLeadDays(initialEmailLeadDays ?? DEFAULT_EMAIL_LEAD_DAYS);
-    setPushEnabled(initialPushLeadDays !== null || initialPushLeadDays === undefined);
+    setPushEnabled(initialPushLeadDays !== null);
     setPushLeadDays(initialPushLeadDays ?? DEFAULT_PUSH_LEAD_DAYS);
     setNote('');
   } else if (!isOpen && prevIsOpen) {

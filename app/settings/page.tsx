@@ -10,6 +10,7 @@ import {
   isPushSupported,
   enablePushNotifications,
   disablePushNotifications,
+  hasPushSubscription,
   type PushPermissionState,
 } from '@/lib/push/client';
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
@@ -101,6 +102,11 @@ function SettingsContent() {
   const { addInboxItem } = useInbox();
 
   const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
+  const [isEditBillingOpen, setIsEditBillingOpen] = useState(false);
+  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
+  const [isViewSubscriptionOpen, setIsViewSubscriptionOpen] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
+  const billedResultHandled = useRef(false);
 
   /* Push permission, read from the browser rather than stored: it is a property
      of this device and this browser, and can be revoked outside the app at any
@@ -108,17 +114,32 @@ function SettingsContent() {
      arrive. */
   const [pushPermission, setPushPermission] = useState<PushPermissionState>('default');
   const [pushSupported, setPushSupported] = useState(true);
+  /* Whether this device is actually registered with the server. Deliberately not
+     the same as permission: permission can be granted while the subscription was
+     never stored, and that combination would render an ON switch that delivers
+     nothing. */
+  const [pushEnabled, setPushEnabled] = useState(false);
   const [pushToggling, setPushToggling] = useState(false);
 
   useEffect(() => {
-    setPushSupported(isPushSupported());
-    setPushPermission(getPushPermissionState());
+    // Deferred rather than read synchronously in the effect body: a setState that
+    // runs immediately after mount is a cascading render, and it would also make
+    // the client's first paint disagree with the server's — the switch's
+    // aria-checked would flip right after hydration. A microtask lands before
+    // paint and the browser reads the same value either way.
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setPushSupported(isPushSupported());
+      setPushPermission(getPushPermissionState());
+      void hasPushSubscription().then((subscribed) => {
+        if (active) setPushEnabled(subscribed);
+      });
+    });
+    return () => {
+      active = false;
+    };
   }, []);
-  const [isEditBillingOpen, setIsEditBillingOpen] = useState(false);
-  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
-  const [isViewSubscriptionOpen, setIsViewSubscriptionOpen] = useState(false);
-  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
-  const billedResultHandled = useRef(false);
 
   // Account Deletion States
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
@@ -775,12 +796,13 @@ function SettingsContent() {
           {/*
             Browser permission, not just an app preference.
 
-            The switch reflects whether this device can actually receive a push.
-            Turning it on has to grant the permission — which browsers only allow
-            from a click — so it cannot be a plain toggle: `requestPermission()`
-            called outside a gesture resolves to denied without a prompt, and Chrome
-            treats repeated programmatic requests as grounds to block the origin.
-            Until this exists there is nowhere in the app to enable push at all.
+            The switch tracks whether this device is registered to receive push,
+            which is the only state that means delivery will actually happen.
+            Turning it on has to grant permission — browsers allow that only from a
+            click — so this cannot be a plain toggle: `requestPermission()` called
+            outside a gesture resolves to denied without showing a prompt, and
+            Chrome treats repeated programmatic requests as grounds to block the
+            origin. Hence the enable path running from this handler.
           */}
           <div className="p-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
@@ -792,40 +814,62 @@ function SettingsContent() {
                   ? 'Not supported by this browser'
                   : pushPermission === 'denied'
                     ? 'Blocked for this site — allow them in your browser settings'
-                    : pushPermission === 'granted'
-                      ? 'Renewal reminders, weekly recap & new insights'
-                      : 'Renewal reminders, weekly recap & new insights'}
+                    : 'Renewal reminders, weekly recap & new insights'}
               </span>
             </div>
             <button
               type="button"
               role="switch"
-              aria-checked={pushPermission === 'granted'}
+              aria-checked={pushEnabled}
               aria-label="Push notifications"
               disabled={!pushSupported || pushToggling}
               onClick={async () => {
                 if (pushToggling) return;
                 setPushToggling(true);
                 try {
-                  if (pushPermission === 'granted') {
+                  if (pushEnabled) {
                     await disablePushNotifications();
-                  } else {
-                    // Only reachable from this click, which is what makes the
-                    // permission prompt legal.
-                    await enablePushNotifications();
+                    setPushEnabled(false);
+                    return;
                   }
-                  setPushPermission(getPushPermissionState());
+
+                  // Only reachable from this click, which is what makes the
+                  // permission prompt legal.
+                  const permission = await enablePushNotifications();
+                  setPushPermission(permission);
+                  const subscribed = await hasPushSubscription();
+                  setPushEnabled(subscribed);
+
+                  if (permission === 'unsupported') {
+                    toast.error(
+                      'This browser cannot receive notifications.',
+                      'Push Unavailable'
+                    );
+                  } else if (permission === 'denied') {
+                    toast.error(
+                      'Notifications are blocked for this site. Allow them in your browser settings to get reminders.',
+                      'Notifications Blocked'
+                    );
+                  } else if (!subscribed) {
+                    // Granted, but no subscription reached the server — the VAPID
+                    // key is missing or the request failed. Reporting success here
+                    // would leave the switch ON for a device that gets nothing.
+                    toast.error(
+                      'Notifications are allowed, but this device could not be registered. Try again in a moment.',
+                      'Push Not Enabled'
+                    );
+                  }
                 } finally {
                   setPushToggling(false);
                 }
               }}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out disabled:cursor-not-allowed disabled:opacity-50 ${
-                pushPermission === 'granted' ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
+                pushEnabled ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
               }`}
             >
               <span
                 className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  pushPermission === 'granted' ? 'translate-x-5' : 'translate-x-0'
+                  pushEnabled ? 'translate-x-5' : 'translate-x-0'
                 }`}
               />
             </button>
