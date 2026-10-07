@@ -9,18 +9,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/database.types';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { PLUS_PLAN } from '@/lib/paystack/index';
+import {
+  PLUS_PLAN,
+  SUBHALT_SUBSCRIPTION_NAME,
+  addUtcDays,
+  buildPlusSubscriptionRecord,
+} from '@/lib/constants/plus-plan';
 
 const PLAN_TIER_BY_PLAN: Record<string, 'free' | 'plus' | 'premium'> = {
   plus: 'plus',
   premium: 'premium',
 };
-
-function addUtcDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + days);
-  return result;
-}
 
 async function applyGrant(
   admin: SupabaseClient<Database>,
@@ -63,6 +62,35 @@ async function applyGrant(
   });
   if (authError) {
     throw new Error(`user metadata update failed: ${authError.message}`);
+  }
+
+  const listRecord = buildPlusSubscriptionRecord({ paidAt: paidDate, expiresAt });
+  const { data: listed, error: listLookupError } = await admin
+    .from('subscriptions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('name', SUBHALT_SUBSCRIPTION_NAME)
+    .limit(1)
+    .maybeSingle();
+  if (listLookupError) {
+    throw new Error(`subscriptions lookup failed: ${listLookupError.message}`);
+  }
+
+  if (listed) {
+    const { error: listUpdateError } = await admin
+      .from('subscriptions')
+      .update({ ...listRecord, updated_at: new Date().toISOString() })
+      .eq('id', listed.id);
+    if (listUpdateError) {
+      throw new Error(`subscriptions update failed: ${listUpdateError.message}`);
+    }
+  } else {
+    const { error: listInsertError } = await admin
+      .from('subscriptions')
+      .insert({ ...listRecord, user_id: userId });
+    if (listInsertError) {
+      throw new Error(`subscriptions insert failed: ${listInsertError.message}`);
+    }
   }
 }
 

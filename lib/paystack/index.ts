@@ -12,16 +12,9 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { env } from '@/lib/env';
 import { convertAmount, fetchExchangeRates } from '@/lib/services/currency-service';
+import { PLUS_PLAN } from '@/lib/constants/plus-plan';
 
-export const PLUS_PLAN = {
-  name: 'SubHalt Plus',
-  tier: 'plus',
-  price: 3.99,
-  amountCents: 399,
-  currency: 'USD',
-  interval: 'monthly',
-  durationDays: 30,
-} as const;
+export { PLUS_PLAN };
 
 /** Currency charged at checkout (Paystack charges in the merchant's local currency). */
 export const PLAN_CHARGE_CURRENCY = 'NGN';

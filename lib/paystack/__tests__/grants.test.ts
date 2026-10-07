@@ -11,8 +11,10 @@ const mocks = vi.hoisted(() => ({
     payload: Record<string, unknown>;
     filters: [string, unknown][];
   }[],
-  selectRow: null as Record<string, unknown> | null,
+  insertCalls: [] as { table: string; payload: Record<string, unknown> }[],
+  selectRows: {} as Record<string, Record<string, unknown> | null>,
   updateErrors: {} as Record<string, { message: string } | null>,
+  insertErrors: {} as Record<string, { message: string } | null>,
   authError: null as { message: string } | null,
 }));
 
@@ -20,11 +22,14 @@ vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
     from(table: string) {
       return {
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: mocks.selectRow, error: null }),
-          }),
-        }),
+        select: () => {
+          const chain = {
+            eq: () => chain,
+            limit: () => chain,
+            maybeSingle: async () => ({ data: mocks.selectRows[table] ?? null, error: null }),
+          };
+          return chain;
+        },
         update: (payload: Record<string, unknown>) => {
           const record = { table, payload, filters: [] as [string, unknown][] };
           mocks.updateCalls.push(record);
@@ -48,6 +53,18 @@ vi.mock('@/lib/supabase/admin', () => ({
           };
           return chain;
         },
+        insert: (payload: Record<string, unknown>) => {
+          mocks.insertCalls.push({ table, payload });
+          const settle = async () => ({ error: mocks.insertErrors[table] ?? null });
+          return {
+            then(
+              onFulfilled: Parameters<Promise<{ error: { message: string } | null }>['then']>[0],
+              onRejected: Parameters<Promise<{ error: { message: string } | null }>['then']>[1]
+            ) {
+              return settle().then(onFulfilled, onRejected);
+            },
+          };
+        },
       };
     },
     auth: {
@@ -69,8 +86,10 @@ function updatesFor(table: string) {
 
 beforeEach(() => {
   mocks.updateCalls.length = 0;
-  mocks.selectRow = { user_id: 'user-1', plan: 'plus' };
+  mocks.insertCalls.length = 0;
+  mocks.selectRows = { plan_subscriptions: { user_id: 'user-1', plan: 'plus' } };
   mocks.updateErrors = {};
+  mocks.insertErrors = {};
   mocks.authError = null;
 });
 
@@ -124,12 +143,54 @@ describe('grantPlanSubscription', () => {
   });
 
   it('grants nothing for an unknown reference', async () => {
-    mocks.selectRow = null;
+    mocks.selectRows.plan_subscriptions = null;
 
     const granted = await grantPlanSubscription('REF-1', null);
 
     expect(granted).toBe(false);
     expect(mocks.updateCalls).toHaveLength(0);
+    expect(mocks.insertCalls).toHaveLength(0);
+  });
+
+  it('lists the purchase in the subscription table, derived from the payment', async () => {
+    const granted = await grantPlanSubscription('REF-1', '2026-10-01T10:00:00.000Z');
+
+    expect(granted).toBe(true);
+
+    const listInserts = mocks.insertCalls.filter((call) => call.table === 'subscriptions');
+    expect(listInserts).toHaveLength(1);
+    expect(listInserts[0].payload).toMatchObject({
+      user_id: 'user-1',
+      name: 'SubHalt',
+      price: 3.99,
+      currency: 'USD',
+      billing_cycle: 'monthly',
+      status: 'active',
+      start_date: '2026-10-01',
+      next_billing_date: '2026-10-31',
+    });
+  });
+
+  it('updates an existing subscription entry instead of duplicating it', async () => {
+    mocks.selectRows.subscriptions = { id: 'list-row-1' };
+
+    const granted = await grantPlanSubscription('REF-1', '2026-10-01T10:00:00.000Z');
+
+    expect(granted).toBe(true);
+    expect(mocks.insertCalls).toHaveLength(0);
+
+    const listUpdates = updatesFor('subscriptions');
+    expect(listUpdates).toHaveLength(1);
+    expect(listUpdates[0].filters).toContainEqual(['id', 'list-row-1']);
+    expect(listUpdates[0].payload).toMatchObject({ next_billing_date: '2026-10-31' });
+  });
+
+  it('reports failure when the subscription entry write is rejected', async () => {
+    mocks.insertErrors = { subscriptions: { message: 'permission denied' } };
+
+    const granted = await grantPlanSubscription('REF-1', null);
+
+    expect(granted).toBe(false);
   });
 });
 

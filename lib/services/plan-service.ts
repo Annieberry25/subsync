@@ -1,13 +1,20 @@
 'use client';
 
-import { createSubscription } from '@/lib/services/subscription-service';
+import { createSubscription, fetchSubscriptions } from '@/lib/services/subscription-service';
 import { recordActivity } from '@/lib/services/activity-service';
+import {
+  PLUS_PLAN,
+  SUBHALT_SUBSCRIPTION_NAME,
+  buildPlusSubscriptionRecord,
+} from '@/lib/constants/plus-plan';
 import type { InboxItem } from '@/lib/contexts/inbox-context';
 
 type AddInboxItem = (item: Omit<InboxItem, 'id' | 'date' | 'isRead'>) => void;
 
 export interface PlusPurchaseOptions {
   addInboxItem: AddInboxItem;
+  planExpiresAt?: string | null;
+  paymentMethod?: string | null;
 }
 
 /**
@@ -16,46 +23,49 @@ export interface PlusPurchaseOptions {
  * Runs on the client only AFTER Paystack has verified the charge (the new
  * /api/paystack/* routes own the authoritative grant). This helper keeps the
  * in-app record in sync:
- *  - creates the SubHalt subscription entry
+ *  - creates the SubHalt subscription entry when the server did not already
  *  - records an activity event
  *  - adds an inbox notification
  */
-export async function syncPlusPurchaseRecord({ addInboxItem }: PlusPurchaseOptions): Promise<void> {
-  const nextBilling = new Date();
-  nextBilling.setUTCDate(nextBilling.getUTCDate() + 30);
+export async function syncPlusPurchaseRecord({
+  addInboxItem,
+  planExpiresAt,
+  paymentMethod,
+}: PlusPurchaseOptions): Promise<void> {
+  const { data: existing } = await fetchSubscriptions();
+  const alreadyListed = (existing ?? []).some(
+    (sub) => sub.name.toLowerCase().trim() === SUBHALT_SUBSCRIPTION_NAME.toLowerCase()
+  );
 
-  await createSubscription({
-    name: 'SubHalt',
-    price: 3.99,
-    currency: 'USD',
-    billing_cycle: 'monthly',
-    category: 'Software',
-    next_billing_date: nextBilling.toISOString().split('T')[0],
-    start_date: new Date().toISOString().split('T')[0],
-    status: 'active',
-    payment_method: 'Card',
-    provider_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.xyz',
-    notes: 'SubHalt Plus — single monthly payment secured via Paystack.',
-  });
+  if (!alreadyListed) {
+    const result = await createSubscription(
+      buildPlusSubscriptionRecord({
+        paidAt: new Date(),
+        expiresAt: planExpiresAt,
+        paymentMethod,
+      })
+    );
+    if (result.error) throw result.error;
+  }
 
   await recordActivity({
-    subscriptionName: 'SubHalt',
+    subscriptionName: SUBHALT_SUBSCRIPTION_NAME,
     type: 'added',
     title: 'SubHalt Subscription Created',
-    description: 'SubHalt — $3.99 — Paid',
-    amount: 3.99,
-    currency: 'USD',
+    description: `SubHalt — $${PLUS_PLAN.price} — Paid`,
+    amount: PLUS_PLAN.price,
+    currency: PLUS_PLAN.currency,
   });
 
   addInboxItem({
     type: 'plan_update',
-    title: 'SubHalt Plus Active',
-    description: 'Your SubHalt Plus plan is now active for the next 30 days.',
+    title: `${PLUS_PLAN.name} Active`,
+    description: `Your ${PLUS_PLAN.name} plan is now active for the next ${PLUS_PLAN.durationDays} days.`,
     actionType: 'view',
     actionLabel: 'View subscription',
-    subscriptionName: 'SubHalt',
-    subscriptionPrice: 3.99,
-    currency: 'USD',
+    subscriptionName: SUBHALT_SUBSCRIPTION_NAME,
+    subscriptionPrice: PLUS_PLAN.price,
+    currency: PLUS_PLAN.currency,
   });
 }
 
