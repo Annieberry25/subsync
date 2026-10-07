@@ -7,6 +7,7 @@ import { getAuthProvider } from '@/lib/auth/auth-provider';
 import { ensureCacheOwnership } from '@/lib/auth/user-storage';
 import { getEffectiveTier } from '@/lib/constants/plan-limits';
 import { fetchExchangeRates, DEFAULT_EXCHANGE_RATES } from '@/lib/services/currency-service';
+import { recoverPlusPurchase } from '@/lib/services/plan-service';
 import { logger } from '@/lib/logger';
 import { safeGetItem, safeSetItem, safeParseJSON } from '@/lib/safe-local-storage';
 
@@ -342,6 +343,22 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         if (profileRow) {
           setIsAdminState(profileRow.is_admin === true);
         }
+      }
+
+      // 6. Recover a completed Paystack payment that never reached the grant:
+      //    a checkout whose callback never ran, an unregistered webhook, or a
+      //    grant that half-applied (row paid, profile still free). Each of
+      //    those previously left the account on Free forever even though
+      //    Paystack had charged it.
+      //
+      //    Fire-and-forget so it never delays this load, and it is a no-op
+      //    (one indexed read) unless something is actually owed. When it does
+      //    grant, refreshing the session fires onAuthStateChange above, which
+      //    is what re-reads the plan tier into state.
+      if (user) {
+        void recoverPlusPurchase()
+          .then((granted) => (granted ? supabase.auth.refreshSession() : null))
+          .catch(() => null);
       }
     } catch (err) {
       logger.warn('[user-settings] loadUserSettings error, continuing with cached values', { message: err instanceof Error ? err.message : String(err) });

@@ -62,10 +62,46 @@ export function isPaystackConfigured(): boolean {
   return Boolean(env.PAYSTACK_SECRET_KEY);
 }
 
+/**
+ * Build a transaction reference Paystack will accept verbatim.
+ *
+ * Paystack only allows alphanumeric characters plus `-`, `.` and `=` on a
+ * transaction reference and rejects anything else with
+ * "Invalid character in transaction reference", so the separators here are
+ * hyphens. Whatever Paystack echoes back becomes the key both the callback and
+ * the webhook match on, so it must never be rewritten under us.
+ */
 export function generateTransactionReference(userId: string): string {
-  const userIdFragment = userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12);
+  const userIdFragment = userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
   const entropy = randomBytes(6).toString('hex').toUpperCase();
-  return `SUBHALT_${userIdFragment}_${Date.now()}_${entropy}`;
+  return `SUBHALT-${userIdFragment}-${Date.now()}-${entropy}`;
+}
+
+/**
+ * Origin the browser should be sent back to for a request that arrived here.
+ *
+ * Forwarded headers win because a deployment behind a proxy sees an internal
+ * host, and the origin is used for both the Paystack `callback_url` and the
+ * post-verification redirect. Deriving it from the request (rather than only
+ * from NEXT_PUBLIC_SITE_URL) keeps preview deployments, localhost and the
+ * apex domain self-consistent: session cookies are host-scoped, so bouncing
+ * the user to a different host after checkout strands them without a session
+ * even though their payment went through.
+ */
+export function resolvePublicOrigin(request: Request): string {
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  if (forwardedHost) {
+    const host = forwardedHost.split(',')[0].trim();
+    const forwardedProto = request.headers.get('x-forwarded-proto');
+    const proto = (forwardedProto?.split(',')[0].trim()) || 'https';
+    if (host) return `${proto}://${host}`;
+  }
+
+  try {
+    return new URL(request.url).origin;
+  } catch {
+    return getSiteUrl();
+  }
 }
 
 export interface InitializeTransactionParams {

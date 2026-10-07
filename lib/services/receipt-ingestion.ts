@@ -84,14 +84,18 @@ export function parseRecipientUserId(recipient: string): string | null {
 async function fetchProfileForUserId(
   admin: AdminClient,
   userId: string
-): Promise<{ plan_tier: string | null; is_admin: boolean } | null> {
+): Promise<{ plan_tier: string | null; is_admin: boolean; plan_expires_at: string | null } | null> {
   const { data, error } = await admin
     .from('profiles')
-    .select('plan_tier, is_admin')
+    .select('plan_tier, plan_expires_at, is_admin')
     .eq('id', userId)
     .maybeSingle();
   if (error || !data) return null;
-  return { plan_tier: data.plan_tier, is_admin: data.is_admin === true };
+  return {
+    plan_tier: data.plan_tier,
+    is_admin: data.is_admin === true,
+    plan_expires_at: data.plan_expires_at,
+  };
 }
 
 /**
@@ -105,7 +109,9 @@ export async function isPlusUser(admin: AdminClient, userId: string): Promise<bo
   const profile = await fetchProfileForUserId(admin, userId);
   if (!profile) return false;
   if (profile.is_admin) return true;
-  return profile.plan_tier === 'plus' || profile.plan_tier === 'premium';
+  if (profile.plan_tier !== 'plus' && profile.plan_tier !== 'premium') return false;
+  if (!profile.plan_expires_at) return true;
+  return new Date(profile.plan_expires_at).getTime() > Date.now();
 }
 
 export async function fetchActiveSubscriptionNames(admin: AdminClient, userId: string): Promise<string[]> {

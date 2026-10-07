@@ -26,7 +26,7 @@ export async function syncPlusPurchaseRecord({ addInboxItem }: PlusPurchaseOptio
 
   await createSubscription({
     name: 'SubHalt',
-    price: 4.99,
+    price: 3.99,
     currency: 'USD',
     billing_cycle: 'monthly',
     category: 'Software',
@@ -42,8 +42,8 @@ export async function syncPlusPurchaseRecord({ addInboxItem }: PlusPurchaseOptio
     subscriptionName: 'SubHalt',
     type: 'added',
     title: 'SubHalt Subscription Created',
-    description: 'SubHalt — $4.99 — Paid',
-    amount: 4.99,
+    description: 'SubHalt — $3.99 — Paid',
+    amount: 3.99,
     currency: 'USD',
   });
 
@@ -54,7 +54,27 @@ export async function syncPlusPurchaseRecord({ addInboxItem }: PlusPurchaseOptio
     actionType: 'view',
     actionLabel: 'View subscription',
     subscriptionName: 'SubHalt',
-    subscriptionPrice: 4.99,
+    subscriptionPrice: 3.99,
     currency: 'USD',
   });
+}
+
+/**
+ * Ask the server to settle a recent Paystack charge that never got granted —
+ * a checkout whose callback never ran, or a grant that only half-applied.
+ *
+ * Returns true only when a grant actually changed something, so the caller can
+ * refresh the session and pick the new plan up. Every failure mode is swallowed:
+ * this is a background repair, and the normal callback/webhook paths stay
+ * authoritative.
+ */
+export async function recoverPlusPurchase(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/paystack/reconcile', { method: 'POST' });
+    if (!res.ok) return false;
+    const data = (await res.json().catch(() => null)) as { granted?: boolean } | null;
+    return data?.granted === true;
+  } catch {
+    return false;
+  }
 }

@@ -685,11 +685,14 @@ export async function createSubscription(
       // the operator account is not capped while running the app.
       const { data: profile } = await supabase
         .from('profiles')
-        .select('plan_tier, is_admin')
+        .select('plan_tier, plan_expires_at, is_admin')
         .eq('id', user.id)
         .maybeSingle();
       const isAdmin = profile?.is_admin === true;
-      const tier = getEffectiveTier(profile?.plan_tier, isAdmin);
+      const planExpired =
+        profile?.plan_expires_at != null &&
+        new Date(profile.plan_expires_at).getTime() <= Date.now();
+      const tier = getEffectiveTier(planExpired ? 'free' : profile?.plan_tier, isAdmin);
       const { count } = await supabase
         .from('subscriptions')
         .select('id', { count: 'exact', head: true })

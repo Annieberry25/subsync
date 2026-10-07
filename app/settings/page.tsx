@@ -194,20 +194,48 @@ function SettingsContent() {
       : null);
 
   // Handle post-checkout results from the Paystack callback route
-  // (/settings?section=plan&billing=paid|failed).
+  // (/settings?section=plan&billing=paid|error|failed).
   useEffect(() => {
     const billing = searchParams.get('billing');
     if (!billing || billedResultHandled.current) return;
     billedResultHandled.current = true;
 
     const handleBillingResult = async () => {
-      if (billing === 'paid') {
+      if (billing === 'paid' || billing === 'error') {
+        // Refresh the session FIRST. The plan tier lives in the session
+        // metadata and the context only re-reads it on an auth event, so this
+        // has to happen before anything else — otherwise a bookkeeping hiccup
+        // below skipped the refresh and the UI stayed on Free even though the
+        // server had already granted the plan.
+        let activated = false;
         try {
-          await syncPlusPurchaseRecord({ addInboxItem });
-          await supabase.auth.refreshSession();
-          toast.success('Your SubHalt Plus plan is now active.', 'Subscribed to Plus');
+          const { data } = await supabase.auth.refreshSession();
+          const tier = data.session?.user?.user_metadata?.plan_tier;
+          activated = tier === 'plus' || tier === 'premium';
         } catch {
-          toast.error('Your payment succeeded but we could not sync your plan.', 'Plan Sync Issue');
+          activated = false;
+        }
+
+        if (billing === 'paid' && activated) {
+          toast.success('Your SubHalt Plus plan is now active.', 'Subscribed to Plus');
+          // Bookkeeping (subscription entry, activity, inbox) is deliberately
+          // after the plan is live: it must never block activation.
+          try {
+            await syncPlusPurchaseRecord({ addInboxItem });
+          } catch {
+            toast.warning(
+              'Your plan is active, but the SubHalt entry was not added to your subscriptions.',
+              'Record Sync Issue'
+            );
+          }
+        } else {
+          // Payment went through but the plan is not live yet. The reconcile
+          // pass settles it automatically, so do not claim success and do not
+          // claim the customer was not charged.
+          toast.warning(
+            'Your payment was received. The plan is being activated — please refresh in a moment.',
+            'Activating Your Plan'
+          );
         }
       } else if (billing === 'failed') {
         toast.error('Payment was not completed. No charges were made.', 'Payment Incomplete');

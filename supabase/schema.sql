@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT NOT NULL,
   full_name TEXT,
   avatar_url TEXT,
+  plan_tier TEXT NOT NULL DEFAULT 'free',
+  plan_expires_at TIMESTAMPTZ,
+  is_admin BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -26,10 +29,45 @@ CREATE POLICY "Users can view their own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
+-- Self-service edits are limited to safe profile fields. The privileged
+-- columns (is_admin, plan_tier, plan_expires_at) must remain EXACTLY as the
+-- server last wrote them; the committed values are recalled through a
+-- SECURITY DEFINER function so the policy does not re-enter RLS (see migration
+-- 009 for why). Clients are additionally stripped of UPDATE on those columns at
+-- the privilege layer (migration 013).
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
-CREATE POLICY "Users can update their own profile"
-  ON public.profiles FOR UPDATE
-  USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update non-privileged profile fields" ON public.profiles;
+
+CREATE OR REPLACE FUNCTION public.own_privileged_profile(
+  OUT is_admin boolean,
+  OUT plan_tier text,
+  OUT plan_expires_at timestamptz
+)
+RETURNS record
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT p.is_admin, p.plan_tier, p.plan_expires_at
+  FROM public.profiles AS p
+  WHERE p.id = auth.uid();
+$$;
+
+REVOKE ALL ON FUNCTION public.own_privileged_profile() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.own_privileged_profile() TO authenticated;
+
+CREATE POLICY "Users can update non-privileged profile fields"
+  ON public.profiles FOR UPDATE TO authenticated
+  USING (auth.uid() = id)
+  WITH CHECK (
+    auth.uid() = id
+    AND is_admin IS NOT DISTINCT FROM (SELECT o.is_admin FROM public.own_privileged_profile() AS o)
+    AND plan_tier IS NOT DISTINCT FROM (SELECT o.plan_tier FROM public.own_privileged_profile() AS o)
+    AND plan_expires_at IS NOT DISTINCT FROM (SELECT o.plan_expires_at FROM public.own_privileged_profile() AS o)
+  );
+
+REVOKE UPDATE (is_admin, plan_tier, plan_expires_at) ON public.profiles FROM anon, authenticated;
 
 -- Trigger to automatically create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()

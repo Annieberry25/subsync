@@ -4,8 +4,6 @@ import type { Database } from '@/lib/types/database.types';
 
 export type PlanTier = 'free' | 'plus' | 'premium';
 
-const PLAN_RANK: Record<PlanTier, number> = { free: 0, plus: 1, premium: 2 };
-
 /**
  * Fetch the current signed-in user from a server-side client.
  * Returns null when no valid session exists (caller decides the 401 response).
@@ -21,15 +19,42 @@ export async function getAuthUser(
   return user;
 }
 
-/** Resolve the user's plan tier from user_metadata (defaults to free). */
-export function getPlanTier(user: User): PlanTier {
-  const meta = user.user_metadata?.plan_tier;
-  return meta === 'plus' || meta === 'premium' ? meta : 'free';
-}
+/**
+ * Resolve the user's plan tier from the server-side profiles row.
+ *
+ * auth.user_metadata is CLIENT-CONTROLLED (anyone can call
+ * `supabase.auth.updateUser()` to set plan_tier on their own account), so it
+ * must never be used for enforcement. The profiles row is the authority:
+ * migration 013 blocks clients from writing is_admin/plan_tier/plan_expires_at
+ * on their own row, and the service role (Paystack webhook, admin grants) is
+ * the only writer.
+ *
+ * Admin resolves to the premium token (getPlanLimits() then maps admin to the
+ * unlimited tier). A plan whose plan_expires_at has passed resolves to free;
+ * a NULL expiry is honored as before (indefinite) to avoid silently demoting
+ * pre-existing paid rows. Defaults to free when there is no row.
+ */
+export async function resolveServerPlanTier(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<{ tier: PlanTier; isAdmin: boolean }> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('plan_tier, plan_expires_at, is_admin')
+    .eq('id', userId)
+    .maybeSingle();
 
-/** True when the user's plan is at or above the required tier. */
-export function hasPlanTier(user: User, minTier: PlanTier): boolean {
-  return PLAN_RANK[getPlanTier(user)] >= PLAN_RANK[minTier];
+  if (data?.is_admin === true) return { tier: 'premium', isAdmin: true };
+
+  const expires = data?.plan_expires_at ? new Date(data.plan_expires_at) : null;
+  if (expires && expires.getTime() <= Date.now()) {
+    return { tier: 'free', isAdmin: false };
+  }
+
+  const raw = data?.plan_tier;
+  const tier: PlanTier =
+    raw === 'plus' ? 'plus' : raw === 'premium' || raw === 'pro' ? 'premium' : 'free';
+  return { tier, isAdmin: false };
 }
 
 /**

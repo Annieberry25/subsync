@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import { getAuthUser, getPlanTier } from '@/lib/auth/access';
+import { getAuthUser, resolveServerPlanTier } from '@/lib/auth/access';
 import { logger } from '@/lib/logger';
 import { getPlanLimits } from '@/lib/constants/plan-limits';
 import { parseReceiptDocument, type ReceiptExtraction, type ReceiptKind } from '@/lib/services/receipt-parser';
@@ -93,13 +93,11 @@ export async function POST(request: Request) {
   const kind: ReceiptKind = kindResult.data;
 
   // Quota: a vision call costs a provider request, so the plan limit is
-  // enforced here rather than only described in the UI.
-  const { data: callerProfile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle();
-  const limits = getPlanLimits(getPlanTier(user), callerProfile?.is_admin === true);
+  // enforced here rather than only described in the UI. The tier is resolved
+  // from the server-side profiles row (never auth.user_metadata, which the
+  // client can self-edit).
+  const { tier, isAdmin } = await resolveServerPlanTier(supabase, user.id);
+  const limits = getPlanLimits(tier, isAdmin);
   if (Number.isFinite(limits.maxReceiptScansPerMonth)) {
     const used = await countReceiptScansThisMonth(user.id);
     if (used >= limits.maxReceiptScansPerMonth) {
