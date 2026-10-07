@@ -282,12 +282,16 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
               </Link>
 
               <Link
-                href={`/plans?from=${encodeURIComponent(pathname)}`}
+                href={
+                  isPlus
+                    ? '/settings?section=plan'
+                    : `/plans?from=${encodeURIComponent(pathname)}`
+                }
                 onClick={() => setShowProfileMenu(false)}
                 className="w-full flex items-center gap-2.5 px-3 py-2 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4 text-[#94A3B8]" aria-hidden="true" />
-                <span>Upgrade Plan</span>
+                <span>{isPlus ? 'Plus' : 'Upgrade Plan'}</span>
               </Link>
 
               <div className="border-t border-[#1A1D1D]/70 my-1 pt-1">
