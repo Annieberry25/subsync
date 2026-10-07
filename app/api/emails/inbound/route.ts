@@ -67,6 +67,15 @@ export async function POST(request: Request) {
         { status: 422 }
       );
     }
+    if (result.status === 'rate_limited') {
+      return NextResponse.json(
+        {
+          status: result.status,
+          error: result.error,
+        },
+        { status: 429 }
+      );
+    }
     if (result.status === 'not_configured') {
       return NextResponse.json({ error: result.error }, { status: 503 });
     }

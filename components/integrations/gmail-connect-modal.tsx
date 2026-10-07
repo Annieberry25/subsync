@@ -479,7 +479,7 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
                   Gmail Connected Successfully
                 </h4>
                 <p className="text-xs text-[#94A3B8]">
-                  SubHalt will now monitor your inbox for new subscription receipts and price changes.
+                  SubHalt will now monitor your inbox for new subscription receipts and help you discover subscriptions you may have forgotten about.
                 </p>
               </div>
               <button

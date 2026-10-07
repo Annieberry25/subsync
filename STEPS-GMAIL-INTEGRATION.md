@@ -118,32 +118,38 @@ there since `vercel.json` already provides the schedule.
 
 Users get a personal receiving address `receipts+<userId>@<INBOUND_EMAIL_DOMAIN>`.
 Forward any receipt/invoice to it and it is parsed and added as a subscription
-(deduped, free-tier enforced). Setup:
+(deduped, quota enforced). Setup with **Resend Inbound** (the single-provider
+choice for this deployment):
 
-1. Get an inbound-email provider that supports Mailgun-style incoming webhooks or
-   Resend-style inbound (the webhook parses `multipart/form-data` from either):
-   - **Mailgun** (recommended): create a domain (or subdomain) in a region without
-     boilerplate; add the MX records Mailgun gives you; go to
-     *Receiving → Routes* and forward with filter `recipient "receipts+*@"` to
-     `https://your-app-domain.com/api/emails/inbound`. Copy the domain's HTTP
-     Webhook Signing Key.
-   - **Resend**: set up Inbound Domains, then point their `to=<domain>` rule at the
-     same webhook URL.
+1. **Resend**: add an Inbound Domain (e.g. `mail.yourdomain.com`) under
+   *Domains → Add domain → Type: Inbound*. Resend gives you the MX record to add
+   at your DNS provider (typically `feedback-smtp.us-east-1.amazonses.com`). Then
+   create a Webhook (`<Webhooks> → Add domain event` or per-domain Inbound rule)
+   that POSTs to `https://your-app-domain.com/api/emails/inbound` with a secret.
 2. Env vars:
 
    ```
-   INBOUND_EMAIL_DOMAIN=yourdomain.com          # host part of the +tag address
-   MAILGUN_SIGNING_KEY=xxx                      # required for Mailgun; else
-   INBOUND_WEBHOOK_SECRET=xxx                   # shared secret fallback / Resend
+   INBOUND_EMAIL_DOMAIN=mail.yourdomain.com     # bare lowercase host of the +tag address
+   INBOUND_WEBHOOK_SECRET=xxx                   # shared secret Resend sends with the webhook
    ```
 
-   If `MAILGUN_SIGNING_KEY` is set, each webhook is verified via the Mailgun
-   HMAC-SHA256 signature (timestamp+token). Otherwise the webhook requires
-   `INBOUND_WEBHOOK_SECRET` (form field `secret`, header `x-webhook-secret`, or
-   `Authorization: Bearer`). With neither set the route returns 503.
+   If `MAILGUN_SIGNING_KEY` is set instead, each webhook is verified via the
+   Mailgun HMAC-SHA256 signature (timestamp+token) using `multipart/form-data`
+   payloads. Otherwise (the Resend path) the webhook requires `INBOUND_WEBHOOK_SECRET`
+   (form field `secret`, header `x-webhook-secret`, or `Authorization: Bearer`).
+   With neither set the route returns 503.
 3. The UI reads the address from `GET /api/emails/forwarding-address` and the
-   "Send Test Receipt" button in the modal runs a sample through the real pipeline
-   via `POST /api/emails/test`.
+   "Send Test Receipt" button (in the modal or the Settings → Integrations panel)
+   runs a sample through the real pipeline via `POST /api/emails/test`.
+
+**Quota & limits** (enforced server-side in `ingestReceiptDraft`):
+- Monthly discovery quota `maxEmailDiscoveryPerMonth` = 0 (Free), 100 (Plus),
+  ∞ (Premium). Free users are blocked immediately; Plus users get 100 forwarded
+  receipts per calendar month (UTC).
+- A per-user burst cap of 30/hour protects the webhook from a single faulty
+  forward exploding into a flood; bursts return HTTP 429 `rate_limited`.
+- Accounting rows live in `email_discovery_usage` (migration `014`), written
+  server-side only via the service role, mirroring `receipt_scan_usage`.
 
 ## Email forwarding API routes
 

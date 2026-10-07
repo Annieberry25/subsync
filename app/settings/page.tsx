@@ -37,19 +37,22 @@ import {
   ArrowLeft,
   ChevronRight,
   MoreVertical,
+  Plug,
   type LucideIcon,
 } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useTheme, type Theme } from '@/lib/hooks/use-theme';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
-import { syncPlusPurchaseRecord } from '@/lib/services/plan-service';
+import { recoverPlusPurchase, syncPlusPurchaseRecord } from '@/lib/services/plan-service';
+import { SUBHALT_SUBSCRIPTION_NAME, buildPlusSubscriptionRecord } from '@/lib/constants/plus-plan';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import {
   fetchSubscriptions,
   type SubscriptionRow,
 } from '@/lib/services/subscription-service';
 import { AddPaymentModal } from '@/components/settings/add-payment-modal';
+import { PaymentResultSheet, type PaymentResultState } from '@/components/settings/payment-result-sheet';
 import { LegalModal } from '@/components/settings/legal-modal';
 import { ChangeEmailModal } from '@/components/settings/change-email-modal';
 import { EditBillingModal } from '@/components/settings/edit-billing-modal';
@@ -58,10 +61,9 @@ import { DeleteAccountModal } from '@/components/settings/delete-account-modal';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { CardIcon } from '@/components/ui/card-icons';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
+import { IntegrationsSettingsPanel } from '@/components/integrations/integrations-settings-panel';
 
-type SettingsSection = 'account' | 'plan' | 'preferences' | 'privacy' | 'help';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://subhalt.xyz';
+type SettingsSection = 'account' | 'plan' | 'integrations' | 'preferences' | 'privacy' | 'help';
 
 function SettingsContent() {
   const router = useRouter();
@@ -106,7 +108,12 @@ function SettingsContent() {
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [isViewSubscriptionOpen, setIsViewSubscriptionOpen] = useState(false);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
+  const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
+  const [paymentResult, setPaymentResult] = useState<PaymentResultState | null>(null);
+  const [paymentPlanExpiresAt, setPaymentPlanExpiresAt] = useState<string | null>(null);
+  const [paymentListed, setPaymentListed] = useState(false);
   const billedResultHandled = useRef(false);
+  const subhaltRowEnsured = useRef(false);
 
   /* Push permission, read from the browser rather than stored: it is a property
      of this device and this browser, and can be revoked outside the app at any
@@ -156,6 +163,7 @@ function SettingsContent() {
   const loadSubData = useCallback(async () => {
     const { data } = await fetchSubscriptions();
     if (data) setSubscriptions(data);
+    setSubscriptionsLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -164,27 +172,18 @@ function SettingsContent() {
 
   // View model for the "SubHalt subscription" detail modal. Prefer the real
   // SubHalt row created after a Paystack purchase; otherwise fall back to a
-  // live record derived from the user's current plan state (no hardcoded dates).
-  const subhaltNextBilling = new Date();
-  subhaltNextBilling.setUTCDate(subhaltNextBilling.getUTCDate() + 30);
+  // record derived from the plan definition (no hardcoded dates).
+  const subhaltFallback = buildPlusSubscriptionRecord({
+    paymentMethod: paymentMethods[0]?.brand || 'Card',
+  });
   const subhaltSubscription: SubscriptionRow | null =
     subscriptions.find((s) => s.name.toLowerCase().trim() === 'subhalt') ||
     (isPlus
       ? {
           id: 'subhalt_local_subscription',
           user_id: '',
-          name: 'SubHalt',
-          price: 3.99,
-          currency: 'USD',
-          billing_cycle: 'monthly',
-          category: 'Software',
-          next_billing_date: subhaltNextBilling.toISOString().split('T')[0],
-          start_date: null,
+          ...subhaltFallback,
           end_date: null,
-          status: 'active',
-          payment_method: paymentMethods[0]?.brand || 'Card',
-          provider_url: SITE_URL,
-          notes: 'SubHalt Plus — single monthly payment secured via Paystack.',
           account_links: null,
           receipts: null,
           is_synced: false,
@@ -193,59 +192,110 @@ function SettingsContent() {
         }
       : null);
 
+  const refreshPlanState = useCallback(async (): Promise<{
+    active: boolean;
+    expiresAt: string | null;
+  }> => {
+    // The plan tier lives in the session metadata and the context only re-reads
+    // it on an auth event, so the session has to be refreshed before anything
+    // else — otherwise the UI stays on Free even though the server already
+    // granted the plan.
+    try {
+      const { data } = await supabase.auth.refreshSession();
+      const metadata = data.session?.user?.user_metadata ?? {};
+      const tier = metadata.plan_tier;
+      return {
+        active: tier === 'plus' || tier === 'premium',
+        expiresAt: typeof metadata.plan_expires_at === 'string' ? metadata.plan_expires_at : null,
+      };
+    } catch {
+      return { active: false, expiresAt: null };
+    }
+  }, [supabase]);
+
+  const settlePaymentResult = useCallback(async () => {
+    setPaymentResult('checking');
+
+    let state = await refreshPlanState();
+    if (!state.active) {
+      await recoverPlusPurchase();
+      state = await refreshPlanState();
+    }
+    if (!state.active) {
+      // The webhook may still be in flight; give it one short window to land
+      // before deciding what to tell the customer.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await recoverPlusPurchase();
+      state = await refreshPlanState();
+    }
+
+    subhaltRowEnsured.current = true;
+    if (!state.active) {
+      setPaymentResult('pending');
+      return;
+    }
+
+    setPaymentPlanExpiresAt(state.expiresAt);
+    let listed = false;
+    try {
+      await syncPlusPurchaseRecord({ addInboxItem, planExpiresAt: state.expiresAt });
+      listed = true;
+    } catch {
+      toast.warning(
+        'Your plan is active, but the SubHalt entry was not added to your subscriptions.',
+        'Record Sync Issue'
+      );
+    }
+    setPaymentListed(listed);
+    setPaymentResult('success');
+    void loadSubData();
+  }, [refreshPlanState, addInboxItem, toast, loadSubData]);
+
   // Handle post-checkout results from the Paystack callback route
   // (/settings?section=plan&billing=paid|error|failed).
   useEffect(() => {
     const billing = searchParams.get('billing');
     if (!billing || billedResultHandled.current) return;
     billedResultHandled.current = true;
+    router.replace('/settings?section=plan');
 
-    const handleBillingResult = async () => {
-      if (billing === 'paid' || billing === 'error') {
-        // Refresh the session FIRST. The plan tier lives in the session
-        // metadata and the context only re-reads it on an auth event, so this
-        // has to happen before anything else — otherwise a bookkeeping hiccup
-        // below skipped the refresh and the UI stayed on Free even though the
-        // server had already granted the plan.
-        let activated = false;
-        try {
-          const { data } = await supabase.auth.refreshSession();
-          const tier = data.session?.user?.user_metadata?.plan_tier;
-          activated = tier === 'plus' || tier === 'premium';
-        } catch {
-          activated = false;
-        }
+    if (billing === 'failed') {
+      queueMicrotask(() => setPaymentResult('failed'));
+      return;
+    }
+    if (billing === 'paid' || billing === 'error') {
+      queueMicrotask(() => void settlePaymentResult());
+    }
+  }, [searchParams, router, settlePaymentResult]);
 
-        if (billing === 'paid' && activated) {
-          toast.success('Your SubHalt Plus plan is now active.', 'Subscribed to Plus');
-          // Bookkeeping (subscription entry, activity, inbox) is deliberately
-          // after the plan is live: it must never block activation.
-          try {
-            await syncPlusPurchaseRecord({ addInboxItem });
-          } catch {
-            toast.warning(
-              'Your plan is active, but the SubHalt entry was not added to your subscriptions.',
-              'Record Sync Issue'
-            );
-          }
-        } else {
-          // Payment went through but the plan is not live yet. The reconcile
-          // pass settles it automatically, so do not claim success and do not
-          // claim the customer was not charged.
-          toast.warning(
-            'Your payment was received. The plan is being activated — please refresh in a moment.',
-            'Activating Your Plan'
-          );
-        }
-      } else if (billing === 'failed') {
-        toast.error('Payment was not completed. No charges were made.', 'Payment Incomplete');
+  // The purchase has to show up in the subscription list even when the
+  // post-payment bookkeeping never ran (a closed tab, a rejected write).
+  useEffect(() => {
+    if (!subscriptionsLoaded || !isPlus || subhaltRowEnsured.current) return;
+    subhaltRowEnsured.current = true;
+
+    const alreadyListed = subscriptions.some(
+      (sub) => sub.name.toLowerCase().trim() === SUBHALT_SUBSCRIPTION_NAME.toLowerCase()
+    );
+    if (alreadyListed) return;
+
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const expiresAt = data.session?.user?.user_metadata?.plan_expires_at;
+        await syncPlusPurchaseRecord({
+          addInboxItem,
+          planExpiresAt: typeof expiresAt === 'string' ? expiresAt : null,
+        });
+        await loadSubData();
+      } catch {
+        toast.warning(
+          'Your plan is active, but the SubHalt entry was not added to your subscriptions.',
+          'Record Sync Issue'
+        );
       }
-
-      router.replace('/settings?section=plan');
-    };
-
-    void Promise.resolve().then(() => handleBillingResult());
-  }, [searchParams, router, supabase, addInboxItem, toast]);
+    })();
+  }, [subscriptionsLoaded, isPlus, subscriptions, supabase, addInboxItem, loadSubData, toast]);
 
   const handleCurrencyChange = async (newCurr: string) => {
     try {
@@ -295,6 +345,7 @@ function SettingsContent() {
   const sectionsList: { id: SettingsSection; label: string; icon: LucideIcon; description: string }[] = [
     { id: 'account', label: 'Account', icon: User, description: 'Profile info, authentication, and security' },
     { id: 'plan', label: 'Plan & Billing', icon: ArrowUpCircle, description: 'Current plan & billing controls' },
+    { id: 'integrations', label: 'Integrations', icon: Plug, description: 'Gmail & receipt email forwarding' },
     { id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Currency, theme, notifications & categories' },
     { id: 'privacy', label: 'Privacy & Data', icon: Lock, description: 'Data export, local cache & privacy controls' },
     { id: 'help', label: 'Help & Legal', icon: HelpCircle, description: 'Support resources, terms, and policies' },
@@ -364,6 +415,7 @@ function SettingsContent() {
               {/* Render Active Section Content for Mobile */}
               {mobileSectionView === 'plan' && renderBillingSection()}
               {mobileSectionView === 'account' && renderAccountSection()}
+              {mobileSectionView === 'integrations' && renderIntegrationsSection()}
               {mobileSectionView === 'preferences' && renderPreferencesSection()}
               {mobileSectionView === 'privacy' && renderPrivacySection()}
               {mobileSectionView === 'help' && renderHelpSection()}
@@ -409,6 +461,7 @@ function SettingsContent() {
         <div className="flex-1 p-7 overflow-y-auto max-h-[750px] space-y-6 bg-[#0B0D0D]">
           {activeSection === 'plan' && renderBillingSection()}
           {activeSection === 'account' && renderAccountSection()}
+          {activeSection === 'integrations' && renderIntegrationsSection()}
           {activeSection === 'preferences' && renderPreferencesSection()}
           {activeSection === 'privacy' && renderPrivacySection()}
           {activeSection === 'help' && renderHelpSection()}
@@ -451,6 +504,14 @@ function SettingsContent() {
         onEdit={() => {}}
         onDeleteRequest={() => {}}
         onPaymentReminderRequest={() => {}}
+      />
+
+      <PaymentResultSheet
+        state={paymentResult}
+        planExpiresAt={paymentPlanExpiresAt}
+        subscriptionListed={paymentListed}
+        onClose={() => setPaymentResult(null)}
+        onRecheck={() => void settlePaymentResult()}
       />
     </div>
   );
@@ -732,7 +793,12 @@ function SettingsContent() {
     );
   }
 
-  // 3. PREFERENCES SECTION
+  // 3. INTEGRATIONS SECTION
+  function renderIntegrationsSection() {
+    return <IntegrationsSettingsPanel />;
+  }
+
+  // 4. PREFERENCES SECTION
   function renderPreferencesSection() {
     return (
       <section className="space-y-6">
@@ -943,7 +1009,7 @@ function SettingsContent() {
     );
   }
 
-  // 4. PRIVACY SECTION
+  // 5. PRIVACY SECTION
   function renderPrivacySection() {
     return (
       <section className="space-y-6">
@@ -1009,7 +1075,7 @@ function SettingsContent() {
     );
   }
 
-  // 5. HELP SECTION
+  // 6. HELP SECTION
   function renderHelpSection() {
     return (
       <section className="space-y-6">

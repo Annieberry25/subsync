@@ -5,6 +5,11 @@
  */
 import { env } from '@/lib/env';
 import { getPlanLimits, hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
+import {
+  countEmailDiscoverySinceHours,
+  countEmailDiscoveryThisMonth,
+  recordEmailDiscovery,
+} from '@/lib/services/email-discovery-usage';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/lib/types/database.types';
 import { getKnownProviderWebsite } from '@/lib/services/subscription-service';
@@ -18,6 +23,12 @@ import type { DiscoveredSubscription } from '@/lib/types/gmail.types';
 
 type AdminClient = SupabaseClient<Database>;
 
+/** The `source` string email-forwarding paths pass to `ingestReceiptDraft`. */
+const EMAIL_FORWARDING_SOURCE = 'Email Forwarding';
+/** Burst window stops one faulty forward from exploding into a flood before the monthly quota trips. */
+const EMAIL_DISCOVERY_BURST_HOURS = 1;
+const EMAIL_DISCOVERY_BURST_MAX = 30;
+
 export interface InboundReceiptInput {
   recipient: string;
   from: string;
@@ -28,7 +39,7 @@ export interface InboundReceiptInput {
 }
 
 export interface IngestResult {
-  status: 'created' | 'duplicate' | 'limit_reached' | 'invalid' | 'not_configured';
+  status: 'created' | 'duplicate' | 'limit_reached' | 'rate_limited' | 'invalid' | 'not_configured';
   subscriptionId?: string;
   inboxItemId?: string;
   name?: string;
@@ -151,6 +162,38 @@ export async function ingestReceiptDraft(
 
   const plus = await isPlusUser(admin, userId);
   const tier = plus ? 'plus' : 'free';
+
+  // Forwarded receipts are the only unbounded ingress the webhook exposes, so
+  // the per-hour burst cap and the monthly discovery quota apply to this source
+  // alone. Gmail monitoring is already bounded by its daily cron and result
+  // caps, so it must not be conflated with the email-forwarding accounting.
+  if (source === EMAIL_FORWARDING_SOURCE) {
+    const bursts = await countEmailDiscoverySinceHours(userId, EMAIL_DISCOVERY_BURST_HOURS);
+    if (bursts >= EMAIL_DISCOVERY_BURST_MAX) {
+      return {
+        status: 'rate_limited',
+        name: trimmedName,
+        price: draft.price,
+        currency: draft.currency,
+        error: 'Too many forwarded receipts in a short period. Please try again later.',
+      };
+    }
+
+    const monthlyMax = getPlanLimits(tier).maxEmailDiscoveryPerMonth;
+    if (monthlyMax !== Infinity) {
+      const used = await countEmailDiscoveryThisMonth(userId);
+      if (used >= monthlyMax) {
+        return {
+          status: 'limit_reached',
+          name: trimmedName,
+          price: draft.price,
+          currency: draft.currency,
+          error: `You have used all ${monthlyMax} forwarded receipts for this month. Upgrade to Plus for more.`,
+        };
+      }
+    }
+  }
+
   const { count } = await admin
     .from('subscriptions')
     .select('id', { count: 'exact', head: true })
@@ -175,6 +218,12 @@ export async function ingestReceiptDraft(
 
   if (error || !sub) {
     return { status: 'invalid', error: error?.message ?? 'Failed to create subscription.' };
+  }
+
+  // Account the discovery only once the row landed: failed/duplicate ingests
+  // must not consume the user's allowance.
+  if (source === EMAIL_FORWARDING_SOURCE) {
+    await recordEmailDiscovery(userId, 'email_forwarding');
   }
 
   const { data: item, error: inboxError } = await admin

@@ -287,6 +287,35 @@ export interface Database {
           }
         ]
       }
+      email_discovery_usage: {
+        Row: {
+          id: string
+          user_id: string
+          source: 'email_forwarding' | 'gmail_monitoring'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          source?: 'email_forwarding' | 'gmail_monitoring'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          source?: 'email_forwarding' | 'gmail_monitoring'
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_discovery_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       receipts: {
         Row: {
           id: string
