@@ -195,9 +195,13 @@ describe('POST /api/paystack/reconcile', () => {
     mocks.verifyTransaction.mockResolvedValue({
       status: 'success',
       reference: REFERENCE,
-      amount: 600000,
+      // Fee reported on top of the 600000 we initialized.
+      amount: 621000,
+      requestedAmount: 600000,
       currency: 'NGN',
       paidAt,
+      customerEmail: null,
+      channel: 'card',
     });
 
     const response = await POST();
@@ -205,6 +209,65 @@ describe('POST /api/paystack/reconcile', () => {
     expect(await response.json()).toEqual({ granted: true });
     expect(mocks.verifyTransaction).toHaveBeenCalledWith(REFERENCE);
     expect(mocks.grantPlanSubscription).toHaveBeenCalledWith(REFERENCE, paidAt);
+  });
+
+  it('recovers a successful charge the webhook wrongly marked failed', async () => {
+    const paidAt = pastDate(1);
+    mocks.subscriptionRows = [
+      {
+        paystack_reference: REFERENCE,
+        status: 'failed',
+        amount: 600000,
+        currency: 'NGN',
+        paid_at: null,
+        expires_at: null,
+        created_at: paidAt,
+      },
+    ];
+    mocks.verifyTransaction.mockResolvedValue({
+      status: 'success',
+      reference: REFERENCE,
+      amount: 621000,
+      requestedAmount: 600000,
+      currency: 'NGN',
+      paidAt,
+      customerEmail: null,
+      channel: 'card',
+    });
+
+    const response = await POST();
+
+    expect(await response.json()).toEqual({ granted: true });
+    expect(mocks.grantPlanSubscription).toHaveBeenCalledWith(REFERENCE, paidAt);
+  });
+
+  it('leaves a row that really did fail marked failed', async () => {
+    mocks.subscriptionRows = [
+      {
+        paystack_reference: REFERENCE,
+        status: 'failed',
+        amount: 600000,
+        currency: 'NGN',
+        paid_at: null,
+        expires_at: null,
+        created_at: pastDate(1),
+      },
+    ];
+    mocks.verifyTransaction.mockResolvedValue({
+      status: 'failed',
+      reference: REFERENCE,
+      amount: 600000,
+      requestedAmount: 600000,
+      currency: 'NGN',
+      paidAt: null,
+      customerEmail: null,
+      channel: 'card',
+    });
+
+    const response = await POST();
+
+    expect(await response.json()).toEqual({ granted: false });
+    expect(mocks.grantPlanSubscription).not.toHaveBeenCalled();
   });
 
   it('skips a pending row whose charge does not match what we stored', async () => {
@@ -223,8 +286,11 @@ describe('POST /api/paystack/reconcile', () => {
       status: 'success',
       reference: REFERENCE,
       amount: 1,
+      requestedAmount: 1,
       currency: 'NGN',
       paidAt: pastDate(1),
+      customerEmail: null,
+      channel: 'card',
     });
 
     const response = await POST();

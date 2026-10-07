@@ -4,6 +4,7 @@ import {
   resolvePublicOrigin,
   verifyTransaction,
   isPaystackConfigured,
+  transactionMatchesPlan,
 } from '@/lib/paystack';
 import {
   grantPlanSubscription,
@@ -86,17 +87,24 @@ export async function GET(request: NextRequest) {
 
   // amount/currency are dynamic: the $3.99 list price is converted to naira at
   // the then-current rate, so the row — not a constant — is the source of truth.
-  const matchesPlan =
-    tx.status === 'success' &&
-    tx.reference === reference &&
-    tx.currency.toUpperCase() === (subscription.currency ?? '').toUpperCase() &&
-    tx.amount === subscription.amount;
+  // The shared matcher also accepts the charge-with-fee shape Paystack reports
+  // (requested_amount vs amount), which the strict equality here rejected.
+  const matchesPlan = transactionMatchesPlan(tx, {
+    reference,
+    amount: subscription.amount,
+    currency: subscription.currency ?? '',
+  });
 
   if (!matchesPlan) {
     console.warn('[paystack/callback] verified transaction does not match stored plan row', {
       reference,
       expected: { amount: subscription.amount, currency: subscription.currency },
-      actual: { status: tx.status, amount: tx.amount, currency: tx.currency },
+      actual: {
+        status: tx.status,
+        amount: tx.amount,
+        requestedAmount: tx.requestedAmount,
+        currency: tx.currency,
+      },
     });
     // Never demote a settled row (the webhook may already have granted it), and
     // leave anything still in flight alone so the webhook or a later reconcile

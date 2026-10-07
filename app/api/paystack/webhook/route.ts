@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyWebhookSignature } from '@/lib/paystack';
+import { verifyWebhookSignature, transactionMatchesPlan } from '@/lib/paystack';
+import type { VerifiedTransaction } from '@/lib/paystack';
 import { createAdminClient } from '@/lib/supabase/admin';
-import {
-  grantPlanSubscription,
-  markPlanSubscriptionFailed,
-} from '@/lib/paystack/grants';
+import { grantPlanSubscription } from '@/lib/paystack/grants';
 
 interface PaystackChargeSuccessEvent {
   event: string;
@@ -12,6 +10,7 @@ interface PaystackChargeSuccessEvent {
     status?: string;
     reference?: string;
     amount?: number | string;
+    requested_amount?: number | string;
     currency?: string;
     paid_at?: string | null;
   };
@@ -40,55 +39,70 @@ export async function POST(request: NextRequest) {
       const data = event.data ?? {};
       const reference = data.reference;
 
-      // Validate against the pending row recorded at checkout (amount/currency
-      // are dynamic: the $3.99 list price is converted to naira at the
-      // then-current rate, so the stored row — not a constant — is the
-      // source of truth).
-      let expectedAmount: number | null = null;
-      let expectedCurrency: string | null = null;
-      if (reference) {
-        const admin = createAdminClient();
-        const { data: subscription } = await admin
-          .from('plan_subscriptions')
-          .select('amount, currency, status')
-          .eq('paystack_reference', reference)
-          .maybeSingle();
-        expectedAmount = subscription?.amount ?? null;
-        expectedCurrency = subscription?.currency ?? null;
-
-        const matchesPlan =
-          Boolean(reference) &&
-          expectedAmount !== null &&
-          expectedCurrency !== null &&
-          data.status === 'success' &&
-          Number(data.amount) === expectedAmount &&
-          String(data.currency ?? '').toUpperCase() === expectedCurrency.toUpperCase();
-
-        if (matchesPlan) {
-          const granted = await grantPlanSubscription(reference, data.paid_at ?? null);
-          if (!granted) {
-            console.error('[paystack/webhook] charge.success verified but grant failed', reference);
-            return NextResponse.json({ error: 'Grant failed' }, { status: 500 });
-          }
-          return NextResponse.json({ received: true });
-        }
-
-        // A settled row is never demoted by a differently-shaped event.
-        if (subscription?.status === 'pending') {
-          console.warn(
-            '[paystack/webhook] charge.success payload did not match stored plan row',
-            { reference, status: data.status, currency: data.currency, amount: data.amount }
-          );
-          await markPlanSubscriptionFailed(reference);
-        } else {
-          console.warn(
-            '[paystack/webhook] charge.success for unknown or settled row, ignoring',
-            { reference, status: data.status }
-          );
-        }
-      } else {
+      if (!reference) {
         console.warn('[paystack/webhook] charge.success carried no reference');
+        return NextResponse.json({ received: true });
       }
+
+      const admin = createAdminClient();
+      const { data: subscription } = await admin
+        .from('plan_subscriptions')
+        .select('amount, currency, status')
+        .eq('paystack_reference', reference)
+        .maybeSingle();
+
+      // amount/currency are dynamic: the $3.99 list price is converted to naira
+      // at the then-current rate, so the stored row — not a constant — is the
+      // source of truth. The shared matcher accepts the charge-with-fee shape
+      // (requested_amount vs amount) that Paystack reports for some charges.
+      const tx: VerifiedTransaction = {
+        status: data.status ?? '',
+        reference,
+        amount: Number(data.amount) || 0,
+        requestedAmount:
+          typeof data.requested_amount === 'number'
+            ? data.requested_amount
+            : Number(data.requested_amount) || null,
+        currency: String(data.currency ?? '').toUpperCase(),
+        customerEmail: null,
+        paidAt: data.paid_at ?? null,
+        channel: null,
+      };
+
+      const matchesPlan = transactionMatchesPlan(
+        tx,
+        subscription
+          ? { reference, amount: subscription.amount, currency: subscription.currency ?? '' }
+          : null
+      );
+
+      if (matchesPlan) {
+        const granted = await grantPlanSubscription(reference, data.paid_at ?? null);
+        if (!granted) {
+          console.error('[paystack/webhook] charge.success verified but grant failed', reference);
+          return NextResponse.json({ error: 'Grant failed' }, { status: 500 });
+        }
+        return NextResponse.json({ received: true });
+      }
+
+      // A charge.success event NEVER demotes a row. If it does not look like
+      // ours, leave it pending for the reconcile pass, which re-verifies against
+      // Paystack's verify payload — the payload that carries requested_amount
+      // and can therefore settle a charge reported with the fee added on top.
+      // Demoting here is what turned five successful charges into `failed` rows
+      // that no settlement path would ever look at again.
+      console.warn(
+        '[paystack/webhook] charge.success did not match stored plan row; leaving it for reconcile',
+        {
+          reference,
+          status: subscription?.status,
+          expected: subscription
+            ? { amount: subscription.amount, currency: subscription.currency }
+            : null,
+          actual: { amount: tx.amount, requestedAmount: tx.requestedAmount, currency: tx.currency },
+        }
+      );
+      return NextResponse.json({ received: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[paystack/webhook] failed to process charge.success:', msg);

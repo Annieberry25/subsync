@@ -172,10 +172,47 @@ export interface VerifiedTransaction {
   status: string;
   reference: string;
   amount: number;
+  /**
+   * The amount we asked Paystack to charge, when the payload carries it.
+   * `amount` can be larger: some charges report the fee added on top of the
+   * initialized amount (e.g. requested 529920, paid 548143 with fees 18223),
+   * and comparing against `amount` alone rejects our own payments.
+   */
+  requestedAmount: number | null;
   currency: string;
   customerEmail: string | null;
   paidAt: string | null;
   channel: string | null;
+}
+
+/** The row recorded at checkout: what we asked Paystack to charge. */
+export interface StoredPlanRow {
+  reference: string;
+  amount: number;
+  currency: string;
+}
+
+/**
+ * Is this transaction the payment our row describes?
+ *
+ * Shared by the callback, the webhook and reconcile so the three can never
+ * disagree about what "our" payment looks like. The amount check accepts
+ * either figure because the payload may report the charge with or without a
+ * fee added on top of what we initialized (see `requestedAmount`).
+ */
+export function transactionMatchesPlan(
+  tx: VerifiedTransaction,
+  stored: StoredPlanRow | null | undefined
+): boolean {
+  if (!stored) return false;
+  if (tx.status !== 'success') return false;
+  if (tx.reference !== stored.reference) return false;
+  if (!tx.currency || tx.currency.toUpperCase() !== String(stored.currency ?? '').toUpperCase()) {
+    return false;
+  }
+
+  const requested = tx.requestedAmount ?? tx.amount;
+  return requested === stored.amount || tx.amount === stored.amount;
 }
 
 export async function verifyTransaction(reference: string): Promise<VerifiedTransaction> {
@@ -183,11 +220,14 @@ export async function verifyTransaction(reference: string): Promise<VerifiedTran
 
   const data = body.data ?? {};
   const customer = data.customer as Record<string, unknown> | undefined;
+  const requested = data.requested_amount;
 
   return {
     status: typeof data.status === 'string' ? data.status : '',
     reference: typeof data.reference === 'string' ? data.reference : reference,
     amount: typeof data.amount === 'number' ? data.amount : Number(data.amount) || 0,
+    requestedAmount:
+      typeof requested === 'number' ? requested : Number(requested) || null,
     currency: String(data.currency ?? '').toUpperCase(),
     customerEmail: typeof customer?.email === 'string' ? customer.email : null,
     paidAt: typeof data.paid_at === 'string' ? data.paid_at : null,

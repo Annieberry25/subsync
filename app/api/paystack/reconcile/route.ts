@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthUser } from '@/lib/auth/access';
-import { verifyTransaction, isPaystackConfigured } from '@/lib/paystack';
+import { verifyTransaction, isPaystackConfigured, transactionMatchesPlan } from '@/lib/paystack';
 import { grantPlanSubscription } from '@/lib/paystack/grants';
 
 /** How long a checkout stays worth settling; anything older is abandoned. */
@@ -38,12 +38,17 @@ export async function POST() {
     const admin = createAdminClient();
     const since = new Date(Date.now() - LOOKBACK_MS).toISOString();
 
+    // `failed` is included on purpose: a webhook that could not reconcile its
+    // own payload used to demote genuinely successful charges to `failed`, and
+    // a row nobody re-read is exactly what this endpoint exists to recover.
+    // Verification below is against Paystack itself, so a row that really did
+    // fail verification stays failed.
     const { data: rows, error } = await admin
       .from('plan_subscriptions')
       .select('paystack_reference, status, amount, currency, paid_at, expires_at, created_at')
       .eq('user_id', user.id)
       .gte('created_at', since)
-      .in('status', ['pending', 'paid'])
+      .in('status', ['pending', 'paid', 'failed'])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -88,7 +93,9 @@ export async function POST() {
     //    the stored row decides whether it is *our* payment.
     if (!activePlus) {
       for (const row of rows) {
-        if (row.status !== 'pending') continue;
+        // Settled rows are branch 1's business (repair only). `failed` rows are
+        // re-checked because the demotion may itself have been the bug.
+        if (row.status === 'paid') continue;
 
         let tx;
         try {
@@ -102,11 +109,11 @@ export async function POST() {
           continue;
         }
 
-        const matchesPlan =
-          tx.status === 'success' &&
-          tx.reference === row.paystack_reference &&
-          tx.currency.toUpperCase() === (row.currency ?? '').toUpperCase() &&
-          tx.amount === row.amount;
+        const matchesPlan = transactionMatchesPlan(tx, {
+          reference: row.paystack_reference,
+          amount: row.amount,
+          currency: row.currency ?? '',
+        });
 
         if (!matchesPlan) continue;
 

@@ -74,7 +74,11 @@ function verifiedTx(overrides: Record<string, unknown> = {}) {
   return {
     status: 'success',
     reference: REFERENCE,
-    amount: 600000,
+    // Realistic shape: Paystack reports the charge with its fee added on top
+    // of what we initialized (stored row = 600000), so `amount` alone does not
+    // equal the stored amount. `requestedAmount` is what we asked for.
+    amount: 621000,
+    requestedAmount: 600000,
     currency: 'NGN',
     customerEmail: 'a@b.co',
     paidAt: '2026-10-01T10:00:00.000Z',
@@ -147,7 +151,9 @@ describe('GET /api/paystack/callback', () => {
   });
 
   it('rejects a successful charge whose amount drifted from the stored row', async () => {
-    mocks.verifyTransaction.mockResolvedValue(verifiedTx({ amount: 1 }));
+    mocks.verifyTransaction.mockResolvedValue(
+      verifiedTx({ amount: 1, requestedAmount: 1 })
+    );
 
     const response = await GET(makeRequest(`?reference=${REFERENCE}`));
 
@@ -158,6 +164,20 @@ describe('GET /api/paystack/callback', () => {
     // The customer WAS charged, so it must not claim "no charge completed".
     expect(locationOf(response)).toContain('billing=error');
     expect(locationOf(response)).not.toContain('billing=failed');
+  });
+
+  it('still settles when the payload carries no requested_amount and the amounts agree', async () => {
+    mocks.verifyTransaction.mockResolvedValue(
+      verifiedTx({ amount: 600000, requestedAmount: null })
+    );
+
+    const response = await GET(makeRequest(`?reference=${REFERENCE}`));
+
+    expect(mocks.grantPlanSubscription).toHaveBeenCalledWith(
+      REFERENCE,
+      '2026-10-01T10:00:00.000Z'
+    );
+    expect(locationOf(response)).toContain('billing=paid');
   });
 
   it('never demotes a row that was already settled', async () => {
