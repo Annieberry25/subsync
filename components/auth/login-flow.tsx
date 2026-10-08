@@ -89,6 +89,11 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
    * one-time code only reaches an inbox that account may never check — so offering
    * it was a dead end for exactly the people most likely to have signed in with
    * Google.
+   *
+   * The picker is forced every time (prompt: 'select_account') so Google never
+   * silently re-authenticates the stored session and logs someone in without
+   * consent — the chooser is only ever a gateway to an active sign-in, never an
+   * instant one.
    */
   const handleSelectAccount = (account: RememberedAccount) => {
     setEmail(account.email);
@@ -96,7 +101,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
     setSuccess(null);
 
     if (account.provider === 'google') {
-      handleSocialAuth('google');
+      handleSocialAuth('google', { prompt: 'select_account' });
       return;
     }
 
@@ -284,7 +289,10 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
     }
   };
 
-  const handleSocialAuth = async (provider: SocialAuthProviderId) => {
+  const handleSocialAuth = async (
+    provider: SocialAuthProviderId,
+    queryParams?: Record<string, string>
+  ) => {
     setError(null);
     setSuccess(null);
     setSocialLoading(provider);
@@ -297,6 +305,9 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
           // cookie on that host, so a redirectTo anywhere else delivers the
           // callback where it does not exist.
           redirectTo: getAuthCallbackUrl(),
+          // e.g. { prompt: 'select_account' } so a remembered Google account
+          // still shows Google's picker instead of a silent auto sign-in.
+          ...(queryParams ? { queryParams } : {}),
         },
       });
 

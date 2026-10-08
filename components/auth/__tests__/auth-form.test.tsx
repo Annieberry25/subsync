@@ -219,7 +219,10 @@ it('returns a Google account through Google instead of a password or code form',
 
     await waitFor(() =>
       expect(mocks.signInWithOAuth).toHaveBeenCalledWith(
-        expect.objectContaining({ provider: 'google' })
+        expect.objectContaining({
+          provider: 'google',
+          options: expect.objectContaining({ queryParams: { prompt: 'select_account' } }),
+        })
       )
     );
     // Neither form is shown: no code requested, no password prompt.
