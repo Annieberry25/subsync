@@ -122,7 +122,7 @@ export default function InboxPageContent() {
         toast.success(`Action "${item.actionLabel}" processed for "${item.title}".`, 'Inbox Updated');
       }
     },
-    [markAsRead, toast]
+    [markAsRead, toast, router]
   );
 
   const handleCardClick = (item: InboxItem) => {

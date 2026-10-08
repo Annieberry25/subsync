@@ -735,6 +735,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
   const currencyValue = useMemo<CurrencyContextValue>(
     () => ({ defaultCurrency, exchangeRates, updateDefaultCurrency }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Action callbacks (recreated each render) are excluded on purpose: the memo's identity must track only data, or the whole consuming subtree re-renders on every provider update.
     [defaultCurrency, exchangeRates]
   );
 
@@ -791,11 +792,13 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       isPremium: effectiveTier === 'plus',
       updatePlanTier,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Same intent as currencyValue above.
     [effectiveTier, planExpiresAt]
   );
 
   const authValue = useMemo<AuthContextValue>(
     () => ({ email, fullName, lastNameChange, loading, isAdmin, updateProfile, reauthenticateAndChangeEmail }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Same intent as currencyValue above.
     [email, fullName, lastNameChange, loading, isAdmin]
   );
 
@@ -809,6 +812,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       deleteCategory,
       getCategoryMeta,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Same intent as currencyValue above.
     [customCategories, allCategories, categoryMetadata, getCategoryMeta]
   );
 
@@ -831,6 +835,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       setDefaultPaymentMethod,
       refreshSettings: loadUserSettings,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Same intent as currencyValue above.
     [timezone, notificationPreferences, assistantName, isGmailConnected, gmailEmail, billingDetails, paymentMethods, billingTransactions]
   );
 

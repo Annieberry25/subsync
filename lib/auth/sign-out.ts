@@ -73,6 +73,7 @@ export async function signOutAndRedirect(): Promise<boolean> {
     //
     // `assign` rather than `replace` so Back does not return to an authenticated
     // page rendering the previous session's data.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Hard redirect (not router.push) is required here: see the rationale above.
     window.location.assign('/login');
     return true;
   } catch (err) {

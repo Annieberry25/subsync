@@ -34,22 +34,18 @@ function emit(entry: LogEntry): void {
     // If Sentry DSN is configured, forward (guarded so it no-ops otherwise).
     if (process.env.NEXT_PUBLIC_SENTRY_DSN && typeof console !== 'undefined') {
       // Placeholder for Sentry capture; wired automatically when @sentry/nextjs is installed.
-      // eslint-disable-next-line no-console
       console.error(base, context ?? '', formatError(error));
     } else {
-      // eslint-disable-next-line no-console
       console.error(base, context ?? '', formatError(error));
     }
     return;
   }
 
   if (level === 'warn') {
-    // eslint-disable-next-line no-console
     console.warn(base, context ?? '');
     return;
   }
 
-  // eslint-disable-next-line no-console
   console.info(base, context ?? '');
 }
 

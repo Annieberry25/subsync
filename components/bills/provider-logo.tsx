@@ -63,6 +63,7 @@ export default function ProviderLogo({
 
   return (
     <div className={containerClasses} title={name}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- Provider logos resolve to arbitrary third-party hosts (logo.dev fallback or a catalog entry), which next/image's remotePatterns allow-list cannot cover at build time; the CSP already allows img.logo.dev. */}
       <img
         src={logoUrl}
         alt={`${name} logo`}
