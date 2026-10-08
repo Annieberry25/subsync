@@ -23,7 +23,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return 'midnight';
   });
 
-  const applyTheme = useCallback((newTheme: Theme) => {
+  const applyTheme = useCallback((_newTheme: Theme) => {
     const root = document.documentElement;
 
     root.classList.add('theme-switching');

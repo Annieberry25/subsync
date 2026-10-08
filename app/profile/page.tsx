@@ -8,10 +8,8 @@ import {
   User,
   Mail,
   Camera,
-  Save,
   Loader2,
   AlertTriangle,
-  CheckCircle2,
   ArrowLeft,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -53,7 +51,7 @@ export default function ProfilePage() {
     fullName: initialFullName,
     email,
     lastNameChange,
-    loading: settingsLoading,
+    loading: _settingsLoading,
     updateProfile,
   } = useAuth();
   const { isPlus } = usePlan();

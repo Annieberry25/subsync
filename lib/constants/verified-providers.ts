@@ -1,5 +1,5 @@
 import type { VerifiedProvider } from '@/lib/types/bills.types';
-import { PROVIDER_CATALOG, getCatalogProviders, searchProviderCatalog } from './provider-catalog';
+import { PROVIDER_CATALOG, getCatalogProviders } from './provider-catalog';
 
 export const VERIFIED_PROVIDERS: VerifiedProvider[] = PROVIDER_CATALOG;
 

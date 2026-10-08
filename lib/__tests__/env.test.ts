@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const ORIG_ENV = { ...process.env };
+const _ORIG_ENV = { ...process.env };
 
 beforeEach(() => {
   vi.resetModules();

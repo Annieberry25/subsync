@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 import { env } from '@/lib/env';
 import { monitorGmailSubscriptionsForAllUsers } from '@/lib/services/gmail-monitor';
 

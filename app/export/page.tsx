@@ -34,7 +34,7 @@ const chartColorPalette = [
 
 export default function ExportPage() {
   const { toast } = useToast();
-  const { isPlus, isPremium } = usePlan();
+  const { isPlus, isPremium: _isPremium } = usePlan();
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);

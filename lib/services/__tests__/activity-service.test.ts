@@ -54,7 +54,7 @@ describe('getActivityHistory', () => {
 describe('recordActivity', () => {
   it('creates a record with id and timestamp, prepending to history', async () => {
     const first = await recordActivity({ subscriptionName: 'A', type: 'added', title: 't', description: 'd' });
-    const second = await recordActivity({ subscriptionName: 'B', type: 'reminder_sent', title: 't', description: 'd' });
+    await recordActivity({ subscriptionName: 'B', type: 'reminder_sent', title: 't', description: 'd' });
 
     expect(first.id).toBeTruthy();
     expect(first.timestamp).toBeTruthy();
