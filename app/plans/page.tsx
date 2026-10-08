@@ -41,15 +41,17 @@ function PlansContent() {
       const res = await fetch('/api/paystack/initialize', { method: 'POST' });
       const data = await res.json().catch(() => null);
 
-      if (!res.ok || !data?.authorizationUrl) {
-        throw new Error(data?.error || 'Could not start secure checkout.');
-      }
-
-      if (data.alreadyActive) {
+      // Checked before the authorizationUrl test below: an already-active plan
+      // is a success the customer should be told about, not a failed checkout.
+      if (data?.alreadyActive) {
         toast.success('Your SubHalt Plus plan is already active.', 'Already Subscribed');
         setIsCheckoutOpen(false);
         setProcessing(false);
         return;
+      }
+
+      if (!res.ok || !data?.authorizationUrl) {
+        throw new Error(data?.error || 'Could not start secure checkout.');
       }
 
       // Redirect to Paystack's hosted checkout; on success the callback route

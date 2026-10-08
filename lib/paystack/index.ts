@@ -117,6 +117,24 @@ interface PaystackResponseBody {
   data?: Record<string, unknown>;
 }
 
+/**
+ * Headers every Paystack API call needs.
+ *
+ * All non-webhook endpoints require the secret key, and Paystack answers a
+ * headerless request with "No Authorization Header was found". This used to be
+ * written inline inside initializeTransaction only, so verifyTransaction — the
+ * call the callback and the reconcile pass both depend on — was sent without
+ * credentials and therefore always failed. Settlement then worked only when the
+ * webhook happened to fire, which is how a charged customer stayed on Free
+ * with the payment row still `pending`.
+ */
+function paystackHeaders(): Record<string, string> {
+  return {
+    Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`,
+    'Content-Type': 'application/json',
+  };
+}
+
 async function paystackRequest(
   path: string,
   init: RequestInit = {}
@@ -139,10 +157,7 @@ export async function initializeTransaction(
 ): Promise<InitializeTransactionResult> {
   const body = await paystackRequest('/transaction/initialize', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`,
-      'Content-Type': 'application/json',
-    },
+    headers: paystackHeaders(),
     body: JSON.stringify({
       email: params.email,
       amount: params.amount,
@@ -209,7 +224,9 @@ export function transactionMatchesPlan(
 }
 
 export async function verifyTransaction(reference: string): Promise<VerifiedTransaction> {
-  const body = await paystackRequest(`/transaction/verify/${encodeURIComponent(reference)}`);
+  const body = await paystackRequest(`/transaction/verify/${encodeURIComponent(reference)}`, {
+    headers: paystackHeaders(),
+  });
 
   const data = body.data ?? {};
   const customer = data.customer as Record<string, unknown> | undefined;

@@ -16,6 +16,9 @@ export default defineConfig({
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',
+      // lib/paystack builds its Authorization header from this at import time;
+      // without it every verify/initialize call would be sent unauthenticated.
+      PAYSTACK_SECRET_KEY: 'sk_test_key',
     },
   },
   resolve: {

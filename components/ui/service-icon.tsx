@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
+import { BrandMarkFill } from '@/components/ui/brand-logo';
 
 interface ServiceIconProps {
   name: string;
@@ -219,20 +220,18 @@ export function ServiceIcon({
 
   if (norm === 'subhalt') {
     // SubHalt is our own brand, not a third-party logo, so there is no domain
-    // to resolve and no logo.dev entry. This used to return null, which
-    // removed the element entirely: any caller rendering <ServiceIcon> as a
-    // direct flex child lost an alignment box and the row collapsed on narrow
-    // screens. Render the brand mark in a box of the requested size instead.
+    // to resolve and no logo.dev entry. Render the actual brand mark — this is
+    // the row the customer just paid for, so it has to look like the product
+    // they bought. The wrapper carries the accessible name and the box the
+    // caller asked for; the artwork inside is decorative and keeps the crop
+    // the mark needs (its source canvas is 2000px with transparent padding).
     return (
       <div
-        className={`${className} rounded-xl bg-[#000000] border border-[#14B8A6]/30 flex items-center justify-center shrink-0`}
+        className={`${className} rounded-xl bg-[#000000] border border-[#14B8A6]/30 flex items-center justify-center shrink-0 overflow-hidden`}
         role="img"
         aria-label="SubHalt"
       >
-        <span className="flex items-center gap-[18%] h-[54%]" aria-hidden="true">
-          <span className="w-[22%] h-full rounded-full bg-[#14B8A6]" />
-          <span className="w-[22%] h-full rounded-full bg-[#14B8A6]" />
-        </span>
+        <BrandMarkFill className="w-[64%] h-[64%]" />
       </div>
     );
   }

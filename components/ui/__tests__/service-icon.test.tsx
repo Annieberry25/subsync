@@ -70,9 +70,17 @@ describe('ServiceIcon', () => {
 
   it('renders the SubHalt brand mark instead of fetching a third-party logo', () => {
     const { container } = render(<ServiceIcon name="SubHalt" />);
-    // The brand mark is a div with role="img"; the point is that no network
-    // image is requested for our own brand.
-    expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByRole('img', { name: 'SubHalt' })).toBeInTheDocument();
+
+    // The real artwork comes from public/, never a logo CDN: the row the
+    // customer just paid for has to look like the product they bought.
+    const img = container.querySelector('img') as HTMLImageElement;
+    expect(img).not.toBeNull();
+    expect(img.getAttribute('src')).toContain('logo_icon');
+    expect(img.getAttribute('src')).not.toMatch(/^https:\/\//);
+
+    // The wrapper carries the accessible name and the caller's box.
+    const wrapper = screen.getByRole('img', { name: 'SubHalt' });
+    expect(wrapper).toBeInTheDocument();
+    expect(wrapper.className).toContain('w-10 h-10');
   });
 });

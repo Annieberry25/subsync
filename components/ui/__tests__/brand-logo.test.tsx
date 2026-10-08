@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { BrandWordmark, BrandMark } from '@/components/ui/brand-logo';
+import { BrandWordmark, BrandMark, BrandMarkFill } from '@/components/ui/brand-logo';
 
 const nextImageMock = vi.hoisted(() => ({ srcs: [] as string[] }));
 
@@ -112,5 +112,30 @@ describe('BrandMark', () => {
     const img = screen.getByAltText('SubHalt');
     expect(img.style.height).toBe(`${(32 * 2000) / 432}px`);
     expect(img.style.width).toBe(`${(32 * 2000) / 432}px`);
+  });
+});
+
+describe('BrandMarkFill', () => {
+  it('crops by percentage of the wrapper so any square slot fits the artwork', () => {
+    const { container } = render(<BrandMarkFill className="w-10 h-10" />);
+
+    const img = container.querySelector('img') as HTMLImageElement;
+    const pct = (value: number) => `${(value / 432) * 100}%`;
+
+    // Same crop as BrandMark(32) — the 2000px canvas scaled by the artwork's
+    // own height and offset by its origin — but expressed against the box the
+    // caller sized, so 24px and 44px icon slots both land on the artwork.
+    expect(img.style.height).toBe(pct(2000));
+    expect(img.style.width).toBe(pct(2000));
+    expect(img.style.left).toBe(`-${pct(790)}`);
+    expect(img.style.top).toBe(`-${pct(784)}`);
+    expect(img.getAttribute('src')).toContain('logo_icon');
+  });
+
+  it('leaves the accessible name to the caller by rendering decorative art', () => {
+    const { container } = render(<BrandMarkFill />);
+
+    // alt="" — the ServiceIcon wrapper around it is what announces "SubHalt".
+    expect((container.querySelector('img') as HTMLImageElement).getAttribute('alt')).toBe('');
   });
 });

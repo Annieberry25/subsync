@@ -164,4 +164,37 @@ export function BrandMark({ size = 32, className = '', priority = false }: Brand
   );
 }
 
+/**
+ * The mark sized by its container rather than in pixels, for slots whose size
+ * comes from CSS (ServiceIcon renders the same icon in 24px–44px boxes).
+ *
+ * Same crop maths as BrandMark, written in percentages of the wrapper so the
+ * artwork lands exactly on its bounding box at any size. The wrapper must be
+ * square — a single scale drives both axes, so a non-square box would stretch
+ * the artwork — and it must be sized by the caller (e.g. `w-[64%] h-[64%]`).
+ */
+export function BrandMarkFill({ className = '' }: { className?: string }) {
+  const box = ART.mark;
+  const percent = (value: number) => `${(value / box.height) * 100}%`;
+
+  return (
+    <span className={`relative block overflow-hidden ${className}`}>
+      <Image
+        src={SOURCES.mark}
+        alt=""
+        width={CANVAS}
+        height={CANVAS}
+        unoptimized
+        className="absolute max-w-none"
+        style={{
+          height: percent(CANVAS),
+          width: percent(CANVAS),
+          left: `-${percent(box.x)}`,
+          top: `-${percent(box.y)}`,
+        }}
+      />
+    </span>
+  );
+}
+
 export default BrandWordmark;

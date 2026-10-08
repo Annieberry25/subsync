@@ -10,8 +10,19 @@ import {
   initializeTransaction,
   isPaystackConfigured,
   resolvePublicOrigin,
+  transactionMatchesPlan,
+  verifyTransaction,
 } from '@/lib/paystack';
-import { markPlanSubscriptionFailed } from '@/lib/paystack/grants';
+import { grantPlanSubscription, markPlanSubscriptionFailed } from '@/lib/paystack/grants';
+
+/** How far back a `pending` row is still worth settling before it is stale. */
+const PENDING_LOOKBACK_MS = 30 * 60 * 1000;
+
+/** How long a `pending` row is assumed to be a checkout the customer is still inside. */
+const IN_FLIGHT_MS = 5 * 60 * 1000;
+
+const IN_FLIGHT_ERROR =
+  'We are still confirming your previous payment. Please try again in a moment.';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +55,99 @@ export async function POST(request: NextRequest) {
       new Date(profile.plan_expires_at) > new Date()
     ) {
       return NextResponse.json({ alreadyActive: true, expiresAt: profile.plan_expires_at });
+    }
+
+    // The profile can lag behind the payments it was paid for: a grant whose
+    // profiles write never landed, or a cancelled plan that still has its paid
+    // period to ride out. The rows are therefore checked directly, so a
+    // customer who already paid for this month cannot pay for it twice.
+    const { data: paidRow } = await admin
+      .from('plan_subscriptions')
+      .select('expires_at')
+      .eq('user_id', user.id)
+      .in('status', ['paid', 'cancelled'])
+      .gt('expires_at', new Date().toISOString())
+      .limit(1)
+      .maybeSingle();
+
+    if (paidRow?.expires_at) {
+      return NextResponse.json({ alreadyActive: true, expiresAt: paidRow.expires_at });
+    }
+
+    // A checkout from the last half hour is either still being paid or was
+    // abandoned without ever reaching the callback. Settle it before starting
+    // another one: a completed charge is granted here (and then blocks), an
+    // abandoned one is retired so it stops counting, and one Paystack has not
+    // resolved yet stops this request outright — two concurrent checkouts are
+    // how the same month could be paid for more than once.
+    const { data: recentPending } = await admin
+      .from('plan_subscriptions')
+      .select('paystack_reference, amount, currency, created_at')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .gte('created_at', new Date(Date.now() - PENDING_LOOKBACK_MS).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (recentPending) {
+      try {
+        const tx = await verifyTransaction(recentPending.paystack_reference);
+
+        if (
+          transactionMatchesPlan(tx, {
+            reference: recentPending.paystack_reference,
+            amount: recentPending.amount,
+            currency: recentPending.currency ?? '',
+          })
+        ) {
+          // The previous checkout was paid; grant it and refuse the new one.
+          const granted = await grantPlanSubscription(
+            recentPending.paystack_reference,
+            tx.paidAt
+          );
+          if (!granted) {
+            console.error('[paystack/initialize] could not grant settled checkout', {
+              reference: recentPending.paystack_reference,
+            });
+            return NextResponse.json(
+              { error: 'Could not confirm your previous payment. Please try again shortly.' },
+              { status: 502 }
+            );
+          }
+          return NextResponse.json({ alreadyActive: true });
+        }
+
+        if (tx.status === 'failed' || tx.status === 'abandoned') {
+          await markPlanSubscriptionFailed(recentPending.paystack_reference);
+        } else if (tx.status === 'pending') {
+          return NextResponse.json(
+            { pendingConfirmation: true, error: IN_FLIGHT_ERROR },
+            { status: 409 }
+          );
+        }
+        // Any other outcome (a success that does not match the row) is left for
+        // reconcile, which re-verifies against Paystack — checkout proceeds so
+        // the customer is never locked out by a row nothing here can settle.
+      } catch (err) {
+        console.error('[paystack/initialize] could not settle recent checkout', {
+          reference: recentPending.paystack_reference,
+          message: err instanceof Error ? err.message : String(err),
+        });
+
+        const ageMs = Date.now() - new Date(recentPending.created_at).getTime();
+        if (ageMs < IN_FLIGHT_MS) {
+          // Too recent to be abandoned: the customer may be paying right now,
+          // and starting a second checkout here is exactly what must not happen.
+          return NextResponse.json(
+            { pendingConfirmation: true, error: IN_FLIGHT_ERROR },
+            { status: 409 }
+          );
+        }
+        // Unverifiable and stale. Retire it (reconcile re-checks failed rows for
+        // 24h, so a payment that really did land is still recoverable).
+        await markPlanSubscriptionFailed(recentPending.paystack_reference);
+      }
     }
 
     let charge;
