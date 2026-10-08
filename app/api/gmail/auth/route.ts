@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth/access';
 import {
+  createGmailState,
   createGoogleAuthUrl,
   GMAIL_STATE_COOKIE,
   isGmailConfigured,
@@ -12,7 +12,9 @@ import {
 /**
  * Starts the Google OAuth consent flow. Returns the accounts.google.com URL the
  * browser should navigate to. A short-lived httpOnly cookie holds the CSRF
- * `state` value that the callback validates on return.
+ * `state` value that the callback validates on return; the state itself is also
+ * bound to the authenticated user id so it can never be replayed against a
+ * different account.
  */
 export async function GET() {
   try {
@@ -27,7 +29,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized user session.' }, { status: 401 });
     }
 
-    const state = crypto.randomBytes(16).toString('hex');
+    const state = createGmailState(user.id);
     const cookieStore = await cookies();
     cookieStore.set(GMAIL_STATE_COOKIE, state, {
       httpOnly: true,
@@ -40,8 +42,7 @@ export async function GET() {
     const url = createGoogleAuthUrl(state, user.email ?? undefined);
     return NextResponse.json({ url });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-    console.error('[gmail/auth] unexpected error:', msg);
+    console.error('[gmail/auth] unexpected error:', err instanceof Error ? err.message : err);
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }

@@ -55,10 +55,19 @@ export async function isRateLimited(request: Request): Promise<boolean> {
 }
 
 export function getClientIp(request: Request): string {
+  // x-real-ip is set by the trusted proxy and cannot be spoofed by the client,
+  // so it wins over the forwarded chain.
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) return realIp;
+
+  // When only x-forwarded-for exists, trust the RIGHTMOST value. Proxies append
+  // the real client IP as the final entry and the browser-supplied value is the
+  // leftmost, so using the first entry would let an attacker rotate buckets by
+  // sending a different header value per request, bypassing the limiter.
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
-    const first = forwarded.split(',')[0].trim();
-    if (first) return first;
+    const last = forwarded.split(',').pop()?.trim();
+    if (last) return last;
   }
-  return request.headers.get('x-real-ip') || 'unknown';
+  return 'unknown';
 }

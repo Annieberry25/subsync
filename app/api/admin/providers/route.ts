@@ -40,6 +40,6 @@ export async function POST(request: Request) {
     return NextResponse.json(row, { status: 201 });
   } catch (err) {
     console.error('[admin/providers] unexpected error:', err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'An unexpected error occurred.' }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }

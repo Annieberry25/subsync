@@ -101,10 +101,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[ai] failed to generate answer', err);
     return NextResponse.json(
-      { error: message, errorLabel: 'ai' },
+      { error: 'Something went wrong while generating an answer. Please try again.', errorLabel: 'ai' },
       { status: 500 }
     );
   }

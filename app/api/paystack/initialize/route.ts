@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let reference = generateTransactionReference(user.id);
+    let reference = generateTransactionReference();
 
     // Record the pending payment BEFORE any checkout exists. Both the callback
     // and the webhook settle against this row, so a charge raised without one

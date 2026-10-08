@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Resend } from 'resend';
 import { logger } from '@/lib/logger';
-import { renderWelcomeEmail, renderSubscriptionCreatedEmail, renderRenewalReminderEmail } from './templates';
+import { renderWelcomeEmail, renderSubscriptionCreatedEmail, renderRenewalReminderEmail, renderAccountDeleteCodeEmail } from './templates';
 import { SIGN_IN_URL } from './layout';
 import type { EmailKind, SubscriptionEmailData } from './types';
 
@@ -106,4 +106,14 @@ export function sendRenewalReminderEmail(
   return deliver(to, subject, html);
 }
 
-export const EMAIL_KINDS: EmailKind[] = ['welcome', 'subscription_created', 'renewal_reminder'];
+export function sendAccountDeleteCodeEmail(to: string, code: string): Promise<SendResult> {
+  const { subject, html } = renderAccountDeleteCodeEmail(code);
+  return deliver(to, subject, html);
+}
+
+export const EMAIL_KINDS: EmailKind[] = [
+  'welcome',
+  'subscription_created',
+  'renewal_reminder',
+  'account_delete_code',
+];

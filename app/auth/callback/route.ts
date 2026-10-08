@@ -45,18 +45,14 @@ export async function GET(request: Request) {
   const nextParam = requestUrl.searchParams.get('next');
   const safePath = getSafeRedirectUrl(nextParam);
 
-  const forwardedHost = request.headers.get('x-forwarded-host');
-  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
-  const isLocalEnv = process.env.NODE_ENV === 'development';
-
-  let baseOrigin: string;
-  if (isLocalEnv) {
-    baseOrigin = requestUrl.origin;
-  } else if (forwardedHost) {
-    baseOrigin = `${forwardedProto}://${forwardedHost}`;
-  } else {
-    baseOrigin = getSiteUrl();
-  }
+  // The post-callback redirect base. Forwarded headers are never consulted:
+  // `x-forwarded-*` is client-controllable wherever a proxy stops overwriting
+  // it, and using it for a redirect turns into an open redirect. Production
+  // always uses the canonical site URL; development uses the request's own
+  // origin so localhost/preview hosts stay self-consistent (the PKCE verifier
+  // cookie is host-scoped).
+  const baseOrigin =
+    process.env.NODE_ENV === 'development' ? requestUrl.origin : getSiteUrl();
 
   // Supabase redirects here with `error`/`error_description` when it refuses the
   // callback (site URL not allow-listed, user cancelled, provider denied).

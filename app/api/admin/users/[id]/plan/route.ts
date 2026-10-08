@@ -42,6 +42,6 @@ export async function POST(
     return NextResponse.json({ ok: true, action: 'grant', tier: parsed.data.tier });
   } catch (err) {
     console.error('[admin/users/:id/plan] unexpected error:', err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'An unexpected error occurred.' }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }

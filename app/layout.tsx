@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
-import { ADSENSE_CLIENT, ADSENSE_LOADER_SRC } from "@/lib/config/adsense";
+import { ADSENSE_CLIENT, ADSENSE_ENABLED, ADSENSE_LOADER_SRC } from "@/lib/config/adsense";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -129,6 +129,11 @@ export default function RootLayout({
           present. React hoists a plain <script async src> into <head> during SSR,
           which produces exactly the markup Google's snippet asks for.
 
+          The loader only renders once an ad slot id exists (ADSENSE_ENABLED).
+          Until then no third-party script is loaded at all, and next.config.ts
+          keeps pagead2.googlesyndication.com out of the CSP script-src so the
+          whitelist matches what the page actually executes.
+
           Combined with the google-adsense-account meta tag in `metadata.other`,
           which is the officially supported alternative verification method and is
           emitted natively, so verification no longer depends on either mechanism
@@ -138,11 +143,8 @@ export default function RootLayout({
           loader places nothing until something pushes to window.adsbygoogle —
           which nothing does until an ad slot is configured. So no ad and no
           placeholder render in the meantime.
-
-          Requires the matching script-src allowance in next.config.ts; the
-          Content-Security-Policy there would otherwise block it.
         */}
-        <script async src={ADSENSE_LOADER_SRC} crossOrigin="anonymous" />
+        {ADSENSE_ENABLED && <script async src={ADSENSE_LOADER_SRC} crossOrigin="anonymous" />}
         <AppShell>{children}</AppShell>
       </body>
     </html>

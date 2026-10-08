@@ -42,6 +42,20 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    // Matches lib/config/adsense.ts: the loader is only emitted (and only needs
+    // network access) once an actual ad slot id has been configured. With no
+    // slot the script-src allowance stays out of the header so the CSP no
+    // longer whitelists a third-party host the app never loads.
+    const adsenseClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() || 'ca-pub-4851652738657758';
+    const adsEnabled = Boolean(adsenseClient && process.env.NEXT_PUBLIC_ADSENSE_AD_SLOT?.trim());
+
+    const scriptSources = ["'self'", "'unsafe-inline'"];
+    // 'unsafe-eval' is only required by Next's dev-mode client runtime; the
+    // production build does not use eval, so shipping the allowance production
+    // weakens the CSP for no functional gain.
+    if (process.env.NODE_ENV !== 'production') scriptSources.push("'unsafe-eval'");
+    if (adsEnabled) scriptSources.push('https://pagead2.googlesyndication.com');
+
     return [
       {
         source: '/(.*)',
@@ -57,12 +71,11 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               // pagead2.googlesyndication.com serves the AdSense loader declared
-              // in app/layout.tsx. Without this the script is blocked outright and
-              // AdSense verification cannot see it. Serving actual ad units later
-              // will additionally need frame-src for googleads.g.doubleclick.net
-              // and connect-src for the same host — not required while the loader
-              // runs with auto ads off and no ad units pushed.
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://pagead2.googlesyndication.com",
+              // in app/layout.tsx, but it is only whitelisted (and only loaded)
+              // once an ad slot id exists. Serving actual ad units later will
+              // additionally need frame-src for googleads.g.doubleclick.net and
+              // connect-src for the same host.
+              `script-src ${scriptSources.join(' ')}`,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https://img.logo.dev https://*.googleusercontent.com data: blob:",
               "font-src 'self' https://fonts.gstatic.com data:",

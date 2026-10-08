@@ -19,10 +19,9 @@ export async function POST() {
     const result = await scanGmailForSubscriptions(user.id);
     return NextResponse.json(result);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-    console.error('[gmail/scan] unexpected error:', msg);
+    console.error('[gmail/scan] unexpected error:', err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { error: 'Gmail scan failed. Please try again.', detail: msg },
+      { error: 'Gmail scan failed. Please try again.' },
       { status: 500 }
     );
   }

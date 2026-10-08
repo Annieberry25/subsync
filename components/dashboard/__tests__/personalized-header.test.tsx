@@ -4,6 +4,21 @@ import { render, screen } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
 import { getGreeting, getFormattedDateString } from '@/components/dashboard/personalized-header';
 
+// Mocks are hoisted to the top of the module by vitest, so they must live at
+// top level rather than nested inside a describe block (vitest 5 rejects the
+// nested form).
+const mocks = vi.hoisted(() => ({ user: null as { email: string } | null }));
+
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    auth: { getUser: vi.fn(async () => ({ data: { user: mocks.user } })) },
+  }),
+}));
+
+vi.mock('@/lib/contexts/user-settings-context', () => ({
+  useAuth: () => ({ fullName: 'Ada', email: 'ada@example.com' }),
+}));
+
 /**
  * Regression: the greeting and the date string were `useState` initialisers that
  * called `new Date()` internally. An initialiser runs during render on the
@@ -77,18 +92,6 @@ describe('getFormattedDateString', () => {
 });
 
 describe('hydration safety', () => {
-  const mocks = vi.hoisted(() => ({ user: null as { email: string } | null }));
-
-  vi.mock('@/lib/supabase/client', () => ({
-    createClient: () => ({
-      auth: { getUser: vi.fn(async () => ({ data: { user: mocks.user } })) },
-    }),
-  }));
-
-  vi.mock('@/lib/contexts/user-settings-context', () => ({
-    useAuth: () => ({ fullName: 'Ada', email: 'ada@example.com' }),
-  }));
-
   /**
    * The server render must not contain a time-of-day greeting at all, because it
    * cannot know the viewer's timezone. If it does, that is the mismatch coming

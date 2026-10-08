@@ -12,4 +12,8 @@ export interface SubscriptionEmailData {
 }
 
 /** Resend only accepts these; anything else is a template bug rather than data. */
-export type EmailKind = 'welcome' | 'subscription_created' | 'renewal_reminder';
+export type EmailKind =
+  | 'welcome'
+  | 'subscription_created'
+  | 'renewal_reminder'
+  | 'account_delete_code';

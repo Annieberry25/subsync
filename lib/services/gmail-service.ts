@@ -7,6 +7,7 @@
  */
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
+import { randomBytes } from 'node:crypto';
 import type { gmail_v1 } from 'googleapis';
 import { env } from '@/lib/env';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -20,6 +21,14 @@ import {
   stripHtmlToText,
   GENERIC_PROVIDER_NAME,
 } from '@/lib/services/receipt-discovery';
+import {
+  encryptGmailCredentials,
+  decryptGmailCredentials,
+  isGmailTokenEncryptionConfigured,
+  looksEncrypted,
+  warnMissingEncryptionKey,
+  type StoredGmailCredentials,
+} from '@/lib/services/gmail-token-crypto';
 import type { DiscoveredSubscription } from '@/lib/types/gmail.types';
 
 export type GmailConnectionRow = Database['public']['Tables']['gmail_connections']['Row'];
@@ -34,6 +43,28 @@ export interface GmailCredentials {
 
 export const GMAIL_READONLY_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 export const GMAIL_STATE_COOKIE = 'subhalt_gmail_oauth_state';
+
+/**
+ * CSRF state for the Gmail OAuth flow, bound to the user who started it.
+ *
+ * Format: `<hex nonce>.<user id>`. The nonce is stored in an httpOnly cookie
+ * and validated on return; the embedded user id additionally pins the state to
+ * the authenticated session, so a state minted for one account cannot be
+ * replayed against another even if it leaks somewhere the cookie does not.
+ */
+export function createGmailState(userId: string): string {
+  const nonce = randomBytes(16).toString('hex');
+  return `${nonce}.${userId}`;
+}
+
+/** Does this `state` belong to `userId` and parse as a nonce.userId pair? */
+export function gmailStateMatches(state: string, userId: string): boolean {
+  const separator = state.lastIndexOf('.');
+  if (separator <= 0) return false;
+  const nonce = state.slice(0, separator);
+  const boundUserId = state.slice(separator + 1);
+  return boundUserId === userId && /^[a-f0-9]{32}$/.test(nonce);
+}
 
 export interface GmailStatus {
   connected: boolean;
@@ -124,12 +155,28 @@ export async function storeGmailConnection(
   tokens: GmailCredentials,
   scope: string
 ): Promise<void> {
+  // Only the refresh credential is ever written. The access_token and
+  // expiry_date are short-lived and regenerated from the refresh token on
+  // demand, so persisting them just widens the blast radius of a leak.
+  const stored: StoredGmailCredentials = {
+    refresh_token: tokens.refresh_token,
+    scope: tokens.scope ?? scope,
+    token_type: tokens.token_type,
+  };
+
+  let credentialsValue: string | StoredGmailCredentials = stored;
+  if (isGmailTokenEncryptionConfigured()) {
+    credentialsValue = encryptGmailCredentials(stored);
+  } else {
+    warnMissingEncryptionKey();
+  }
+
   const admin = createAdminClient();
   await admin.from('gmail_connections').upsert(
     {
       user_id: userId,
       email,
-      credentials: normalizeCredentials(tokens) as unknown as Json,
+      credentials: credentialsValue as unknown as Json,
       scope,
       status: 'connected',
     },
@@ -149,6 +196,42 @@ export async function getGmailConnection(
   return data ?? null;
 }
 
+/**
+ * Read the stored refresh credentials back out of a row.
+ *
+ * Accepts both the encrypted blob format (current) and the legacy plaintext
+ * object so pre-encryption rows keep working. When encryption is configured and
+ * a plaintext row is found, it is re-encrypted in place.
+ */
+async function readGmailCredentials(
+  admin: ReturnType<typeof createAdminClient>,
+  conn: GmailConnectionRow
+): Promise<StoredGmailCredentials> {
+  const raw = conn.credentials as unknown;
+
+  if (looksEncrypted(raw)) {
+    if (!isGmailTokenEncryptionConfigured()) {
+      // Encrypted on disk, key now missing: the token is unreadable. Do not
+      // silently delete the row; surface the configuration gap.
+      throw new Error('Gmail credentials are encrypted but GMAIL_TOKEN_ENCRYPTION_KEY is not configured.');
+    }
+    return decryptGmailCredentials(raw);
+  }
+
+  if (isGmailTokenEncryptionConfigured()) {
+    // Legacy plaintext row; upgrade it now that a key exists.
+    const creds = raw as unknown as StoredGmailCredentials;
+    await admin
+      .from('gmail_connections')
+      .update({ credentials: encryptGmailCredentials(creds) as unknown as Json })
+      .eq('user_id', conn.user_id);
+    return creds;
+  }
+
+  warnMissingEncryptionKey();
+  return (raw ?? {}) as StoredGmailCredentials;
+}
+
 /** Build an authenticated Gmail client for the user (refresh handled automatically). */
 export async function getAuthedGmailClient(
   userId: string
@@ -157,8 +240,21 @@ export async function getAuthedGmailClient(
   if (!conn || conn.status !== 'connected') {
     throw new Error('Gmail is not connected.');
   }
+  const admin = createAdminClient();
+  const credentials = await readGmailCredentials(admin, conn);
+  if (!credentials.refresh_token) {
+    throw new Error('Gmail connection is missing a refresh token.');
+  }
   const client = createGoogleOAuthClient();
-  client.setCredentials(conn.credentials as unknown as GmailCredentials);
+  client.setCredentials({
+    refresh_token: credentials.refresh_token,
+    scope: credentials.scope,
+    token_type: credentials.token_type,
+  });
+  // Force a token exchange up front so a caller can never act on a stale or
+  // absent access_token. The library refreshes whenever the stored access token
+  // is missing/expiring, and we never persisted one.
+  await client.getAccessToken();
   const gmail = google.gmail({ version: 'v1', auth: client });
   return { gmail, email: conn.email };
 }
@@ -167,12 +263,11 @@ export async function disconnectGmail(userId: string): Promise<void> {
   const conn = await getGmailConnection(userId);
   if (conn) {
     try {
-      const client = createGoogleOAuthClient();
-      client.setCredentials(conn.credentials as unknown as GmailCredentials);
-      if (conn.credentials && (conn.credentials as Json & { refresh_token?: string }).refresh_token) {
-        await client.revokeToken(
-          (conn.credentials as Json & { refresh_token: string }).refresh_token
-        );
+      const admin = createAdminClient();
+      const credentials = await readGmailCredentials(admin, conn);
+      if (credentials.refresh_token) {
+        const client = createGoogleOAuthClient();
+        await client.revokeToken(credentials.refresh_token);
       }
     } catch {
       // Revocation is best-effort; the stored row is still removed below.

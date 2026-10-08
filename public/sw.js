@@ -40,6 +40,17 @@ self.addEventListener('notificationclick', (event) => {
     self.location.origin
   );
 
+  // The notification payload originates from our API, but a compromised or
+  // buggy sender is one bad payload away from turning a tap into a navigation
+  // to an arbitrary origin. Refuse to open anything off-origin and fall back to
+  // the app landing page instead.
+  if (targetUrl.origin !== self.location.origin) {
+    event.waitUntil(
+      self.clients.openWindow(new URL('/', self.location.origin).href).then(() => undefined)
+    );
+    return;
+  }
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

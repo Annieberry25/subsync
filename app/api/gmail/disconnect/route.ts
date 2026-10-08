@@ -14,8 +14,7 @@ export async function POST() {
     await disconnectGmail(user.id);
     return NextResponse.json({ connected: false });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-    console.error('[gmail/disconnect] unexpected error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[gmail/disconnect] unexpected error:', err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }

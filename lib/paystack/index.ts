@@ -64,37 +64,39 @@ export function isPaystackConfigured(): boolean {
  * hyphens. Whatever Paystack echoes back becomes the key both the callback and
  * the webhook match on, so it must never be rewritten under us.
  */
-export function generateTransactionReference(userId: string): string {
-  const userIdFragment = userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
-  const entropy = randomBytes(6).toString('hex').toUpperCase();
-  return `SUBHALT-${userIdFragment}-${Date.now()}-${entropy}`;
+export function generateTransactionReference(): string {
+  // The reference deliberately carries no part of the user id: Paystack echoes
+  // it back to the browser and in email receipts, so embedding the auth UUID
+  // leaks it to anyone who sees the reference. Entropy comes from 12 random
+  // bytes plus the timestamp.
+  const entropy = randomBytes(12).toString('hex').toUpperCase();
+  return `SUBHALT-${Date.now()}-${entropy}`;
 }
 
 /**
  * Origin the browser should be sent back to for a request that arrived here.
  *
- * Forwarded headers win because a deployment behind a proxy sees an internal
- * host, and the origin is used for both the Paystack `callback_url` and the
- * post-verification redirect. Deriving it from the request (rather than only
- * from NEXT_PUBLIC_SITE_URL) keeps preview deployments, localhost and the
- * apex domain self-consistent: session cookies are host-scoped, so bouncing
- * the user to a different host after checkout strands them without a session
- * even though their payment went through.
+ * The origin is used for both the Paystack `callback_url` and the
+ * post-verification redirect. Forwarded headers never win here: `x-forwarded-*`
+ * is attacker-controllable anywhere a reverse proxy or deployment stops
+ * overwriting it, and using it for a redirect escalates to an open redirect.
+ * Production always comes from the configured canonical origin so a checkout
+ * can never bounce a user to an attacker-chosen host. Development (and test)
+ * uses the request's own origin so preview deployments and localhost stay
+ * self-consistent — session cookies are host-scoped, so bouncing the user to a
+ * different host strands them without a session even though their payment went
+ * through.
  */
 export function resolvePublicOrigin(request: Request): string {
-  const forwardedHost = request.headers.get('x-forwarded-host');
-  if (forwardedHost) {
-    const host = forwardedHost.split(',')[0].trim();
-    const forwardedProto = request.headers.get('x-forwarded-proto');
-    const proto = (forwardedProto?.split(',')[0].trim()) || 'https';
-    if (host) return `${proto}://${host}`;
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      return new URL(request.url).origin;
+    } catch {
+      return getSiteUrl();
+    }
   }
 
-  try {
-    return new URL(request.url).origin;
-  } catch {
-    return getSiteUrl();
-  }
+  return getSiteUrl();
 }
 
 export interface InitializeTransactionParams {

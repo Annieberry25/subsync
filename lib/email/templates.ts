@@ -119,6 +119,31 @@ export function renderRenewalReminderEmail(
   };
 }
 
+/**
+ * 4. Account deletion code.
+ *
+ * Only reached by accounts with no password (OAuth-only sign-in), where the
+ * delete-account confirmation cannot ask for a password.
+ */
+export function renderAccountDeleteCodeEmail(code: string): RenderedEmail {
+  return {
+    subject: 'Your account deletion code',
+    html: renderEmailLayout({
+      preheader: 'Use this code to confirm account deletion.',
+      heading: 'Confirm account deletion',
+      bodyHtml: [
+        emailParagraph(
+          'Use the code below to confirm that you want to permanently delete your SubHalt account. It expires in a few minutes.'
+        ),
+        emailDetailRow('Your code', code),
+        emailFinePrint(
+          'If you did not request this, you can safely ignore this email and your account will stay active.'
+        ),
+      ].join(''),
+    }),
+  };
+}
+
 function formatCadence(
   billingCycle: string | null | undefined,
   price: number,
