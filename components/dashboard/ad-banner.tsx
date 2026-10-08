@@ -16,7 +16,7 @@ declare global {
 }
 
 interface AdBannerProps {
-  planTier?: 'free' | 'premium' | 'family';
+  planTier?: 'free' | 'plus' | 'premium' | 'family';
   adSlot?: string;
   className?: string;
 }

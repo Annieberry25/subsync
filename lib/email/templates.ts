@@ -122,8 +122,8 @@ export function renderRenewalReminderEmail(
 /**
  * 4. Account deletion code.
  *
- * Only reached by accounts with no password (OAuth-only sign-in), where the
- * delete-account confirmation cannot ask for a password.
+ * Sent to every user before account deletion — ownership is always proven by
+ * access to the account email, password or OAuth-only alike.
  */
 export function renderAccountDeleteCodeEmail(code: string): RenderedEmail {
   return {

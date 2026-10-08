@@ -14,10 +14,12 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { useInbox, type InboxItem } from '@/lib/contexts/inbox-context';
+import { usePlan } from '@/lib/contexts/user-settings-context';
 import { fetchSubscriptions, type SubscriptionRow } from '@/lib/services/subscription-service';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 import PaymentReminderModal from '@/components/subscriptions/payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
+import { AdBanner } from '@/components/dashboard/ad-banner';
 import { useToast } from '@/lib/hooks/use-toast';
 
 type FilterTab = 'all' | 'unread' | 'action_required' | 'marked_as_read' | 'favourited' | 'archived';
@@ -25,6 +27,7 @@ type FilterTab = 'all' | 'unread' | 'action_required' | 'marked_as_read' | 'favo
 export default function InboxPageContent() {
   const router = useRouter();
   const { toast } = useToast();
+  const { planTier } = usePlan();
   const { 
     items, 
     archivedItems, 
@@ -550,6 +553,9 @@ export default function InboxPageContent() {
           </p>
         </div>
       )}
+
+      {/* SPONSOR ADVERTISEMENT (After scanning the attention queue) */}
+      {hasItemsToShow && <AdBanner planTier={planTier} />}
 
       {/* Explicit Delete Confirmation Dialog */}
       <ConfirmDialog

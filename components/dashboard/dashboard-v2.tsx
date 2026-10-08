@@ -94,7 +94,7 @@ function MetricCard({
 export default function DashboardV2() {
   const { toast } = useToast();
   const { defaultCurrency, exchangeRates } = useCurrency();
-  const { isPlus } = usePlan();
+  const { isPlus, planTier } = usePlan();
 
   /* The localStorage cache must not seed this state. On the server
      getCachedSubscriptions() returns null (no window), but on the client it
@@ -357,7 +357,7 @@ const handleSave = async (
   return (
     <div className="animate-page-transition space-y-5 sm:space-y-6 bg-ambient-grid min-h-[85dvh] pb-8 sm:pb-12 overflow-x-clip">
       {/* 0. SPONSOR ADVERTISEMENT (Restrained Top Strip) */}
-      {!loading && <AdBanner planTier="free" />}
+      {!loading && <AdBanner planTier={planTier} />}
 
       {/* 1. HEADER SECTION (Greeting) */}
       <div>
@@ -450,6 +450,9 @@ const handleSave = async (
           </MetricCard>
         </StatGrid>
       )}
+
+      {/* 4. SPONSOR ADVERTISEMENT (Mid-feed, after the KPIs are absorbed) */}
+      {!loading && <AdBanner planTier={planTier} />}
 
       {/* 3. OVERVIEW: UPCOMING RENEWALS | MOST EXPENSIVE PLAN | SAVINGS RECOMMENDATIONS | SPENDING BY CATEGORY */}
       {!loading && (

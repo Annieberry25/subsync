@@ -10,9 +10,10 @@ import { sendAccountDeleteCodeEmail } from '@/lib/email/send';
 /**
  * Emails a one-time deletion code to the signed-in user.
  *
- * Only relevant for accounts with no password (OAuth-only sign-in): password
- * accounts confirm deletion with the password itself. The code is stateless
- * (HMAC of userId + time window) so there is nothing to leak from a database.
+ * Every account confirms deletion with this code, password or OAuth-only alike,
+ * so ownership is always proven by access to the account email. The code is
+ * stateless (HMAC of userId + time window) so there is nothing to leak from a
+ * database.
  */
 export async function POST() {
   const supabase = await createClient();
@@ -24,15 +25,6 @@ export async function POST() {
 
   if (!user.email) {
     return NextResponse.json({ error: 'Unable to verify your account email.' }, { status: 400 });
-  }
-
-  const hasPasswordIdentity =
-    Array.isArray(user.identities) && user.identities.some((id) => id.provider === 'email');
-  if (hasPasswordIdentity) {
-    return NextResponse.json(
-      { error: 'This account uses a password. Enter it to confirm deletion instead.' },
-      { status: 400 }
-    );
   }
 
   if (!isAccountDeleteCodeConfigured()) {

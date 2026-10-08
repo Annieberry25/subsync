@@ -22,57 +22,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unable to verify your account email.' }, { status: 400 });
     }
 
-    // 3. Re-authenticate to confirm ownership.
-    //    Password accounts confirm with the password; OAuth-only accounts (no
-    //    password identity) confirm with a one-time code emailed server-side.
-    const hasPasswordIdentity =
-      Array.isArray(user.identities) && user.identities.some((id) => id.provider === 'email');
+    // 3. Confirm ownership with the one-time code emailed to the account. This is
+    //    required for every account, password or OAuth-only alike, so both factors
+    //    (something you know + access to the account email) back the deletion.
+    const code = typeof body.code === 'string' ? body.code : '';
+    if (!code) {
+      return NextResponse.json(
+        { error: 'Request a deletion code, then enter it here to confirm.' },
+        { status: 400 }
+      );
+    }
 
-    if (hasPasswordIdentity) {
-      const password = typeof body.password === 'string' ? body.password : '';
-      if (!password) {
-        return NextResponse.json(
-          { error: 'Password is required to delete your account.' },
-          { status: 400 }
-        );
-      }
+    if (!verifyAccountDeleteCode(user.id, code)) {
+      return NextResponse.json(
+        { error: 'Invalid or expired code. Request a new one and try again.' },
+        { status: 401 }
+      );
+    }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password,
-      });
+    // 4. Record the (optional) reason for leaving before the user is deleted, so
+    //    the team can act on churn feedback. No policies exist on this table, so
+    //    only the service-role client can write to it.
+    const adminClient = createAdminClient();
 
-      if (signInError) {
-        return NextResponse.json(
-          { error: 'Incorrect password. Please try again.' },
-          { status: 401 }
-        );
-      }
-    } else {
-      const code = typeof body.code === 'string' ? body.code : '';
-      if (!code) {
-        return NextResponse.json(
-          {
-            error:
-              'This account does not use a password. Request a deletion code, then enter it here.',
-          },
-          { status: 400 }
-        );
-      }
+    const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 2000) : '';
+    if (reason) {
+      const { error: feedbackError } = await adminClient
+        .from('account_deletion_reasons')
+        .insert({ user_id: user.id, email: user.email, reason });
 
-      if (!verifyAccountDeleteCode(user.id, code)) {
-        return NextResponse.json(
-          { error: 'Invalid or expired code. Request a new one and try again.' },
-          { status: 401 }
-        );
+      if (feedbackError) {
+        console.warn('[delete-account] Failed to record deletion reason:', feedbackError.message);
       }
     }
 
-    // 4. Delete the user via the admin API using the server-only service-role key.
+    // 5. Delete the user via the admin API using the server-only service-role key.
     //    Referential integrity (ON DELETE CASCADE) removes profiles, subscriptions,
     //    bill_payments, and name_change_log rows.
-    const adminClient = createAdminClient();
-
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
 
     if (deleteError) {

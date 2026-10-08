@@ -1,12 +1,12 @@
 /**
  * Stateless, email-delivered verification for high-risk account actions.
  *
- * OAuth-only users (e.g. "Sign in with Google") have no password, so the
- * delete-account re-authentication step cannot ask for one. Instead the app
- * emails a 6-digit code that is the HMAC of `userId` + a 30-second time window,
- * signed with a server secret. No state is stored; the code is valid for the
- * window it was issued in plus one step on each side to absorb clock skew and
- * delivery lag.
+ * Deleting an account requires this code for every user, password or
+ * OAuth-only alike, so ownership is always proven by access to the account
+ * email. The app emails a 6-digit code that is the HMAC of `userId` + a
+ * 30-second time window, signed with a server secret. No state is stored; the
+ * code is valid for the window it was issued in plus one step on each side to
+ * absorb clock skew and delivery lag.
  *
  * The signing key comes from ACCOUNT_DELETE_SIGNING_KEY, falling back to the
  * existing SUPABASE_WEBHOOK_SECRET / CRON_SECRET values so deployments that

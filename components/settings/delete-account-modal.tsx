@@ -1,7 +1,7 @@
 'use client';
 import { clearLocalStorage } from '@/lib/safe-local-storage';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Sheet from '@/components/ui/sheet';
 
@@ -11,45 +11,43 @@ interface DeleteAccountModalProps {
   onDeleted: () => void;
 }
 
+const DELETE_REASONS = [
+  'Too expensive',
+  'Missing features',
+  'Bugs / technical issues',
+  'Privacy concerns',
+  'Switching to another app',
+  'Other',
+] as const;
+
 export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccountModalProps) {
-  // Built once so the instance identity is stable across renders (otherwise the
-  // identity-fetching effect below would re-run on every keystroke).
+  // Built once so the instance identity is stable across renders.
   const [supabase] = useState(() => createClient());
-  const [hasPassword, setHasPassword] = useState(true);
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState<'reason' | 'code'>('reason');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Accounts signed in only through an OAuth provider (e.g. Google) have no
-  // password, so the delete confirmation asks for a one-time emailed code
-  // instead. The server checks the same identity list, so this is UI only.
-  useEffect(() => {
-    let cancelled = false;
-    supabase.auth.getUser().then(({ data }) => {
-      if (cancelled) return;
-      setHasPassword(
-        !Array.isArray(data.user?.identities) ||
-          data.user.identities.length === 0 ||
-          data.user.identities.some((id) => id.provider === 'email')
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase]);
+  const [reasonLabel, setReasonLabel] = useState<string>('');
+  const [reasonNote, setReasonNote] = useState('');
 
   const handleClose = () => {
     if (loading) return;
-    setPassword('');
-    setShowPassword(false);
+    setStep('reason');
     setCode('');
     setCodeSent(false);
     setError(null);
     onClose();
+  };
+
+  const handleContinue = () => {
+    setError(null);
+    if (!reasonLabel && !reasonNote.trim()) {
+      setError('Please tell us why you are leaving so we can keep improving.');
+      return;
+    }
+    setStep('code');
   };
 
   const handleSendCode = async () => {
@@ -75,11 +73,7 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
   const handleDelete = async () => {
     setError(null);
 
-    if (hasPassword && !password) {
-      setError('Please enter your password to confirm account deletion.');
-      return;
-    }
-    if (!hasPassword && !code) {
+    if (!code) {
       setError('Enter the code sent to your email to confirm account deletion.');
       return;
     }
@@ -94,30 +88,13 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
         return;
       }
 
-      let body: Record<string, string> = {};
-      if (hasPassword) {
-        // 1a. Re-authenticate with the current password (fresh session token required).
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: user.email,
-          password,
-        });
+      const reason = [reasonLabel, reasonNote.trim()].filter(Boolean).join(' — ');
 
-        if (signInError) {
-          setError('Incorrect password. Please enter your current account password to authorize deletion.');
-          setLoading(false);
-          return;
-        }
-        body = { password };
-      } else {
-        // 1b. The one-time emailed code is verified server-side.
-        body = { code };
-      }
-
-      // 2. Perform deletion server-side to avoid depending on client state.
+      // Deletion is performed server-side to avoid depending on client state.
       const res = await fetch('/api/profile/delete-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ code, reason }),
       });
 
       if (!res.ok) {
@@ -127,7 +104,7 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
         return;
       }
 
-      // 3. Clear local data and notify parent.
+      // Clear local data and notify parent.
       if (typeof window !== 'undefined') {
         clearLocalStorage();
       }
@@ -147,33 +124,54 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
       description="This action is permanent. All subscriptions, bills, and settings will be erased. Confirm that you own this account to continue."
       footer={
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={loading}
-            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer border border-[#1A1D1D] disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          {!hasPassword && (
-            <button
-              type="button"
-              onClick={handleSendCode}
-              disabled={loading || sendingCode || codeSent}
-              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer border border-[#1A1D1D] disabled:opacity-50"
-            >
-              {sendingCode ? 'Sending…' : codeSent ? 'Code sent' : 'Send code'}
-            </button>
+          {step === 'reason' ? (
+            <>
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={loading}
+                className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer border border-[#1A1D1D] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleContinue}
+                disabled={loading}
+                className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#D9363E] hover:bg-[#B91C1C] text-white transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Continue
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={loading}
+                className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer border border-[#1A1D1D] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendCode}
+                disabled={loading || sendingCode || codeSent}
+                className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer border border-[#1A1D1D] disabled:opacity-50"
+              >
+                {sendingCode ? 'Sending…' : codeSent ? 'Code sent' : 'Send code'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={loading}
+                className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#D9363E] hover:bg-[#B91C1C] text-white flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {loading && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                <span>{loading ? 'Deleting…' : 'Delete My Account'}</span>
+              </button>
+            </>
           )}
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={loading}
-            className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#D9363E] hover:bg-[#B91C1C] text-white flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {loading && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
-            <span>{loading ? 'Deleting…' : 'Delete My Account'}</span>
-          </button>
         </div>
       }
     >
@@ -185,50 +183,68 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
           </div>
         )}
 
-        {hasPassword ? (
-          <>
-            {/* Password. `data-sheet-autofocus` focuses it once the entrance
-                animation has started, which is also what scrolls it clear of the
-                on-screen keyboard on a phone. */}
+        {step === 'reason' ? (
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-[#94A3B8]">
+              We&apos;re sorry to see you go. Tell us why you&apos;re leaving so we can make
+               SubHalt better.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {DELETE_REASONS.map((reason) => (
+                <button
+                  key={reason}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setReasonLabel(reasonLabel === reason ? '' : reason)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer disabled:opacity-50 ${
+                    reasonLabel === reason
+                      ? 'bg-[#D9363E]/15 text-[#FCA5A5] border border-[#D9363E]/40'
+                      : 'bg-[#0D0F0F] text-[#94A3B8] border border-[#1A1D1D] hover:text-[#F5F7F6]'
+                  }`}
+                >
+                  {reason}
+                </button>
+              ))}
+            </div>
             <div className="space-y-1.5">
-              <label htmlFor="delete-password" className="text-[12px] font-medium text-[#94A3B8] block">
-                Current Password
+              <label htmlFor="delete-reason-note" className="text-[12px] font-medium text-[#94A3B8] block">
+                Tell us more <span className="text-[#64748B]">(optional)</span>
               </label>
-              <input
-                id="delete-password"
+              <textarea
+                id="delete-reason-note"
                 data-sheet-autofocus=""
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                autoComplete="current-password"
+                value={reasonNote}
+                onChange={(e) => setReasonNote(e.target.value)}
                 disabled={loading}
-                className="w-full h-11 px-3.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#D9363E] transition-colors disabled:opacity-50"
+                rows={4}
+                maxLength={2000}
+                placeholder="What could we have done better?"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#D9363E] transition-colors disabled:opacity-50 resize-none"
               />
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-[#94A3B8]">Show password</span>
-              <input
-                type="checkbox"
-                checked={showPassword}
-                onChange={(e) => setShowPassword(e.target.checked)}
-                disabled={loading}
-                className="accent-[#D9363E]"
-              />
-            </div>
-          </>
+          </div>
         ) : (
           <>
+            <button
+              type="button"
+              onClick={() => setStep('reason')}
+              disabled={loading}
+              className="text-[11px] text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer disabled:opacity-50 self-start"
+            >
+              ← Change reason
+            </button>
+
             <div className="rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] p-3 text-[11px] leading-relaxed text-[#94A3B8]">
-              Your account uses a social sign-in, so it does not have a password.
-              Send a one-time code to your email, then enter it below to confirm deletion.
+              A one-time code will be sent to the email on your account. Enter it below to confirm
+              deletion.
             </div>
+
             {codeSent && (
               <div className="rounded-xl border border-[#14B8A6]/30 bg-[#14B8A6]/10 p-3 text-[11px] text-[#5EEAD4]">
                 Code sent. Check your inbox (check spam too) — it expires in a few minutes.
               </div>
             )}
+
             <div className="space-y-1.5">
               <label htmlFor="delete-code" className="text-[12px] font-medium text-[#94A3B8] block">
                 Deletion code
