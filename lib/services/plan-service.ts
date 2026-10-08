@@ -7,12 +7,8 @@ import {
   SUBHALT_SUBSCRIPTION_NAME,
   buildPlusSubscriptionRecord,
 } from '@/lib/constants/plus-plan';
-import type { InboxItem } from '@/lib/contexts/inbox-context';
-
-type AddInboxItem = (item: Omit<InboxItem, 'id' | 'date' | 'isRead'>) => void;
 
 export interface PlusPurchaseOptions {
-  addInboxItem: AddInboxItem;
   planExpiresAt?: string | null;
   paymentMethod?: string | null;
 }
@@ -25,10 +21,12 @@ export interface PlusPurchaseOptions {
  * in-app record in sync:
  *  - creates the SubHalt subscription entry when the server did not already
  *  - records an activity event
- *  - adds an inbox notification
+ *
+ * The "SubHalt Plus Active" inbox notice is deliberately NOT written here: the
+ * grant path posts it server-side, so it still arrives when this sync never
+ * runs (closed tab, rejected write) and a re-run cannot post it twice.
  */
 export async function syncPlusPurchaseRecord({
-  addInboxItem,
   planExpiresAt,
   paymentMethod,
 }: PlusPurchaseOptions): Promise<void> {
@@ -54,17 +52,6 @@ export async function syncPlusPurchaseRecord({
     title: 'SubHalt Subscription Created',
     description: `SubHalt — $${PLUS_PLAN.price} — Paid`,
     amount: PLUS_PLAN.price,
-    currency: PLUS_PLAN.currency,
-  });
-
-  addInboxItem({
-    type: 'plan_update',
-    title: `${PLUS_PLAN.name} Active`,
-    description: `Your ${PLUS_PLAN.name} plan is now active for the next ${PLUS_PLAN.durationDays} days.`,
-    actionType: 'view',
-    actionLabel: 'View subscription',
-    subscriptionName: SUBHALT_SUBSCRIPTION_NAME,
-    subscriptionPrice: PLUS_PLAN.price,
     currency: PLUS_PLAN.currency,
   });
 }

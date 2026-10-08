@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   selectRows: {} as Record<string, Record<string, unknown> | null>,
   updateErrors: {} as Record<string, { message: string } | null>,
   insertErrors: {} as Record<string, { message: string } | null>,
+  authUpdateCalls: [] as { id: string; payload: Record<string, unknown> }[],
   authError: null as { message: string } | null,
 }));
 
@@ -25,6 +26,7 @@ vi.mock('@/lib/supabase/admin', () => ({
         select: () => {
           const chain = {
             eq: () => chain,
+            contains: () => chain,
             limit: () => chain,
             maybeSingle: async () => ({ data: mocks.selectRows[table] ?? null, error: null }),
           };
@@ -69,7 +71,10 @@ vi.mock('@/lib/supabase/admin', () => ({
     },
     auth: {
       admin: {
-        updateUserById: async () => ({ error: mocks.authError }),
+        updateUserById: async (id: string, payload: Record<string, unknown>) => {
+          mocks.authUpdateCalls.push({ id, payload });
+          return { error: mocks.authError };
+        },
       },
     },
   }),
@@ -78,6 +83,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 import {
   grantPlanSubscription,
   markPlanSubscriptionFailed,
+  schedulePlanCancellation,
 } from '@/lib/paystack/grants';
 
 function updatesFor(table: string) {
@@ -87,6 +93,7 @@ function updatesFor(table: string) {
 beforeEach(() => {
   mocks.updateCalls.length = 0;
   mocks.insertCalls.length = 0;
+  mocks.authUpdateCalls.length = 0;
   mocks.selectRows = { plan_subscriptions: { user_id: 'user-1', plan: 'plus' } };
   mocks.updateErrors = {};
   mocks.insertErrors = {};
@@ -177,7 +184,7 @@ describe('grantPlanSubscription', () => {
     const granted = await grantPlanSubscription('REF-1', '2026-10-01T10:00:00.000Z');
 
     expect(granted).toBe(true);
-    expect(mocks.insertCalls).toHaveLength(0);
+    expect(mocks.insertCalls.filter((call) => call.table === 'subscriptions')).toHaveLength(0);
 
     const listUpdates = updatesFor('subscriptions');
     expect(listUpdates).toHaveLength(1);
@@ -192,6 +199,39 @@ describe('grantPlanSubscription', () => {
 
     expect(granted).toBe(false);
   });
+
+  it('posts the activation notice in the inbox, keyed to the reference', async () => {
+    const granted = await grantPlanSubscription('REF-1', '2026-10-01T10:00:00.000Z');
+
+    expect(granted).toBe(true);
+
+    const notices = mocks.insertCalls.filter((call) => call.table === 'inbox_items');
+    expect(notices).toHaveLength(1);
+    expect(notices[0].payload).toMatchObject({
+      user_id: 'user-1',
+      type: 'plan_update',
+      title: 'SubHalt Plus Active',
+      subscription_name: 'SubHalt',
+      metadata: { reference: 'REF-1' },
+    });
+  });
+
+  it('does not post a second activation notice when this payment already has one', async () => {
+    mocks.selectRows.inbox_items = { id: 'inbox-1' };
+
+    const granted = await grantPlanSubscription('REF-1', '2026-10-01T10:00:00.000Z');
+
+    expect(granted).toBe(true);
+    expect(mocks.insertCalls.filter((call) => call.table === 'inbox_items')).toHaveLength(0);
+  });
+
+  it('keeps the grant when the activation notice is rejected', async () => {
+    mocks.insertErrors = { inbox_items: { message: 'permission denied' } };
+
+    const granted = await grantPlanSubscription('REF-1', '2026-10-01T10:00:00.000Z');
+
+    expect(granted).toBe(true);
+  });
 });
 
 describe('markPlanSubscriptionFailed', () => {
@@ -203,5 +243,75 @@ describe('markPlanSubscriptionFailed', () => {
     expect(updates[0].payload).toEqual({ status: 'failed' });
     expect(updates[0].filters).toContainEqual(['paystack_reference', 'REF-1']);
     expect(updates[0].filters).toContainEqual(['status', 'pending']);
+  });
+});
+
+describe('schedulePlanCancellation', () => {
+  it('retires the payment rows but keeps access until the paid period ends', async () => {
+    mocks.selectRows.profiles = {
+      plan_tier: 'plus',
+      plan_expires_at: '2026-11-06T12:26:41.000Z',
+    };
+
+    const result = await schedulePlanCancellation('user-1');
+
+    expect(result).toEqual({ planTier: 'plus', expiresAt: '2026-11-06T12:26:41.000Z' });
+
+    const subscriptions = updatesFor('plan_subscriptions');
+    expect(subscriptions).toHaveLength(1);
+    expect(subscriptions[0].payload).toEqual({ status: 'cancelled' });
+    expect(subscriptions[0].filters).toContainEqual(['user_id', 'user-1']);
+    expect(subscriptions[0].filters).toContainEqual(['status', ['pending', 'paid']]);
+
+    // The whole point of the end-of-period contract: neither the tier nor its
+    // expiry may be touched, or access would end at the moment of cancelling.
+    expect(updatesFor('profiles')).toHaveLength(0);
+    expect(mocks.authUpdateCalls).toHaveLength(0);
+  });
+
+  it('downgrades immediately when no billing period was recorded', async () => {
+    mocks.selectRows.profiles = { plan_tier: 'plus', plan_expires_at: null };
+
+    const result = await schedulePlanCancellation('user-1');
+
+    expect(result).toEqual({ planTier: 'free', expiresAt: null });
+    expect(updatesFor('profiles')).toHaveLength(1);
+    expect(updatesFor('profiles')[0].payload).toMatchObject({
+      plan_tier: 'free',
+      plan_expires_at: null,
+    });
+    expect(mocks.authUpdateCalls).toHaveLength(1);
+  });
+
+  it('does nothing when the profile is already free', async () => {
+    mocks.selectRows.profiles = { plan_tier: 'free', plan_expires_at: null };
+
+    const result = await schedulePlanCancellation('user-1');
+
+    expect(result).toEqual({ planTier: 'free', expiresAt: null });
+    expect(mocks.updateCalls).toHaveLength(0);
+    expect(mocks.authUpdateCalls).toHaveLength(0);
+  });
+
+  it('treats a period that already passed as nothing left to cancel', async () => {
+    mocks.selectRows.profiles = {
+      plan_tier: 'plus',
+      plan_expires_at: '2020-01-01T00:00:00.000Z',
+    };
+
+    const result = await schedulePlanCancellation('user-1');
+
+    expect(result).toEqual({ planTier: 'free', expiresAt: null });
+    expect(mocks.updateCalls).toHaveLength(0);
+  });
+
+  it('reports a rejected payment-row write instead of claiming a cancellation', async () => {
+    mocks.selectRows.profiles = {
+      plan_tier: 'plus',
+      plan_expires_at: '2026-11-06T12:26:41.000Z',
+    };
+    mocks.updateErrors = { plan_subscriptions: { message: 'permission denied' } };
+
+    await expect(schedulePlanCancellation('user-1')).rejects.toThrow('permission denied');
   });
 });

@@ -9,7 +9,7 @@ import { getEffectiveTier } from '@/lib/constants/plan-limits';
 import { fetchExchangeRates, DEFAULT_EXCHANGE_RATES } from '@/lib/services/currency-service';
 import { recoverPlusPurchase } from '@/lib/services/plan-service';
 import { logger } from '@/lib/logger';
-import { safeGetItem, safeSetItem, safeParseJSON } from '@/lib/safe-local-storage';
+import { safeGetItem, safeSetItem, safeParseJSON, safeRemoveItem } from '@/lib/safe-local-storage';
 
 export const BUILT_IN_CATEGORIES = [
   'Streaming',
@@ -88,6 +88,7 @@ interface CurrencyContextValue {
 
 interface PlanContextValue {
   planTier: 'free' | 'plus';
+  planExpiresAt: string | null;
   isPlus: boolean;
   isPremium: boolean;
   updatePlanTier: (newTier: 'free' | 'plus') => Promise<void>;
@@ -165,6 +166,8 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>(DEFAULT_EXCHANGE_RATES);
   const [notificationPreferences, setNotificationPreferencesState] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
   const [planTier, setPlanTierState] = useState<'free' | 'plus'>('free');
+  const [planExpiresAt, setPlanExpiresAtState] = useState<string | null>(null);
+  const [planExpired, setPlanExpiredState] = useState(false);
   const [assistantName, setAssistantNameState] = useState<string>('SubHalt Assistant');
   const [isGmailConnected, setIsGmailConnectedState] = useState<boolean>(false);
   const [gmailEmail, setGmailEmailState] = useState<string | null>(null);
@@ -174,6 +177,37 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
 
   const supabase = useMemo(() => createClient(), []);
+
+  /**
+   * Mirrors the stored plan tier *and* its expiry into state and the fast
+   * cache. The two travel together because the tier alone cannot express a
+   * plan whose paid period has run out — that only becomes visible once
+   * plan_expires_at is read alongside it.
+   */
+  const applyPlanMetadata = useCallback((meta: Record<string, unknown>) => {
+    const tier = typeof meta.plan_tier === 'string' ? meta.plan_tier : null;
+    const expiresAt = typeof meta.plan_expires_at === 'string' ? meta.plan_expires_at : null;
+
+    if (tier === 'plus' || tier === 'premium') {
+      setPlanTierState('plus');
+      if (typeof window !== 'undefined') {
+        safeSetItem('subhalt_plan_tier', 'plus');
+      }
+      if (expiresAt) {
+        setPlanExpiresAtState(expiresAt);
+        if (typeof window !== 'undefined') {
+          safeSetItem('subhalt_plan_expires_at', expiresAt);
+        }
+      }
+    } else if (tier === 'free') {
+      setPlanTierState('free');
+      setPlanExpiresAtState(null);
+      if (typeof window !== 'undefined') {
+        safeSetItem('subhalt_plan_tier', 'free');
+        safeRemoveItem('subhalt_plan_expires_at');
+      }
+    }
+  }, []);
 
   // Load exchange rates on mount
   useEffect(() => {
@@ -220,6 +254,14 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
           setPlanTierState('plus');
         } else if (savedPlan === 'free') {
           setPlanTierState('free');
+        }
+
+        // The cached tier alone would keep showing Plus forever; the cached
+        // expiry is what lets an already-loaded page resolve a plan whose paid
+        // period has since run out, before the metadata read below lands.
+        const savedPlanExpiresAt = safeGetItem('subhalt_plan_expires_at');
+        if (savedPlanExpiresAt) {
+          setPlanExpiresAtState(savedPlanExpiresAt);
         }
 
         const savedAssistant = safeGetItem('subhalt_assistant_name');
@@ -287,17 +329,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
             safeSetItem('subhalt_timezone', meta.timezone);
           }
         }
-        if (meta.plan_tier === 'plus' || meta.plan_tier === 'premium') {
-          setPlanTierState('plus');
-          if (typeof window !== 'undefined') {
-            safeSetItem('subhalt_plan_tier', 'plus');
-          }
-        } else if (meta.plan_tier === 'free') {
-          setPlanTierState('free');
-          if (typeof window !== 'undefined') {
-            safeSetItem('subhalt_plan_tier', 'free');
-          }
-        }
+        applyPlanMetadata(meta);
         if (Array.isArray(meta.custom_categories)) {
           setCustomCategoriesState(meta.custom_categories);
           if (typeof window !== 'undefined') {
@@ -365,7 +397,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, applyPlanMetadata]);
 
   useEffect(() => {
     Promise.resolve().then(() => loadUserSettings());
@@ -383,24 +415,14 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
           setLastNameChangeState(session.user.user_metadata.last_name_change);
         }
         const meta = session.user.user_metadata || {};
-        if (meta.plan_tier === 'plus' || meta.plan_tier === 'premium') {
-          setPlanTierState('plus');
-          if (typeof window !== 'undefined') {
-            safeSetItem('subhalt_plan_tier', 'plus');
-          }
-        } else if (meta.plan_tier === 'free') {
-          setPlanTierState('free');
-          if (typeof window !== 'undefined') {
-            safeSetItem('subhalt_plan_tier', 'free');
-          }
-        }
+        applyPlanMetadata(meta);
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, applyPlanMetadata]);
 
   const updateProfile = async ({ fullName: newName, timezone: newTz }: { fullName?: string; timezone?: string }) => {
     if (newName !== undefined) {
@@ -717,6 +739,33 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   );
 
   /**
+   * Deciding whether the paid period has run out needs "now", and a timestamp
+   * cannot be read during render — so the comparison lives here instead, and
+   * re-runs on a timer: a tab left open across the end of the period has to
+   * fall back to Free without a reload, because that flip is also what
+   * re-opens the upgrade path.
+   */
+  useEffect(() => {
+    if (!planExpiresAt) {
+      // Nothing to expire, and a tier that changed under us must not keep the
+      // previous verdict.
+      queueMicrotask(() => setPlanExpiredState(false));
+      return;
+    }
+    let active = true;
+    const evaluate = () => {
+      if (!active) return;
+      setPlanExpiredState(new Date(planExpiresAt).getTime() <= Date.now());
+    };
+    queueMicrotask(evaluate);
+    const timer = setInterval(evaluate, 60_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [planExpiresAt]);
+
+  /**
    * `planTier` is exposed as the *effective* tier.
    *
    * This is the single highest-leverage place for admin access: every UI gate in
@@ -725,17 +774,24 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
    * plans page, the settings panels, the sidebar, the dashboard's cap notice and
    * the ad banner in one move. The stored tier is untouched, so removing admin
    * access reverts it on the next load.
+   *
+   * The paid period is resolved here too: a cancelled plan keeps its plus tier
+   * (and therefore its access) until plan_expires_at passes, and only then does
+   * the app fall back to Free — which is what re-opens the upgrade path. A plan
+   * with no recorded expiry never expires here.
    */
-  const effectiveTier: 'free' | 'plus' = getEffectiveTier(planTier, isAdmin) === 'free' ? 'free' : 'plus';
+  const effectiveTier: 'free' | 'plus' =
+    getEffectiveTier(planExpired ? 'free' : planTier, isAdmin) === 'free' ? 'free' : 'plus';
 
   const planValue = useMemo<PlanContextValue>(
     () => ({
       planTier: effectiveTier,
+      planExpiresAt,
       isPlus: effectiveTier === 'plus',
       isPremium: effectiveTier === 'plus',
       updatePlanTier,
     }),
-    [effectiveTier]
+    [effectiveTier, planExpiresAt]
   );
 
   const authValue = useMemo<AuthContextValue>(

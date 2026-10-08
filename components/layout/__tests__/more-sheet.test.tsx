@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   pathname: '/',
   unreadCount: 0,
   isAdmin: false,
+  isPlus: false,
   // supabase-js resolves with { error }, it does not reject on auth failures,
   // so the default success shape has to mirror that rather than return undefined.
   signOut: vi.fn(async () => ({ error: null as { message: string } | null })),
@@ -44,6 +45,7 @@ vi.mock('@/lib/contexts/inbox-context', () => ({
 
 vi.mock('@/lib/contexts/user-settings-context', () => ({
   useAuth: () => ({ isAdmin: mocks.isAdmin }),
+  usePlan: () => ({ isPlus: mocks.isPlus }),
 }));
 
 vi.mock('@/lib/supabase/client', () => ({
@@ -71,6 +73,7 @@ beforeEach(() => {
   mocks.pathname = '/';
   mocks.unreadCount = 0;
   mocks.isAdmin = false;
+  mocks.isPlus = false;
   mocks.billsEnabled = false;
   mocks.assign.mockClear();
   mocks.push.mockClear();
@@ -265,6 +268,18 @@ describe('MoreSheet', () => {
       'href',
       '/plans?from=%2Fsettings',
     );
+  });
+
+  it('sends a plus customer to their plan instead of offering another upgrade', () => {
+    mocks.isPlus = true;
+    mocks.pathname = '/subscriptions';
+    renderSheet();
+
+    expect(screen.getByRole('link', { name: 'Plus' })).toHaveAttribute(
+      'href',
+      '/settings?section=plan',
+    );
+    expect(screen.queryByRole('link', { name: 'Upgrade Plan' })).not.toBeInTheDocument();
   });
 
   it('closes the sheet after a navigation so it does not sit over the new page', async () => {

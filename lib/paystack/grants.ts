@@ -92,6 +92,49 @@ async function applyGrant(
       throw new Error(`subscriptions insert failed: ${listInsertError.message}`);
     }
   }
+
+  // Confirmation notice, written here rather than by the client so it still
+  // lands when the browser is gone and the webhook (or a later reconcile) is
+  // what confirmed the payment. Keyed off the reference: applyGrant is
+  // re-runnable by design, and a repaired grant must not post a second copy.
+  try {
+    const activeTitle = `${PLUS_PLAN.name} Active`;
+    const { data: existingNotice, error: noticeLookupError } = await admin
+      .from('inbox_items')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('type', 'plan_update')
+      .eq('title', activeTitle)
+      .contains('metadata', { reference })
+      .limit(1)
+      .maybeSingle();
+    if (noticeLookupError) {
+      throw new Error(noticeLookupError.message);
+    }
+    if (!existingNotice) {
+      const { error: noticeError } = await admin.from('inbox_items').insert({
+        user_id: userId,
+        type: 'plan_update',
+        title: activeTitle,
+        description: `Your ${PLUS_PLAN.name} plan is now active for the next ${PLUS_PLAN.durationDays} days.`,
+        action_type: 'view',
+        action_label: 'View subscription',
+        subscription_name: SUBHALT_SUBSCRIPTION_NAME,
+        metadata: { reference },
+      });
+      if (noticeError) {
+        throw new Error(noticeError.message);
+      }
+    }
+  } catch (err) {
+    // Best-effort: the grant itself has already landed, so a rejected notice
+    // must never turn a confirmed payment into a reported failure.
+    console.error('[paystack/grants] could not record activation notice', {
+      reference,
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /**
@@ -154,7 +197,7 @@ export async function markPlanSubscriptionFailed(reference: string): Promise<voi
   }
 }
 
-/** Cancel a user's plan immediately (single-payment model: no billing-period grace). */
+/** Demote a user to Free immediately (admin revocation, or a legacy plan with no billing period to ride out). */
 export async function downgradeUserToFree(userId: string): Promise<void> {
   const admin = createAdminClient();
   const nowIso = new Date().toISOString();
@@ -191,4 +234,62 @@ export async function downgradeUserToFree(userId: string): Promise<void> {
       error: authError.message,
     });
   }
+}
+
+/**
+ * Cancel a plan at the end of its billing period instead of immediately.
+ *
+ * The cancel copy promises full access until the period ends, so profiles and
+ * auth metadata are left untouched — only the payment rows are retired. Access
+ * then ends on its own: the UI resolves an expired plan_expires_at to Free, and
+ * the checkout route already refuses a new payment while plan_tier is plus
+ * *and* plan_expires_at is in the future, so a cancelled plan cannot be bought
+ * again until the paid period is actually over.
+ *
+ * A plus plan with no recorded expiry has no period to ride out, so it falls
+ * back to the immediate downgrade. Throws when the profile cannot be read or
+ * the payment rows cannot be updated, so the caller never reports a
+ * cancellation the server did not perform.
+ */
+export async function schedulePlanCancellation(userId: string): Promise<{
+  planTier: 'free' | 'plus';
+  expiresAt: string | null;
+}> {
+  const admin = createAdminClient();
+
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .select('plan_tier, plan_expires_at')
+    .eq('id', userId)
+    .maybeSingle();
+  if (profileError) {
+    throw new Error(`profiles read failed: ${profileError.message}`);
+  }
+  if (!profile?.plan_tier || profile.plan_tier === 'free') {
+    return { planTier: 'free', expiresAt: null };
+  }
+
+  const expiresAt = profile.plan_expires_at;
+  const active = !expiresAt || new Date(expiresAt).getTime() > Date.now();
+  if (!active) {
+    // The period already passed: there is nothing left to cancel and the
+    // account has already resolved to Free.
+    return { planTier: 'free', expiresAt: null };
+  }
+
+  if (!expiresAt) {
+    await downgradeUserToFree(userId);
+    return { planTier: 'free', expiresAt: null };
+  }
+
+  const { error: subscriptionError } = await admin
+    .from('plan_subscriptions')
+    .update({ status: 'cancelled' })
+    .eq('user_id', userId)
+    .in('status', ['pending', 'paid']);
+  if (subscriptionError) {
+    throw new Error(`plan_subscriptions update failed: ${subscriptionError.message}`);
+  }
+
+  return { planTier: 'plus', expiresAt };
 }

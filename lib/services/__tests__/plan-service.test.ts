@@ -17,13 +17,10 @@ vi.mock('@/lib/services/activity-service', () => ({
 
 import { syncPlusPurchaseRecord } from '@/lib/services/plan-service';
 
-const addInboxItem = vi.fn();
-
 beforeEach(() => {
   mocks.fetchSubscriptions.mockReset();
   mocks.createSubscription.mockReset();
   mocks.recordActivity.mockReset();
-  addInboxItem.mockReset();
 
   mocks.fetchSubscriptions.mockResolvedValue({ data: [], error: null });
   mocks.createSubscription.mockResolvedValue({ data: { id: 'row-1' }, error: null, synced: true });
@@ -33,7 +30,6 @@ beforeEach(() => {
 describe('syncPlusPurchaseRecord', () => {
   it('creates the subscription entry with the real plan expiry, not a +30d guess', async () => {
     await syncPlusPurchaseRecord({
-      addInboxItem,
       planExpiresAt: '2026-11-06T12:26:41.000Z',
     });
 
@@ -52,7 +48,7 @@ describe('syncPlusPurchaseRecord', () => {
   });
 
   it('falls back to the plan duration when no expiry is known', async () => {
-    await syncPlusPurchaseRecord({ addInboxItem });
+    await syncPlusPurchaseRecord({});
 
     const payload = mocks.createSubscription.mock.calls[0][0] as Record<string, unknown>;
     const start = new Date(String(payload.start_date));
@@ -67,11 +63,19 @@ describe('syncPlusPurchaseRecord', () => {
       error: null,
     });
 
-    await syncPlusPurchaseRecord({ addInboxItem });
+    await syncPlusPurchaseRecord({});
 
     expect(mocks.createSubscription).not.toHaveBeenCalled();
     expect(mocks.recordActivity).toHaveBeenCalledTimes(1);
-    expect(addInboxItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the activation notice to the grant path so a re-run cannot post it twice', async () => {
+    await syncPlusPurchaseRecord({});
+
+    // The "SubHalt Plus Active" inbox row is written server-side inside
+    // applyGrant; the client only records the activity.
+    expect(mocks.recordActivity).toHaveBeenCalledTimes(1);
+    expect(mocks.createSubscription).toHaveBeenCalledTimes(1);
   });
 
   it('surfaces a rejected entry write so the caller can warn', async () => {
@@ -81,9 +85,7 @@ describe('syncPlusPurchaseRecord', () => {
       synced: false,
     });
 
-    await expect(syncPlusPurchaseRecord({ addInboxItem })).rejects.toThrow(
-      'Upgrade to Plus'
-    );
-    expect(addInboxItem).not.toHaveBeenCalled();
+    await expect(syncPlusPurchaseRecord({})).rejects.toThrow('Upgrade to Plus');
+    expect(mocks.recordActivity).not.toHaveBeenCalled();
   });
 });

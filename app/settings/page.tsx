@@ -45,7 +45,11 @@ import { useTheme, type Theme } from '@/lib/hooks/use-theme';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { recoverPlusPurchase, syncPlusPurchaseRecord } from '@/lib/services/plan-service';
-import { SUBHALT_SUBSCRIPTION_NAME, buildPlusSubscriptionRecord } from '@/lib/constants/plus-plan';
+import {
+  PLUS_PLAN,
+  SUBHALT_SUBSCRIPTION_NAME,
+  buildPlusSubscriptionRecord,
+} from '@/lib/constants/plus-plan';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import {
   fetchSubscriptions,
@@ -64,6 +68,18 @@ import SubscriptionDetailModal from '@/components/subscriptions/subscription-det
 import { IntegrationsSettingsPanel } from '@/components/integrations/integrations-settings-panel';
 
 type SettingsSection = 'account' | 'plan' | 'integrations' | 'preferences' | 'privacy' | 'help';
+
+/** Long-form end-of-period date, in the same wording as the payment sheet. */
+function formatPlanEndDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'the end of your billing period';
+  return date.toLocaleDateString(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
 
 function SettingsContent() {
   const router = useRouter();
@@ -93,6 +109,7 @@ function SettingsContent() {
     email,
     notificationPreferences,
     isPlus,
+    planExpiresAt,
     billingDetails,
     paymentMethods,
     billingTransactions,
@@ -114,6 +131,11 @@ function SettingsContent() {
   const [paymentListed, setPaymentListed] = useState(false);
   const billedResultHandled = useRef(false);
   const subhaltRowEnsured = useRef(false);
+  /* Set once a cancellation is accepted by the server, so the button becomes an
+     "ends on" line instead of inviting a second cancellation. Session-scoped on
+     purpose: re-reading it on load would need a client-readable cancelled flag,
+     and the server already refuses to act twice. */
+  const [cancelScheduledUntil, setCancelScheduledUntil] = useState<string | null>(null);
 
   /* Push permission, read from the browser rather than stored: it is a property
      of this device and this browser, and can be revoked outside the app at any
@@ -231,14 +253,31 @@ function SettingsContent() {
 
     subhaltRowEnsured.current = true;
     if (!state.active) {
+      // The charge exists but the grant has not landed yet. Recording it in the
+      // inbox means the customer is told the payment was seen even if they walk
+      // away from this page; the "active" notice is posted by the server once
+      // the grant completes, so both ends of the delay reach the inbox.
+      addInboxItem({
+        type: 'plan_update',
+        title: `${PLUS_PLAN.name} payment received`,
+        description:
+          "We're confirming your payment with Paystack. Your plan activates automatically as soon as it is verified — no action needed.",
+        actionType: 'view',
+        actionLabel: 'View subscription',
+        subscriptionName: SUBHALT_SUBSCRIPTION_NAME,
+      });
       setPaymentResult('pending');
       return;
     }
 
+    // The context only re-reads the tier on an auth event, so without this the
+    // confirmation can sit in the inbox while the app still renders Free until
+    // the next reload. Setting it here makes premium land immediately.
+    await updatePlanTier('plus');
     setPaymentPlanExpiresAt(state.expiresAt);
     let listed = false;
     try {
-      await syncPlusPurchaseRecord({ addInboxItem, planExpiresAt: state.expiresAt });
+      await syncPlusPurchaseRecord({ planExpiresAt: state.expiresAt });
       listed = true;
     } catch {
       toast.warning(
@@ -249,7 +288,7 @@ function SettingsContent() {
     setPaymentListed(listed);
     setPaymentResult('success');
     void loadSubData();
-  }, [refreshPlanState, addInboxItem, toast, loadSubData]);
+  }, [refreshPlanState, addInboxItem, toast, loadSubData, updatePlanTier]);
 
   // Handle post-checkout results from the Paystack callback route
   // (/settings?section=plan&billing=paid|error|failed).
@@ -284,7 +323,6 @@ function SettingsContent() {
         const { data } = await supabase.auth.getSession();
         const expiresAt = data.session?.user?.user_metadata?.plan_expires_at;
         await syncPlusPurchaseRecord({
-          addInboxItem,
           planExpiresAt: typeof expiresAt === 'string' ? expiresAt : null,
         });
         await loadSubData();
@@ -295,7 +333,7 @@ function SettingsContent() {
         );
       }
     })();
-  }, [subscriptionsLoaded, isPlus, subscriptions, supabase, addInboxItem, loadSubData, toast]);
+  }, [subscriptionsLoaded, isPlus, subscriptions, supabase, loadSubData, toast]);
 
   const handleCurrencyChange = async (newCurr: string) => {
     try {
@@ -659,27 +697,54 @@ function SettingsContent() {
               <div className="space-y-1">
                 <h4 className="text-sm font-bold text-[#F5F7F6]">Cancel plan</h4>
                 <p className="text-xs text-[#94A3B8]">
-                  If you cancel, you&apos;ll keep full access to your plan features until the end of your billing period.
+                  If you cancel, you&apos;ll keep full access to your plan features until{' '}
+                  {planExpiresAt ? formatPlanEndDate(planExpiresAt) : 'the end of your billing period'}, and you
+                  can upgrade again from that date.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const res = await fetch('/api/paystack/cancel', { method: 'POST' });
-                    if (!res.ok) {
-                      throw new Error('Cancel request failed.');
+              {cancelScheduledUntil ? (
+                <p className="text-xs font-semibold text-[#94A3B8] shrink-0 text-center">
+                  Ends on {formatPlanEndDate(cancelScheduledUntil)}
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/paystack/cancel', { method: 'POST' });
+                      if (!res.ok) {
+                        throw new Error('Cancel request failed.');
+                      }
+                      const data = (await res.json().catch(() => null)) as {
+                        planTier?: string;
+                        expiresAt?: string | null;
+                      } | null;
+
+                      if (data?.planTier === 'plus' && data.expiresAt) {
+                        // Only the renewal path is retired — the tier stays plus
+                        // until the paid period runs out, so it must not be
+                        // touched here or access would end immediately.
+                        setCancelScheduledUntil(data.expiresAt);
+                        toast.success(
+                          `You'll keep full access until ${formatPlanEndDate(data.expiresAt)}. Your plan will not renew after that.`,
+                          'Plan Cancelled'
+                        );
+                        return;
+                      }
+
+                      // Nothing to ride out (no expiry recorded): the server
+                      // downgraded immediately, so the app has to follow.
+                      await updatePlanTier('free');
+                      toast.success('Your Plus plan has been cancelled. You are now on Free.', 'Plan Cancelled');
+                    } catch {
+                      toast.error('Failed to cancel plan. Please try again.', 'Cancel Failed');
                     }
-                    await updatePlanTier('free');
-                    toast.success('Your Plus plan has been cancelled. You are now on Free.', 'Plan Cancelled');
-                  } catch {
-                    toast.error('Failed to cancel plan. Please try again.', 'Cancel Failed');
-                  }
-                }}
-                className="px-5 py-2 rounded-full border border-[#D9363E] text-[#D9363E] hover:bg-[#D9363E]/10 text-xs font-semibold transition-colors cursor-pointer shrink-0 text-center"
-              >
-                Cancel
-              </button>
+                  }}
+                  className="px-5 py-2 rounded-full border border-[#D9363E] text-[#D9363E] hover:bg-[#D9363E]/10 text-xs font-semibold transition-colors cursor-pointer shrink-0 text-center"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </>
         )}

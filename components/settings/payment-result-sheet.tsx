@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { PLUS_PLAN } from '@/lib/constants/plus-plan';
 
@@ -40,8 +40,7 @@ const COPY: Record<
   },
   pending: {
     title: 'Activating your plan',
-    description:
-      "We're confirming your payment. This usually takes a few seconds — your plan activates automatically, so there's no need to refresh.",
+    description: "We're confirming your payment. This usually takes a few seconds. Your plan activates automatically.",
   },
   failed: {
     title: 'Payment not completed',
@@ -61,16 +60,17 @@ export function PaymentResultSheet({
   const copy = COPY[state];
   const expiryText = state === 'success' && planExpiresAt ? formatExpiry(planExpiresAt) : '';
 
+  // The activating state deliberately carries no icon: the clock it used to
+  // show read as a "refresh" cue next to a message about waiting, which is the
+  // opposite of what the copy says to do.
   const icon =
     state === 'checking' ? (
       <Loader2 className="w-9 h-9 text-[#14B8A6] animate-spin" aria-hidden="true" />
     ) : state === 'success' ? (
       <CheckCircle2 className="w-9 h-9 text-[#14B8A6]" aria-hidden="true" />
-    ) : state === 'pending' ? (
-      <Clock className="w-9 h-9 text-[#F5C56B]" aria-hidden="true" />
-    ) : (
+    ) : state === 'failed' ? (
       <AlertTriangle className="w-9 h-9 text-[#D9363E]" aria-hidden="true" />
-    );
+    ) : null;
 
   const footer =
     state === 'checking' ? null : state === 'success' ? (
@@ -149,16 +149,18 @@ export function PaymentResultSheet({
       dismissible
       footer={footer}
     >
-      <div className="flex flex-col items-center text-center gap-3 pb-3 pt-1">
-        {icon}
-        {bullets && (
-          <ul className="space-y-1.5 text-xs text-[#94A3B8]">
-            {bullets.map((text) => (
-              <li key={text}>{text}</li>
-            ))}
-          </ul>
-        )}
-      </div>
+      {(icon || bullets) && (
+        <div className="flex flex-col items-center text-center gap-3 pb-3 pt-1">
+          {icon}
+          {bullets && (
+            <ul className="space-y-1.5 text-xs text-[#94A3B8]">
+              {bullets.map((text) => (
+                <li key={text}>{text}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </Sheet>
   );
 }

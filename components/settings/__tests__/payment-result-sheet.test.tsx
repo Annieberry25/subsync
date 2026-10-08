@@ -56,8 +56,13 @@ describe('PaymentResultSheet', () => {
   it('offers a re-check while the plan is still activating', () => {
     const props = renderSheet({ state: 'pending', planExpiresAt: null });
 
-    expect(screen.getByRole('dialog')).toHaveTextContent('Activating your plan');
-    expect(screen.getByRole('dialog')).toHaveTextContent('no need to refresh');
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Activating your plan');
+    expect(dialog).toHaveTextContent('usually takes a few seconds');
+    expect(dialog).toHaveTextContent('activates automatically');
+    // No refresh/clock cue: the copy tells the customer to wait, and an icon
+    // that reads as "refresh" contradicts it.
+    expect(dialog.querySelector('svg.lucide-clock')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
     expect(props.onRecheck).toHaveBeenCalledTimes(1);

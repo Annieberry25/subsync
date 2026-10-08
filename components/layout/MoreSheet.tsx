@@ -7,7 +7,7 @@ import { ChevronDown, ChevronRight, LogOut, User as UserIcon, HelpCircle, Sparkl
 import { Sheet } from '@/components/ui/sheet';
 import { getVisibleNavItems, isNavItemActive, type NavItem } from '@/lib/nav';
 import { useInbox } from '@/lib/contexts/inbox-context';
-import { useAuth } from '@/lib/contexts/user-settings-context';
+import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
 import { useToast } from '@/lib/hooks/use-toast';
 
@@ -24,6 +24,7 @@ export function MoreSheet({ open, onClose }: MoreSheetProps) {
   const router = useRouter();
   const { unreadCount } = useInbox();
   const { isAdmin } = useAuth();
+  const { isPlus } = usePlan();
   const { toast } = useToast();
 
   const visibleNavItems = useMemo(() => getVisibleNavItems(isAdmin), [isAdmin]);
@@ -199,12 +200,16 @@ export function MoreSheet({ open, onClose }: MoreSheetProps) {
           </Link>
 
           <Link
-            href={`/plans?from=${encodeURIComponent(pathname)}`}
+            href={
+              isPlus
+                ? '/settings?section=plan'
+                : `/plans?from=${encodeURIComponent(pathname)}`
+            }
             onClick={onClose}
             className="flex items-center gap-3 min-h-[52px] px-3 rounded-xl text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#0D0F0D] transition-colors font-medium"
           >
             <Sparkles className="w-4 h-4 shrink-0" aria-hidden="true" />
-            <span>Upgrade Plan</span>
+            <span>{isPlus ? 'Plus' : 'Upgrade Plan'}</span>
           </Link>
 
           <button
