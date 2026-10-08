@@ -272,6 +272,109 @@ it('returns a Google account through Google instead of a password or code form',
     expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
   });
 
+  /**
+   * The stored provider on a remembered account is only "how it was last
+   * authenticated" and can be wrong (e.g. a Google account saved before a
+   * password was linked). The routing is decided by the account's real methods
+   * in Supabase, never by that stale field.
+   */
+  it('routes a remembered Google account through Google even when the stored provider says password', async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'google-real@example.com', displayName: 'Google Real', lastUsed: 1, provider: 'password' },
+      ])
+    );
+    mocks.loginFetch.mockImplementation((url: string) =>
+      url === '/api/auth/providers'
+        ? Promise.resolve({ ok: true, status: 200, json: async () => ({ methods: ['google'] }) })
+        : Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) })
+    );
+
+    render(<AuthForm />);
+    await waitFor(() => screen.getByText('Choose an account to continue'));
+
+    await user.click(screen.getByText('google-real@example.com'));
+
+    await waitFor(() =>
+      expect(mocks.signInWithOAuth).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'google',
+          options: expect.objectContaining({ queryParams: { prompt: 'select_account' } }),
+        })
+      )
+    );
+    expect(screen.queryByRole('heading', { name: 'Enter your password' })).not.toBeInTheDocument();
+  });
+
+  it('routes a remembered email/password account to the password form even when the stored provider says google', async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'pw-real@example.com', displayName: 'PW Real', lastUsed: 1, provider: 'google' },
+      ])
+    );
+    mocks.loginFetch.mockImplementation((url: string) =>
+      url === '/api/auth/providers'
+        ? Promise.resolve({ ok: true, status: 200, json: async () => ({ methods: ['email'] }) })
+        : Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) })
+    );
+
+    render(<AuthForm />);
+    await waitFor(() => screen.getByText('Choose an account to continue'));
+
+    await user.click(screen.getByText('pw-real@example.com'));
+
+    expect(screen.getByRole('heading', { name: 'Enter your password' })).toBeInTheDocument();
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A Google-only account has no password, so typing its email straight into the
+   * form must not land in the password step — it goes through Google with the
+   * picker forced.
+   */
+  it('sends a Google-only email typed on the form straight to Google', async () => {
+    const user = userEvent.setup();
+    mocks.loginFetch.mockImplementation((url: string) =>
+      url === '/api/auth/providers'
+        ? Promise.resolve({ ok: true, status: 200, json: async () => ({ methods: ['google'] }) })
+        : Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) })
+    );
+
+    render(<AuthForm />);
+    await user.type(screen.getByRole('textbox'), 'google-only@example.com');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() =>
+      expect(mocks.signInWithOAuth).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'google',
+          options: expect.objectContaining({ queryParams: { prompt: 'select_account' } }),
+        })
+      )
+    );
+    expect(screen.queryByRole('heading', { name: 'Enter your password' })).not.toBeInTheDocument();
+  });
+
+  it('keeps an email/password account on the password form from the email step', async () => {
+    const user = userEvent.setup();
+    mocks.loginFetch.mockImplementation((url: string) =>
+      url === '/api/auth/providers'
+        ? Promise.resolve({ ok: true, status: 200, json: async () => ({ methods: ['email'] }) })
+        : Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) })
+    );
+
+    render(<AuthForm />);
+    await user.type(screen.getByRole('textbox'), 'pw-only@example.com');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByRole('heading', { name: 'Enter your password' })).toBeInTheDocument();
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
+  });
+
   it('requests the code without creating an account for an unknown address', async () => {
     const user = userEvent.setup();
     mocks.signInWithOtp.mockResolvedValue({ data: {}, error: null });

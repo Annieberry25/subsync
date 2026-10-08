@@ -24,6 +24,28 @@ import { getSiteUrl, getAuthCallbackUrl } from '@/lib/utils/url-utils';
 
 type LoginStep = 'chooser' | 'email' | 'password' | 'otp';
 
+/**
+ * Ask the server for the sign-in methods of an account, keyed by email.
+ *
+ * Returns the real methods from Supabase (see /api/auth/providers) or null when
+ * the lookup fails or returns an unexpected shape, in which case the caller
+ * falls back to the stored provider on the remembered account.
+ */
+async function lookupAccountMethods(email: string): Promise<string[] | null> {
+  try {
+    const res = await fetch('/api/auth/providers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json().catch(() => ({}))) as { methods?: string[] };
+    return Array.isArray(data.methods) ? data.methods : null;
+  } catch {
+    return null;
+  }
+}
+
 export function LoginFlow({ initialError }: { initialError?: string } = {}) {
   /**
    * The saved-accounts list is localStorage, i.e. an external store, so it is
@@ -90,16 +112,39 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
    * it was a dead end for exactly the people most likely to have signed in with
    * Google.
    *
+   * The routing is decided by the account's real methods in Supabase, not the
+   * remembered row: the stored provider is just "how it was last authenticated"
+   * and can be wrong (e.g. a Google account recorded before a password was
+   * linked, or a legacy row saved before the provider field existed). A Google
+   * account must use Google; an email/password account uses the password or code
+   * form. If the lookup fails, the stored provider is used as the previous
+   * behaviour.
+   *
    * The picker is forced every time (prompt: 'select_account') so Google never
    * silently re-authenticates the stored session and logs someone in without
    * consent — the chooser is only ever a gateway to an active sign-in, never an
    * instant one.
    */
-  const handleSelectAccount = (account: RememberedAccount) => {
+  const handleSelectAccount = async (account: RememberedAccount) => {
     setEmail(account.email);
     setError(null);
     setSuccess(null);
 
+    const methods = await lookupAccountMethods(account.email);
+
+    if (methods !== null) {
+      // A Google account (including one that also has a password) returns
+      // through Google; an email-only account goes to the password/code form.
+      // The one-time-code path is reachable from the password step.
+      if (methods.includes('google')) {
+        handleSocialAuth('google', { prompt: 'select_account' });
+        return;
+      }
+      setRequestedStep('password');
+      return;
+    }
+
+    // Lookup unavailable — keep the previous stored-provider behaviour.
     if (account.provider === 'google') {
       handleSocialAuth('google', { prompt: 'select_account' });
       return;
@@ -116,7 +161,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
     setRequestedStep('password');
   };
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -125,6 +170,17 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
       setError('Please enter a valid email address.');
       return;
     }
+
+    // A Google-only account has no password, so typing its email must not land
+    // in the password form; send it through Google instead. Every other case
+    // (an email account, an unknown address, a failed lookup) keeps heading to
+    // the password/code form.
+    const methods = await lookupAccountMethods(trimmed);
+    if (methods && methods.includes('google')) {
+      handleSocialAuth('google', { prompt: 'select_account' });
+      return;
+    }
+
     setRequestedStep('password');
   };
 
