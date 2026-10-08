@@ -3,6 +3,7 @@ import {
   renderWelcomeEmail,
   renderSubscriptionCreatedEmail,
   renderRenewalReminderEmail,
+  renderAccountDeletedEmail,
 } from '@/lib/email/templates';
 import { renderEmailLayout, escapeHtml, SIGN_IN_URL } from '@/lib/email/layout';
 import type { SubscriptionEmailData } from '@/lib/email/types';
@@ -19,6 +20,7 @@ const sub: SubscriptionEmailData = {
 const allEmails = () => [
   ['welcome', renderWelcomeEmail({ firstName: 'Ada' })],
   ['welcome (no name)', renderWelcomeEmail({})],
+  ['goodbye', renderAccountDeletedEmail()],
   ['subscription created', renderSubscriptionCreatedEmail(sub)],
   ['reminder, 3 days out', renderRenewalReminderEmail({ ...sub, daysUntilRenewal: 3 })],
   ['reminder, tomorrow', renderRenewalReminderEmail({ ...sub, daysUntilRenewal: 1 })],
@@ -74,8 +76,15 @@ describe('voice', () => {
    * Linear/Raycast/Vercel as the inspiration. These assertions encode the
    * practical form of that: declarative, no exclamation marks, no emoji.
    * Deliberate failures here are a signal that the copy drifted toward hype.
+   *
+   * The welcome email is exempt: DESIGN_SYSTEM.md specifies that message
+   * verbatim ("Hey friend! ... Let's get started!") and it is asserted
+   * separately below.
    */
-  it.each(allEmails())('%s avoids exclamation marks and emoji', (_label, email) => {
+  const professionalEmails = () =>
+    allEmails().filter(([label]) => !label.startsWith('welcome') && label !== 'goodbye');
+
+  it.each(professionalEmails())('%s avoids exclamation marks and emoji', (_label, email) => {
     expect(email.subject).not.toMatch(/!/);
     expect(visibleText(email.html)).not.toMatch(/!/);
     expect(visibleText(email.html)).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
@@ -90,12 +99,34 @@ describe('voice', () => {
     expect(created.html.toLowerCase()).not.toContain('congrat');
   });
 
-  it('greets by first name when one is available', () => {
-    // The template takes an already-resolved first name; the full_name ->
-    // first token split happens in the webhook, which is where auth metadata lives.
-    expect(renderWelcomeEmail({ firstName: 'Ada' }).subject).toBe('Welcome to SubHalt, Ada');
-    expect(renderWelcomeEmail({}).subject).toBe('Welcome to SubHalt');
-    expect(renderWelcomeEmail({ firstName: '   ' }).subject).toBe('Welcome to SubHalt');
+  it('writes the DESIGN_SYSTEM welcome copy verbatim', () => {
+    const { subject, html } = renderWelcomeEmail({ firstName: 'Ada' });
+    const { subject: noNameSubject, html: noNameHtml } = renderWelcomeEmail({});
+    expect(subject).toBe('Welcome to the subHalt hut!');
+    expect(noNameSubject).toBe('Welcome to the subHalt hut!');
+    expect(visibleText(html)).toContain('Hey friend!');
+    expect(visibleText(html)).toContain('help you find missing subscriptions');
+    expect(visibleText(html)).toContain('stop wasting money on forgotten subscriptions');
+    expect(visibleText(html)).toContain("save money. Let's get started!");
+    // The copy is fixed regardless of the resolved user name.
+    expect(visibleText(noNameHtml)).toBe(visibleText(html));
+  });
+
+  it('writes the farewell copy verbatim with the sign-in link at the bottom', () => {
+    const { subject, html } = renderAccountDeletedEmail();
+    expect(subject).toBe('Goodbye from the subHalt hut');
+    expect(visibleText(html)).toContain(
+      'Hey friend! Thank you for staying in our hut for a while.'
+    );
+    expect(visibleText(html)).toContain(
+      'We hate to see you go, we hope to have you back someday.'
+    );
+    expect(visibleText(html)).toContain(
+      'In case you change your mind, here is the link below to sign up again.'
+    );
+    expect(visibleText(html)).toContain('Take care!');
+    // The "link below" is the layout button, pointing at the sign-in/sign-up page.
+    expect(html).toContain('https://subhalt.xyz/login');
   });
 });
 

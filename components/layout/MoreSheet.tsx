@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronRight, LogOut, User as UserIcon, HelpCircle, Sparkles } from 'lucide-react';
 import { Sheet } from '@/components/ui/sheet';
 import { getVisibleNavItems, isNavItemActive, type NavItem } from '@/lib/nav';
@@ -21,7 +21,6 @@ interface MoreSheetProps {
 
 export function MoreSheet({ open, onClose }: MoreSheetProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { unreadCount } = useInbox();
   const { isAdmin } = useAuth();
   const { isPlus } = usePlan();

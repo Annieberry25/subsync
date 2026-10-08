@@ -15,7 +15,7 @@ interface HeaderProps {
 export default function Header({ hasUnreadNotifications, onOpenAskSubHalt }: HeaderProps) {
   const pathname = usePathname();
   const { unreadCount } = useInbox();
-  const { assistantName } = useSettings();
+  const { assistantName: _assistantName } = useSettings();
   const showUnread = Boolean(hasUnreadNotifications || unreadCount > 0);
   const isInboxRoute = pathname.startsWith('/inbox');
 

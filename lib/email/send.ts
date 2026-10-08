@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Resend } from 'resend';
 import { logger } from '@/lib/logger';
-import { renderWelcomeEmail, renderSubscriptionCreatedEmail, renderRenewalReminderEmail, renderAccountDeleteCodeEmail } from './templates';
+import { renderWelcomeEmail, renderSubscriptionCreatedEmail, renderRenewalReminderEmail, renderAccountDeleteCodeEmail, renderAccountDeletedEmail } from './templates';
 import { SIGN_IN_URL } from './layout';
 import type { EmailKind, SubscriptionEmailData } from './types';
 
@@ -111,9 +111,15 @@ export function sendAccountDeleteCodeEmail(to: string, code: string): Promise<Se
   return deliver(to, subject, html);
 }
 
+export function sendAccountDeletedEmail(to: string): Promise<SendResult> {
+  const { subject, html } = renderAccountDeletedEmail();
+  return deliver(to, subject, html);
+}
+
 export const EMAIL_KINDS: EmailKind[] = [
   'welcome',
   'subscription_created',
   'renewal_reminder',
   'account_delete_code',
+  'account_deleted',
 ];

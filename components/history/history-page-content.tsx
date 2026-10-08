@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
-  Archive, 
   Trash2, 
   RotateCcw, 
   ChevronRight, 
   ChevronDown,
   AlertCircle,
-  Clock,
   SlidersHorizontal,
   ArrowLeft,
   Loader2
@@ -26,9 +24,7 @@ import {
 } from '@/lib/services/subscription-service';
 import {
   fetchActivityLog,
-  getActivityPreviewTexts,
-  type ActivityRecord,
-  type ActivityType
+  type ActivityRecord
 } from '@/lib/services/activity-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';

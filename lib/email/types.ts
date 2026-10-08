@@ -16,4 +16,5 @@ export type EmailKind =
   | 'welcome'
   | 'subscription_created'
   | 'renewal_reminder'
-  | 'account_delete_code';
+  | 'account_delete_code'
+  | 'account_deleted';

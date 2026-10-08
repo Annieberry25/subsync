@@ -335,7 +335,7 @@ const handleSave = async (
     }).length;
   }, [activeSubscriptions]);
 
-  const renewalSemantic = useMemo(() => {
+  const _renewalSemantic = useMemo(() => {
     if (overdueCount > 0) {
       return {
         textColor: 'text-[#D9363E]',

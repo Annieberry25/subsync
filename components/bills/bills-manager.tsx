@@ -50,7 +50,6 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
   // Data states
   const [bills, setBills] = useState<BillPayment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAllPayments, setShowAllPayments] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [visibleCountBills, setVisibleCountBills] = useState(20);
 

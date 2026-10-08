@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthUser } from '@/lib/auth/access';
 import { verifyAccountDeleteCode } from '@/lib/services/account-delete-code';
+import { sendAccountDeletedEmail } from '@/lib/email/send';
 
 export async function POST(request: Request) {
   try {
@@ -65,6 +66,11 @@ export async function POST(request: Request) {
       console.error('[delete-account] Failed to delete user:', deleteError.message);
       return NextResponse.json({ error: 'Failed to delete account. Please try again.' }, { status: 500 });
     }
+
+    // 6. Say goodbye. sendAccountDeletedEmail never throws (see lib/email/send.ts),
+    //    so a slow or failing provider cannot turn a successful deletion into an
+    //    error response.
+    await sendAccountDeletedEmail(user.email);
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

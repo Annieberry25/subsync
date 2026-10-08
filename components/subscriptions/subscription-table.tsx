@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useSyncExternalStore, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, ChevronRight, Trash2 } from 'lucide-react';
+import { Edit2, MoreVertical, Clock, Settings, Archive, Bell, ChevronRight, Trash2 } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription, cleanNotesUserText } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
@@ -42,8 +42,8 @@ function SubscriptionTable({
   onArchiveRequest,
   onPaymentReminderRequest,
   onOpenNotes,
-  reminders = {},
-  onDismissReminder,
+  reminders: _reminders = {},
+  onDismissReminder: _onDismissReminder,
 }: SubscriptionTableProps) {
   const { toast } = useToast();
   const [activeMenuSubId, setActiveMenuSubId] = useState<string | null>(null);

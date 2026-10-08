@@ -26,7 +26,7 @@ interface RememberedAccountChooserProps {
 export function RememberedAccountChooser({
   accounts,
   onSelectAccount,
-  onRemoveAccount,
+  onRemoveAccount: _onRemoveAccount,
   onUseAnotherAccount,
   onSocialAuth,
   socialLoading = null,

@@ -33,7 +33,7 @@ import PaymentReminderModal from './payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
-import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
+import { usePlan } from '@/lib/contexts/user-settings-context';
 import { AdBanner } from '@/components/dashboard/ad-banner';
 import UpgradeModal from './upgrade-modal';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
@@ -50,8 +50,8 @@ export default function SubscriptionManager() {
   const paramCategory = searchParams.get('category');
   const paramStatus = searchParams.get('status');
   const paramSort = searchParams.get('sort');
-  const paramLinked = searchParams.get('linked');
-  const paramEmail = searchParams.get('email');
+  const _paramLinked = searchParams.get('linked');
+  const _paramEmail = searchParams.get('email');
   const paramGmailConnected = searchParams.get('gmailConnected');
   const paramGmailError = searchParams.get('gmailError');
 
@@ -96,7 +96,6 @@ export default function SubscriptionManager() {
   const [addPathInitial, setAddPathInitial] = useState<'gmail' | 'forwarding' | 'link' | 'receipt' | null>(null);
   const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [prefillData, setPrefillData] = useState<Partial<Omit<SubscriptionInsert, 'user_id'>> | null>(null);
 
   // Notes Modal state
   const [notesSub, setNotesSub] = useState<SubscriptionRow | null>(null);

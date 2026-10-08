@@ -20,7 +20,7 @@ interface SavingsRecommendationsProps {
 export const SavingsRecommendationsSection = memo(function SavingsRecommendationsSection({
   subscriptions,
   activeSubscriptions,
-  onReviewSubscription,
+  onReviewSubscription: _onReviewSubscription,
   onSeeSavings,
   onAskSubHalt,
 }: SavingsRecommendationsProps) {

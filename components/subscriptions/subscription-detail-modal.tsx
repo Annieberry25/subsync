@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Calendar, DollarSign, FileText, Clock, Globe, Users, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
@@ -12,7 +11,6 @@ import {
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { toAbsoluteUrl } from '@/lib/utils/url-utils';
-import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
 
 interface SubscriptionDetailModalProps {
@@ -34,7 +32,7 @@ function calculateAnnualCost(price: number, billingCycle: string): number {
   return price * 12; // default monthly
 }
 
-const statusBadgeStyles: Record<string, { bg: string; text: string; label: string }> = {
+const _statusBadgeStyles: Record<string, { bg: string; text: string; label: string }> = {
   active: { bg: 'bg-[#10B981]/15 border-[#10B981]/30', text: 'text-[#10B981]', label: 'Active' },
   trial: { bg: 'bg-[#F59E0B]/15 border-[#F59E0B]/30', text: 'text-[#F59E0B]', label: 'Trial Period' },
   paused: { bg: 'bg-[#6B7280]/15 border-[#6B7280]/30', text: 'text-[#9CA3AF]', label: 'Paused' },
@@ -51,7 +49,7 @@ export default function SubscriptionDetailModal({
   onRestoreRequest,
   onCancellationAssistance,
 }: SubscriptionDetailModalProps) {
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
 
   if (!subscription) return null;
 

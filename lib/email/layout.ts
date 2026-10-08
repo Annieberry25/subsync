@@ -21,6 +21,9 @@
  * @param ctaHref   Sign In destination.
  */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 export const BRAND = {
   background: '#000000',
   surface: '#101613',
@@ -46,6 +49,19 @@ export const BRAND = {
  */
 export const SIGN_IN_URL = 'https://subhalt.xyz/login';
 export const SIGN_IN_LABEL = 'Sign In';
+
+/**
+ * Brand logo for the email header, embedded as a base64 data URI so it renders
+ * without a hosted asset to go offline. Loaded once. Falls back to the
+ * wordmark alone when the file is missing (build/sandbox environment).
+ */
+let logoDataUri = '';
+try {
+  const bytes = readFileSync(join(process.cwd(), 'public', 'logo_icon.png'));
+  logoDataUri = `data:image/png;base64,${bytes.toString('base64')}`;
+} catch {
+  logoDataUri = '';
+}
 
 export function renderEmailLayout({
   preheader,
@@ -75,7 +91,9 @@ export function renderEmailLayout({
 
         <tr>
           <td style="padding:0 0 20px;">
-            <span style="font-family:${BRAND.fontStack}; font-size:17px; font-weight:700; letter-spacing:-0.01em; color:${BRAND.heading};">
+            ${logoDataUri
+              ? `<img src="${logoDataUri}" alt="SubHalt" width="34" height="34" style="display:inline-block; vertical-align:middle; border:0; outline:none; text-decoration:none; border-radius:8px;">`
+              : ''}<span style="vertical-align:middle; font-family:${BRAND.fontStack}; font-size:17px; font-weight:700; letter-spacing:-0.01em; color:${BRAND.heading};${logoDataUri ? ' padding-left:8px;' : ''}">
               SubHalt
             </span>
           </td>
@@ -130,7 +148,7 @@ function renderSignInButton(): string {
       <![endif]-->
       <!--[if !mso]><!-- -->
       <a href="${SIGN_IN_URL}"
-         style="display:inline-block; padding:14px 32px; min-height:48px; line-height:20px;
+         style="display:inline-block; padding:14px 32px; line-height:20px;
                 font-family:${BRAND.fontStack}; font-size:15px; font-weight:700;
                 color:${BRAND.accentText}; text-decoration:none; border-radius:999px;
                 background:${BRAND.accent};">

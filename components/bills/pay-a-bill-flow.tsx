@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   HelpCircle,
   ChevronDown,
-  Building2,
 } from 'lucide-react';
 import { SUPPORTED_COUNTRIES, getCountryCategories } from '@/lib/constants/country-architecture';
 import { getCatalogProviders } from '@/lib/constants/provider-catalog';
@@ -95,7 +94,7 @@ export default function PayABillFlow({
     }
   };
 
-  const activeCountryConfig = SUPPORTED_COUNTRIES.find((c) => c.name === selectedCountry) || SUPPORTED_COUNTRIES[0];
+  const _activeCountryConfig = SUPPORTED_COUNTRIES.find((c) => c.name === selectedCountry) || SUPPORTED_COUNTRIES[0];
 
   return (
     <div className="space-y-4">

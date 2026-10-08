@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Forward, Sparkles, PlusCircle, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { PlusBadge } from '@/components/ui/plus-badge';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';

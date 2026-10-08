@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 import { useAuth } from '@/lib/contexts/user-settings-context';
-import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
 
 interface PersonalizedHeaderProps {
   onRefresh?: () => void;
@@ -83,7 +82,7 @@ function getServerNowSnapshot(): Date | null {
 
 export const PersonalizedHeader = memo(function PersonalizedHeader({
   renewingThisWeekCount = 0,
-  onAskSubHalt,
+  onAskSubHalt: _onAskSubHalt,
 }: PersonalizedHeaderProps) {
   const { fullName: contextFullName, email: contextEmail } = useAuth();
   const [user, setUser] = useState<User | null>(null);

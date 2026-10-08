@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Check, ShieldCheck, Link as LinkIcon, Paperclip, AlertCircle, Building2, Globe, MapPin, Tag } from 'lucide-react';
+import { useState } from 'react';
+import { Check, ShieldCheck, AlertCircle, Globe, MapPin } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
-import type { BillPayment, BillFrequency, StandardBillCategory, VerifiedProvider } from '@/lib/types/bills.types';
+import type { BillPayment, BillFrequency, VerifiedProvider } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { searchVerifiedProviders, getVerifiedProvider } from '@/lib/constants/verified-providers';

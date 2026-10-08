@@ -63,6 +63,7 @@ import { EditBillingModal } from '@/components/settings/edit-billing-modal';
 import { CategoryManager } from '@/components/settings/category-manager';
 import { DeleteAccountModal } from '@/components/settings/delete-account-modal';
 import { CustomSelect } from '@/components/ui/custom-select';
+import Sheet from '@/components/ui/sheet';
 import { CardIcon } from '@/components/ui/card-icons';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 import { IntegrationsSettingsPanel } from '@/components/integrations/integrations-settings-panel';
@@ -172,6 +173,7 @@ function SettingsContent() {
 
   // Account Deletion States
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [isAccountDeletedOpen, setIsAccountDeletedOpen] = useState(false);
 
   // Privacy & Data states
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
@@ -345,6 +347,12 @@ function SettingsContent() {
   };
 
   const handleAccountDeleted = async () => {
+    // The account is gone server-side; show the farewell sheet instead of a
+    // toast, then redirect to /login only when the user dismisses it.
+    setIsAccountDeletedOpen(true);
+  };
+
+  const handleFarewellDone = async () => {
     // Clears the caches and performs a hard navigation to /login itself, so there
     // is no client-side push here — see lib/auth/sign-out.ts for why.
     const ok = await signOutAndRedirect();
@@ -513,6 +521,33 @@ function SettingsContent() {
         onClose={() => setIsDeleteAccountOpen(false)}
         onDeleted={handleAccountDeleted}
       />
+
+      {/* Goodbye after successful deletion (small sheet, sized like checkouts).
+          Dismissing it signs out and hard-redirects to /login. */}
+      <Sheet
+        open={isAccountDeletedOpen}
+        onClose={handleFarewellDone}
+        size="sm"
+        footer={
+          <div className="flex items-stretch sm:items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleFarewellDone}
+              className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold bg-[#14B8A6] hover:bg-[#0D9488] text-white transition-colors cursor-pointer"
+            >
+              Take Care
+            </button>
+          </div>
+        }
+      >
+        <div className="text-center py-2 space-y-3">
+          <p className="text-sm font-semibold text-[#F5F7F6]">Account Deleted</p>
+          <p className="text-xs leading-relaxed text-[#94A3B8]">
+            Hey friend! Thank you for staying in our hut for a while. We hope to have you back
+            someday. Take care!
+          </p>
+        </div>
+      </Sheet>
 
       <LegalModal
         isOpen={!!legalModalType}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Loader2, AlertCircle, Plus, Trash2, Upload, Link2, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 

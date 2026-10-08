@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, Filter, ShieldCheck, ExternalLink, FileText, Trash2, Edit3, Eye, ArrowUpDown, Tag, Calendar, Loader2 } from 'lucide-react';
+import { Search, ShieldCheck, ExternalLink, FileText, Trash2, Edit3, Calendar, Loader2 } from 'lucide-react';
 import type { BillPayment, BillFilterOptions } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { formatCurrencyAmount, convertAmount, SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
@@ -32,7 +32,7 @@ export default function BillHistoryTable({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [currencyFilter, setCurrencyFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState<BillFilterOptions['status']>('all');
+  const [statusFilter, _setStatusFilter] = useState<BillFilterOptions['status']>('all');
   const [sortBy, setSortBy] = useState<BillFilterOptions['sortBy']>('date_desc');
 
   // Filtered bills
@@ -47,7 +47,7 @@ export default function BillHistoryTable({
   }, [bills, searchQuery, selectedCategory, currencyFilter, statusFilter, sortBy]);
 
   // Unique list of providers for filter
-  const uniqueProviders = useMemo(() => {
+  const _uniqueProviders = useMemo(() => {
     const set = new Set(bills.map((b) => b.providerName));
     return Array.from(set);
   }, [bills]);

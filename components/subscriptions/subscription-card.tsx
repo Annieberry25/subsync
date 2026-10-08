@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useSyncExternalStore, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, TrendingUp, Settings, Archive, Bell, Link2, Trash2, Loader2 } from 'lucide-react';
+import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, Settings, Archive, Bell, Link2, Trash2, Loader2 } from 'lucide-react';
 import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, getKnownProviderManagementUrl, parseAccountLinks, archiveSubscription } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { toAbsoluteUrl } from '@/lib/utils/url-utils';
@@ -41,7 +41,7 @@ function SubscriptionCard({
   onViewDetails,
   onOpenNotes,
   reminderInfo,
-  onDismissReminder,
+  onDismissReminder: _onDismissReminder,
   isHighlighted,
 }: SubscriptionCardProps) {
   const { toast } = useToast();
@@ -54,7 +54,7 @@ function SubscriptionCard({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const formattedPrice = formatCurrency(Number(subscription.price), subscription.currency);
-  const statusDotStyle = statusDotColors[subscription.status] || statusDotColors.active;
+  const _statusDotStyle = statusDotColors[subscription.status] || statusDotColors.active;
   const accountLinks = parseAccountLinks(subscription);
 
   // Calculate days until next renewal cleanly

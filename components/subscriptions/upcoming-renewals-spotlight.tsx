@@ -50,7 +50,7 @@ function getCycleSuffix(billingCycle?: string): string {
   return '/month';
 }
 
-export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight({ subscriptions, onEdit }: UpcomingRenewalsSpotlightProps) {
+export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight({ subscriptions, onEdit: _onEdit }: UpcomingRenewalsSpotlightProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
