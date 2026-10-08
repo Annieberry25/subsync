@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { BrandWordmark } from '@/components/ui/brand-logo';
 import { describeOAuthError } from '@/lib/auth/oauth-errors';
+import { getAuthErrorMessage } from '@/lib/auth/auth-errors';
 import type { SocialAuthProviderId } from '@/lib/supabase/cookie-options';
 import {
   saveRememberedAccount,
@@ -229,7 +230,12 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
 
       setRequestedStep('otp');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to send one-time code.');
+      setError(
+        getAuthErrorMessage(
+          err,
+          "Couldn't send the code — the server's email sender isn't configured. Please try again or contact support.",
+        ),
+      );
     } finally {
       setLoading(false);
     }
@@ -272,7 +278,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
       router.push('/');
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Invalid code. Please try again.');
+      setError(getAuthErrorMessage(err, 'The code is invalid or has expired. Request a new one.'));
     } finally {
       setLoading(false);
     }
@@ -561,14 +567,14 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
             {/* Label outside input */}
             <div className="space-y-1.5 text-left">
               <label className="text-xs font-medium text-[#94A3B8] block">
-                6-digit verification code
+                One-time verification code
               </label>
               <input
                 type="text"
                 required
                 value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="00000000"
                 /* Numeric keypad and no autocorrect/spellcheck: a pasted code
                    should not gain spaces or capitals from another app. */
                 inputMode="numeric"
@@ -576,8 +582,8 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                maxLength={6}
-                aria-label="6-digit verification code"
+                maxLength={8}
+                aria-label="One-time verification code"
                 aria-describedby="otp-code-hint"
                 className="w-full px-4 py-2 text-center text-base sm:text-lg font-mono tracking-widest rounded-xl bg-[#000000] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8]/40 focus:outline-none focus:border-[#14B8A6]/60 transition-colors h-10.5 sm:h-11"
               />

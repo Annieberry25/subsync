@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { BrandWordmark } from '@/components/ui/brand-logo';
 import { saveRememberedAccount } from '@/lib/auth/remembered-accounts';
 import { describeOAuthError } from '@/lib/auth/oauth-errors';
+import { getAuthErrorMessage } from '@/lib/auth/auth-errors';
 import type { SocialAuthProviderId } from '@/lib/supabase/cookie-options';
 import { SocialAuthButtons } from './social-auth-buttons';
 import { getAuthCallbackUrl } from '@/lib/utils/url-utils';
@@ -117,7 +118,12 @@ export function SignupFlow() {
 
       setStep('otp');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to send one-time code.');
+      setError(
+        getAuthErrorMessage(
+          err,
+          "Couldn't send the code — the server's email sender isn't configured. Please try again or contact support.",
+        ),
+      );
     } finally {
       setLoading(false);
     }
@@ -152,7 +158,7 @@ export function SignupFlow() {
 
       setStep('username');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Verification failed. Please check the code.');
+      setError(getAuthErrorMessage(err, 'Verification failed. Please check the code.'));
     } finally {
       setLoading(false);
     }
@@ -480,8 +486,15 @@ export function SignupFlow() {
                 type="text"
                 required
                 value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                placeholder=""
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="00000000"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                maxLength={8}
+                aria-label="Verification code"
                 className="w-full px-4 py-2 text-center text-base sm:text-lg font-mono tracking-widest rounded-xl bg-[#000000] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]/60 transition-colors h-10.5 sm:h-11"
               />
             </div>
