@@ -80,7 +80,7 @@ export function AdBanner({
 
   return (
     <div
-      className={`w-full rounded-2xl border border-[#1A1D1D] bg-[#0B0D0D] overflow-hidden ${className}`}
+      className={`w-full max-w-[360px] max-h-[110px] rounded-2xl border border-[#1A1D1D] bg-[#0B0D0D] overflow-hidden ${className}`}
       role="region"
       aria-label="Advertisement"
     >
@@ -99,10 +99,13 @@ export function AdBanner({
         </button>
       </div>
 
+      {/* Height-capped so a tall ad can never push the dashboard down:
+          the card itself stops at max-h-[110px] and the slot clips at 60px,
+          which still fits the ~22px header row plus the Ad unit. */}
       <ins
         ref={insRef}
         className="adsbygoogle"
-        style={{ display: 'block', minHeight: 90 }}
+        style={{ display: 'block', minHeight: 50, maxHeight: 60, overflow: 'hidden' }}
         data-ad-client={ADSENSE_CLIENT}
         data-ad-slot={adSlot}
         data-ad-format="auto"
