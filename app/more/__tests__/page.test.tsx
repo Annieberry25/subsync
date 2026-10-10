@@ -222,12 +222,13 @@ describe('MorePage', () => {
     expect(mocks.toastError).toHaveBeenCalledTimes(1);
   });
 
-  it('surfaces the deployed build SHA for support diagnostics', () => {
+  it('keeps the build SHA off the page', () => {
     render(<MorePage />);
 
-    // The stale-production investigation needed a way to tell which commit a
-    // served build came from, so the marker is user-visible on purpose.
-    expect(screen.getByText(/^build /)).toBeInTheDocument();
+    // The commit marker was a support aid, but it read to users as a stray
+    // version string at the bottom of the menu. The SHA is still exposed on the
+    // document element as `data-build` for debugging.
+    expect(screen.queryByText(/^build /)).not.toBeInTheDocument();
   });
 
   it('links every visible nav item somewhere', () => {

@@ -2,14 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useToast } from '@/lib/hooks/use-toast';
 import { safeGetItem, safeSetItem } from '@/lib/safe-local-storage';
 
 const MAX_BIO_LENGTH = 160;
 
 export default function EditBioPage() {
   const router = useRouter();
-  const { toast } = useToast();
 
   const [bio, setBio] = useState(() => {
     if (typeof window === 'undefined') return '';
@@ -20,7 +18,8 @@ export default function EditBioPage() {
     if (typeof window !== 'undefined') {
       safeSetItem('subhalt_user_bio', bio.trim());
     }
-    toast.success('Your bio has been updated.', 'Bio Saved');
+    // No confirmation toast: the page closes on save, so a message would only
+    // flash over the screen the user just asked to leave.
     router.back();
   };
 

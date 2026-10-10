@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
+  Sparkles,
   User as UserIcon,
   HelpCircle,
   PanelLeftClose,
@@ -292,7 +293,7 @@ const { fullName: contextFullName, email: contextEmail, isAdmin, avatarColor } =
                 onClick={() => setShowProfileMenu(false)}
                 className="w-full flex items-center gap-2.5 px-3 py-2 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
               >
-                <LogOut className="w-4 h-4 text-[#94A3B8]" aria-hidden="true" />
+                <Sparkles className="w-4 h-4 text-[#94A3B8]" aria-hidden="true" />
                 <span>{isPlus ? 'Plus' : 'Upgrade Plan'}</span>
               </Link>
 

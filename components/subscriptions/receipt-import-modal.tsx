@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, CheckCircle2, ChevronLeft, AlertCircle, FileSearch } from 'lucide-react';
+import { Upload, ChevronLeft, AlertCircle, FileSearch } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/custom-select';
 import Sheet from '@/components/ui/sheet';
+import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { ACCEPT_ATTRIBUTE, TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
 
@@ -38,12 +40,14 @@ const CATEGORY_ORDER: ExtractedReceiptData['category'][] = [
   'Other',
 ];
 
-const CURRENCY_SYMBOL: Record<string, string> = {
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  NGN: '₦',
-};
+/**
+ * The same list the Edit Subscription form offers, so a receipt can be priced
+ * in any supported currency instead of only the four this modal used to carry.
+ */
+const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({
+  value: c.code,
+  label: `${c.code} (${c.symbol})`,
+}));
 
 function toCategory(value: string | null | undefined): ExtractedReceiptData['category'] {
   if (!value) return 'Other';
@@ -118,16 +122,24 @@ export default function ReceiptImportModal({
   };
 
   const isAnalyzeDisabled = scan.isScanning || (!receiptText.trim() && !file);
-  const lowConfidence = (() => {
-    if (!scan.result) return [] as string[];
+
+  /**
+   * True when the parser left something blank or guessed it.
+   *
+   * Only used to decide whether to warn. The notice deliberately does not name
+   * the fields: the form already shows which ones are empty, and listing them
+   * as "price, renewal date" read as a parser error rather than a blank form.
+   */
+  const hasUnreadableFields = (() => {
+    if (!scan.result) return false;
     const e = scan.result.extraction;
-    const flagged: string[] = [];
-    if (e.amount.confidence === 'low' || e.amount.confidence === 'none') flagged.push('price');
-    if (e.providerName.confidence === 'low' || e.providerName.confidence === 'none') {
-      flagged.push('provider name');
-    }
-    if (!e.nextBillingDate.value) flagged.push('renewal date');
-    return flagged;
+    return (
+      e.amount.confidence === 'low' ||
+      e.amount.confidence === 'none' ||
+      e.providerName.confidence === 'low' ||
+      e.providerName.confidence === 'none' ||
+      !e.nextBillingDate.value
+    );
   })();
 
   return (
@@ -136,8 +148,12 @@ export default function ReceiptImportModal({
       onClose={onClose}
       size="md"
       title="Import Subscription Receipt"
-      description="Extract provider details from receipt files or text confirmation"
-      headerAction={
+      description={
+        <span className="text-xs">
+          Extract provider details from receipt files or text confirmation
+        </span>
+      }
+      headerLeading={
         (onBack || onCancel) ? (
           <button
             type="button"
@@ -152,33 +168,40 @@ export default function ReceiptImportModal({
             }}
             aria-label="Go back"
             data-touch="compact"
-            className="w-9 h-9 shrink-0 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
         ) : null
       }
-      /* Primary action is pinned so it stays reachable while the form scrolls. */
+      /* Primary action is pinned so it stays reachable while the form scrolls.
+         It sits right so it lines up with the action row on the form it
+         feeds, instead of floating against the left edge. */
       footer={
-        !reviewData ? (
-          <button
-            type="button"
-            onClick={handleAnalyze}
-            disabled={isAnalyzeDisabled}
-            className="w-full sm:w-auto px-5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <span>{scan.isScanning ? 'Reading receipt…' : 'Extract Receipt Info'}</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleConfirmExtracted}
-            className="w-full sm:w-auto px-6 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-          >
-            <CheckCircle2 className="w-4 h-4 text-[#091512]" />
-            <span>Confirm & Populate Form</span>
-          </button>
-        )
+        <div className="flex justify-end">
+          {!reviewData ? (
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={isAnalyzeDisabled}
+              className="w-full sm:w-auto px-5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span>{scan.isScanning ? 'Reading receipt…' : 'Extract Receipt'}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleConfirmExtracted}
+              /* Both responsive labels are in the DOM at once, so the accessible
+                 name needs stating or it reads "Add Add Subscription". */
+              aria-label="Add Subscription"
+              className="w-full sm:w-auto px-6 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              <span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">Add Subscription</span>
+            </button>
+          )}
+        </div>
       }
     >
         {/* Content Body. The Sheet body owns the scroll. */}
@@ -231,9 +254,11 @@ export default function ReceiptImportModal({
               )}
 
               {scan.error && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span className="flex-1">{scan.error}</span>
+                /* Container stays on the app's black surface; only the message
+                   and its icon carry the danger colour. */
+                <div className="p-3 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#D9363E]" />
+                  <span className="flex-1 text-[#D9363E]">{scan.error}</span>
                 </div>
               )}
 
@@ -243,13 +268,13 @@ export default function ReceiptImportModal({
                 </label>
                 <textarea
                   rows={5}
-                  placeholder="Paste your email receipt or subscription confirmation text here..."
+                  placeholder="Paste your receipt or subscription confirmation text here..."
                   value={receiptText}
                   onChange={(e) => {
                     setReceiptText(e.target.value);
                     if (e.target.value.trim()) setFile(null);
                   }}
-                  className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
+                  className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
                 />
               </div>
 
@@ -262,71 +287,63 @@ export default function ReceiptImportModal({
           ) : (
             /* Step 2: Extraction Review & Confirmation */
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-[#14B8A6]/15 border border-[#14B8A6]/30 text-[#14B8A6] text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-[#14B8A6]" />
-                <span>
-                  {scan.result
-                    ? `Read from ${TEXT_SOURCE_LABEL[scan.result.textSource].toLowerCase()}. `
-                    : ''}
-                  Please review every value before applying.
-                </span>
-              </div>
-
-              {lowConfidence.length > 0 && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>
-                    We could not read the {lowConfidence.join(', ')} clearly, so{' '}
-                    {lowConfidence.length === 1 ? 'it is' : 'they are'} blank or a best guess.
-                    Please check {lowConfidence.length === 1 ? 'it' : 'them'} against the receipt.
+              {hasUnreadableFields && (
+                <div className="p-3 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#F59E0B]" />
+                  <span className="flex-1 text-[#F59E0B]">
+                    We could not read all the information clearly, so they are blank. Please check
+                    to fill it out.
                   </span>
                 </div>
               )}
 
-              <div className="space-y-3 bg-[#0D0F0F] p-4 rounded-2xl border border-[#1A1D1D]">
+              <div className="space-y-3">
                 <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
                   Extracted Subscription Data
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                {/* Standard form: plain label on top, pill input below. These
+                    fields used to sit inside their own bordered boxes inside a
+                    bordered group, so every value read as its own card. */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-1.5">
                     <span className="text-[#94A3B8] block text-[11px]">Provider Name</span>
                     <input
                       type="text"
                       value={reviewData.name}
                       onChange={(e) => setReviewData({ ...reviewData, name: e.target.value })}
                       placeholder="e.g. Netflix"
-                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-sm focus:outline-none mt-0.5"
+                      className="w-full h-11 px-4 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-sm placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
                     />
                   </div>
 
-                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                  <div className="space-y-1.5">
                     <span className="text-[#94A3B8] block text-[11px]">Price &amp; Currency</span>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <select
-                        value={reviewData.currency}
-                        onChange={(e) => setReviewData({ ...reviewData, currency: e.target.value })}
-                        aria-label="Currency"
-                        className="bg-transparent text-[#F5F7F6] font-semibold text-sm focus:outline-none"
-                      >
-                        {Object.keys(CURRENCY_SYMBOL).map((c) => (
-                          <option key={c} value={c} className="bg-[#0B0D0D]">
-                            {CURRENCY_SYMBOL[c]} {c}
-                          </option>
-                        ))}
-                      </select>
+{/* Currency and amount share one pill, matching how the rest of the app
+                      pairs a select with a free-text value. */}
+                    <div className="flex items-stretch rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] focus-within:border-[#14B8A6] transition-colors overflow-hidden">
+                      <div className="flex items-center border-r border-[#1A1D1D]">
+                        <CustomSelect
+                          options={CURRENCY_OPTIONS}
+                          value={reviewData.currency}
+                          onChange={(val) => setReviewData({ ...reviewData, currency: val })}
+                          ariaLabel="Currency"
+                          variant="borderless"
+                          showCheckmark={false}
+                        />
+                      </div>
                       <input
                         type="text"
                         inputMode="decimal"
                         value={reviewData.price}
                         onChange={(e) => setReviewData({ ...reviewData, price: e.target.value })}
                         placeholder="0.00"
-                        className="w-full bg-transparent text-[#F5F7F6] font-semibold text-sm focus:outline-none"
+                        className="flex-1 min-w-0 h-11 px-4 rounded-none bg-transparent border-0 text-[#F5F7F6] font-semibold text-sm placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none"
                       />
                     </div>
                   </div>
 
-                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                  <div className="space-y-1.5">
                     <span className="text-[#94A3B8] block text-[11px]">Billing Cycle</span>
                     <select
                       value={reviewData.billingCycle}
@@ -337,7 +354,7 @@ export default function ReceiptImportModal({
                         })
                       }
                       aria-label="Billing cycle"
-                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs capitalize focus:outline-none mt-0.5"
+                      className="w-full h-11 !pl-4 !pr-12 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs capitalize focus:outline-none focus:border-[#14B8A6] transition-colors"
                     >
                       {(['monthly', 'yearly', 'quarterly', 'weekly'] as const).map((c) => (
                         <option key={c} value={c} className="bg-[#0B0D0D] capitalize">
@@ -347,22 +364,22 @@ export default function ReceiptImportModal({
                     </select>
                   </div>
 
-                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                  <div className="space-y-1.5">
                     <span className="text-[#94A3B8] block text-[11px]">Next Billing Date</span>
                     <input
                       type="date"
                       value={reviewData.nextBillingDate}
                       onChange={(e) => setReviewData({ ...reviewData, nextBillingDate: e.target.value })}
-                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
+                      className="w-full h-11 px-4 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs focus:outline-none focus:border-[#14B8A6] transition-colors"
                     />
                     {!reviewData.nextBillingDate && (
-                      <span className="text-[10px] text-amber-300/80">
+                      <span className="block text-[10px] text-[#F59E0B]/80">
                         Not found on the receipt. Enter it yourself.
                       </span>
                     )}
                   </div>
 
-                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                  <div className="space-y-1.5">
                     <span className="text-[#94A3B8] block text-[11px]">Category</span>
                     <select
                       value={reviewData.category}
@@ -370,7 +387,7 @@ export default function ReceiptImportModal({
                         setReviewData({ ...reviewData, category: e.target.value as ExtractedReceiptData['category'] })
                       }
                       aria-label="Category"
-                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
+                      className="w-full h-11 !pl-4 !pr-12 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs focus:outline-none focus:border-[#14B8A6] transition-colors"
                     >
                       {CATEGORY_ORDER.map((c) => (
                         <option key={c} value={c} className="bg-[#0B0D0D]">
@@ -380,27 +397,18 @@ export default function ReceiptImportModal({
                     </select>
                   </div>
 
-                  <div className="bg-[#0B0D0D] p-3 rounded-xl border border-[#1A1D1D]">
+                  <div className="space-y-1.5">
                     <span className="text-[#94A3B8] block text-[11px]">Plan / Tier</span>
                     <input
                       type="text"
                       value={reviewData.plan || ''}
                       onChange={(e) => setReviewData({ ...reviewData, plan: e.target.value })}
                       placeholder="e.g. Premium, Family, Basic"
-                      className="w-full bg-transparent text-[#F5F7F6] font-semibold text-xs focus:outline-none mt-0.5"
+                      className="w-full h-11 px-4 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
                     />
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setReviewData(null)}
-                  className="text-xs text-[#94A3B8] hover:text-[#F5F7F6] underline"
-                >
-                  ← Edit or re-upload text
-                </button>              </div>
             </div>
           )}
         </div>

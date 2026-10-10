@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { goBack } from '@/lib/back-nav';
 import { fetchSubscriptions, bulkCreateSubscriptions, type SubscriptionRow, type SubscriptionInsert } from '@/lib/services/subscription-service';
 import { exportToCSV, exportToJSON } from '@/lib/utils/export-utils';
 import { parseCSVSubscriptions, parseJSONSubscriptions } from '@/lib/utils/import-utils';
@@ -22,7 +24,8 @@ import {
   FileCheck,
   TrendingUp,
   Tag,
-  Layers
+  Layers,
+  ChevronLeft
 } from 'lucide-react';
 
 // SubHalt Design System v1.1: Maximum 3 restrained colors per chart
@@ -33,6 +36,7 @@ const chartColorPalette = [
 ];
 
 export default function ExportPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const { isPlus, isPremium: _isPremium } = usePlan();
 
@@ -166,6 +170,21 @@ export default function ExportPage() {
 
       {/* Accessible DOM Heading */}
       <h1 className="sr-only">Export & Analytics</h1>
+
+      {/* Mobile back control. Below lg the sidebar is hidden and this page is
+          reached from More, so without a chevron there is no way out but the
+          dock. */}
+      <div className="lg:hidden">
+        <button
+          type="button"
+          onClick={() => goBack(router)}
+          aria-label="Go back"
+          data-touch="compact"
+          className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      </div>
 
       {error && (
         <div className="p-4 rounded-xl bg-[#D9363E]/10 border border-[#D9363E]/20 flex items-center gap-3 text-[#D9363E] text-xs">

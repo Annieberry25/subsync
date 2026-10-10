@@ -66,6 +66,7 @@ import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { CardIcon } from '@/components/ui/card-icons';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 import { IntegrationsSettingsPanel } from '@/components/integrations/integrations-settings-panel';
+import { FROM_SETTINGS } from '@/lib/back-nav';
 
 type SettingsSection = 'account' | 'plan' | 'integrations' | 'preferences' | 'privacy' | 'help';
 
@@ -966,8 +967,8 @@ function SettingsContent() {
 
         {/* Action rows */}
         <SettingsGroup divided={false}>
-          <ActionRow label="Edit Profile" href="/profile" />
-          <ActionRow label="Authentication Methods" href="/settings/authentication" />
+          <ActionRow label="Edit Profile" href={`/profile?${FROM_SETTINGS}`} />
+          <ActionRow label="Authentication Methods" href={`/settings/authentication?${FROM_SETTINGS}`} />
           <ActionRow label="Log out" onClick={() => setShowSignOutConfirm(true)} />
         </SettingsGroup>
 
@@ -1224,7 +1225,7 @@ function SettingsContent() {
             description="Browse guides for adding, linking, and managing subscriptions"
           >
             <Link
-              href="/help"
+              href={`/help?${FROM_SETTINGS}`}
               className="text-xs font-semibold text-[#14B8A6] hover:underline"
             >
               Open

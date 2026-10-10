@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { goBack } from '@/lib/back-nav';
 import { ChevronLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import type { Factor } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
@@ -181,7 +182,7 @@ export default function AuthenticationPage() {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() => goBack(router)}
             aria-label="Go back"
             data-touch="compact"
             className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer lg:hidden"

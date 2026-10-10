@@ -93,27 +93,29 @@ beforeEach(() => {
 });
 
 describe('SubscriptionModal', () => {
-  it('rounds the footer actions to match the Back button', async () => {
+  it('rounds the submit action and leaves one exit to the header', async () => {
     await renderOpen();
 
-    const cancel = screen.getByRole('button', { name: 'Cancel' });
-    const create = screen.getByRole('button', { name: 'Create Subscription' });
+    const create = screen.getByRole('button', { name: 'Add Subscription' });
 
-    // All three sat on the same baseline; Cancel and Create were the odd ones out
-    // because they were the only footer buttons missing rounded-xl.
-    expect(cancel.className).toContain('rounded-xl');
     expect(create.className).toContain('rounded-xl');
+
+    // Cancel sat in the footer next to a header that already closes the dialog,
+    // so the form had two ways out from the same screen.
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
   });
 
-  it('rounds Back the same way when the add flow renders it', () => {
-    // Back only appears in the add flow, which is reached via onBack.
-    const onClose = vi.fn();
-    const onSave = vi.fn(async () => 'sub_new');
+  it('offers a back chevron into the Add Subscription menu', async () => {
+    const onBack = vi.fn();
+    const user = userEvent.setup();
     render(
-      <SubscriptionModal isOpen onClose={onClose} onSave={onSave} onBack={vi.fn()} />
+      <SubscriptionModal isOpen onClose={vi.fn()} onSave={vi.fn()} onBack={onBack} />
     );
 
-    expect(screen.getByRole('button', { name: /Back/ }).className).toContain('rounded-xl');
+    await user.click(screen.getByRole('button', { name: 'Back to Add Subscription' }));
+
+    expect(onBack).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
   });
 
   it('has no Provider URL input; the website is resolved from the provider name', async () => {
@@ -134,7 +136,7 @@ describe('SubscriptionModal', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
-    await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     // Typed name alone produces a known website, and it is still persisted.
     await waitFor(() =>
@@ -152,7 +154,7 @@ describe('SubscriptionModal', () => {
     expect(screen.getByRole('heading', { name: 'Add New Subscription' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('15.99')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create Subscription' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Add Subscription' })).toBeEnabled();
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -161,7 +163,7 @@ describe('SubscriptionModal', () => {
     const { onSave } = await renderOpen();
 
     // The button must not be inert: clicking it has to explain the problem.
-    await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     expect(await screen.findByText('Subscription name is required.')).toBeInTheDocument();
     expect(screen.getByText('Enter a valid price > 0.')).toBeInTheDocument();
@@ -174,7 +176,7 @@ describe('SubscriptionModal', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
-    await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith(
@@ -216,7 +218,7 @@ describe('SubscriptionModal', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
-    await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const payload = onSave.mock.calls[0][0];
@@ -250,7 +252,7 @@ describe('SubscriptionModal', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
-    await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onClose).not.toHaveBeenCalled();
@@ -261,7 +263,7 @@ describe('SubscriptionModal', () => {
     const user = userEvent.setup();
     const { onSave } = await renderOpen();
 
-    await user.click(screen.getByRole('button', { name: 'Create Subscription' }));
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     expect(onSave).not.toHaveBeenCalled();
   });

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { goBack } from '@/lib/back-nav';
 import { 
   Trash2, 
   RotateCcw, 
@@ -332,6 +334,7 @@ function ActivityMessageItem({ activity, onClick }: ActivityMessageItemProps) {
 }
 
 export default function HistoryPageContent({ section = 'all' }: HistoryPageContentProps) {
+  const router = useRouter();
   const { toast } = useToast();
   const { archivedItems: archivedInboxItems, unarchiveItem: unarchiveInboxItem } = useInbox();
   const { planTier } = usePlan();
@@ -444,6 +447,21 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
     <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85dvh] w-full max-w-full overflow-x-clip">
       {/* Accessible DOM Heading */}
       <h1 className="sr-only">{headerInfo.title} - History</h1>
+
+      {/* Mobile back control, rendered once for all four history routes since
+          they share this component. Below lg the sidebar is hidden and these
+          are reached from More, so the chevron is the only way back out. */}
+      <div className="lg:hidden">
+        <button
+          type="button"
+          onClick={() => goBack(router)}
+          aria-label="Go back"
+          data-touch="compact"
+          className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      </div>
 
       {/* Error Banner */}
       {error && (

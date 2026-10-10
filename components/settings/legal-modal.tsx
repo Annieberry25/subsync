@@ -27,17 +27,6 @@ export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
           {title}
         </span>
       }
-      footer={
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
-          >
-            Close Document
-          </button>
-        </div>
-      }
     >
         {/* Content Body */}
         <div className="space-y-4 text-xs sm:text-sm text-[#94A3B8] leading-relaxed">

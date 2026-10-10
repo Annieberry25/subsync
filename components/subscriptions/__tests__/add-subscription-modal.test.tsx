@@ -31,6 +31,40 @@ vi.mock('@/components/integrations/email-forwarding-modal', () => ({
     isOpen ? <div>Forwarding modal</div> : null,
 }));
 
+/**
+ * The receipt flow is asserted through the real modal, so the scan itself is
+ * stubbed: only the values the parser would return matter here, not the parse.
+ */
+const scanResult = {
+  textSource: 'pdf-text-layer',
+  text: 'Netflix 15.99 monthly',
+  extraction: {
+    providerName: { value: 'Netflix', confidence: 'high' },
+    amount: { value: 15.99, confidence: 'high' },
+    currency: { value: 'USD', confidence: 'high' },
+    billingCycle: { value: 'monthly', confidence: 'high' },
+    category: { value: 'Streaming', confidence: 'high' },
+    nextBillingDate: { value: '2026-01-01', confidence: 'high' },
+    providerUrl: { value: null, confidence: 'none' },
+    plan: { value: 'Premium', confidence: 'high' },
+  },
+};
+
+vi.mock('@/lib/hooks/use-receipt-scan', () => ({
+  ACCEPT_ATTRIBUTE: '.pdf,.png,.jpg,.txt',
+  TEXT_SOURCE_LABEL: { 'pdf-text-layer': 'PDF invoice text' },
+  useReceiptScan: () => ({
+    isScanning: false,
+    error: null,
+    result: scanResult,
+    // Must resolve with the result: the review step only appears once the
+    // analysis call hands one back.
+    run: vi.fn(async () => scanResult),
+    reset: vi.fn(),
+    clearError: vi.fn(),
+  }),
+}));
+
 const renderModal = (over: Record<string, unknown> = {}) => {
   const onClose = vi.fn();
   const onRequireUpgrade = vi.fn();
@@ -116,5 +150,40 @@ describe('AddSubscriptionModal Plus gating', () => {
 
     expect(onRequireUpgrade).not.toHaveBeenCalled();
     expect(screen.getByText('Gmail modal')).toBeInTheDocument();
+  });
+
+it('saves a reviewed receipt instead of opening the manual form', async () => {
+    const user = userEvent.setup();
+    const onSelectManual = vi.fn();
+    const onCreateFromReceipt = vi.fn();
+    renderModal({ onSelectManual, onCreateFromReceipt });
+
+    await user.click(screen.getByRole('button', { name: /Import Receipt/ }));
+    await user.type(screen.getByRole('textbox'), 'Netflix 15.99 monthly');
+    await user.click(screen.getByRole('button', { name: 'Extract Receipt' }));
+
+    const add = await screen.findByRole('button', { name: 'Add Subscription' });
+    await user.click(add);
+
+    // Confirming the review must create the subscription. Falling back to
+    // onSelectManual opens the pre-filled manual form, which reads as though
+    // nothing was added yet.
+    expect(onCreateFromReceipt).toHaveBeenCalledTimes(1);
+    expect(onCreateFromReceipt.mock.calls[0][0]).toMatchObject({ name: 'Netflix' });
+    expect(onSelectManual).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the manual form when no direct-create path is given', async () => {
+    const user = userEvent.setup();
+    const onSelectManual = vi.fn();
+    renderModal({ onSelectManual });
+
+    await user.click(screen.getByRole('button', { name: /Import Receipt/ }));
+    await user.type(screen.getByRole('textbox'), 'Netflix 15.99 monthly');
+    await user.click(screen.getByRole('button', { name: 'Extract Receipt' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Add Subscription' }));
+
+    expect(onSelectManual).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, ShieldCheck, ExternalLink, ChevronLeft, CheckCircle2 } from 'lucide-react';
+import { Search, ShieldCheck, ExternalLink, ChevronLeft } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { getKnownProviderWebsite, getKnownProviderManagementUrl } from '@/lib/services/subscription-service';
@@ -117,16 +117,24 @@ export default function LinkSubscriptionModal({
       open={isOpen}
       onClose={onClose}
       size="md"
-      title="Manage External Subscription"
-      description="Access official provider pages to manage your subscriptions directly."
-      headerAction={
+      /* The picker keeps its title. The two steps after a provider is chosen do
+         not: each already names itself in the body ("Manage Spotify
+         Subscription", "Did you just subscribe?"), so the sheet header repeated
+         the same words directly above them. */
+      title={step === 'select' ? 'Manage External Subscription' : undefined}
+      description={
+        <span className="text-xs">
+          Access official provider pages to manage your subscriptions directly.
+        </span>
+      }
+      headerLeading={
         (step !== 'select' || onBack) ? (
           <button
             type="button"
             onClick={() => (step !== 'select' ? setStep('select') : onBack?.())}
             aria-label={step !== 'select' ? 'Back to provider list' : 'Back to Add Subscription menu'}
             data-touch="compact"
-            className="w-9 h-9 shrink-0 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -147,7 +155,7 @@ export default function LinkSubscriptionModal({
                   placeholder="Search Google One, Spotify, Netflix, Apple..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-11 pl-10 pr-4 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                  className="w-full h-10 pl-10 pr-4 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors input-compact"
                 />
               </div>
             </div>
@@ -260,22 +268,24 @@ export default function LinkSubscriptionModal({
               </p>
             </div>
 
-            <div className="pt-2 flex flex-col gap-2.5 max-w-sm mx-auto">
+            {/* Two compact answers, not two full-width bars. The question is a
+                yes/no check rather than a task, and the stacked buttons made it
+                read as the step's main work. "Not yet" sits left, "Yes" right. */}
+            <div className="pt-2 flex items-center justify-between gap-3 max-w-sm mx-auto">
               <button
                 type="button"
-                onClick={handleYesSubscribed}
-                className="w-full h-11 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                onClick={handleNotYet}
+                className="px-4 py-2 rounded-full bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
               >
-                <CheckCircle2 className="w-4 h-4 text-[#091512]" />
-                <span>Yes, I subscribed</span>
+                Not yet
               </button>
 
               <button
                 type="button"
-                onClick={handleNotYet}
-                className="w-full h-11 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] border border-[#1A1D1D] text-xs font-medium transition-colors cursor-pointer"
+                onClick={handleYesSubscribed}
+                className="px-4 py-2 rounded-full bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-bold transition-colors cursor-pointer"
               >
-                <span>Not yet</span>
+                Yes
               </button>
             </div>
           </div>

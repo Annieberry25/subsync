@@ -195,10 +195,6 @@ export default function MorePage() {
         cancelText="Stay signed in"
         variant="danger"
       />
-
-      <p className="text-center text-[10px] text-[#5A6461] tabular-nums">
-        build {process.env.NEXT_PUBLIC_BUILD_SHA ?? 'unknown'}
-      </p>
     </div>
   );
 }

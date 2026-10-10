@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { PlusBadge } from '@/components/ui/plus-badge';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
@@ -22,6 +22,16 @@ interface AddSubscriptionModalProps {
     receiptFile?: File | null
   ) => void;
   onSelectExistingDetails?: (subscription: SubscriptionRow) => void;
+  /**
+   * Creates the subscription straight from a receipt.
+   *
+   * Without it the extracted values pre-fill the manual form, which left the
+   * user staring at an edit screen for something they had already confirmed.
+   */
+  onCreateFromReceipt?: (
+    data: Partial<Omit<SubscriptionInsert, 'user_id'>>,
+    receiptFile: File | null
+  ) => void;
   existingSubscriptions?: SubscriptionRow[];
   onRequireUpgrade?: () => void;
   /** Opens straight into one of the sub-flows instead of the option menu. */
@@ -38,6 +48,7 @@ export default function AddSubscriptionModal({
   isOpen,
   onClose,
   onSelectManual,
+  onCreateFromReceipt,
   onSelectExistingDetails,
   existingSubscriptions,
   onRequireUpgrade,
@@ -104,6 +115,12 @@ export default function AddSubscriptionModal({
       provider_url: extracted.providerUrl,
       notes: notes.trim() || undefined,
     };
+
+    if (onCreateFromReceipt) {
+      onCreateFromReceipt(prefill, file);
+      return;
+    }
+
     onSelectManual(prefill, file);
   };
 
@@ -139,7 +156,7 @@ export default function AddSubscriptionModal({
                     </h3>
                     {!hasPlanFeature(planTier, 'gmail') && <PlusBadge />}
                   </div>
-                  <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:translate-x-1 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
                 </div>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   Connect your Gmail account to automatically detect recurring subscription and billing emails.
@@ -166,7 +183,7 @@ export default function AddSubscriptionModal({
                     </h3>
                     {!hasPlanFeature(planTier, 'emailForwarding') && <PlusBadge />}
                   </div>
-                  <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:translate-x-1 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
                 </div>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   View your personal SubHalt auto-import email address to forward billing receipts.
@@ -186,7 +203,7 @@ export default function AddSubscriptionModal({
                   <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
                     Subscribe through Provider
                   </h3>
-                  <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:translate-x-1 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
                 </div>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   Subscribe through the provider page, then confirm the subscription with the receipt or details.
@@ -206,7 +223,7 @@ export default function AddSubscriptionModal({
                   <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
                     Import Receipt
                   </h3>
-                  <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:translate-x-1 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
                 </div>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   Upload a receipt, screenshot, PDF, or paste subscription confirmation/receipt text.
@@ -226,7 +243,7 @@ export default function AddSubscriptionModal({
                   <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
                     Add Manually
                   </h3>
-                  <ArrowRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] group-hover:translate-x-1 transition-all" />
+                  <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
                 </div>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
                   Enter subscription name, price, billing cycle, renewal date, etc.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, AlertCircle, Plus, Trash2, Upload, Link2, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Link2, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow, 
@@ -21,7 +21,6 @@ import { CustomSelect } from '@/components/ui/custom-select';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { hasReachedAccountLinkCap } from '@/lib/constants/plan-limits';
-import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-modal';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
 
 interface SubscriptionModalProps {
@@ -80,7 +79,6 @@ export default function SubscriptionModal({
   const [accountLinks, setAccountLinks] = useState<AccountLink[]>([]);
   const [notes, setNotes] = useState('');
 
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; price?: string; date?: string }>({});
 
@@ -184,29 +182,6 @@ export default function SubscriptionModal({
     tier: planTier,
     linkCount: accountLinks.length,
   });
-
-  const handleConfirmReceiptData = (extracted: ExtractedReceiptData) => {
-    if (extracted.name) {
-      setName(extracted.name);
-      if (extracted.providerUrl) {
-        setProviderUrl(extracted.providerUrl);
-        setIsUserEditedUrl(true);
-      }
-    }
-    if (extracted.price) setPrice(extracted.price);
-    if (extracted.currency) setCurrency(extracted.currency);
-    if (extracted.billingCycle) setBillingCycle(extracted.billingCycle);
-    if (extracted.category) setCategory(extracted.category);
-    if (extracted.nextBillingDate) setNextBillingDate(extracted.nextBillingDate);
-
-    let addedNotes = '';
-    if (extracted.plan) addedNotes += `Plan: ${extracted.plan}\n`;
-    if (addedNotes) {
-      setNotes((prev) => (prev ? `${prev}\n${addedNotes.trim()}` : addedNotes.trim()));
-    }
-
-    toast.success(`Extracted information for ${extracted.name || 'subscription'} applied to form.`, 'Receipt Imported');
-  };
 
   const setQuickDate = (monthsToAdd: number) => {
     const d = new Date();
@@ -322,41 +297,38 @@ setLoading(true);
         onClose={onClose}
         size="lg"
         title={initialData?.id ? 'Edit Subscription' : 'Add New Subscription'}
-        headerAction={
-          <button
-            type="button"
-            onClick={() => setIsReceiptModalOpen(true)}
-            className="px-3 min-h-[44px] rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Import details from subscription receipt"
-          >
-            <Upload className="w-3.5 h-3.5 text-[#94A3B8]" />
-            <span className="hidden sm:inline">Import Receipt</span>
-            <span className="sm:hidden">Import</span>
-          </button>
+        /* Reached from the Add Subscription chooser, so it needs its own way
+           back to that menu. The header's close button already covers Cancel,
+           and Import Receipt lives on the chooser as its own step. */
+        headerLeading={
+          onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back to Add Subscription"
+              data-touch="compact"
+              className="w-9 h-9 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          ) : null
         }
         /* Actions are pinned below the scrolling form. */
         footer={
           <div className="flex items-center justify-end gap-3">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="w-full sm:w-auto px-4 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
-              >
-                ← Back
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center"
-            >
-              Cancel
-            </button>
             <button
               type="submit"
               form={SUBSCRIPTION_FORM_ID}
               disabled={isSubmitDisabled}
+              /* Both responsive labels sit in the DOM at once, so without this
+                 the accessible name would read "Add Add Subscription". */
+              aria-label={
+                loading
+                  ? 'Saving...'
+                  : initialData?.id
+                    ? 'Update Subscription'
+                    : 'Add Subscription'
+              }
               className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -364,8 +336,13 @@ setLoading(true);
                   <Loader2 className="w-4 h-4 animate-spin text-[#091512]" />
                   <span>Saving...</span>
                 </>
+              ) : initialData?.id ? (
+                <span>Update Subscription</span>
               ) : (
-                <span>{initialData?.id ? 'Update Subscription' : 'Create Subscription'}</span>
+                <>
+                  <span className="sm:hidden">Add</span>
+                  <span className="hidden sm:inline">Add Subscription</span>
+                </>
               )}
             </button>
           </div>
@@ -584,7 +561,7 @@ setLoading(true);
               )}
 
               {accountLinks.length === 0 ? (
-                <div className="p-3.5 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-xs text-[#94A3B8]">
+                <div className="px-3 py-2.5 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[11px] leading-relaxed text-[#94A3B8]">
                   No account entries added yet. Click &quot;Add account link&quot; to configure your accounts.
                 </div>
               ) : (
@@ -709,18 +686,11 @@ setLoading(true);
                 placeholder="Additional renewal notes or plan tier details..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-4 py-3 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
+                className="w-full px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
               />
             </div>
           </form>
       </Sheet>
-
-      {/* Receipt Import Review Modal */}
-      <ReceiptImportModal
-        isOpen={isReceiptModalOpen}
-        onClose={() => setIsReceiptModalOpen(false)}
-        onConfirm={handleConfirmReceiptData}
-      />
     </>
   );
 }

@@ -3,6 +3,7 @@ import { safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { goBack } from '@/lib/back-nav';
 import { createClient } from '@/lib/supabase/client';
 import { Camera, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
@@ -101,7 +102,7 @@ export default function ProfilePage() {
       <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => goBack(router)}
           aria-label="Go back"
           data-touch="compact"
           className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"

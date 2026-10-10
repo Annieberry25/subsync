@@ -93,6 +93,11 @@ export interface SheetProps {
   title?: React.ReactNode;
   description?: React.ReactNode;
   /**
+   * Controls rendered before the title, so a back chevron leads the heading
+   * instead of trailing it next to the close button.
+   */
+  headerLeading?: React.ReactNode;
+  /**
    * Extra controls rendered beside the close button. Used by dialogs that
    * carry their own header actions, e.g. the AI assistant's saved-conversation
    * toggle.
@@ -128,6 +133,7 @@ export function Sheet({
   id,
   title,
   description,
+  headerLeading,
   headerAction,
   children,
   footer,
@@ -252,7 +258,7 @@ export function Sheet({
 
   if (!open || !mounted) return null;
 
-  const hasHeader = Boolean(title || description || headerAction);
+  const hasHeader = Boolean(title || description || headerAction || headerLeading);
   const isBottom = placement === 'bottom';
 
   const panel = (
@@ -298,7 +304,8 @@ export function Sheet({
 
         {hasHeader && (
           <div className="shrink-0 flex items-start justify-between gap-3 px-4 pt-3 pb-3 sm:px-5 sm:pt-4">
-            <div className="min-w-0">
+            {headerLeading && <div className="flex items-center shrink-0 -ml-2">{headerLeading}</div>}
+            <div className="min-w-0 flex-1">
               {title && (
                 <h2
                   id={titleId}

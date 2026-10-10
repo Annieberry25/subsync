@@ -27,6 +27,7 @@ import SubscriptionTable from './subscription-table';
 import SubscriptionDetailModal from './subscription-detail-modal';
 import SubscriptionModal from './subscription-modal';
 import AddSubscriptionModal from './add-subscription-modal';
+import { storeReceiptFile } from '@/lib/services/receipt-storage';
 import SubscriptionNotesModal from './subscription-notes-modal';
 import SubscriptionFilters from './subscription-filters';
 import PaymentReminderModal from './payment-reminder-modal';
@@ -291,14 +292,35 @@ export default function SubscriptionManager() {
   // opening the FAB link in a new tab) would see no change and never open the
   // modal. This matches how the OAuth callback params below are handled.
   const paramAdd = searchParams.get('add');
-  const [addParamHandled, setAddParamHandled] = useState(false);
-  if (!addParamHandled && paramAdd === 'true') {
-    setAddParamHandled(true);
-    if (!isAddPathModalOpen) {
+
+  /**
+   * Compared against the previous value rather than latched with a `handled`
+   * flag, which only ever fired once: the FAB pushes `/subscriptions?add=true`,
+   * and on the second tap the user was already sitting on that exact URL, so
+   * nothing changed and the form only reopened after a page reload.
+   *
+   * Seeded with `null` rather than the current param so a direct load of
+   * `?add=true` (a refresh, or opening the FAB link in a new tab) still counts
+   * as a change and opens the form. The param is cleared below once handled,
+   * which returns it to `null` and arms the next tap.
+   */
+  const [prevParamAdd, setPrevParamAdd] = useState<string | null>(null);
+  if (prevParamAdd !== paramAdd) {
+    setPrevParamAdd(paramAdd);
+    if (paramAdd === 'true' && !isAddPathModalOpen) {
       setAddPathInitial(null);
       setIsAddPathModalOpen(true);
     }
   }
+
+  useEffect(() => {
+    if (paramAdd !== 'true') return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('add');
+    const query = params.toString();
+    router.replace(query ? `/subscriptions?${query}` : '/subscriptions');
+  }, [paramAdd, searchParams, router]);
 
   // React to OAuth callback redirects (?gmailConnected=1 / ?gmailError=1).
   const [gmailParamHandled, setGmailParamHandled] = useState(false);
@@ -415,6 +437,51 @@ export default function SubscriptionManager() {
     }
     await loadData();
     return created ? created.id : null;
+  };
+
+  /**
+   * Saves a receipt the user already reviewed.
+   *
+   * The values were confirmed on the review step, so re-opening them in the
+   * manual form made it look like nothing had been added yet. Reuses handleSave
+   * so the plan cap, offline handling, toasts and list refresh all behave
+   * exactly as they do for a subscription typed by hand.
+   */
+  const handleCreateFromReceipt = async (
+    data: Partial<Omit<SubscriptionInsert, 'user_id'>>,
+    file: File | null
+  ) => {
+    setIsAddPathModalOpen(false);
+
+    try {
+      const savedId = await handleSave({
+        name: data.name || '',
+        price: data.price || 0,
+        currency: data.currency || 'USD',
+        billing_cycle: data.billing_cycle || 'monthly',
+        category: data.category || 'Streaming',
+        status: data.status || 'active',
+        start_date: data.start_date || null,
+        end_date: data.end_date || null,
+        next_billing_date: data.next_billing_date || new Date().toISOString().split('T')[0],
+        payment_method: null,
+        provider_url: data.provider_url || null,
+        notes: data.notes || null,
+        account_links: data.account_links || [],
+      });
+
+      // null means the plan cap opened the upgrade sheet instead of saving.
+      if (!savedId) return;
+
+      if (file) {
+        await storeReceiptFile({ file, parent: { kind: 'subscription', subscriptionId: savedId } });
+      }
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : 'Could not add this subscription.',
+        'Add Failed'
+      );
+    }
   };
 
   // Handle Archive
@@ -815,6 +882,7 @@ export default function SubscriptionManager() {
           }
           setIsModalOpen(true);
         }}
+        onCreateFromReceipt={handleCreateFromReceipt}
       />
 
 

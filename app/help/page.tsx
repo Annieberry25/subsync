@@ -1,12 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   HelpCircle,
   Search,
   ChevronDown,
+  ChevronLeft,
   Mail,
 } from 'lucide-react';
+import { goBack } from '@/lib/back-nav';
 
 interface HelpTopic {
   id: string;
@@ -234,6 +237,7 @@ const HELP_TOPICS: HelpTopic[] = [
 ];
 
 export default function HelpPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [openTopicId, setOpenTopicId] = useState<string | null>('getting-started');
 
@@ -253,9 +257,21 @@ export default function HelpPage() {
 
   return (
     <div className="space-y-6 max-w-4xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
-      {/* Header */}
+      {/* Header. The chevron is mobile-only: below lg the sidebar is gone, so the
+          dock is the only way out and Help is reached from More or Settings. */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">Help Center</h1>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => goBack(router)}
+            aria-label="Go back"
+            data-touch="compact"
+            className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer lg:hidden"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">Help Center</h1>
+        </div>
         <p className="text-xs sm:text-sm text-[#94A3B8] mt-0.5">
           Find answers, guides, and instructions for managing your subscriptions in SubHalt.
         </p>
