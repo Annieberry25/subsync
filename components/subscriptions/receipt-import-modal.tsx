@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, CheckCircle2, ArrowLeft, AlertCircle, FileSearch } from 'lucide-react';
+import { Upload, CheckCircle2, ChevronLeft, AlertCircle, FileSearch } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { ACCEPT_ATTRIBUTE, TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
@@ -151,9 +151,10 @@ export default function ReceiptImportModal({
               }
             }}
             aria-label="Go back"
-            className="w-11 h-11 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
+            data-touch="compact"
+            className="w-9 h-9 shrink-0 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
         ) : null
       }
@@ -356,7 +357,7 @@ export default function ReceiptImportModal({
                     />
                     {!reviewData.nextBillingDate && (
                       <span className="text-[10px] text-amber-300/80">
-                        Not found on the receipt — enter it yourself.
+                        Not found on the receipt. Enter it yourself.
                       </span>
                     )}
                   </div>

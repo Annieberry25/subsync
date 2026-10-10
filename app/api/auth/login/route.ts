@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { findVerifiedTotpFactor } from '@/lib/auth/mfa';
 
 export async function POST(request: Request) {
   try {
@@ -29,6 +30,20 @@ export async function POST(request: Request) {
 
     if (!data.session || !data.user) {
       return NextResponse.json({ error: 'Sign-in did not return a session.' }, { status: 401 });
+    }
+
+    // A password sign-in mints an `aal1` token even when the account has a
+    // verified authenticator factor. Report that so the login flow can show the
+    // code step; the factor id is included because the client would otherwise
+    // need another round trip to look it up.
+    const totpFactor = findVerifiedTotpFactor(data.user.factors);
+    if (totpFactor) {
+      return NextResponse.json({
+        success: true,
+        user: data.user,
+        mfaRequired: true,
+        factorId: totpFactor.id,
+      });
     }
 
     return NextResponse.json({ success: true, user: data.user });

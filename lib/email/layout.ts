@@ -52,12 +52,17 @@ export const SIGN_IN_LABEL = 'Sign In';
 
 /**
  * Brand logo for the email header, embedded as a base64 data URI so it renders
- * without a hosted asset to go offline. Loaded once. Falls back to the
- * wordmark alone when the file is missing (build/sandbox environment).
+ * without a hosted asset and can go offline. Loaded once.
+ *
+ * This is the complete SubHalt wordmark sized for light pages. Transactional
+ * mail is rendered by the recipient's client, commonly on a white background,
+ * where the dark-shell mark the app uses would be invisible. The asset is
+ * pre-cropped from logo_white_bg.png to the wordmark bounds so no CSS cropping
+ * is needed. Falls back to plain text when the file is missing (sandbox/build).
  */
 let logoDataUri = '';
 try {
-  const bytes = readFileSync(join(process.cwd(), 'public', 'logo_icon.png'));
+  const bytes = readFileSync(join(process.cwd(), 'public', 'logo_wordmark_light.png'));
   logoDataUri = `data:image/png;base64,${bytes.toString('base64')}`;
 } catch {
   logoDataUri = '';
@@ -92,10 +97,8 @@ export function renderEmailLayout({
         <tr>
           <td style="padding:0 0 20px;">
             ${logoDataUri
-              ? `<img src="${logoDataUri}" alt="SubHalt" width="34" height="34" style="display:inline-block; vertical-align:middle; border:0; outline:none; text-decoration:none; border-radius:8px;">`
-              : ''}<span style="vertical-align:middle; font-family:${BRAND.fontStack}; font-size:17px; font-weight:700; letter-spacing:-0.01em; color:${BRAND.heading};${logoDataUri ? ' padding-left:8px;' : ''}">
-              SubHalt
-            </span>
+              ? `<img src="${logoDataUri}" alt="SubHalt" width="102" height="28" style="display:block; border:0; outline:none; text-decoration:none;">`
+              : `<span style="font-family:${BRAND.fontStack}; font-size:18px; font-weight:700; letter-spacing:-0.01em; color:#0B0D0D;">SubHalt</span>`}
           </td>
         </tr>
 

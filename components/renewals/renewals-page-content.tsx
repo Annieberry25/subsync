@@ -3,125 +3,76 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Trash2 } from 'lucide-react';
-import { 
-  fetchSubscriptions, 
-  getCachedSubscriptions, 
-filterActiveSubscriptions,
-softDeleteSubscription,
-cleanNotesUserText,
-  type SubscriptionRow 
+import { ChevronLeft, AlertCircle, Trash2 } from 'lucide-react';
+import {
+  fetchSubscriptions,
+  getCachedSubscriptions,
+  filterActiveSubscriptions,
+  softDeleteSubscription,
+  type SubscriptionRow,
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
+import { RenewalsTable, getPlanName, getCycleSuffix } from '@/components/subscriptions/renewals-table';
 import { useToast } from '@/lib/hooks/use-toast';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
-
-function getPlanName(sub: SubscriptionRow): string {
-  const cleanNotes = cleanNotesUserText(sub?.notes);
-  if (cleanNotes) {
-    return cleanNotes;
-  }
-  const cycleName = sub.billing_cycle ? sub.billing_cycle.charAt(0).toUpperCase() + sub.billing_cycle.slice(1) : 'Monthly';
-  return `${cycleName} Subscription`;
-}
-
-function getRenewalStatus(diffDays: number) {
-  if (diffDays < 0) {
-    const days = Math.abs(diffDays);
-    return {
-      text: days === 1 ? 'Overdue by 1 day' : `Overdue by ${days} days`,
-      color: '#D9363E',
-    };
-  }
-  if (diffDays === 0) {
-    return { text: 'Due today', color: '#D9363E' };
-  }
-  if (diffDays === 1) {
-    return { text: 'In 1 day', color: '#D9363E' };
-  }
-  if (diffDays <= 4) {
-    return { text: `In ${diffDays} days`, color: '#D9363E' };
-  }
-  return { text: `In ${diffDays} days`, color: '#94A3B8' };
-}
-
-function getCycleSuffix(billingCycle?: string): string {
-  if (!billingCycle) return '/month';
-  const lower = billingCycle.toLowerCase();
-  if (lower === 'yearly' || lower === 'annual') return '/yr';
-  if (lower === 'quarterly') return '/quarter';
-  if (lower === 'weekly') return '/wk';
-  return '/month';
-}
 
 /**
  * Overdue is capped at 60 days.
  *
  * Without a ceiling the list grew without bound: a subscription left unpaid for
  * a year sorts to the top by oldest-first and buries everything actionable. A
- * row past the cap is simply not surfaced here — the subscription is untouched
+ * row past the cap is simply not surfaced here; the subscription is untouched
  * and still exists in the main list.
  */
 const OVERDUE_WINDOW_DAYS = 60;
 
 /**
- * The overdue row itself. Extracted so `SwipeToDelete` can stay a generic
- * wrapper and the row markup stays exactly as it was.
+ * One compact overdue row: service, plan, days overdue, amount. Flat and flush,
+ * matching the upcoming table, rather than the bordered card it used to be.
+ * Plan is dropped below `sm` so the whole row stays on a single line on a phone.
  */
-function OverdueRow({
-  sub,
-  diffDays,
-}: {
-  sub: SubscriptionRow;
-  diffDays: number;
-}) {
+function OverdueRow({ sub, diffDays }: { sub: SubscriptionRow; diffDays: number }) {
   const price = Number(sub.price) || 0;
   const cycleSuffix = getCycleSuffix(sub.billing_cycle);
   const planName = getPlanName(sub);
 
   return (
-    <div className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#0D0F0F] border border-[#D9363E]/20 rounded-2xl transition-colors cursor-default gap-2.5 sm:gap-4 w-full">
-      <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
+    <div className="flex items-center gap-3 sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(120px,1fr)_minmax(90px,auto)_minmax(90px,auto)] sm:gap-4 px-4 sm:px-5 py-3.5 w-full bg-[#0B0D0D]">
+      <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-none">
         <ServiceIcon
           name={sub.name}
           category={sub.category}
           providerUrl={sub.provider_url}
-          className="w-10 h-10 rounded-xl shrink-0"
+          className="w-9 h-9 rounded-xl shrink-0 border border-[#1A1D1D]"
         />
-        <div className="min-w-0 flex-1">
-          <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">
-            {sub.name}
-          </span>
-          <span className="text-xs sm:text-[14px] text-[#94A3B8] block mt-0.5">
-            {planName}
-          </span>
-        </div>
+        <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] truncate">
+          {sub.name}
+        </span>
       </div>
 
-      <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D] gap-2">
-        <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
-          <span className="text-xs sm:text-sm font-bold text-[#D9363E]">
-            Overdue ({Math.abs(diffDays)}d)
-          </span>
-        </div>
+      <span
+        title={planName}
+        className="hidden sm:block truncate text-xs sm:text-sm text-[#94A3B8]"
+      >
+        {planName}
+      </span>
 
-        <div className="text-right min-w-0 shrink-0 justify-self-end">
-          <span className="text-base sm:text-[20px] font-bold text-[#F5F7F6]">
-            {formatCurrency(price, sub.currency || 'USD')}
-          </span>
-          <span className="text-xs sm:text-[15px] font-normal text-[#94A3B8]">
-            {cycleSuffix}
-          </span>
-        </div>
-      </div>
+      <span className="text-xs sm:text-sm font-bold text-[#D9363E] whitespace-nowrap">
+        Overdue ({Math.abs(diffDays)}d)
+      </span>
+
+      <span className="text-right text-sm sm:text-base font-bold text-[#F5F7F6] whitespace-nowrap">
+        {formatCurrency(price, sub.currency || 'USD')}
+        <span className="text-xs font-normal text-[#94A3B8]">{cycleSuffix}</span>
+      </span>
     </div>
   );
 }
 
-/** How far the row travels to expose the delete action, and how far it must be
- *  dragged before the gesture counts. Matches the app's 44px touch-target floor. */
+/** How far the row travels to expose the delete action. */
 const SWIPE_REVEAL_PX = 96;
+/** How far it must be dragged before the gesture counts. */
 const SWIPE_TRIGGER_PX = 56;
 
 /**
@@ -129,8 +80,7 @@ const SWIPE_TRIGGER_PX = 56;
  *
  * Used only on the overdue list, per the product decision: an overdue row is
  * something the user may want to clear away, whereas an upcoming renewal is not
- * theirs to dismiss. So the upcoming rows keep the same static markup and no
- * gesture.
+ * theirs to dismiss, so the upcoming table keeps no gesture at all.
  *
  * Deletion is a two-step gesture on purpose. The swipe only reveals the action;
  * removing data takes a deliberate tap on it, so a stray horizontal scroll on a
@@ -234,12 +184,9 @@ function SwipeToDelete({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
+    <div className="relative overflow-hidden">
       {/* Destructive action, revealed underneath. */}
-      <div
-        className="absolute inset-y-0 right-0 flex items-stretch"
-        aria-hidden={!open}
-      >
+      <div className="absolute inset-y-0 right-0 flex items-stretch" aria-hidden={!open}>
         <button
           type="button"
           onClick={() => {
@@ -248,7 +195,7 @@ function SwipeToDelete({
           }}
           tabIndex={open ? 0 : -1}
           aria-label={label}
-          className="min-w-[96px] min-h-[44px] px-4 flex items-center justify-center gap-1.5 bg-[#D9363E] hover:bg-[#B91C1C] text-white text-xs font-bold transition-colors cursor-pointer rounded-r-2xl"
+          className="min-w-[96px] min-h-[44px] px-4 flex items-center justify-center gap-1.5 bg-[#D9363E] hover:bg-[#B91C1C] text-white text-xs font-bold transition-colors cursor-pointer"
         >
           <Trash2 className="w-4 h-4" aria-hidden="true" />
           <span>Remove</span>
@@ -342,8 +289,8 @@ export default function RenewalsPageContent() {
 
   /**
    * Removes an overdue subscription from the list with a soft delete, so it moves
-   * to the Deleted section of Past Activities and stays restorable. A destructive
-   * action reached by a horizontal swipe should not be able to destroy data.
+   * to the Deleted section of Past Activities and stays restorable. Reached by a
+   * deliberate tap on the action a swipe reveals, never by the swipe itself.
    */
   const handleDeleteOverdue = useCallback(
     async (sub: SubscriptionRow) => {
@@ -366,7 +313,7 @@ export default function RenewalsPageContent() {
       {/* Top-left Back Button.
           Only for the deep link out of the dashboard's overdue banner. Arriving
           from the nav menu means Renewals is a top-level destination, and a Back
-          to Dashboard there is a dead end — the menu item is the way back. */}
+          to Dashboard there is a dead end; the menu item is the way back. */}
       {fromAlert && (
         <div>
           <Link
@@ -374,7 +321,7 @@ export default function RenewalsPageContent() {
             prefetch={true}
             className="inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-0 text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             <span>Back to Dashboard</span>
           </Link>
         </div>
@@ -399,7 +346,7 @@ export default function RenewalsPageContent() {
           <SubscriptionCardSkeleton />
         </div>
       ) : (
-        <div className="flex flex-col space-y-6">
+        <div className="flex flex-col gap-14 sm:gap-12">
           {/* Overdue Subscriptions Section.
               `order-*` sets the section sequence without duplicating the markup,
               so the two lists cannot drift apart. Arriving from the dashboard's
@@ -407,15 +354,15 @@ export default function RenewalsPageContent() {
               with what is coming up. */}
           {overdueList.length > 0 && (
             <div
-              className={`bg-[#0B0D0D] border border-[#D9363E]/30 rounded-[20px] p-4 sm:p-6 space-y-3.5 shadow-sm ${fromAlert ? 'order-1' : 'order-2'}`}
+              className={`bg-[#0B0D0D] border border-[#D9363E]/30 rounded-[20px] overflow-hidden shadow-sm ${fromAlert ? 'order-1' : 'order-2'}`}
             >
-              <div className="flex items-center gap-2 border-b border-[#D9363E]/20 pb-3">
+              <div className="flex items-center gap-2 border-b border-[#D9363E]/20 py-3.5 px-4 sm:px-5">
                 <AlertCircle className="w-5 h-5 text-[#D9363E]" />
                 <h2 className="text-base sm:text-lg font-bold text-[#D9363E]">
                   Overdue Subscriptions ({overdueList.length})
                 </h2>
               </div>
-              <div className="space-y-2.5">
+              <div className="divide-y divide-[#1A1D1D]">
                 {overdueList.map(({ sub, diffDays }) => (
                   <SwipeToDelete
                     key={sub.id}
@@ -431,68 +378,22 @@ export default function RenewalsPageContent() {
 
           {/* Upcoming Renewals Section */}
           <div
-            className={`bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px] space-y-3.5 p-4 sm:p-6 ${fromAlert ? 'order-2' : 'order-1'}`}
+            className={`bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px] overflow-hidden ${fromAlert ? 'order-2' : 'order-1'}`}
           >
-            <h2 className="text-base sm:text-lg font-bold text-[#F5F7F6] tracking-tight border-b border-[#1A1D1D] pb-3">
+            <h2 className="text-base sm:text-lg font-bold text-[#F5F7F6] tracking-tight border-b border-[#1A1D1D] py-3.5 px-4 sm:px-5">
               Upcoming Renewals (Next 30 Days)
             </h2>
             {upcomingRenewals.length === 0 ? (
-              <div className="p-6 text-center">
+              <div className="flex flex-col items-center justify-center text-center gap-1 px-4 py-10">
                 <p className="text-sm font-medium text-[#F5F7F6]/80">
                   No upcoming renewals in the next 30 days.
                 </p>
-                <p className="text-xs text-[#94A3B8]/60 mt-1">
+                <p className="text-xs text-[#94A3B8]/60">
                   You&apos;re all caught up.
                 </p>
               </div>
             ) : (
-              <div className="space-y-2.5">
-                {upcomingRenewals.map(({ sub, diffDays }) => {
-                  const status = getRenewalStatus(diffDays);
-                  const price = Number(sub.price) || 0;
-                  const cycleSuffix = getCycleSuffix(sub.billing_cycle);
-const planName = getPlanName(sub);
-
-                  return (
-                    <div
-                      key={sub.id}
-                      className="flex flex-col sm:grid sm:grid-cols-[minmax(180px,1.5fr)_minmax(130px,1fr)_minmax(120px,auto)] items-start sm:items-center px-4 sm:px-5 py-3.5 bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl transition-colors cursor-default gap-2.5 sm:gap-4 w-full"
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
-                        <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-10 h-10 rounded-xl shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] block">
-                            {sub.name}
-                          </span>
-                          <span className="text-xs sm:text-[14px] text-[#94A3B8] block mt-0.5">
-                            {planName}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D] gap-2">
-                        <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
-                          <span
-                            className="text-xs sm:text-sm font-semibold"
-                            style={{ color: status.color }}
-                          >
-                            {status.text}
-                          </span>
-                        </div>
-
-                        <div className="text-right min-w-0 shrink-0 justify-self-end">
-                          <span className="text-base sm:text-[20px] font-bold text-[#F5F7F6]">
-                            {formatCurrency(price, sub.currency || 'USD')}
-                          </span>
-                          <span className="text-xs sm:text-[15px] font-normal text-[#94A3B8]">
-                            {cycleSuffix}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <RenewalsTable items={upcomingRenewals} pinFirstColumn={false} />
             )}
           </div>
         </div>

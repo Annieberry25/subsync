@@ -88,7 +88,7 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
         return;
       }
 
-      const reason = [reasonLabel, reasonNote.trim()].filter(Boolean).join(' — ');
+      const reason = [reasonLabel, reasonNote.trim()].filter(Boolean).join(': ');
 
       // Deletion is performed server-side to avoid depending on client state.
       const res = await fetch('/api/profile/delete-account', {
@@ -241,7 +241,7 @@ export function DeleteAccountModal({ isOpen, onClose, onDeleted }: DeleteAccount
 
             {codeSent && (
               <div className="rounded-xl border border-[#14B8A6]/30 bg-[#14B8A6]/10 p-3 text-[11px] text-[#5EEAD4]">
-                Code sent. Check your inbox (check spam too) — it expires in a few minutes.
+                Code sent. Check your inbox (check spam too). It expires in a few minutes.
               </div>
             )}
 

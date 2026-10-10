@@ -8,7 +8,7 @@ export function Skeleton({ className = '' }: { className?: string }) {
 
 export function MetricCardSkeleton() {
   return (
-    <div className="card-pad rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[104px]">
+    <div className="card-pad rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center min-h-[80px] sm:min-h-[104px]">
       <div>
         <Skeleton className="h-3.5 w-24" />
       </div>

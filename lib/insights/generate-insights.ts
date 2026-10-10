@@ -229,7 +229,7 @@ export function buildInsights(subscriptions: SubscriptionRow[]): SmartInsightCan
       preview: "You're actively keeping subscription costs low.",
       observation: `You currently have ${totalInactive} paused or canceled subscriptions in your account.`,
       meaning: `Pausing services you aren't using right now is a smart way to protect your monthly budget.`,
-      recommendation: `Keep them paused until you need them again—we'll keep your account settings ready.`,
+        recommendation: `Keep them paused until you need them again. We'll keep your account settings ready.`,
     });
   }
 

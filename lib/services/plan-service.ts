@@ -50,7 +50,7 @@ export async function syncPlusPurchaseRecord({
     subscriptionName: SUBHALT_SUBSCRIPTION_NAME,
     type: 'added',
     title: 'SubHalt Subscription Created',
-    description: `SubHalt — $${PLUS_PLAN.price} — Paid`,
+    description: `SubHalt ($${PLUS_PLAN.price}, Paid)`,
     amount: PLUS_PLAN.price,
     currency: PLUS_PLAN.currency,
   });

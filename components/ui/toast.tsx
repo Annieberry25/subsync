@@ -13,11 +13,10 @@ const icons = {
 /**
  * Colour is carried by the icon and the text only.
  *
- * These previously included a `border-<colour>/40` and the container added a
- * `border`, so each toast drew attention as a coloured card. A notification that
- * competes with the page for attention stops reading as a confirmation, and the
- * status is already unambiguous from the icon. The surface stays the neutral
- * app token so it keeps the documented glass treatment.
+ * The surface is solid black rather than a translucent tint so a toast never
+ * reads as a coloured card competing with the page for attention; the status is
+ * unambiguous from the icon and the coloured copy. A single neutral hairline
+ * keeps the solid black readable against the near-black app shell.
  */
 const styles = {
   success: 'text-[#14B8A6]',
@@ -52,7 +51,7 @@ export function ToastContainer() {
           >
             <div
               key={toast.shakeKey || 'initial'}
-              className={`flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#0D0F0F]/90 backdrop-blur-sm shadow-xl transition-all ${
+              className={`flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#000000] border border-[#1C2924] shadow-xl transition-all ${
                 toast.shakeKey ? 'animate-subtle-shake' : 'animate-in slide-in-from-bottom-5 fade-in duration-200'
               } ${styles[toast.type]}`}
             >

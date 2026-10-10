@@ -144,7 +144,7 @@ export default function PayABillFlow({
               >
                 {SUPPORTED_COUNTRIES.map((c) => (
                   <option key={c.code} value={c.name} className="bg-[#090C0B] text-[#F5F7F6]">
-                    {c.flag} {c.name} — {c.currency}
+                      {c.flag} {c.name} ({c.currency})
                   </option>
                 ))}
               </select>

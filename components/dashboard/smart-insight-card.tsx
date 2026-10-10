@@ -52,7 +52,7 @@ export const SmartInsightCard = memo(function SmartInsightCard({ subscriptions }
   return (
     <div
       onClick={() => setIsOpen((prev) => !prev)}
-      className="py-3 px-1 border-t border-[#1A1D1D]/50 cursor-pointer select-none group"
+      className="py-3 px-1 border-t-0 sm:border-t border-[#1A1D1D]/50 cursor-pointer select-none group"
     >
       {/* Header Row: Displays "Smart Insight" Label + Insight Preview + Chevron */}
       <div className="flex items-center justify-between gap-3 sm:gap-4">

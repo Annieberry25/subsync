@@ -3,7 +3,7 @@
 import { use, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Inbox, Bell, Calendar, CreditCard, DollarSign, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Inbox, Bell, Calendar, CreditCard, DollarSign, ChevronRight } from 'lucide-react';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { fetchSubscriptions } from '@/lib/services/subscription-service';
@@ -55,7 +55,7 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
             href="/inbox"
             className="inline-flex items-center gap-2 py-2 px-4 min-h-[44px] sm:min-h-0 rounded-xl text-xs font-semibold bg-[#14B8A6] text-[#091512] hover:opacity-90 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             <span>Back to Inbox</span>
           </Link>
         </div>
@@ -81,17 +81,15 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
       {/* Accessible DOM Heading */}
       <h1 className="sr-only">Inbox Message Detail - {item.title}</h1>
 
-      {/* Top Bar with Back Navigation. The dock has no Inbox slot, so this is
-          the only way back to the list on a phone. */}
-      <div className="flex items-center justify-between pb-3 border-b border-[#1A1D1D]">
-        <Link
-          href="/inbox"
-          className="inline-flex items-center gap-2 px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-semibold text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4 text-[#14B8A6]" aria-hidden="true" />
-          <span>Back to Inbox</span>
-        </Link>
-      </div>
+      {/* Top bar with back navigation into the Inbox list. */}
+      <Link
+        href="/inbox"
+        aria-label="Back to Inbox"
+        data-touch="compact"
+        className="inline-flex w-9 h-9 items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+      >
+        <ChevronLeft className="w-5 h-5" aria-hidden="true" />
+      </Link>
 
       {/* Full Page Message Container */}
       <div className="rounded-2xl card-pad sm:p-8 bg-[#0B0D0D] border border-[#1A1D1D] space-y-6 shadow-sm">

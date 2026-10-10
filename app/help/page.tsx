@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   HelpCircle,
   Search,
   ChevronDown,
-  ArrowLeft,
   Mail,
 } from 'lucide-react';
 
@@ -33,10 +31,10 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Key setup actions',
     bullets: [
-      'Configure primary currency — Normalize overall spending across foreign currencies in Settings.',
-      'Connect provider links — Authorize direct integration for automatic plan importing.',
-      'Import digital receipts — Upload PDF invoices or screenshots to prefill billing metadata.',
-      'Add custom subscriptions — Manually input offline or custom recurring plans.',
+      'Configure primary currency: Normalize overall spending across foreign currencies in Settings.',
+      'Connect provider links: Authorize direct integration for automatic plan importing.',
+      'Import digital receipts: Upload PDF invoices or screenshots to prefill billing metadata.',
+      'Add custom subscriptions: Manually input offline or custom recurring plans.',
     ],
     additionalParagraph:
       'Once configured, SubHalt will automatically calculate your monthly commitment and schedule payment notifications.',
@@ -44,16 +42,16 @@ const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'adding-subscriptions',
     category: 'Subscription Management',
-    title: 'Adding subscriptions — three-path flow',
+    title: 'Adding subscriptions: three-path flow',
     description: 'Explore the three ways to add subscriptions: Link Subscription, Import Receipt, or Add Manually.',
     paragraphs: [
       'When you tap "Add Subscription", SubHalt presents three flexible entry paths tailored to different service types and integration options:',
     ],
     subheading: 'Available entry methods',
     bullets: [
-      'Link Subscription — Authenticate directly via official provider OAuth flows to import active subscription plans automatically.',
-      'Import Receipt — Upload PDF invoices, receipts, or screenshots to parse provider names, prices, and renewal cycles using assisted extraction.',
-      'Add Manually — Input custom subscription parameters including provider name, price, billing frequency, category, and next renewal date.',
+      'Link Subscription: Authenticate directly via official provider OAuth flows to import active subscription plans automatically.',
+      'Import Receipt: Upload PDF invoices, receipts, or screenshots to parse provider names, prices, and renewal cycles using assisted extraction.',
+      'Add Manually: Input custom subscription parameters including provider name, price, billing frequency, category, and next renewal date.',
     ],
     additionalParagraph:
       'You can switch between any of these methods at any time depending on provider support and your preferences.',
@@ -69,10 +67,10 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'How connection works',
     bullets: [
-      'Search directory — Locate your subscription provider in our authorized services directory.',
-      'Provider OAuth — Sign into your service account securely in an official popup dialog.',
-      'Read-only permissions — Authorize plan details, billing cycle, and pricing sync.',
-      'Dashboard save — Review imported metadata and confirm saving to your portfolio.',
+      'Search directory: Locate your subscription provider in our authorized services directory.',
+      'Provider OAuth: Sign into your service account securely in an official popup dialog.',
+      'Read-only permissions: Authorize plan details, billing cycle, and pricing sync.',
+      'Dashboard save: Review imported metadata and confirm saving to your portfolio.',
     ],
   },
   {
@@ -83,7 +81,7 @@ const HELP_TOPICS: HelpTopic[] = [
     paragraphs: [
       'SubHalt reads your receipt and extracts the key subscription details into an editable form for you to check.',
       'How the text is read depends on the file: a PDF invoice is read from its embedded text, a screenshot or photo is transcribed, and pasted text is read directly. Every field is shown for your review before anything is saved, and fields that could not be read confidently are flagged rather than guessed.',
-      'If a field is left blank, it simply was not found on the receipt — fill it in yourself.',
+      'If a field is left blank, it simply was not found on the receipt: fill it in yourself.',
     ],
     subheading: 'Extracted subscription fields',
     bullets: [
@@ -104,11 +102,11 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Optional configuration fields',
     bullets: [
-      'Start date — The date your subscription contract initially commenced.',
-      'End date / Term — For fixed-length contracts or trial periods.',
-      'Next renewal date — Drives automated payment reminder notifications.',
-      'Website URL — Direct link to manage account billing on the provider site.',
-      'Custom notes — Track payment methods used, seat counts, or tier specifications.',
+      'Start date: The date your subscription contract initially commenced.',
+      'End date / Term: For fixed-length contracts or trial periods.',
+      'Next renewal date: Drives automated payment reminder notifications.',
+      'Website URL: Direct link to manage account billing on the provider site.',
+      'Custom notes: Track payment methods used, seat counts, or tier specifications.',
     ],
   },
   {
@@ -121,9 +119,9 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Configuring reminder lead times',
     bullets: [
-      'Custom lead times — Schedule alerts 7 days before, 3 days before, or on renewal day.',
-      'Delivery channels — Receive alerts in your in-app Inbox or via email digests.',
-      'Flexible preferences — Configure notifications per subscription or globally in Settings.',
+      'Custom lead times: Schedule alerts 7 days before, 3 days before, or on renewal day.',
+      'Delivery channels: Receive alerts in your in-app Inbox or via email digests.',
+      'Flexible preferences: Configure notifications per subscription or globally in Settings.',
     ],
   },
   {
@@ -136,11 +134,11 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Available menu options',
     bullets: [
-      'View Subscription Details — Inspect metadata, linked sub-accounts, and attached records.',
-      'Edit Subscription — Update recurring price, cycle, currency, category, or next renewal date.',
-      'Payment Reminder — Adjust notification lead times for upcoming billing dates.',
-      'Manage Subscription — Quick launch link to the provider\'s official billing portal.',
-      'Notes & Receipts — Attach supporting invoice receipts or custom contract notes.',
+      'View Subscription Details: Inspect metadata, linked sub-accounts, and attached records.',
+      'Edit Subscription: Update recurring price, cycle, currency, category, or next renewal date.',
+      'Payment Reminder: Adjust notification lead times for upcoming billing dates.',
+      'Manage Subscription: Quick launch link to the provider\'s official billing portal.',
+      'Notes & Receipts: Attach supporting invoice receipts or custom contract notes.',
     ],
   },
   {
@@ -153,9 +151,9 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'What happens to an uploaded receipt',
     bullets: [
-      'File support — PDF invoices, screenshots, photos, and text files up to 10MB are accepted.',
-      'Private storage — Receipt files are not publicly accessible; opening one requires a short-lived, signed link.',
-      'Deleting a subscription — Removing the subscription also removes the receipts attached to it.',
+      'File support: PDF invoices, screenshots, photos, and text files up to 10MB are accepted.',
+      'Private storage: Receipt files are not publicly accessible; opening one requires a short-lived, signed link.',
+      'Deleting a subscription: Removing the subscription also removes the receipts attached to it.',
     ],
   },
   {
@@ -168,9 +166,9 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Multi-account features',
     bullets: [
-      'Sub-account labels — Assign member tags (e.g. "Primary Account", "Sarah\'s Profile").',
-      'Shared plan clarity — Distinguish shared family plans from individual subscriptions.',
-      'Accurate total calculation — Aggregate seat details while keeping overall billing totals precise.',
+      'Sub-account labels: Assign member tags (e.g. "Primary Account", "Sarah\'s Profile").',
+      'Shared plan clarity: Distinguish shared family plans from individual subscriptions.',
+      'Accurate total calculation: Aggregate seat details while keeping overall billing totals precise.',
     ],
   },
   {
@@ -183,8 +181,8 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Plan tier breakdown',
     bullets: [
-      'Free Plan ($0/month) — Track up to 3 subscriptions. Adding a fourth prompts a Plus upgrade. Free includes the basic paths: manual entry, receipt import, subscribing through a provider, renewal dates, provider links, basic reminders, and basic Smart Insights.',
-      'Plus Plan ($3.99/month) — Unlimited active subscriptions. Includes everything in Free, plus Gmail Connect, Email Forwarding, advanced reminder controls & alerts, advanced Smart Insights & metrics, portfolio data export (CSV/JSON), and family & shared subscription tracking.',
+      'Free Plan ($0/month): Track up to 3 subscriptions. Adding a fourth prompts a Plus upgrade. Free includes the basic paths: manual entry, receipt import, subscribing through a provider, renewal dates, provider links, basic reminders, and basic Smart Insights.',
+      'Plus Plan ($3.99/month): Unlimited active subscriptions. Includes everything in Free, plus Gmail Connect, Email Forwarding, advanced reminder controls & alerts, advanced Smart Insights & metrics, portfolio data export (CSV/JSON), and family & shared subscription tracking.',
       'Plus features are marked with a "Plus" badge wherever they appear, so you can see what an upgrade unlocks before you pay.',
     ],
   },
@@ -198,9 +196,9 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Security policies',
     bullets: [
-      'Credential updates — Change account email and password with mandatory re-authentication.',
-      'Display name rules — Update your public display name once every 30 days.',
-      'Account deletion — Permanently purge your profile and data in authenticated Account settings.',
+      'Credential updates: Change account email and password with mandatory re-authentication.',
+      'Display name rules: Update your public display name once every 30 days.',
+      'Account deletion: Permanently purge your profile and data in authenticated Account settings.',
     ],
   },
   {
@@ -213,9 +211,9 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Supported notification channels',
     bullets: [
-      'In-App Inbox — Real-time alerts delivered to your dashboard notification feed.',
-      'Email Summaries — Periodic weekly or monthly portfolio spending digests.',
-      'Notification Timing — Tailor alert lead times per subscription or system-wide.',
+      'In-App Inbox: Real-time alerts delivered to your dashboard notification feed.',
+      'Email Summaries: Periodic weekly or monthly portfolio spending digests.',
+      'Notification Timing: Tailor alert lead times per subscription or system-wide.',
     ],
   },
   {
@@ -228,15 +226,14 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Data ownership tools',
     bullets: [
-      'Portfolio Export — Download a full JSON or CSV export of all your subscription records.',
-      'Cache Control — Clear local browser storage and cached preferences with one click.',
-      'Data Privacy — SubHalt never sells your personal subscription data to third parties.',
+      'Portfolio Export: Download a full JSON or CSV export of all your subscription records.',
+      'Cache Control: Clear local browser storage and cached preferences with one click.',
+      'Data Privacy: SubHalt never sells your personal subscription data to third parties.',
     ],
   },
 ];
 
 export default function HelpPage() {
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [openTopicId, setOpenTopicId] = useState<string | null>('getting-started');
 
@@ -257,36 +254,24 @@ export default function HelpPage() {
   return (
     <div className="space-y-6 max-w-4xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-5">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="Go back"
-            className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">Help Center</h1>
-            <p className="text-xs sm:text-sm text-[#94A3B8] mt-0.5">
-              Find answers, guides, and instructions for managing your subscriptions in SubHalt.
-            </p>
-          </div>
-        </div>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">Help Center</h1>
+        <p className="text-xs sm:text-sm text-[#94A3B8] mt-0.5">
+          Find answers, guides, and instructions for managing your subscriptions in SubHalt.
+        </p>
       </div>
 
       {/* Search Input */}
       <div className="space-y-2">
         <div className="relative">
-          <Search className="w-5 h-5 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             aria-label="Search help articles"
             placeholder="Search help topics (e.g. adding subscriptions, receipt import, renewal dates)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-12 pl-12 pr-4 text-xs sm:text-sm rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+            className="input-compact input-compact-text w-full h-10 pl-12 pr-4 text-xs sm:text-sm rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
           />
         </div>
       </div>
@@ -296,7 +281,7 @@ export default function HelpPage() {
         <button
           type="button"
           onClick={() => setSearchQuery('')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
+          className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer border ${
             searchQuery === ''
               ? 'bg-[#14B8A6] text-[#091512] border-[#14B8A6]'
               : 'bg-[#0B0D0D] text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border-[#1A1D1D]'
@@ -309,7 +294,7 @@ export default function HelpPage() {
             key={cat}
             type="button"
             onClick={() => setSearchQuery(cat)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer border ${
               searchQuery.toLowerCase() === cat.toLowerCase()
                 ? 'bg-[#14B8A6] text-[#091512] border-[#14B8A6]'
                 : 'bg-[#0B0D0D] text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] border-[#1A1D1D]'
@@ -369,12 +354,12 @@ export default function HelpPage() {
                     {topic.bullets && topic.bullets.length > 0 && (
                       <ul className="space-y-1.5 my-2 pl-4 list-disc marker:text-[#14B8A6]">
                         {topic.bullets.map((bullet, idx) => {
-                          const parts = bullet.split(' — ');
+                          const parts = bullet.split(': ');
                           return (
                             <li key={idx} className="text-[#94A3B8] leading-relaxed">
                               {parts.length > 1 ? (
                                 <>
-                                  <strong className="text-[#F5F7F6] font-medium">{parts[0]}</strong> — {parts.slice(1).join(' — ')}
+                                  <strong className="text-[#F5F7F6] font-medium">{parts[0]}</strong>: {parts.slice(1).join(': ')}
                                 </>
                               ) : (
                                 bullet

@@ -48,14 +48,14 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <PieChart className="w-5 h-5 text-[#94A3B8] shrink-0" />
+          <PieChart className="w-4 h-4 sm:w-5 sm:h-5 text-[#94A3B8] shrink-0" />
           <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Spending by Category</h2>
         </div>
       </div>
 
       {breakdown.length === 0 ? (
-        <div className="card-pad sm:p-8 text-center rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] space-y-2">
-          <Tag className="w-8 h-8 text-[#94A3B8] mx-auto" />
+        <div className="py-6 text-center space-y-2">
+          <Tag className="w-6 h-6 text-[#94A3B8] mx-auto" />
           <p className="text-base font-semibold text-[#F5F7F6]">No active category spending</p>
           <p className="text-xs sm:text-[15px] text-[#94A3B8]">Add active subscriptions to view category distribution.</p>
         </div>
@@ -63,7 +63,7 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
         <div className={isEmbedded ? "grid grid-cols-1 gap-6 items-center" : "grid grid-cols-1 lg:grid-cols-12 gap-6 items-center"}>
           {/* Donut Chart with Center Total Spend */}
           <div className={isEmbedded ? "flex flex-col items-center justify-center relative py-2" : "lg:col-span-5 flex flex-col items-center justify-center relative py-2"}>
-            <div className={isEmbedded ? "relative w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center" : "relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center"}>
+            <div className={isEmbedded ? "relative w-32 h-32 sm:w-40 sm:h-40 flex items-center justify-center" : "relative w-44 h-44 sm:w-56 sm:h-56 flex items-center justify-center"}>
               <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 180 180">
                 {/* Background Ring */}
                 <circle

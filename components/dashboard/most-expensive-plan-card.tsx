@@ -31,14 +31,14 @@ export const MostExpensivePlanCard = memo(function MostExpensivePlanCard({ subsc
       <div
         className={
           isEmbedded
-            ? 'h-full flex items-center justify-center min-w-0'
+            ? 'h-full flex flex-col items-center justify-center gap-1 text-center min-w-0'
             : 'h-full p-5 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] space-y-2 text-center flex flex-col items-center justify-center'
         }
       >
         {isEmbedded && (
-          <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Most Expensive Plan</h2>
+          <h2 className="text-sm sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">Most Expensive Plan</h2>
         )}
-        <p className="text-sm text-[#94A3B8] text-center">No active subscriptions found to determine your highest expense.</p>
+        <p className="text-xs sm:text-sm text-[#94A3B8] text-center">No active subscriptions found to determine your highest expense.</p>
       </div>
     );
   }
@@ -64,7 +64,7 @@ export const MostExpensivePlanCard = memo(function MostExpensivePlanCard({ subsc
           name={sub.name}
           category={sub.category}
           providerUrl={sub.provider_url}
-          className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shrink-0"
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl shrink-0"
         />
         <span className="text-sm sm:text-base font-semibold text-[#F5F7F6] truncate min-w-0 flex-1" title={sub.name}>
           {sub.name}
@@ -96,7 +96,7 @@ export const MostExpensivePlanCard = memo(function MostExpensivePlanCard({ subsc
         }
       >
         <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
-          <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">{title}</h2>
+          <h2 className="text-sm sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">{title}</h2>
           <span className="text-xs font-medium text-[#94A3B8] shrink-0 whitespace-nowrap">
             {topSubscriptions.length} plans tied
           </span>
@@ -119,7 +119,7 @@ export const MostExpensivePlanCard = memo(function MostExpensivePlanCard({ subsc
           : 'h-full p-4 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-center gap-4'
       }
     >
-      <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">{title}</h2>
+      <h2 className="text-sm sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">{title}</h2>
       {renderRow(topSubscription, topSubscription.id)}
     </div>
   );

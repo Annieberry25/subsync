@@ -1,22 +1,14 @@
 'use client';
-import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
+import { safeGetItem } from '@/lib/safe-local-storage';
 
-import { useState, useEffect, useSyncExternalStore } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import {
-  User,
-  Mail,
-  Camera,
-  Loader2,
-  AlertTriangle,
-  ArrowLeft,
-} from 'lucide-react';
+import { Camera, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
-import { ChangeEmailModal } from '@/components/settings/change-email-modal';
+import { useAuth } from '@/lib/contexts/user-settings-context';
 
 const AVATAR_ACCENT_COLORS = [
   { hex: '#14B8A6', label: 'Teal' },
@@ -27,57 +19,36 @@ const AVATAR_ACCENT_COLORS = [
   { hex: '#3B82F6', label: 'Blue' },
 ];
 
-// Cached wall-clock snapshot so the 30-day name-change lockout stays accurate
-// without impure Date.now() calls in render. getSnapshot MUST return a cached
-// value — returning a fresh Date.now() per call makes useSyncExternalStore see
-// a new snapshot on every render and loop until "Maximum update depth exceeded".
-let clockSnapshot = Date.now();
-function subscribeToClock(onChange: () => void): () => void {
-  if (typeof window === 'undefined') return () => {};
-  const id = window.setInterval(() => {
-    clockSnapshot = Date.now();
-    onChange();
-  }, 60_000);
-  return () => window.clearInterval(id);
-}
-function getClockSnapshot(): number {
-  return clockSnapshot;
+/** OPay-style navigable row: label on the left, value + chevron on the right. */
+function InfoLinkRow({ href, label, value }: { href: string; label: string; value: string }) {
+  return (
+    <Link
+      href={href}
+      className="w-full flex items-center justify-between gap-4 min-h-[56px] pl-4 pr-5 transition-colors hover:bg-[#121414] cursor-pointer"
+    >
+      <span className="text-sm text-[#94A3B8] shrink-0">{label}</span>
+      <span className="flex items-center gap-2 min-w-0">
+        <span className="text-sm font-medium text-[#F5F7F6] text-right truncate min-w-0">
+          {value}
+        </span>
+        <ChevronRight className="w-4 h-4 shrink-0 text-[#5A6461]" aria-hidden="true" />
+      </span>
+    </Link>
+  );
 }
 
 export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
-  const {
-    fullName: initialFullName,
-    email,
-    lastNameChange,
-    loading: _settingsLoading,
-    updateProfile,
-  } = useAuth();
-  const { isPlus } = usePlan();
+  const { fullName, email, avatarColor, updateAvatarColor } = useAuth();
 
-  const [fullName, setFullName] = useState(initialFullName);
-
-  // Keep the editable name in sync when the authenticated profile loads or changes
-  // (render-phase adjustment, the documented alternative to setState-in-effect).
-  const [prevInitialFullName, setPrevInitialFullName] = useState(initialFullName);
-  if (initialFullName !== prevInitialFullName) {
-    setPrevInitialFullName(initialFullName);
-    setFullName(initialFullName);
-  }
-  const [bio, setBio] = useState(() => {
+  const [bio] = useState(() => {
     if (typeof window === 'undefined') return '';
     return safeGetItem('subhalt_user_bio') || '';
-  });
-  const [avatarColor, setAvatarColor] = useState(() => {
-    if (typeof window === 'undefined') return '#14B8A6';
-    return safeGetItem('subhalt_avatar_color') || '#14B8A6';
   });
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
 
   const supabase = createClient();
 
@@ -91,35 +62,9 @@ export default function ProfilePage() {
     fetchUserMeta();
   }, [supabase]);
 
-  // Wall-clock snapshot so the 30-day lockout stays accurate without impure
-  // Date.now() calls in render (cached snapshot updated by subscribeToClock).
-  const nowMs = useSyncExternalStore(subscribeToClock, getClockSnapshot, getClockSnapshot);
-
-  // Calculate 30-day rate limit status for name changes
-  let isLockedBy30Days = false;
-  let nextAllowedDateString = '';
-
-  if (lastNameChange) {
-    const lastChangeDate = new Date(lastNameChange);
-    const diffMs = nowMs - lastChangeDate.getTime();
-    const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-    if (diffDays < 30) {
-      isLockedBy30Days = true;
-      const nextAllowed = new Date(lastChangeDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-      nextAllowedDateString = nextAllowed.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    }
-  }
-
-  const isNameChanged = fullName.trim() !== initialFullName.trim();
-
-  const getInitials = (nameStr: string): string => {
-    if (!nameStr || !nameStr.trim()) return 'SU';
-    const parts = nameStr.trim().split(/\s+/);
+  const getInitials = (name: string) => {
+    if (!name || !name.trim()) return 'SU';
+    const parts = name.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
@@ -130,275 +75,120 @@ export default function ProfilePage() {
 
     setUploadingAvatar(true);
     const reader = new FileReader();
-    reader.onload = async (event) => {
-      const dataUrl = event.target?.result as string;
-      setAvatarUrl(dataUrl);
-
-      try {
-        await supabase.auth.updateUser({
-          data: { avatar_url: dataUrl },
-        });
-        toast.success('Profile photo updated successfully.', 'Photo Uploaded');
-      } catch {
-        toast.error('Failed to update avatar picture.', 'Upload Error');
-      } finally {
-        setUploadingAvatar(false);
+    reader.onload = async () => {
+      const result = reader.result as string;
+      setAvatarUrl(result);
+      const { error } = await supabase.auth.updateUser({ data: { avatar_url: result } });
+      setUploadingAvatar(false);
+      if (error) {
+        toast.error('Could not update your photo. Please try again.', 'Upload Failed');
+      } else {
+        toast.success('Your photo has been updated.', 'Photo Updated');
       }
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!fullName.trim()) {
-      toast.error('Please enter a valid display name.', 'Validation Error');
-      return;
-    }
-
-    if (isNameChanged && isLockedBy30Days) {
-      toast.error(
-        `Display name can only be updated once every 30 days. Next change allowed on ${nextAllowedDateString}.`,
-        'Name Restricted'
-      );
-      return;
-    }
-
-    setSaving(true);
-    try {
-      if (isNameChanged) {
-        await updateProfile({ fullName: fullName.trim() });
-      }
-
-      if (typeof window !== 'undefined') {
-        safeSetItem('subhalt_user_bio', bio.trim());
-        safeSetItem('subhalt_avatar_color', avatarColor);
-      }
-
-      toast.success('Your profile details have been saved.', 'Profile Saved');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update profile.';
-      toast.error(msg, 'Save Error');
-    } finally {
-      setSaving(false);
-    }
+  const handleAccentSelect = (hex: string) => {
+    void updateAvatarColor(hex);
   };
 
+  const bioSnippet = bio.trim() ? bio.trim() : 'Add a short bio';
+
   return (
-    <div className="space-y-6 max-w-4xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between border-b border-[#1A1D1D] pb-5">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="Go back"
-            className="w-9 h-9 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
+    <div className="space-y-6 max-w-3xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
+      {/* Header: bare back chevron + title */}
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          aria-label="Go back"
+          data-touch="compact"
+          className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Profile</h1>
+      </div>
+
+      {/* Identity */}
+      <div className="flex flex-col items-center text-center gap-3 pt-2">
+        <div className="relative">
+          {avatarUrl ? (
+            <Image
+              src={avatarUrl}
+              alt={fullName || 'Profile picture'}
+              width={96}
+              height={96}
+              className="w-24 h-24 rounded-full object-cover shadow-lg"
+            />
+          ) : (
+            <div
+              style={{ backgroundColor: `${avatarColor}1A`, color: avatarColor }}
+              className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold transition-colors"
+            >
+              {getInitials(fullName)}
+            </div>
+          )}
+
+          <label
+            htmlFor="avatar-upload-input"
+            className="absolute -bottom-0.5 -right-0.5 w-8 h-8 rounded-full bg-[#14B8A6] text-[#091512] flex items-center justify-center cursor-pointer shadow-lg transition-opacity hover:opacity-90"
+            title="Change profile photo"
           >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">Public Profile</h1>
-            <p className="text-xs sm:text-sm text-[#94A3B8] mt-0.5">
-              Customize your profile avatar, display name, and bio details.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Profile Form Card */}
-      <div className="rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] p-5 sm:p-8 space-y-7 shadow-xl">
-        {/* Avatar Section */}
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-[#1A1D1D]">
-          <div className="relative group">
-            {avatarUrl ? (
-              <Image
-                src={avatarUrl}
-                alt={fullName || 'Avatar'}
-                width={112}
-                height={112}
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 border-[#14B8A6] shadow-xl"
-                unoptimized
-              />
+            {uploadingAvatar ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <div
-                style={{ backgroundColor: `${avatarColor}20`, borderColor: `${avatarColor}50`, color: avatarColor }}
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold shadow-xl transition-all"
-              >
-                {getInitials(fullName)}
-              </div>
+              <Camera className="w-4 h-4" />
             )}
+          </label>
+          <input
+            id="avatar-upload-input"
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarUpload}
+            className="hidden"
+          />
+        </div>
 
-            {/* Photo Upload Overlay */}
-            <label
-              htmlFor="avatar-upload-input"
-              className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white cursor-pointer transition-opacity"
-              title="Upload new profile picture"
-            >
-              {uploadingAvatar ? (
-                <Loader2 className="w-6 h-6 animate-spin text-[#14B8A6]" />
-              ) : (
-                <Camera className="w-6 h-6 text-white" />
-              )}
-            </label>
-            <input
-              id="avatar-upload-input"
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarUpload}
-              className="hidden"
-            />
-          </div>
+        <div className="space-y-0.5">
+          <h2 className="text-lg font-bold text-[#F5F7F6]">{fullName || 'SubHalt User'}</h2>
+          <p className="text-xs text-[#94A3B8]">{email || 'user@example.com'}</p>
+        </div>
+      </div>
 
-          <div className="space-y-3 text-center sm:text-left flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1A1D1D]/80 pb-3">
-              <div>
-                <h2 className="text-lg font-bold text-[#F5F7F6]">{fullName || 'SubHalt User'}</h2>
-                <p className="text-xs text-[#94A3B8]">{email || 'user@example.com'}</p>
-              </div>
+      {/* Info list */}
+      <div className="rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] overflow-hidden divide-y divide-[#1A1D1D]">
+        <InfoLinkRow href="/profile/name" label="Display Name" value={fullName || 'SubHalt User'} />
+        <InfoLinkRow href="/profile/email" label="Email" value={email || 'user@example.com'} />
 
-              <div className="flex items-center gap-2.5 justify-center sm:justify-end">
-                <Link
-                  href={`/plans?from=${encodeURIComponent('/profile')}`}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center gap-1 transition-opacity cursor-pointer shadow-sm"
-                >
-                  <span>{isPlus ? 'Manage Plan' : 'Upgrade Plan'}</span>
-                </Link>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <label
-                htmlFor="avatar-upload-input"
-                className="px-3.5 py-2 rounded-xl bg-[#14B8A6]/15 hover:bg-[#14B8A6]/25 border border-[#14B8A6]/30 text-[#14B8A6] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span>Upload Photo</span>
-              </label>
-
-              {avatarUrl && (
+        {/* Avatar accent lives inline in the list, right before the bio. */}
+        <div className="flex items-center justify-between gap-4 min-h-[56px] px-4">
+          <span className="text-sm text-[#94A3B8] shrink-0">Avatar Accent</span>
+          <div className="flex items-center gap-2">
+            {AVATAR_ACCENT_COLORS.map((col) => {
+              const selected = avatarColor === col.hex;
+              return (
                 <button
+                  key={col.hex}
                   type="button"
-                  onClick={() => setAvatarUrl(null)}
-                  className="px-3 py-2 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
-                >
-                  Remove Photo
-                </button>
-              )}
-            </div>
-
-            {/* Generated Initials Color Customizer */}
-            <div className="pt-2">
-              <span className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider block mb-2">
-                Avatar Accent Color
-              </span>
-              <div className="flex items-center gap-2 justify-center sm:justify-start">
-                {AVATAR_ACCENT_COLORS.map((col) => (
-                  <button
-                    key={col.hex}
-                    type="button"
-                    onClick={() => setAvatarColor(col.hex)}
-                    style={{ backgroundColor: col.hex }}
-                    className={`w-6 h-6 rounded-full transition-transform cursor-pointer ${
-                      avatarColor === col.hex ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-[#0B0D0D]' : 'hover:scale-110'
-                    }`}
-                    title={col.label}
-                  />
-                ))}
-              </div>
-            </div>
+                  onClick={() => handleAccentSelect(col.hex)}
+                  aria-label={`Use ${col.label} accent`}
+                  title={col.label}
+                  aria-pressed={selected}
+                  data-touch="compact"
+                  style={{ backgroundColor: col.hex }}
+                  className={`w-6 h-6 rounded-full transition-transform cursor-pointer ${
+                    selected ? 'ring-2 ring-white ring-offset-2 ring-offset-[#0B0D0D]' : 'hover:scale-110'
+                  }`}
+                />
+              );
+            })}
           </div>
         </div>
 
-        {/* Profile Inputs Form */}
-        <form onSubmit={handleSaveProfile} className="space-y-5">
-          {/* Display Name */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
-              Display Name
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Jane Doe"
-                className="w-full h-11 pl-10 pr-4 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
-              />
-            </div>
-            {isLockedBy30Days && (
-              <p className="text-[11px] text-[#94A3B8] pt-0.5 flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
-                <span>Display name can only be changed once every 30 days. Next change allowed on {nextAllowedDateString}.</span>
-              </p>
-            )}
-          </div>
-
-          {/* Email Address */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
-              Email Address
-            </label>
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <Mail className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  disabled
-                  value={email}
-                  className="w-full h-11 pl-10 pr-4 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#94A3B8] cursor-not-allowed"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsChangeEmailOpen(true)}
-                className="h-11 px-4 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] text-[#14B8A6] text-xs font-semibold transition-colors cursor-pointer shrink-0"
-              >
-                Change Email
-              </button>
-            </div>
-          </div>
-
-          {/* Optional Short Bio */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
-              Short Bio (Optional)
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Tell us a bit about yourself or your software portfolio..."
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="w-full p-3.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none leading-relaxed"
-            />
-          </div>
-
-          {/* Prominent Save Button */}
-          <div className="pt-3 flex justify-end">
-            <button
-              type="submit"
-              disabled={saving || (isNameChanged && isLockedBy30Days)}
-              className="w-full sm:w-auto min-w-[160px] h-12 px-7 rounded-xl bg-[#14B8A6] hover:opacity-90 disabled:opacity-50 text-[#091512] text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg min-h-[44px]"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-[#091512]" />
-                  <span>Saving Profile...</span>
-                </>
-              ) : (
-                <span>Save Profile</span>
-              )}
-            </button>
-          </div>
-        </form>
+        <InfoLinkRow href="/profile/bio" label="Short Bio" value={bioSnippet} />
       </div>
-
-      <ChangeEmailModal
-        isOpen={isChangeEmailOpen}
-        onClose={() => setIsChangeEmailOpen(false)}
-      />
     </div>
   );
 }

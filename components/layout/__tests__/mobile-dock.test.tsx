@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MobileDock } from '@/components/layout/MobileDock';
 
 const mocks = vi.hoisted(() => ({
@@ -35,17 +34,9 @@ const setPath = (pathname: string) => {
   mocks.pathname = pathname;
 };
 
-/**
- * `scrollY` has to go through defineProperty so repeated assignments across
- * tests stay writable; a plain assignment breaks once one test has redefined it.
- */
-const setScrollY = (value: number) => {
-  Object.defineProperty(window, 'scrollY', { value, configurable: true, writable: true });
-};
-
 const scrollTo = async (value: number) => {
   await act(async () => {
-    setScrollY(value);
+    Object.defineProperty(window, 'scrollY', { configurable: true, value });
     window.dispatchEvent(new Event('scroll'));
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
   });
@@ -54,21 +45,18 @@ const scrollTo = async (value: number) => {
 beforeEach(() => {
   mocks.pathname = '/';
   mocks.overlayOpen = false;
-  setScrollY(0);
+  Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
 });
 
 describe('MobileDock', () => {
-  it('renders exactly four slots, so target widths stay predictable', () => {
-    render(<MobileDock onOpenMore={vi.fn()} />);
+  it('renders exactly five slots, so target widths stay predictable', () => {
+    render(<MobileDock />);
 
-    const slots = screen.getAllByRole('link').concat(screen.getAllByRole('button'));
-
-    // Three route slots plus the More button.
-    expect(slots).toHaveLength(4);
+    expect(screen.getAllByRole('link')).toHaveLength(5);
   });
 
-  it('exposes the three primary routes plus a More trigger', () => {
-    render(<MobileDock onOpenMore={vi.fn()} />);
+  it('exposes the four primary routes plus a More link', () => {
+    render(<MobileDock />);
 
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'Subscriptions' })).toHaveAttribute(
@@ -76,24 +64,26 @@ describe('MobileDock', () => {
       '/subscriptions',
     );
     expect(screen.getByRole('link', { name: 'Renewals' })).toHaveAttribute('href', '/renewals');
-    expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Inbox' })).toHaveAttribute('href', '/inbox');
+    expect(screen.getByRole('link', { name: 'More' })).toHaveAttribute('href', '/more');
   });
 
   it('keeps every label visible rather than collapsing to icons', () => {
-    render(<MobileDock onOpenMore={vi.fn()} />);
+    render(<MobileDock />);
 
     // The subscriptions slot reads "Subs" because "Subscriptions" would not
-    // fit in a ~76px slot at 320px, but it keeps an explicit full-name
+    // fit in a ~64px slot at 320px, but it keeps an explicit full-name
     // aria-label so the truncation is not exposed as the name.
     expect(screen.getByText('Subs')).toBeInTheDocument();
     expect(screen.getByText('Renewals')).toBeInTheDocument();
     expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Inbox')).toBeInTheDocument();
     expect(screen.getByText('More')).toBeInTheDocument();
   });
 
   it('marks the current route with aria-current', () => {
     setPath('/renewals');
-    render(<MobileDock onOpenMore={vi.fn()} />);
+    render(<MobileDock />);
 
     expect(screen.getByRole('link', { name: 'Renewals' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
@@ -101,58 +91,38 @@ describe('MobileDock', () => {
 
   it('treats a nested route as active for its section', () => {
     setPath('/renewals/upcoming');
-    render(<MobileDock onOpenMore={vi.fn()} />);
+    render(<MobileDock />);
 
     expect(screen.getByRole('link', { name: 'Renewals' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('does not mark the More slot as the current page when a route slot is active', () => {
+  it('marks the More slot as the fallback for a route it owns', () => {
+    setPath('/settings');
+    render(<MobileDock />);
+
+    expect(screen.getByRole('link', { name: 'More' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('does not mark More as current when a primary slot is active', () => {
     setPath('/subscriptions');
-    render(<MobileDock onOpenMore={vi.fn()} />);
+    render(<MobileDock />);
 
     // More is only "active" as a fallback; when a real route is active the
     // fallback must not also light up, or two slots read as current.
-    expect(screen.getByRole('button', { name: 'More' })).not.toHaveAttribute('aria-current', 'page');
-  });
-
-  it('reports the real More sheet state through aria-expanded', async () => {
-    const { rerender } = render(<MobileDock onOpenMore={vi.fn()} moreOpen={false} />);
-
-    expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'false');
-
-    rerender(<MobileDock onOpenMore={vi.fn()} moreOpen />);
-
-    expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-expanded', 'true');
-  });
-
-  it('opens the More sheet from the trigger', async () => {
-    const onOpenMore = vi.fn();
-    render(<MobileDock onOpenMore={onOpenMore} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'More' }));
-
-    expect(onOpenMore).toHaveBeenCalledTimes(1);
-  });
-
-  it('wires the More trigger to the sheet panel it controls', () => {
-    render(<MobileDock onOpenMore={vi.fn()} />);
-
-    const trigger = screen.getByRole('button', { name: 'More' });
-
-    expect(trigger).toHaveAttribute('aria-controls', 'more-sheet-panel');
-    expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(screen.getByRole('link', { name: 'More' })).not.toHaveAttribute('aria-current', 'page');
   });
 
   it('stays hidden on full-page routes, which carry their own layout', () => {
     setPath('/login');
-    const { container } = render(<MobileDock onOpenMore={vi.fn()} />);
+    const { container } = render(<MobileDock />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('collapses while an overlay owns the viewport', () => {
     mocks.overlayOpen = true;
-    const { container } = render(<MobileDock onOpenMore={vi.fn()} />);
+    const { container } = render(<MobileDock />);
 
     const nav = container.querySelector('[data-mobile-dock]');
 
@@ -160,15 +130,13 @@ describe('MobileDock', () => {
   });
 
   it('hides below lg only, since the sidebar replaces it above that', () => {
-    const { container } = render(<MobileDock onOpenMore={vi.fn()} />);
+    const { container } = render(<MobileDock />);
 
-    const nav = container.querySelector('[data-mobile-dock]');
-
-    expect(nav).toHaveClass('lg:hidden');
+    expect(container.querySelector('[data-mobile-dock]')).toHaveClass('lg:hidden');
   });
 
   it('sits under the Sheet overlay rather than over it', () => {
-    const { container } = render(<MobileDock onOpenMore={vi.fn()} />);
+    const { container } = render(<MobileDock />);
 
     const nav = container.querySelector('[data-mobile-dock]');
 
@@ -178,7 +146,7 @@ describe('MobileDock', () => {
   });
 
   it('hides on downward scroll once the user has left the top of the page', async () => {
-    const { container } = render(<MobileDock onOpenMore={vi.fn()} />);
+    const { container } = render(<MobileDock />);
 
     expect(container.querySelector('[data-mobile-dock]')).toHaveClass('translate-y-0');
 
@@ -190,7 +158,7 @@ describe('MobileDock', () => {
   });
 
   it('returns on upward scroll', async () => {
-    const { container } = render(<MobileDock onOpenMore={vi.fn()} />);
+    const { container } = render(<MobileDock />);
 
     await scrollTo(400);
     expect(container.querySelector('[data-mobile-dock]')).toHaveClass('translate-y-full');
@@ -200,7 +168,7 @@ describe('MobileDock', () => {
   });
 
   it('forces the dock back when scrolling to the very top', async () => {
-    const { container } = render(<MobileDock onOpenMore={vi.fn()} />);
+    const { container } = render(<MobileDock />);
 
     await scrollTo(400);
     expect(container.querySelector('[data-mobile-dock]')).toHaveClass('translate-y-full');

@@ -98,10 +98,13 @@ interface AuthContextValue {
   email: string;
   fullName: string;
   lastNameChange: string | null;
+  avatarColor: string;
   loading: boolean;
   isAdmin: boolean;
   updateProfile: (data: { fullName?: string; timezone?: string }) => Promise<void>;
   reauthenticateAndChangeEmail: (password: string, newEmail: string) => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateAvatarColor: (hex: string) => Promise<void>;
 }
 
 interface CategoriesContextValue {
@@ -160,6 +163,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [fullName, setFullNameState] = useState<string>('');
   const [email, setEmailState] = useState<string>('');
   const [lastNameChange, setLastNameChangeState] = useState<string | null>(null);
+  const [avatarColor, setAvatarColorState] = useState<string>('#14B8A6');
   const [isAdmin, setIsAdminState] = useState<boolean>(false);
   const [customCategories, setCustomCategoriesState] = useState<string[]>([]);
   const [categoryMetadata, setCategoryMetadata] = useState<Record<string, CategoryMeta>>({});
@@ -264,6 +268,11 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
           setPlanExpiresAtState(savedPlanExpiresAt);
         }
 
+        const savedAvatarColor = safeGetItem('subhalt_avatar_color');
+        if (savedAvatarColor) {
+          setAvatarColorState(savedAvatarColor);
+        }
+
         const savedAssistant = safeGetItem('subhalt_assistant_name');
         if (savedAssistant && savedAssistant.trim()) {
           setAssistantNameState(savedAssistant.trim());
@@ -316,6 +325,12 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         }
         if (meta.last_name_change) {
           setLastNameChangeState(meta.last_name_change);
+        }
+        if (typeof meta.avatar_color === 'string') {
+          setAvatarColorState(meta.avatar_color);
+          if (typeof window !== 'undefined') {
+            safeSetItem('subhalt_avatar_color', meta.avatar_color);
+          }
         }
         if (meta.default_currency) {
           setDefaultCurrencyState(meta.default_currency);
@@ -414,6 +429,9 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
         if (session.user.user_metadata?.last_name_change) {
           setLastNameChangeState(session.user.user_metadata.last_name_change);
         }
+        if (typeof session.user.user_metadata?.avatar_color === 'string') {
+          setAvatarColorState(session.user.user_metadata.avatar_color);
+        }
         const meta = session.user.user_metadata || {};
         applyPlanMetadata(meta);
       }
@@ -475,6 +493,29 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const updatePassword = async (currentPassword: string, newPassword: string) => {
+    // An account that only ever signed in with OAuth has no password to verify;
+    // passing an empty currentPassword means "set the first password" and skips
+    // the re-auth step. Any existing password must be re-authenticated first.
+    if (currentPassword) {
+      if (!email) throw new Error('No user email found.');
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        throw new Error('Incorrect password. Please enter your current account password.');
+      }
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(error.message);
+    }
+  };
+
   const updateDefaultCurrency = async (newCurrency: string) => {
     setDefaultCurrencyState(newCurrency);
     if (typeof window !== 'undefined') {
@@ -519,6 +560,27 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
 
     const { error } = await supabase.auth.updateUser({ data });
     return error ?? null;
+  };
+
+  /**
+   * Persists the avatar accent to the account so the same colour renders in the
+   * sidebar, the settings account card and the profile page on every device.
+   * The local value is written first and never reverted: the colour is cosmetic,
+   * and a failed sync (expired session) should not flick the swatch back.
+   */
+  const updateAvatarColor = async (hex: string) => {
+    setAvatarColorState(hex);
+    if (typeof window !== 'undefined') {
+      safeSetItem('subhalt_avatar_color', hex);
+    }
+    const error = await persistUserMetadata({ avatar_color: hex });
+    if (error) {
+      logger.warn('[user-settings] avatar color not synced to account', {
+        hex,
+        code: error.code,
+        message: error.message,
+      });
+    }
   };
 
   const updateNotificationPreferences = async (prefs: Partial<NotificationPreferences>) => {
@@ -797,9 +859,20 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   );
 
   const authValue = useMemo<AuthContextValue>(
-    () => ({ email, fullName, lastNameChange, loading, isAdmin, updateProfile, reauthenticateAndChangeEmail }),
+    () => ({
+      email,
+      fullName,
+      lastNameChange,
+      avatarColor,
+      loading,
+      isAdmin,
+      updateProfile,
+      reauthenticateAndChangeEmail,
+      updatePassword,
+      updateAvatarColor,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Same intent as currencyValue above.
-    [email, fullName, lastNameChange, loading, isAdmin]
+    [email, fullName, lastNameChange, avatarColor, loading, isAdmin]
   );
 
   const categoriesValue = useMemo<CategoriesContextValue>(

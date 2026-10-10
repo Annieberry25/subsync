@@ -31,7 +31,7 @@ export function describeOAuthError(err: unknown, provider: string): string {
   }
 
   if (/flow_state|invalid flow state|code_verifier/i.test(message)) {
-    return `${label} sign-in could not be verified. Please try again — if it keeps failing, cookies may be blocked for this site.`;
+    return `${label} sign-in could not be verified. Please try again. If it keeps failing, cookies may be blocked for this site.`;
   }
 
   if (message) return `${label} sign-in failed: ${message}`;

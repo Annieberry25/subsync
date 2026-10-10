@@ -205,7 +205,7 @@ export async function GET(request: Request) {
       if (pushWanted && pushDue && !sentThisCycle.has(`${row.id}:reminder_pushed`)) {
         const result = await sendPushToUser(row.user_id, {
           title: `${name} renews in ${pushLead} days`,
-          body: `${formatAmount(price, currency)} ${cycleLabel(row.billing_cycle)} — tap to review.`,
+          body: `${formatAmount(price, currency)} ${cycleLabel(row.billing_cycle)}. Tap to review.`,
           url: `/subscriptions?highlight=${row.id}&detail=true`,
           tag: `renewal-${row.id}`,
         });

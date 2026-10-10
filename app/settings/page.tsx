@@ -16,8 +16,6 @@ import {
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
 import {
   User,
-  Shield,
-  Key,
   ArrowUpCircle,
   Sliders,
   Globe,
@@ -32,8 +30,10 @@ import {
   AlertTriangle,
   Loader2,
   Mail,
+  Bell,
+  Smartphone,
   Palette,
-  ArrowLeft,
+  ChevronLeft,
   ChevronRight,
   Plug,
   type LucideIcon,
@@ -56,12 +56,13 @@ import {
 import { AddPaymentModal } from '@/components/settings/add-payment-modal';
 import { PaymentResultSheet, type PaymentResultState } from '@/components/settings/payment-result-sheet';
 import { LegalModal } from '@/components/settings/legal-modal';
-import { ChangeEmailModal } from '@/components/settings/change-email-modal';
 import { EditBillingModal } from '@/components/settings/edit-billing-modal';
 import { CategoryManager } from '@/components/settings/category-manager';
 import { DeleteAccountModal } from '@/components/settings/delete-account-modal';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { ToggleSwitch } from '@/components/ui/toggle-switch';
 import Sheet from '@/components/ui/sheet';
+import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { CardIcon } from '@/components/ui/card-icons';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 import { IntegrationsSettingsPanel } from '@/components/integrations/integrations-settings-panel';
@@ -78,6 +79,118 @@ function formatPlanEndDate(iso: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   });
+}
+
+/** A borderless list container; rows are separated by hairlines unless `divided` is false. */
+function SettingsGroup({
+  children,
+  className = '',
+  divided = true,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  divided?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] overflow-hidden ${
+        divided ? 'divide-y divide-[#1A1D1D]' : ''
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** OPay-style read-only row: label on the left, value on the right. */
+function DataRow({
+  label,
+  value,
+  divider = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  divider?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-4 min-h-[56px] pl-4 pr-5 ${
+        divider ? 'border-b border-white/[0.04]' : ''
+      }`}
+    >
+      <span className="text-sm text-[#94A3B8] shrink-0">{label}</span>
+      <span className="text-sm font-medium text-[#F5F7F6] text-right truncate min-w-0">{value}</span>
+    </div>
+  );
+}
+
+/** OPay-style action row: label on the left, trailing chevron on the right. */
+function ActionRow({
+  label,
+  href,
+  onClick,
+  danger = false,
+}: {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  danger?: boolean;
+}) {
+  const className = `w-full flex items-center justify-between gap-4 min-h-[56px] px-4 transition-colors hover:bg-[#121414] cursor-pointer ${
+    danger ? 'text-[#D9363E]' : 'text-[#F5F7F6]'
+  }`;
+  const content = (
+    <>
+      <span className="text-sm font-medium">{label}</span>
+      <ChevronRight className="w-4 h-4 shrink-0 text-[#5A6461]" aria-hidden="true" />
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      {content}
+    </button>
+  );
+}
+
+interface SettingsRowProps {
+  icon?: LucideIcon;
+  title: string;
+  description?: React.ReactNode;
+  iconClassName?: string;
+  children?: React.ReactNode;
+}
+
+/** A single minimalist settings row: leading icon, label(s), trailing control. */
+function SettingsRow({
+  icon: Icon,
+  title,
+  description,
+  iconClassName = 'text-[#94A3B8]',
+  children,
+}: SettingsRowProps) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+      <div className="flex items-center gap-3.5 min-w-0">
+        {Icon && <Icon className={`w-5 h-5 shrink-0 ${iconClassName}`} aria-hidden="true" />}
+        <div className="min-w-0">
+          <span className="text-sm font-medium text-[#F5F7F6] block">{title}</span>
+          {description && (
+            <span className="text-[11px] text-[#94A3B8] block">{description}</span>
+          )}
+        </div>
+      </div>
+      {children && <div className="shrink-0 flex items-center gap-2">{children}</div>}
+    </div>
+  );
 }
 
 function SettingsContent() {
@@ -106,6 +219,7 @@ function SettingsContent() {
     defaultCurrency,
     fullName,
     email,
+    avatarColor,
     notificationPreferences,
     isPlus,
     planExpiresAt,
@@ -119,7 +233,6 @@ function SettingsContent() {
   } = useUserSettings();
   const { addInboxItem } = useInbox();
 
-  const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
   const [isEditBillingOpen, setIsEditBillingOpen] = useState(false);
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [isViewSubscriptionOpen, setIsViewSubscriptionOpen] = useState(false);
@@ -172,6 +285,7 @@ function SettingsContent() {
   // Account Deletion States
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
   const [isAccountDeletedOpen, setIsAccountDeletedOpen] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   // Privacy & Data states
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
@@ -261,7 +375,7 @@ function SettingsContent() {
         type: 'plan_update',
         title: `${PLUS_PLAN.name} payment received`,
         description:
-          "We're confirming your payment with Paystack. Your plan activates automatically as soon as it is verified — no action needed.",
+              "We're confirming your payment with Paystack. Your plan activates automatically as soon as it is verified. No action needed.",
         actionType: 'view',
         actionLabel: 'View subscription',
         subscriptionName: SUBHALT_SUBSCRIPTION_NAME,
@@ -363,6 +477,12 @@ function SettingsContent() {
     toast.error('Could not sign you out. Please try again.', 'Sign Out Failed');
   };
 
+  const handleSignOut = async () => {
+    const ok = await signOutAndRedirect();
+    if (ok) return;
+    toast.error('Could not sign you out. Please try again.', 'Sign Out Failed');
+  };
+
   const handleExportData = () => {
     try {
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
@@ -398,15 +518,37 @@ function SettingsContent() {
   const handleSelectCategory = (secId: SettingsSection) => {
     setActiveSection(secId);
     setMobileSectionView(secId);
+    // Mirror the section into the URL so a sub-page (e.g. /profile, reached via
+    // Edit Profile) can be backed out of straight into this section. Without it,
+    // Back lands on /settings with no section and mobile shows the category list
+    // again. `replace` keeps the category tap out of history.
+    router.replace(`/settings?section=${secId}`);
+  };
+
+  const handleMobileBackToCategories = () => {
+    setMobileSectionView(null);
+    router.replace('/settings');
   };
 
   return (
     <div className="space-y-6 max-w-5xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
       <h1 className="sr-only">Settings</h1>
 
-      {/* Header Title */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">Settings</h1>
+      {/* Header Title. On mobile a drilled-in section owns the top of the screen,
+          so this block and its back affordance are hidden while a section is open. */}
+      <div className={mobileSectionView !== null ? 'hidden lg:block' : ''}>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Go back"
+            data-touch="compact"
+            className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer lg:hidden"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">Settings</h1>
+        </div>
         <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">
           Manage your account security, billing preferences, app configuration, and categories.
         </p>
@@ -418,7 +560,7 @@ function SettingsContent() {
           /* Mobile Level 1: Category List Screen */
           <div className="space-y-3">
             <h2 className="text-xs font-bold text-[#94A3B8] uppercase tracking-wider px-1">Settings Categories</h2>
-            <div className="space-y-2">
+            <div className="rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] overflow-hidden divide-y divide-[#1A1D1D]">
               {sectionsList.map((sec) => {
                 const Icon = sec.icon;
                 return (
@@ -426,36 +568,37 @@ function SettingsContent() {
                     key={sec.id}
                     type="button"
                     onClick={() => handleSelectCategory(sec.id)}
-                    className="w-full flex items-center justify-between p-4 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] hover:bg-[#121414] transition-colors cursor-pointer text-left group"
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-[#121414] transition-colors cursor-pointer group"
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-[#1A1D1D] border border-[#27272A] flex items-center justify-center text-[#F5F7F6] shrink-0">
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="block text-sm font-semibold text-[#F5F7F6] truncate">{sec.label}</span>
-                        <span className="block text-xs text-[#94A3B8] truncate mt-0.5">{sec.description}</span>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] shrink-0 ml-2" />
+                    <Icon className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] shrink-0 transition-colors" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[#F5F7F6]">
+                      {sec.label}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] shrink-0 transition-colors" />
                   </button>
                 );
               })}
             </div>
           </div>
         ) : (
-          /* Mobile Level 2: Separate Section Page View with Return Button */
+          /* Mobile Level 2: bare back chevron + section title */
           <div className="space-y-6">
-            <button
-              type="button"
-              onClick={() => setMobileSectionView(null)}
-              className="inline-flex items-center gap-2 text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:underline cursor-pointer py-1"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Settings categories</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleMobileBackToCategories}
+                aria-label="Back to settings categories"
+                data-touch="compact"
+                className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+                {sectionsList.find((sec) => sec.id === mobileSectionView)?.label}
+              </h2>
+            </div>
 
-            <div className="rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] p-5 space-y-6">
+            <div className="space-y-6">
               {/* Render Active Section Content for Mobile */}
               {mobileSectionView === 'plan' && renderBillingSection()}
               {mobileSectionView === 'account' && renderAccountSection()}
@@ -481,10 +624,7 @@ function SettingsContent() {
               <button
                 key={sec.id}
                 type="button"
-                onClick={() => {
-                  setActiveSection(sec.id);
-                  setMobileSectionView(sec.id);
-                }}
+                onClick={() => handleSelectCategory(sec.id)}
                 data-active={isActive ? 'true' : 'false'}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer text-left ${
                   isActive
@@ -520,6 +660,17 @@ function SettingsContent() {
         onDeleted={handleAccountDeleted}
       />
 
+      <ConfirmDialog
+        isOpen={showSignOutConfirm}
+        onClose={() => setShowSignOutConfirm(false)}
+        onConfirm={handleSignOut}
+        title="Log out?"
+        description="You'll need to sign in again to access your subscriptions and reminders on this device."
+        confirmText="Log out"
+        cancelText="Stay signed in"
+        variant="danger"
+      />
+
       {/* Goodbye after successful deletion (small sheet, sized like checkouts).
           Dismissing it signs out and hard-redirects to /login. */}
       <Sheet
@@ -553,11 +704,6 @@ function SettingsContent() {
         type={legalModalType}
       />
 
-      <ChangeEmailModal
-        isOpen={isChangeEmailOpen}
-        onClose={() => setIsChangeEmailOpen(false)}
-      />
-
       <EditBillingModal
         isOpen={isEditBillingOpen}
         onClose={() => setIsEditBillingOpen(false)}
@@ -589,76 +735,70 @@ function SettingsContent() {
 
   /* SECTION RENDER HELPERS */
 
-  // 1. BILLING SECTION (Clean unboxed UI matching reference images 2 & 3)
+  // 1. BILLING SECTION
   function renderBillingSection() {
     return (
       <section className="space-y-6">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">Billing</h2>
+        <div className="hidden lg:block">
+          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Plan &amp; Billing</h2>
+          <p className="text-xs text-[#94A3B8] mt-0.5">Your current plan and billing controls</p>
         </div>
 
-        {/* Active Plan Row */}
-        <div className="py-4 border-b border-[#1A1D1D] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h3 className="text-base sm:text-lg font-bold text-[#F5F7F6]">
-              {isPlus ? 'SubHalt' : 'SubHalt Free'}
-            </h3>
-            <p className="text-xs text-[#94A3B8]">
-              {isPlus
-                ? 'Single monthly payment secured by Paystack. ($3.99/month)'
-                : 'Intelligence for everyday tasks'}
-            </p>
-          </div>
+        <SettingsGroup divided={false}>
+          <SettingsRow
+            title={isPlus ? 'SubHalt Plus' : 'SubHalt Free'}
+            description={isPlus ? undefined : 'Intelligence for everyday tasks'}
+          >
+            {isPlus ? (
+              <button
+                type="button"
+                onClick={() => setIsViewSubscriptionOpen(true)}
+                className="text-xs font-semibold text-[#F5F7F6] hover:underline cursor-pointer"
+              >
+                View
+              </button>
+            ) : (
+              <Link
+                href={`/plans?from=${encodeURIComponent('/settings?section=plan')}`}
+                className="text-xs font-semibold text-[#F5F7F6] hover:underline"
+              >
+                Upgrade
+              </Link>
+            )}
+          </SettingsRow>
+        </SettingsGroup>
 
-          {isPlus ? (
-            <button
-              type="button"
-              onClick={() => setIsViewSubscriptionOpen(true)}
-              className="px-4 py-1.5 rounded-full bg-[#1A1D1D] hover:bg-[#27272A] border border-[#2D3135] text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer shrink-0 text-center"
-            >
-              View subscription
-            </button>
-          ) : (
-            <Link
-              href={`/plans?from=${encodeURIComponent('/settings?section=plan')}`}
-              className="px-4 py-1.5 rounded-full bg-[#1A1D1D] hover:bg-[#27272A] border border-[#2D3135] text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer shrink-0 text-center"
-            >
-              Upgrade plan
-            </Link>
-          )}
-        </div>
-
-        {/* PAID STATE CONTENT ONLY - Matching ChatGPT Reference Screenshots */}
         {isPlus && (
           <>
-            {/* Billing Information Section */}
-            <div className="py-4 border-b border-[#1A1D1D] space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-[#F5F7F6]">Billing information</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
+                  Billing information
+                </h3>
                 <button
                   type="button"
                   onClick={() => setIsEditBillingOpen(true)}
-                  className="px-4 py-1.5 rounded-full bg-[#1A1D1D] hover:bg-[#27272A] border border-[#2D3135] text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
+                  className="text-xs font-semibold text-[#F5F7F6] hover:underline cursor-pointer"
                 >
                   Edit
                 </button>
               </div>
 
-              <div className="space-y-4 text-xs sm:text-sm">
-                <div>
-                  <span className="text-xs text-[#94A3B8] block mb-1">Billing email</span>
+              <SettingsGroup divided={false}>
+                <div className="px-4 py-3">
+                  <span className="text-[11px] text-[#94A3B8] block">Billing email</span>
                   <span className="text-sm font-medium text-[#F5F7F6]">
                     {billingDetails?.email || email || 'Not set'}
                   </span>
                 </div>
-                <div className="pt-3 border-t border-[#1A1D1D]/70">
-                  <span className="text-xs text-[#94A3B8] block mb-1">Name</span>
+                <div className="px-4 py-3">
+                  <span className="text-[11px] text-[#94A3B8] block">Name</span>
                   <span className="text-sm font-medium text-[#F5F7F6]">
                     {billingDetails?.fullName || fullName || 'Not set'}
                   </span>
                 </div>
-                <div className="pt-3 border-t border-[#1A1D1D]/70">
-                  <span className="text-xs text-[#94A3B8] block mb-1">Address</span>
+                <div className="px-4 py-3">
+                  <span className="text-[11px] text-[#94A3B8] block">Address</span>
                   <div className="text-sm font-medium text-[#F5F7F6] leading-relaxed whitespace-pre-line">
                     {billingDetails ? (
                       <>
@@ -672,43 +812,44 @@ function SettingsContent() {
                     )}
                   </div>
                 </div>
-              </div>
+              </SettingsGroup>
             </div>
 
-            {/* Payment Methods Section */}
-            <div className="py-4 border-b border-[#1A1D1D] space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-[#F5F7F6]">Payment methods</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">
+                  Payment methods
+                </h3>
                 <button
                   type="button"
                   onClick={() => setIsAddPaymentOpen(true)}
-                  className="px-4 py-1 rounded-full bg-[#1A1D1D] hover:bg-[#27272A] border border-[#2D3135] text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
+                  className="text-xs font-semibold text-[#F5F7F6] hover:underline cursor-pointer"
                 >
-                  Add new
+                  Add
                 </button>
               </div>
 
-              {paymentMethods.length > 0 ? (
-                <div className="space-y-3">
-                  {paymentMethods.map((pm) => (
-                    <div key={pm.id} className="py-2 flex items-center justify-between text-xs sm:text-sm">
-                      <div className="flex items-center gap-3">
+              <SettingsGroup divided={false}>
+                {paymentMethods.length > 0 ? (
+                  paymentMethods.map((pm) => (
+                    <div key={pm.id} className="flex items-center justify-between gap-4 px-4 py-3.5">
+                      <div className="flex items-center gap-3.5 min-w-0">
                         <CardIcon brand={pm.brand} className="w-8 h-5 shrink-0" />
-                        <div>
-                          <span className="font-semibold text-[#F5F7F6] block">{pm.brand}</span>
-                          <span className="text-xs text-[#94A3B8]">•••• {pm.last4}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium text-[#F5F7F6] block">{pm.brand}</span>
+                          <span className="text-[11px] text-[#94A3B8]">•••• {pm.last4}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 shrink-0">
                         {pm.isDefault && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-[#1A1D1D] text-[#14B8A6] text-xs font-semibold border border-[#14B8A6]/30">
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#1A1D1D] text-[#94A3B8] text-[11px] font-semibold">
                             Default
                           </span>
                         )}
                         <button
                           type="button"
                           onClick={() => deletePaymentMethod(pm.id)}
-                          className="text-[#94A3B8] hover:text-[#D9363E] text-xs transition-colors p-1 cursor-pointer"
+                          className="text-[#94A3B8] hover:text-[#D9363E] transition-colors p-1 cursor-pointer"
                           title="Remove payment method"
                           aria-label="Remove payment method"
                         >
@@ -716,69 +857,71 @@ function SettingsContent() {
                         </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-[#94A3B8]">
-                  No payment methods on file.
-                </p>
-              )}
+                  ))
+                ) : (
+                  <p className="px-4 py-3 text-xs text-[#94A3B8]">No payment methods on file.</p>
+                )}
+              </SettingsGroup>
             </div>
 
-            {/* Cancel Plan Section */}
-            <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-[#F5F7F6]">Cancel plan</h4>
-                <p className="text-xs text-[#94A3B8]">
-                  If you cancel, you&apos;ll keep full access to your plan features until{' '}
-                  {planExpiresAt ? formatPlanEndDate(planExpiresAt) : 'the end of your billing period'}, and you
-                  can upgrade again from that date.
-                </p>
-              </div>
-              {cancelScheduledUntil ? (
-                <p className="text-xs font-semibold text-[#94A3B8] shrink-0 text-center">
-                  Ends on {formatPlanEndDate(cancelScheduledUntil)}
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch('/api/paystack/cancel', { method: 'POST' });
-                      if (!res.ok) {
-                        throw new Error('Cancel request failed.');
-                      }
-                      const data = (await res.json().catch(() => null)) as {
-                        planTier?: string;
-                        expiresAt?: string | null;
-                      } | null;
+            <SettingsGroup divided={false}>
+              <SettingsRow
+                icon={AlertTriangle}
+                iconClassName="text-[#D9363E]"
+                title="Cancel plan"
+                description={
+                  <>
+                    If you cancel, you&apos;ll keep full access to your plan features until{' '}
+                    {planExpiresAt ? formatPlanEndDate(planExpiresAt) : 'the end of your billing period'}, and you
+                    can upgrade again from that date.
+                  </>
+                }
+              >
+                {cancelScheduledUntil ? (
+                  <span className="text-xs font-semibold text-[#94A3B8] text-right">
+                    Ends on {formatPlanEndDate(cancelScheduledUntil)}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/paystack/cancel', { method: 'POST' });
+                        if (!res.ok) {
+                          throw new Error('Cancel request failed.');
+                        }
+                        const data = (await res.json().catch(() => null)) as {
+                          planTier?: string;
+                          expiresAt?: string | null;
+                        } | null;
 
-                      if (data?.planTier === 'plus' && data.expiresAt) {
-                        // Only the renewal path is retired — the tier stays plus
-                        // until the paid period runs out, so it must not be
-                        // touched here or access would end immediately.
-                        setCancelScheduledUntil(data.expiresAt);
-                        toast.success(
-                          `You'll keep full access until ${formatPlanEndDate(data.expiresAt)}. Your plan will not renew after that.`,
-                          'Plan Cancelled'
-                        );
-                        return;
-                      }
+                        if (data?.planTier === 'plus' && data.expiresAt) {
+                          // Only the renewal path is retired — the tier stays plus
+                          // until the paid period runs out, so it must not be
+                          // touched here or access would end immediately.
+                          setCancelScheduledUntil(data.expiresAt);
+                          toast.success(
+                            `You'll keep full access until ${formatPlanEndDate(data.expiresAt)}. Your plan will not renew after that.`,
+                            'Plan Cancelled'
+                          );
+                          return;
+                        }
 
-                      // Nothing to ride out (no expiry recorded): the server
-                      // downgraded immediately, so the app has to follow.
-                      await updatePlanTier('free');
-                      toast.success('Your Plus plan has been cancelled. You are now on Free.', 'Plan Cancelled');
-                    } catch {
-                      toast.error('Failed to cancel plan. Please try again.', 'Cancel Failed');
-                    }
-                  }}
-                  className="px-5 py-2 rounded-full border border-[#D9363E] text-[#D9363E] hover:bg-[#D9363E]/10 text-xs font-semibold transition-colors cursor-pointer shrink-0 text-center"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
+                        // Nothing to ride out (no expiry recorded): the server
+                        // downgraded immediately, so the app has to follow.
+                        await updatePlanTier('free');
+                        toast.success('Your Plus plan has been cancelled. You are now on Free.', 'Plan Cancelled');
+                      } catch {
+                        toast.error('Failed to cancel plan. Please try again.', 'Cancel Failed');
+                      }
+                    }}
+                    className="text-xs font-semibold text-[#D9363E] hover:underline cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </SettingsRow>
+            </SettingsGroup>
           </>
         )}
       </section>
@@ -787,109 +930,61 @@ function SettingsContent() {
 
   // 2. ACCOUNT SECTION
   function renderAccountSection() {
+    const initials = (() => {
+      if (!fullName || !fullName.trim()) return 'SU';
+      const parts = fullName.trim().split(/\s+/);
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    })();
+
     return (
       <section className="space-y-6">
-        <div>
-          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Account Overview</h2>
-          <p className="text-xs text-[#94A3B8] mt-0.5">Manage profile page details, email credentials, and security</p>
+        <div className="hidden lg:block">
+          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Account</h2>
+          <p className="text-xs text-[#94A3B8] mt-0.5">Profile details, email credentials, and security</p>
         </div>
 
-        {/* Profile Shortcut Card */}
-        <div className="p-4 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#2A2E2E] transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <User className="w-5 h-5 text-[#14B8A6] shrink-0" />
-            <div>
-              <h3 className="text-sm font-semibold text-[#F5F7F6]">{fullName || 'SubHalt User'}</h3>
-              <p className="text-xs text-[#94A3B8]">{email || 'user@example.com'}</p>
-            </div>
-          </div>
-
-          <Link
-            href="/profile"
-            className="px-4 py-2 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
+        {/* Identity */}
+        <div className="flex flex-col items-center text-center gap-3 pt-1">
+          <div
+            style={{ backgroundColor: `${avatarColor}1A`, color: avatarColor }}
+            className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold"
           >
-            <span>Edit Profile Page</span>
-          </Link>
-        </div>
-
-        {/* Email Address & Change Email */}
-        <div className="space-y-2 pt-2 border-t border-[#1A1D1D]">
-          <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Account Credentials</h3>
-          <div className="space-y-1.5">
-            <label className="text-xs text-[#94A3B8]">Email Address</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="email"
-                disabled
-                value={email}
-                className="flex-1 h-10 px-3.5 text-xs rounded-xl border border-[#1A1D1D] text-[#94A3B8] bg-[#0D0F0F] cursor-not-allowed"
-              />
-              <button
-                type="button"
-                onClick={() => setIsChangeEmailOpen(true)}
-                className="h-10 px-4 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#14B8A6] border border-[#1A1D1D] text-xs font-semibold transition-colors cursor-pointer shrink-0"
-              >
-                Change Email
-              </button>
-            </div>
+            {initials}
+          </div>
+          <div className="space-y-0.5">
+            <h3 className="text-lg font-bold text-[#F5F7F6]">{fullName || 'SubHalt User'}</h3>
+            <p className="text-xs text-[#94A3B8]">{email || 'user@example.com'}</p>
           </div>
         </div>
 
-        {/* Authentication & Security Methods */}
-        <div className="space-y-3 pt-4 border-t border-[#1A1D1D]">
-          <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Authentication Methods</h3>
+        {/* Data rows */}
+        <SettingsGroup divided={false}>
+          <DataRow divider label="Display Name" value={fullName || 'SubHalt User'} />
+          <DataRow divider label="Email" value={email || 'user@example.com'} />
+        </SettingsGroup>
 
-          <div className="p-3.5 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-between text-xs">
-            <div className="flex items-center gap-3">
-              <Key className="w-4 h-4 text-[#14B8A6]" />
-              <div>
-                <span className="font-semibold text-[#F5F7F6] block">Password Authentication</span>
-                <span className="text-[11px] text-[#94A3B8]">Secured email and password credentials</span>
-              </div>
-            </div>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#1A1D1D] text-[#94A3B8] border border-[#1A1D1D]">
-              Active
-            </span>
-          </div>
+        {/* Action rows */}
+        <SettingsGroup divided={false}>
+          <ActionRow label="Edit Profile" href="/profile" />
+          <ActionRow label="Authentication Methods" href="/settings/authentication" />
+          <ActionRow label="Log out" onClick={() => setShowSignOutConfirm(true)} />
+        </SettingsGroup>
 
-          <div className="p-3.5 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-between text-xs">
-            <div className="flex items-center gap-3">
-              <Shield className="w-4 h-4 text-[#94A3B8]" />
-              <div>
-                <span className="font-semibold text-[#F5F7F6] block">OAuth Social Login</span>
-                <span className="text-[11px] text-[#94A3B8]">Google / Apple SSO authentication options</span>
-              </div>
-            </div>
-            <span className="text-[11px] text-[#94A3B8]">Configured</span>
-          </div>
-        </div>
-
-        {/* Account Deletion */}
-        <div className="pt-4 border-t border-[#1A1D1D]">
-          <div className="p-4 rounded-xl bg-[#0B0D0D] border border-[#D9363E]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-0.5">
-              <h4 className="text-xs font-bold text-[#F5F7F6] flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-[#D9363E]" />
-                Delete SubHalt Account
-              </h4>
-              <p className="text-[11px] text-[#94A3B8]">
-                Permanently erase your account, custom settings, and recorded subscription data.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsDeleteAccountOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#D9363E] hover:opacity-90 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Account</span>
-            </button>
-          </div>
-        </div>
+        {/* Danger zone: standalone row with its own red rounded corners,
+            deliberately not wrapped in a card. */}
+        <button
+          type="button"
+          onClick={() => setIsDeleteAccountOpen(true)}
+          className="w-full flex items-center justify-between gap-4 min-h-[56px] px-4 rounded-2xl border border-[#D9363E]/50 text-[#D9363E] hover:bg-[#D9363E]/10 transition-colors cursor-pointer"
+        >
+          <span className="text-sm font-medium">Delete SubHalt Account</span>
+          <ChevronRight className="w-4 h-4 shrink-0 text-[#D9363E]/70" aria-hidden="true" />
+        </button>
       </section>
     );
   }
+
 
   // 3. INTEGRATIONS SECTION
   function renderIntegrationsSection() {
@@ -900,18 +995,13 @@ function SettingsContent() {
   function renderPreferencesSection() {
     return (
       <section className="space-y-6">
-        <div>
-          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Preferences & Display</h2>
-          <p className="text-xs text-[#94A3B8] mt-0.5">Configure default currency, notification alerts, and categories</p>
+        <div className="hidden lg:block">
+          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Preferences</h2>
+          <p className="text-xs text-[#94A3B8] mt-0.5">Currency, theme, notifications & categories</p>
         </div>
 
-        <div className="rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] divide-y divide-[#1A1D1D] overflow-hidden">
-          {/* Row 1: Appearance */}
-          <div className="p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Moon className="w-4 h-4 text-[#94A3B8] shrink-0" />
-              <span className="text-xs font-semibold text-[#F5F7F6]">Appearance</span>
-            </div>
+        <SettingsGroup>
+          <SettingsRow icon={Moon} title="Appearance">
             <CustomSelect
               options={[{ value: 'system', label: 'System' }]}
               value={theme || 'system'}
@@ -921,14 +1011,9 @@ function SettingsContent() {
               showCheckmark={false}
               alignRight
             />
-          </div>
+          </SettingsRow>
 
-          {/* Row 2: Accent Color */}
-          <div className="p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Palette className="w-4 h-4 text-[#94A3B8] shrink-0" />
-              <span className="text-xs font-semibold text-[#F5F7F6]">Accent color</span>
-            </div>
+          <SettingsRow icon={Palette} title="Accent color">
             <CustomSelect
               options={[{ value: '#14B8A6', label: 'Green' }]}
               value={accentColor || '#14B8A6'}
@@ -938,14 +1023,9 @@ function SettingsContent() {
               showCheckmark={false}
               alignRight
             />
-          </div>
+          </SettingsRow>
 
-          {/* Row 3: Reporting Currency */}
-          <div className="p-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Globe className="w-4 h-4 text-[#94A3B8] shrink-0" />
-              <span className="text-xs font-semibold text-[#F5F7F6]">Reporting Currency</span>
-            </div>
+          <SettingsRow icon={Globe} title="Reporting Currency">
             <CustomSelect
               options={SUPPORTED_CURRENCIES.map((c) => ({
                 value: c.code,
@@ -958,33 +1038,23 @@ function SettingsContent() {
               showCheckmark={false}
               alignRight
             />
-          </div>
+          </SettingsRow>
 
-          {/* Row 4: In-app Alerts */}
-          <div className="p-4 flex items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold text-[#F5F7F6] block">In-app Alerts</span>
-              <span className="text-[11px] text-[#94A3B8]">Inbox unread badges & bell indicators</span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={notificationPreferences.inApp}
-              onClick={async () => {
+          <SettingsRow
+            icon={Bell}
+            title="In-app Alerts"
+            description="Inbox unread badges & bell indicators"
+          >
+            <ToggleSwitch
+              checked={notificationPreferences.inApp}
+              ariaLabel="In-app alerts"
+              onToggle={async () => {
                 const val = !notificationPreferences.inApp;
                 await updateNotificationPreferences({ inApp: val });
               }}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                notificationPreferences.inApp ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
-              }`}
-            >
-              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                notificationPreferences.inApp ? 'translate-x-5' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
+            />
+          </SettingsRow>
 
-          {/* Row 5: Push Notifications */}
           {/*
             Browser permission, not just an app preference.
 
@@ -996,26 +1066,22 @@ function SettingsContent() {
             Chrome treats repeated programmatic requests as grounds to block the
             origin. Hence the enable path running from this handler.
           */}
-          <div className="p-4 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <span className="text-xs font-semibold text-[#F5F7F6] block">
-                Push Notifications
-              </span>
-              <span className="text-[11px] text-[#94A3B8] block">
-                {pushPermission === 'unsupported'
-                  ? 'Not supported by this browser'
-                  : pushPermission === 'denied'
-                    ? 'Blocked for this site — allow them in your browser settings'
-                    : 'Renewal reminders, weekly recap & new insights'}
-              </span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={pushEnabled}
-              aria-label="Push notifications"
+          <SettingsRow
+            icon={Smartphone}
+            title="Push Notifications"
+            description={
+              pushPermission === 'unsupported'
+                ? 'Not supported by this browser'
+                : pushPermission === 'denied'
+                  ? 'Blocked for this site. Allow them in your browser settings'
+                  : 'Renewal reminders, weekly recap & new insights'
+            }
+          >
+            <ToggleSwitch
+              checked={pushEnabled}
+              ariaLabel="Push notifications"
               disabled={!pushSupported || pushToggling}
-              onClick={async () => {
+              onToggle={async () => {
                 if (pushToggling) return;
                 setPushToggling(true);
                 try {
@@ -1055,49 +1121,28 @@ function SettingsContent() {
                   setPushToggling(false);
                 }
               }}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out disabled:cursor-not-allowed disabled:opacity-50 ${
-                pushEnabled ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  pushEnabled ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
+            />
+          </SettingsRow>
 
-          {/* Row 6: Email Digests */}
-          <div className="p-4 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <span className="text-xs font-semibold text-[#F5F7F6] block">
-                Renewal Emails
-              </span>
-              <span className="text-[11px] text-[#94A3B8] block">
-                {notificationPreferences.email
-                  ? 'Emails at the lead time you chose per subscription'
-                  : 'Off — renewal reminders are sent as push instead'}
-              </span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={notificationPreferences.email}
-              aria-label="Renewal emails"
-              onClick={async () => {
+          <SettingsRow
+            icon={Mail}
+            title="Renewal Emails"
+            description={
+              notificationPreferences.email
+                ? 'Emails at the lead time you chose per subscription'
+                : 'Off. Renewal reminders are sent as push instead'
+            }
+          >
+            <ToggleSwitch
+              checked={notificationPreferences.email}
+              ariaLabel="Renewal emails"
+              onToggle={async () => {
                 const val = !notificationPreferences.email;
                 await updateNotificationPreferences({ email: val });
               }}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                notificationPreferences.email ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
-              }`}
-            >
-              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                notificationPreferences.email ? 'translate-x-5' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
-        </div>
+            />
+          </SettingsRow>
+        </SettingsGroup>
 
         {/* Category Manager */}
         <div className="pt-2">
@@ -1111,64 +1156,54 @@ function SettingsContent() {
   function renderPrivacySection() {
     return (
       <section className="space-y-6">
-        <div>
-          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Privacy & Data Controls</h2>
-          <p className="text-xs text-[#94A3B8] mt-0.5">Controls for data export, local cache management, and telemetry</p>
+        <div className="hidden lg:block">
+          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Privacy &amp; Data</h2>
+          <p className="text-xs text-[#94A3B8] mt-0.5">Data export, local cache, and telemetry</p>
         </div>
 
-        <div className="p-4 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Download className="w-4 h-4 text-[#14B8A6] shrink-0" />
-            <div>
-              <h3 className="text-xs font-bold text-[#F5F7F6]">Export Subscription Data</h3>
-              <p className="text-[11px] text-[#94A3B8]">Download a complete JSON export of your portfolio records</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleExportData}
-            className="px-4 py-2 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer shrink-0"
+        <SettingsGroup>
+          <SettingsRow
+            icon={Download}
+            iconClassName="text-[#14B8A6]"
+            title="Export Subscription Data"
+            description="Download a complete JSON export of your portfolio records"
           >
-            Export JSON
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={handleExportData}
+              className="text-xs font-semibold text-[#14B8A6] hover:underline cursor-pointer"
+            >
+              Export
+            </button>
+          </SettingsRow>
 
-        <div className="p-4 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Database className="w-4 h-4 text-[#F59E0B] shrink-0" />
-            <div className="min-w-0 flex-1">
-              <h3 className="text-xs font-bold text-[#F5F7F6]">Clear Local Storage & Cache</h3>
-              <p className="text-[11px] text-[#94A3B8]">Purge temporary client cache & saved reminder preferences</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleClearCache}
-            className="px-4 py-2 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] text-xs font-semibold transition-colors cursor-pointer shrink-0"
+          <SettingsRow
+            icon={Database}
+            iconClassName="text-[#F59E0B]"
+            title="Clear Local Storage & Cache"
+            description="Purge temporary client cache & saved reminder preferences"
           >
-            Clear Cache
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={handleClearCache}
+              className="text-xs font-semibold text-[#14B8A6] hover:underline cursor-pointer"
+            >
+              Clear
+            </button>
+          </SettingsRow>
 
-        <div className="p-4 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-xs font-bold text-[#F5F7F6]">Anonymous Product Telemetry</h3>
-            <p className="text-[11px] text-[#94A3B8]">Allow SubHalt to collect anonymous error reports</p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={telemetryEnabled}
-            onClick={() => setTelemetryEnabled(!telemetryEnabled)}
-            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-              telemetryEnabled ? 'bg-[#14B8A6]' : 'bg-[#1A1D1D]'
-            }`}
+          <SettingsRow
+            icon={ShieldCheck}
+            title="Anonymous Product Telemetry"
+            description="Allow SubHalt to collect anonymous error reports"
           >
-            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-              telemetryEnabled ? 'translate-x-5' : 'translate-x-0'
-            }`} />
-          </button>
-        </div>
+            <ToggleSwitch
+              checked={telemetryEnabled}
+              ariaLabel="Anonymous product telemetry"
+              onToggle={() => setTelemetryEnabled(!telemetryEnabled)}
+            />
+          </SettingsRow>
+        </SettingsGroup>
       </section>
     );
   }
@@ -1177,65 +1212,64 @@ function SettingsContent() {
   function renderHelpSection() {
     return (
       <section className="space-y-6">
-        <div>
-          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Help & Legal Resources</h2>
-          <p className="text-xs text-[#94A3B8] mt-0.5">Access user guides, support team, and terms of service</p>
+        <div className="hidden lg:block">
+          <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Help &amp; Legal</h2>
+          <p className="text-xs text-[#94A3B8] mt-0.5">Support resources, terms, and policies</p>
         </div>
 
-        <div className="p-4 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <HelpCircle className="w-4 h-4 text-[#14B8A6] shrink-0" />
-            <div>
-              <h3 className="text-xs font-bold text-[#F5F7F6]">SubHalt Help Center</h3>
-              <p className="text-[11px] text-[#94A3B8]">Browse guides for adding, linking, and managing subscriptions</p>
-            </div>
-          </div>
-
-          <Link
-            href="/help"
-            className="px-4 py-2 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer shrink-0"
+        <SettingsGroup>
+          <SettingsRow
+            icon={HelpCircle}
+            title="SubHalt Help Center"
+            description="Browse guides for adding, linking, and managing subscriptions"
           >
-            <span>Open Help Center</span>
-          </Link>
-        </div>
+            <Link
+              href="/help"
+              className="text-xs font-semibold text-[#14B8A6] hover:underline"
+            >
+              Open
+            </Link>
+          </SettingsRow>
 
-        <div className="p-4 rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Mail className="w-4 h-4 text-[#14B8A6] shrink-0" />
-            <div className="min-w-0 flex-1">
-              <h3 className="text-xs font-bold text-[#F5F7F6]">Contact Support</h3>
-              <p className="text-[11px] text-[#94A3B8]">Reach out directly to the SubHalt support team</p>
-            </div>
-          </div>
-          <a
-            href="mailto:support@subhalt.app"
-            className="px-4 py-2 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#F5F7F6] border border-[#1A1D1D] text-xs font-semibold transition-colors cursor-pointer shrink-0"
+          <SettingsRow
+            icon={Mail}
+            title="Contact Support"
+            description="Reach out directly to the SubHalt support team"
           >
-            Email Support
-          </a>
-        </div>
+            <a
+              href="mailto:support@subhalt.app"
+              className="text-xs font-semibold text-[#14B8A6] hover:underline"
+            >
+              Email
+            </a>
+          </SettingsRow>
+        </SettingsGroup>
 
-        <div className="pt-4 border-t border-[#1A1D1D] space-y-2">
-          <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider">Legal Documents</h3>
-          <div className="flex items-center gap-4 text-xs font-medium">
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider px-1">
+            Legal
+          </h3>
+          <SettingsGroup>
             <button
               type="button"
               onClick={() => setLegalModalType('privacy')}
-              className="text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
+              className="w-full flex items-center gap-3.5 min-h-[56px] px-4 hover:bg-[#121414] transition-colors cursor-pointer text-left"
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Privacy Policy</span>
+              <ShieldCheck className="w-5 h-5 shrink-0 text-[#94A3B8]" aria-hidden="true" />
+              <span className="flex-1 text-sm font-medium text-[#F5F7F6]">Privacy Policy</span>
+              <ChevronRight className="w-4 h-4 shrink-0 text-[#5A6461]" aria-hidden="true" />
             </button>
-            <span className="text-[#1A1D1D]">•</span>
+
             <button
               type="button"
               onClick={() => setLegalModalType('terms')}
-              className="text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
+              className="w-full flex items-center gap-3.5 min-h-[56px] px-4 hover:bg-[#121414] transition-colors cursor-pointer text-left"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Terms of Service</span>
+              <FileText className="w-5 h-5 shrink-0 text-[#94A3B8]" aria-hidden="true" />
+              <span className="flex-1 text-sm font-medium text-[#F5F7F6]">Terms of Service</span>
+              <ChevronRight className="w-4 h-4 shrink-0 text-[#5A6461]" aria-hidden="true" />
             </button>
-          </div>
+          </SettingsGroup>
         </div>
       </section>
     );

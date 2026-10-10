@@ -1103,7 +1103,7 @@ function detectDates(
       };
       warnings.push(
         isInvoice
-          ? `Only an invoice issue date (${chosen.iso}) was found — please confirm the date you actually paid.`
+          ? `Only an invoice issue date (${chosen.iso}) was found. Please confirm the date you actually paid.`
           : `No payment date was labelled on the receipt; ${chosen.iso} was the first date found. Please confirm it.`
       );
     }

@@ -155,7 +155,7 @@ export default function UpgradeModal({
 
             <p className="text-[11px] text-[#94A3B8] flex items-center gap-1.5 justify-center text-center">
               <ShieldCheck className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-              Secure checkout powered by Paystack — $3.99/month.
+              Secure checkout powered by Paystack. $3.99/month.
             </p>
 
             <div className="space-y-2 pt-1">

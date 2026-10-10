@@ -193,7 +193,7 @@ export default function BillHistoryTable({
                       {isDifferentCurrency ? (
                         <span>{convertedFormatted}</span>
                       ) : (
-                        <span className="text-[#64748B]">—</span>
+                        <span className="text-[#64748B]">-</span>
                       )}
                     </td>
 

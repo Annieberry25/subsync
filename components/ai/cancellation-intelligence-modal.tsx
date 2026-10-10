@@ -205,7 +205,7 @@ export function CancellationIntelligenceModal({
                   <TrendingDown className="w-4 h-4 text-[#14B8A6] shrink-0 mt-px" />
                   <span>
                     <span className="font-semibold text-[#F5F7F6]">Downgrade to {cheaperPlanName}</span>{' '}
-                    — save {formatCurrency(downgradeMonthlySavings, currency)}/mo
+                    save {formatCurrency(downgradeMonthlySavings, currency)}/mo
                   </span>
                 </p>
               )}

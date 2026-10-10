@@ -123,7 +123,7 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
       } else if (synced) {
         toast.success('Bill updated successfully', 'Payment Saved');
       } else {
-        toast.warning('Saved on this device only — it will sync when you are back online.', 'Offline Save');
+        toast.warning('Saved on this device only. It will sync when you are back online.', 'Offline Save');
       }
       loadData();
     } else {
@@ -133,7 +133,7 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
       } else if (synced) {
         toast.success('Payment recorded successfully', 'Payment Saved');
       } else {
-        toast.warning('Added on this device only — it will sync when you are back online.', 'Offline Save');
+        toast.warning('Added on this device only. It will sync when you are back online.', 'Offline Save');
       }
       loadData();
     }
@@ -167,7 +167,7 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
 
     if (!synced) {
       toast.warning(
-        'Receipt saved on this device only — the file will upload when you are back online.',
+        'Receipt saved on this device only. The file will upload when you are back online.',
         'Offline Save'
       );
       loadData();

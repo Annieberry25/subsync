@@ -190,7 +190,7 @@ export default function SubscriptionManager() {
     // the difference between "saved" and "saved locally but the server never sees it".
     if (!saved) {
       toast.warning(
-        'Reminder saved on this device, but not synced. It may not fire — check your connection and try again.',
+        'Reminder saved on this device, but not synced. It may not fire. Check your connection and try again.',
         'Reminder Not Synced'
       );
       return;
@@ -395,7 +395,7 @@ export default function SubscriptionManager() {
       if (synced) {
         toast.success('Subscription updated successfully.', 'Changes Saved');
       } else {
-        toast.warning('Saved on this device only — it will sync to your account when you are back online.', 'Offline Save');
+        toast.warning('Saved on this device only. It will sync to your account when you are back online.', 'Offline Save');
       }
       await loadData();
       return id;
@@ -411,7 +411,7 @@ export default function SubscriptionManager() {
     if (synced) {
       toast.success('Subscription created successfully.', 'Subscription Created');
     } else {
-      toast.warning('Added on this device only — it will sync to your account when you are back online.', 'Offline Save');
+      toast.warning('Added on this device only. It will sync to your account when you are back online.', 'Offline Save');
     }
     await loadData();
     return created ? created.id : null;
@@ -569,13 +569,14 @@ export default function SubscriptionManager() {
               title="List View"
               aria-label="Table view"
               aria-pressed={viewMode === 'table'}
-              className={`w-11 h-11 sm:w-9 sm:h-9 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+              data-touch="compact"
+              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'table'
                   ? 'bg-[#14B8A6] text-[#091512] font-semibold'
                   : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
               }`}
             >
-              <List className="w-4 h-4" />
+              <List className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
@@ -583,13 +584,14 @@ export default function SubscriptionManager() {
               title="Cards View"
               aria-label="Grid view"
               aria-pressed={viewMode === 'grid'}
-              className={`w-11 h-11 sm:w-9 sm:h-9 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+              data-touch="compact"
+              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-[#14B8A6] text-[#091512] font-semibold'
                   : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
               }`}
             >
-              <LayoutGrid className="w-4 h-4" />
+              <LayoutGrid className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -742,7 +744,7 @@ export default function SubscriptionManager() {
           </>
         )
       ) : (
-        <div className="py-20 sm:py-28 min-h-[320px] rounded-xl bg-[#0B0D0D] border border-[#1A1D1D] text-center flex flex-col items-center justify-center space-y-2">
+        <div className="py-12 sm:py-16 text-center flex flex-col items-center justify-center space-y-1.5">
           <div className="max-w-sm space-y-1">
             <h3 className="text-sm sm:text-base font-medium text-[#F5F7F6]/80">
               {hasActiveFilters ? 'No matching subscriptions' : 'No subscriptions added yet'}

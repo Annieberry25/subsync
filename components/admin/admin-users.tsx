@@ -187,7 +187,7 @@ export default function AdminUsersTab() {
                 <tr key={u.id} className="hover:bg-[#0D0F0F] transition-colors">
                   <td className="px-4 py-3">
                     <p className="text-xs font-semibold text-[#F5F7F6] truncate max-w-[240px]">{u.email}</p>
-                    <p className="text-[11px] text-[#94A3B8] truncate max-w-[240px]">{u.full_name || '—'}</p>
+                    <p className="text-[11px] text-[#94A3B8] truncate max-w-[240px]">{u.full_name || '-'}</p>
                   </td>
                   <td className="px-4 py-3">
                     <PlanBadge tier={u.plan_tier} />
@@ -363,7 +363,7 @@ export default function AdminUsersTab() {
         open={Boolean(grantTarget)}
         onClose={() => setGrantTarget(null)}
         size="sm"
-        title={`Grant plan — ${grantTarget?.email ?? ''}`}
+        title={`Grant plan: ${grantTarget?.email ?? ''}`}
         description="Creates a paid plan row and grants access immediately."
         footer={
           <div className="flex gap-2">

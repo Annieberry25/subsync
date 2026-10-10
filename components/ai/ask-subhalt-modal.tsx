@@ -503,7 +503,7 @@ export function AskSubHaltModal({
             <p className="text-[11px] text-[#FBBF24] flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FBBF24] shrink-0" />
               <span>
-                Offline mode — answering from local data. Add a <span className="font-semibold">GROQ_API_KEY</span>{' '}
+                Offline mode: answering from local data. Add a <span className="font-semibold">GROQ_API_KEY</span>{' '}
                 to enable live AI answers &amp; web search.
               </span>
             </p>

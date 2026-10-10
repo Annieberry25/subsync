@@ -166,7 +166,7 @@ export function IntegrationsSettingsPanel() {
       }
       const discovered = Array.isArray(data.discovered) ? data.discovered : [];
       toast.success(
-        `Scan complete — found ${discovered.length} subscription receipt(s).`,
+                `Scan complete. Found ${discovered.length} subscription receipt(s).`,
         'Scan Complete'
       );
       await loadGmailStatus();

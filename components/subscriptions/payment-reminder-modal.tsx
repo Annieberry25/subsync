@@ -265,7 +265,7 @@ export default function PaymentReminderModal({
           </div>
 
           <p className="text-[11px] text-[#94A3B8]/80">
-            Off by default — email uses a limited monthly allowance, so it is only
+                Off by default. Email uses a limited monthly allowance, so it is only
             sent when you ask for it.
           </p>
 

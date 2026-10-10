@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileDock from './MobileDock';
-import MoreSheet from './MoreSheet';
 import ContextualFab from './ContextualFab';
 import { ToastProvider } from '@/lib/hooks/use-toast';
 import { ToastContainer } from '@/components/ui/toast';
@@ -20,14 +19,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isFullPage = isFullPageRoute(pathname);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
-  /**
-   * The More sheet is keyed to the route it was opened on rather than holding
-   * a boolean. Navigating away therefore closes it for free, and it also closes
-   * when a redirect or another sheet changes the route, which an
-   * `onClick`->`onClose` handler alone would miss.
-   */
-  const [moreOpenFor, setMoreOpenFor] = useState<string | null>(null);
-  const isMoreOpen = moreOpenFor === pathname;
   const [isAskModalOpen, setIsAskModalOpen] = useState(false);
   const [askInitialQuestion, setAskInitialQuestion] = useState<string | undefined>(undefined);
 
@@ -91,8 +82,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   </main>
                 </div>
 
-                <MobileDock onOpenMore={() => setMoreOpenFor(pathname)} moreOpen={isMoreOpen} />
-                <MoreSheet open={isMoreOpen} onClose={() => setMoreOpenFor(null)} />
+                <MobileDock />
                 <ContextualFab />
 
                 <AskSubHaltModal

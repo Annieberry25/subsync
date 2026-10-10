@@ -25,7 +25,7 @@ export function getAuthErrorMessage(error: unknown, fallback: string): string {
   const status = authError.status;
 
   if (code === 'otp_disabled') {
-    return "There's no SubHalt account for this email — check the address or sign up first.";
+    return "There's no SubHalt account for this email. Check the address or sign up first.";
   }
 
   if (code === 'over_email_send_rate_limit') {

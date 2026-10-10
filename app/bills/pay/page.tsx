@@ -5,7 +5,7 @@ import BillsManager from '@/components/bills/bills-manager';
 import { BILL_PAYMENT_ENABLED } from '@/lib/config/feature-flags';
 
 export const metadata: Metadata = {
-  title: 'Pay a Bill — Bills & Payments — SubHalt',
+  title: 'Pay a Bill | Bills & Payments | SubHalt',
   description: 'Pay utility bills, mobile data, internet, and recurring payments securely.',
 };
 

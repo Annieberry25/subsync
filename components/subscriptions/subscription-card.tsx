@@ -431,7 +431,7 @@ function SubscriptionCard({
                 <span
                   key={link.id}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0B0D0D] text-xs font-medium text-[#9CA3AF] border border-[#1A1D1D]"
-                  title={`${label} has no link yet — add one in the subscription form`}
+                  title={`${label} has no link yet. Add one in the subscription form`}
                 >
                   <span>{label}</span>
                   <Link2 className="w-3.5 h-3.5 text-[#4B5563]" />

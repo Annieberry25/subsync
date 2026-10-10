@@ -5,7 +5,7 @@ import BillsManager from '@/components/bills/bills-manager';
 import { BILL_PAYMENT_ENABLED } from '@/lib/config/feature-flags';
 
 export const metadata: Metadata = {
-  title: 'Payment History — Bills & Payments — SubHalt',
+  title: 'Payment History | Bills & Payments | SubHalt',
   description: 'Search, filter, and track all your recorded bill payments and receipts.',
 };
 

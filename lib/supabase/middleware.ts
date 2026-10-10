@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE_OPTIONS } from '@/lib/supabase/cookie-options';
+import { hasVerifiedMfaFactor } from '@/lib/auth/mfa';
 
 /**
  * Paths that must stay reachable without a session.
@@ -78,6 +79,28 @@ export async function updateSession(request: NextRequest) {
 
   const isCallbackRoute = request.nextUrl.pathname.startsWith('/auth');
 
+  /**
+   * An account with a verified second factor signs in at `aal1` and must finish
+   * the challenge before it can use the app. A password session is minted at
+   * `aal1` regardless of the factor, so this cannot be inferred from the user
+   * alone — the assurance level is read off the session token.
+   *
+   * The auth pages and the OAuth callback are deliberately exempt: the login
+   * flow is where the challenge is completed, and the callback has to run before
+   * the aal1 session even exists.
+   */
+  let needsMfaChallenge = false;
+  if (user && hasVerifiedMfaFactor(user)) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    needsMfaChallenge = aal?.currentLevel !== 'aal2';
+  }
+
+  if (needsMfaChallenge && !isAuthPage && !isCallbackRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
   // If user is not logged in and trying to access protected routes
   if (!user && !isAuthPage && !isCallbackRoute) {
     const url = request.nextUrl.clone();
@@ -85,8 +108,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If user is logged in and trying to access /login or /signup, redirect to Dashboard
-  if (user && isAuthPage) {
+  // If user is logged in and trying to access /login or /signup, redirect to
+  // Dashboard — unless they still owe an MFA challenge, in which case /login is
+  // exactly where they need to be to finish it.
+  if (user && isAuthPage && !needsMfaChallenge) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);

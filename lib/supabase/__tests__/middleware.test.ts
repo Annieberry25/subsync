@@ -13,13 +13,17 @@ import { updateSession } from '@/lib/supabase/middleware';
  *
  * AdSense verification reads robots.txt first, so this blocked it outright.
  */
-const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
+const { getUser, getAuthenticatorAssuranceLevel } = vi.hoisted(() => ({
+  getUser: vi.fn(),
+  getAuthenticatorAssuranceLevel: vi.fn(),
+}));
 
 vi.mock('@supabase/ssr', () => ({
   createServerClient: vi.fn(() => ({
     auth: {
       getUser,
       onAuthStateChange: vi.fn(),
+      mfa: { getAuthenticatorAssuranceLevel },
     },
   })),
 }));
@@ -95,6 +99,72 @@ describe('updateSession public routes', () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toContain('/login');
+  });
+});
+
+describe('updateSession MFA enforcement', () => {
+  beforeAll(() => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://project-ref.supabase.co');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const verifiedFactor = { id: 'factor-1', factor_type: 'totp', status: 'verified' };
+  const unverifiedFactor = { id: 'factor-2', factor_type: 'totp', status: 'unverified' };
+
+  beforeEach(() => {
+    getUser.mockReset();
+    getAuthenticatorAssuranceLevel.mockReset();
+  });
+
+  it('walls off a protected route while a verified factor is still at aal1', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'u1', factors: [verifiedFactor] } }, error: null });
+    getAuthenticatorAssuranceLevel.mockResolvedValue({
+      data: { currentLevel: 'aal1', nextLevel: 'aal2' },
+      error: null,
+    });
+
+    const response = await updateSession(makeRequest('/settings/authentication'));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toContain('/login');
+  });
+
+  it('lets an aal2 session through', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'u1', factors: [verifiedFactor] } }, error: null });
+    getAuthenticatorAssuranceLevel.mockResolvedValue({
+      data: { currentLevel: 'aal2', nextLevel: 'aal2' },
+      error: null,
+    });
+
+    const response = await updateSession(makeRequest('/settings/authentication'));
+
+    expect(response.status).toBe(200);
+  });
+
+  it('keeps a pending-MFA session on /login instead of bouncing it to /', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'u1', factors: [verifiedFactor] } }, error: null });
+    getAuthenticatorAssuranceLevel.mockResolvedValue({
+      data: { currentLevel: 'aal1', nextLevel: 'aal2' },
+      error: null,
+    });
+
+    const response = await updateSession(makeRequest('/login'));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
+  it('does not enforce MFA for an account with only an unverified factor', async () => {
+    getUser.mockResolvedValue({ data: { user: { id: 'u1', factors: [unverifiedFactor] } }, error: null });
+
+    const response = await updateSession(makeRequest('/settings/authentication'));
+
+    expect(response.status).toBe(200);
+    expect(getAuthenticatorAssuranceLevel).not.toHaveBeenCalled();
   });
 });
 

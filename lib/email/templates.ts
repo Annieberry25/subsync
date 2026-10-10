@@ -53,7 +53,7 @@ export function renderWelcomeEmail(_input: {
   return {
     subject: 'Welcome to the subHalt hut!',
     html: renderEmailLayout({
-      preheader: 'Your account is ready — start tracking your subscriptions.',
+      preheader: 'Your account is ready. Start tracking your subscriptions.',
       heading: 'Welcome to the subHalt hut!',
       bodyHtml: [
         emailParagraph(
@@ -107,7 +107,7 @@ export function renderRenewalReminderEmail(
   return {
     subject: days <= 0 ? `${sub.name} payment due` : `${sub.name} renews in ${days} days`,
     html: renderEmailLayout({
-      preheader: `${cadence} — ${sub.nextBillingDate}.`,
+      preheader: `${cadence}. ${sub.nextBillingDate}.`,
       heading,
       bodyHtml: [
         emailParagraph(

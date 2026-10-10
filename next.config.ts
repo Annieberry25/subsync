@@ -39,6 +39,11 @@ const nextConfig: NextConfig = {
         hostname: 'img.logo.dev',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.googleusercontent.com',
+        pathname: '/**',
+      },
     ],
   },
   async headers() {

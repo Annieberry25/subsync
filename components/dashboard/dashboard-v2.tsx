@@ -56,7 +56,7 @@ import {
 function renderFormattedCurrency(amount: number, currency = 'USD') {
   const formatted = formatCurrency(amount, currency);
   return (
-    <span className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
+    <span className="text-xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
       {formatted}
     </span>
   );
@@ -77,7 +77,7 @@ function MetricCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-between min-h-[96px] sm:min-h-[104px]">
+    <div className="px-3.5 py-3 sm:px-5 sm:py-4 rounded-2xl bg-[#0B0D0D] border border-[#1A1D1D] flex flex-col justify-between min-h-[80px] sm:min-h-[104px]">
       <div className="flex items-center gap-1.5 min-w-0">
         {icon}
         <span className="text-xs sm:text-sm font-medium text-[#94A3B8] leading-tight block truncate">
@@ -217,7 +217,7 @@ const handleSave = async (
       if (synced) {
         toast.success('Subscription updated successfully.', 'Changes Saved');
       } else {
-        toast.warning('Saved on this device only — it will sync when you are back online.', 'Offline Save');
+        toast.warning('Saved on this device only. It will sync when you are back online.', 'Offline Save');
       }
       setIsModalOpen(false);
       void loadData();
@@ -234,7 +234,7 @@ const handleSave = async (
     if (synced) {
       toast.success('New subscription added to your portfolio.', 'Subscription Created');
     } else {
-      toast.warning('Added on this device only — it will sync when you are back online.', 'Offline Save');
+      toast.warning('Added on this device only. It will sync when you are back online.', 'Offline Save');
     }
     setIsModalOpen(false);
     void loadData();
@@ -291,7 +291,7 @@ const handleSave = async (
     // server-side cron cannot see, so the reminder would never arrive.
     if (!saved) {
       toast.warning(
-        'Reminder saved on this device, but not synced. It may not fire — check your connection and try again.',
+        'Reminder saved on this device, but not synced. It may not fire. Check your connection and try again.',
         'Reminder Not Synced'
       );
       return;
@@ -426,7 +426,7 @@ const handleSave = async (
             title="Renewing This Week"
             icon={<Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
           >
-            <span className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
+            <span className="text-xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
               {renewingThisWeek}
             </span>
           </MetricCard>
@@ -436,7 +436,7 @@ const handleSave = async (
             title="Active Plans"
             icon={<CreditCard className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />}
           >
-            <span className="text-2xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
+            <span className="text-xl sm:text-[30px] font-semibold leading-tight tracking-tight text-[#F5F7F6]">
               {activeCount}
             </span>
           </MetricCard>

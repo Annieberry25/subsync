@@ -82,7 +82,7 @@ export function processAssistantQuery(
     // If previous query or context was about bills, correct to Bills explanation
     if (prevQuery.includes('bill') || prevTopic?.startsWith('bills_')) {
       const correctionDetail =
-        "You're right — I answered about your subscriptions instead of Bills & Payments. SubHalt's Bills & Payments feature helps you record, organize, and track payments such as electricity, internet, airtime, rent, education, and other utility bills. SubHalt does not process the payment itself—you make payments as normal and use SubHalt to keep receipt history organized. You can capture receipts from connected email where supported, add payments manually, or upload a receipt file.";
+        "You're right, I answered about your subscriptions instead of Bills & Payments. SubHalt's Bills & Payments feature helps you record, organize, and track payments such as electricity, internet, airtime, rent, education, and other utility bills. SubHalt does not process the payment itself. You make payments as normal and use SubHalt to keep receipt history organized. You can capture receipts from connected email where supported, add payments manually, or upload a receipt file.";
       return {
         responseText: correctionDetail,
         nextContext: {
@@ -96,7 +96,7 @@ export function processAssistantQuery(
 
     // Default correction acknowledgment
     const generalCorrection =
-      "You're right — I misunderstood your previous question. Could you clarify whether you'd like help with Bills & Payments, subscription management, or a specific feature in SubHalt?";
+      "You're right, I misunderstood your previous question. Could you clarify whether you'd like help with Bills & Payments, subscription management, or a specific feature in SubHalt?";
     return {
       responseText: generalCorrection,
       nextContext: {
@@ -135,7 +135,7 @@ export function processAssistantQuery(
       (qLower.includes('bills') && qLower.includes('overview'))
     ) {
       const detail =
-        "Bills & Payments is separate from your subscriptions. It helps you organize and track payments such as electricity, internet, airtime, rent, education, insurance, and custom bills. SubHalt does not process payments directly—you pay providers through your normal channels and use SubHalt to record payments, store receipts, and track payment history. If an email receipt is available, SubHalt uses connected email information where supported; otherwise, you can add payments manually or upload receipt files.";
+        "Bills & Payments is separate from your subscriptions. It helps you organize and track payments such as electricity, internet, airtime, rent, education, insurance, and custom bills. SubHalt does not process payments directly. You pay providers through your normal channels and use SubHalt to record payments, store receipts, and track payment history. If an email receipt is available, SubHalt uses connected email information where supported; otherwise, you can add payments manually or upload receipt files.";
       return {
         responseText: detail,
         nextContext: {
@@ -212,7 +212,7 @@ export function processAssistantQuery(
       qLower.includes('upload')
     ) {
       const detail =
-        "Yes! When you record a bill payment from a receipt — using Scan Bill, or the upload option on the bill screen — SubHalt reads the receipt, fills in the provider, amount, date, and category for you to confirm, and keeps the original file stored privately against that payment.";
+        "Yes! When you record a bill payment from a receipt (using Scan Bill, or the upload option on the bill screen), SubHalt reads the receipt, fills in the provider, amount, date, and category for you to confirm, and keeps the original file stored privately against that payment.";
       return {
         responseText: detail,
         nextContext: {

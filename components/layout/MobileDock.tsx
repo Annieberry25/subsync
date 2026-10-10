@@ -5,25 +5,15 @@ import { useDockItems } from '@/lib/hooks/use-dock-items';
 import { useScrollDirection } from '@/lib/hooks/use-scroll-direction';
 import { useOverlayOpen } from '@/lib/hooks/use-overlay-open';
 
-interface MobileDockProps {
-  onOpenMore: () => void;
-  /**
-   * Whether the More sheet is currently open. Needed for `aria-expanded` to
-   * reflect real state — the slot's `active` flag only says the current route
-   * is the More route, which is true whether or not the sheet is showing.
-   */
-  moreOpen?: boolean;
-}
-
 /**
- * Four-slot floating navigation bar for every width below `lg`, where the
+ * Five-slot floating navigation bar for every width below `lg`, where the
  * sidebar is hidden and the hamburger has been removed.
  *
- * Slot count is fixed at four so each target is ~76px wide even on a 320px
- * screen, which is what allows all four labels to stay visible rather than
+ * Slot count is fixed at five so each target is ~64px wide even on a 320px
+ * screen, which is what allows all five labels to stay visible rather than
  * collapsing to icons.
  */
-export function MobileDock({ onOpenMore, moreOpen = false }: MobileDockProps) {
+export function MobileDock() {
   const { slots, visible } = useDockItems();
   const { direction, atTop } = useScrollDirection();
   const overlayOpen = useOverlayOpen();
@@ -48,10 +38,15 @@ export function MobileDock({ onOpenMore, moreOpen = false }: MobileDockProps) {
       <div className="glass-dock mx-2 mb-[max(0.5rem,var(--spacing-safe-b))] flex items-stretch h-(--spacing-dock)">
         {slots.map((slot) => {
           const Icon = slot.icon;
-          const isRoute = Boolean(slot.href);
 
-          const content = (
-            <>
+          return (
+            <Link
+              key={slot.key}
+              href={slot.href}
+              aria-current={slot.active ? 'page' : undefined}
+              aria-label={slot.key === 'subscriptions' ? 'Subscriptions' : slot.label}
+              className="relative flex-1 min-w-0 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors"
+            >
               <span
                 aria-hidden="true"
                 className={`absolute top-0 left-1/2 -translate-x-1/2 h-1 rounded-b-full bg-[#14B8A6] transition-opacity duration-200 ${
@@ -71,41 +66,7 @@ export function MobileDock({ onOpenMore, moreOpen = false }: MobileDockProps) {
               >
                 {slot.label}
               </span>
-            </>
-          );
-
-          const shared = `relative flex-1 min-w-0 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
-            isRoute
-              ? ''
-              : 'appearance-none border-none bg-transparent font-inherit'
-          }`;
-
-          if (isRoute) {
-            return (
-              <Link
-                key={slot.key}
-                href={slot.href!}
-                aria-current={slot.active ? 'page' : undefined}
-                aria-label={slot.key === 'subscriptions' ? 'Subscriptions' : slot.label}
-                className={shared}
-              >
-                {content}
-              </Link>
-            );
-          }
-
-          return (
-            <button
-              key={slot.key}
-              type="button"
-              onClick={onOpenMore}
-              aria-expanded={moreOpen}
-              aria-controls="more-sheet-panel"
-              aria-haspopup="dialog"
-              className={shared}
-            >
-              {content}
-            </button>
+            </Link>
           );
         })}
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, ShieldCheck, ExternalLink, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Search, ShieldCheck, ExternalLink, ChevronLeft, CheckCircle2 } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { getKnownProviderWebsite, getKnownProviderManagementUrl } from '@/lib/services/subscription-service';
@@ -125,9 +125,10 @@ export default function LinkSubscriptionModal({
             type="button"
             onClick={() => (step !== 'select' ? setStep('select') : onBack?.())}
             aria-label={step !== 'select' ? 'Back to provider list' : 'Back to Add Subscription menu'}
-            className="w-11 h-11 rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
+            data-touch="compact"
+            className="w-9 h-9 shrink-0 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
         ) : null
       }

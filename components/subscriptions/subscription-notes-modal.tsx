@@ -65,7 +65,7 @@ export default function SubscriptionNotesModal({
       open={isOpen}
       onClose={onClose}
       size="md"
-      title={`Notes — ${subscription.name}`}
+          title={`Notes: ${subscription.name}`}
       description="Add custom notes, plan specifics, or reminder details."
       bodyClassName="flex items-start"
       footer={

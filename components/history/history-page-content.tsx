@@ -8,7 +8,7 @@ import {
   ChevronDown,
   AlertCircle,
   SlidersHorizontal,
-  ArrowLeft,
+  ChevronLeft,
   Loader2
 } from 'lucide-react';
 import { 
@@ -474,7 +474,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                     onClick={() => setSelectedActivity(null)}
                     className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer outline-none bg-transparent border-none p-0"
                   >
-                    <ArrowLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-4 h-4" />
                     <span>Past Activity</span>
                   </button>
                 </div>

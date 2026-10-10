@@ -9,6 +9,7 @@ import type { User } from '@supabase/supabase-js';
 import { BrandMark, BrandWordmark } from '@/components/ui/brand-logo';
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
 import { useToast } from '@/lib/hooks/use-toast';
+import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import {
@@ -36,12 +37,13 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
+const { fullName: contextFullName, email: contextEmail, isAdmin, avatarColor } = useAuth();
   const { isPlus } = usePlan();
   const { unreadCount } = useInbox();
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
@@ -299,7 +301,7 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
                   type="button"
                   onClick={() => {
                     setShowProfileMenu(false);
-                    handleSignOut();
+                    setShowSignOutConfirm(true);
                   }}
                   aria-label="Log out"
                   className="w-full flex items-center gap-2.5 px-3 py-2 min-h-[44px] text-xs font-medium text-[#D9363E] hover:bg-[#D9363E]/10 rounded-lg transition-colors cursor-pointer"
@@ -336,11 +338,19 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
                   alt={userName || 'Account'}
                   width={32}
                   height={32}
-                  className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#14B8A6]/40"
+                  style={{ borderColor: avatarColor }}
+                  className="w-8 h-8 rounded-full object-cover shrink-0 border"
                   unoptimized
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] text-xs font-bold shrink-0">
+                <div
+                  style={{
+                    backgroundColor: `${avatarColor}1A`,
+                    borderColor: `${avatarColor}4D`,
+                    color: avatarColor,
+                  }}
+                  className="w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold shrink-0"
+                >
                   {initials || (userName ? userName.slice(0, 2).toUpperCase() : 'SU')}
                 </div>
               )}
@@ -393,6 +403,17 @@ const { fullName: contextFullName, email: contextEmail, isAdmin } = useAuth();
           <PanelLeftClose className="w-3.5 h-3.5" />
         )}
       </button>
+
+      <ConfirmDialog
+        isOpen={showSignOutConfirm}
+        onClose={() => setShowSignOutConfirm(false)}
+        onConfirm={handleSignOut}
+        title="Log out?"
+        description="You'll need to sign in again to access your subscriptions and reminders on this device."
+        confirmText="Log out"
+        cancelText="Stay signed in"
+        variant="danger"
+      />
     </aside>
   );
 }

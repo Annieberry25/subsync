@@ -105,11 +105,11 @@ export default function AdminPaymentsTab() {
                 <tr key={row.id} className="hover:bg-[#0D0F0F] transition-colors">
                   <td className="px-4 py-3">
                     <p className="text-xs font-semibold text-[#F5F7F6] truncate max-w-[220px]">{row.email}</p>
-                    <p className="text-[11px] text-[#94A3B8] truncate max-w-[220px]">{row.full_name || '—'}</p>
+                    <p className="text-[11px] text-[#94A3B8] truncate max-w-[220px]">{row.full_name || '-'}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-[#F5F7F6] capitalize">{row.plan}</td>
                   <td className="px-4 py-3 text-xs text-[#F5F7F6]">
-                    {row.amount > 0 ? formatMoney(row.amount / 100, row.currency) : '—'}
+                    {row.amount > 0 ? formatMoney(row.amount / 100, row.currency) : '-'}
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
                   <td className="px-4 py-3 text-[11px] text-[#94A3B8] font-mono truncate max-w-[180px]">{row.paystack_reference}</td>

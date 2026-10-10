@@ -66,7 +66,7 @@ export default function SubscriptionFilters({
             placeholder="Search subscriptions by name, plan tier, or notes..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-11 pl-12 pr-3.5 text-xs sm:text-sm rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+            className="input-compact w-full h-10 pl-12 pr-3.5 text-xs sm:text-sm rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
           />
         </div>
 

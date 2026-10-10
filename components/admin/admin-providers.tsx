@@ -253,7 +253,7 @@ export default function AdminProvidersTab() {
               <Field label="Region (optional)">
                 <input value={form.region ?? ''} onChange={(e) => set('region', e.target.value || null)} placeholder="Lagos" className={inputClass} />
               </Field>
-              <Field label="Support regions — comma separated (optional)">
+              <Field label="Support regions (comma separated, optional)">
                 <input value={regionsText} onChange={(e) => setRegionsText(e.target.value)} placeholder="Lagos, Abuja, Rivers" className={inputClass} />
               </Field>
               <Field label="Official website (optional)">

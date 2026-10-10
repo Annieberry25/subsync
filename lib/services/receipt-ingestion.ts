@@ -67,7 +67,7 @@ function buildSubscriptionRow(
     start_date: draft.date || new Date().toISOString(),
     next_billing_date: nextBilling.toISOString(),
     provider_url: getKnownProviderWebsite(draft.name),
-    notes: `[${source}] ${draft.from} — ${draft.subject}`,
+      notes: `[${source}] ${draft.from}: ${draft.subject}`,
     is_synced: true,
   };
 }

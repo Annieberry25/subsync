@@ -579,7 +579,7 @@ setLoading(true);
               {!canAddAnotherAccount && (
                 <p className="text-[11px] text-[#94A3B8] leading-relaxed">
                   Your plan includes one account per subscription. Upgrade to Plus to add
-                  multiple accounts — family, work, or a second profile.
+                  multiple accounts: family, work, or a second profile.
                 </p>
               )}
 

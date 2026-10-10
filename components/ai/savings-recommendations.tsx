@@ -25,7 +25,7 @@ export const SavingsRecommendationsSection = memo(function SavingsRecommendation
   onAskSubHalt,
 }: SavingsRecommendationsProps) {
   const { defaultCurrency } = useCurrency();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const activeSubs = activeSubscriptions || subscriptions.filter(
     (s) => s.status === 'active' || s.status === 'trial'
@@ -99,7 +99,7 @@ export const SavingsRecommendationsSection = memo(function SavingsRecommendation
     <div className="min-w-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <PiggyBank className="w-5 h-5 text-[#94A3B8] shrink-0" />
+          <PiggyBank className="w-4 h-4 sm:w-5 sm:h-5 text-[#94A3B8] shrink-0" />
           <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">
             Savings Recommendations
           </h2>
@@ -110,10 +110,11 @@ export const SavingsRecommendationsSection = memo(function SavingsRecommendation
           onClick={() => setIsExpanded((prev) => !prev)}
           aria-expanded={isExpanded}
           aria-controls="savings-recommendations-list"
-          className="w-11 h-11 rounded-lg bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] border border-[#3F3F46]/40 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+          data-touch="compact"
+          className="w-9 h-9 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer shrink-0"
         >
           <ChevronDown
-            className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
           />
           <span className="sr-only">
             {isExpanded ? 'Hide' : 'Show'} savings recommendations
@@ -146,7 +147,7 @@ export const SavingsRecommendationsSection = memo(function SavingsRecommendation
                     </span>
                   </div>
 
-                  <span className="block text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight leading-tight">
+                  <span className="block text-xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight leading-tight">
                     Save up to {formatCurrency(item.monthlySavings, defaultCurrency)}/mo
                   </span>
 

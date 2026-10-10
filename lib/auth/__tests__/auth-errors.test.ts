@@ -5,7 +5,7 @@ describe('getAuthErrorMessage', () => {
   it('maps otp_disabled to the no-account message', () => {
     const err = { status: 422, code: 'otp_disabled', message: 'Signups not allowed for otp' };
     expect(getAuthErrorMessage(err, 'fallback')).toBe(
-      "There's no SubHalt account for this email — check the address or sign up first.",
+      "There's no SubHalt account for this email. Check the address or sign up first.",
     );
   });
 

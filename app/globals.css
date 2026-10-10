@@ -291,6 +291,17 @@ input::placeholder, textarea::placeholder {
   color: #94A3B8 !important;
 }
 
+/* Compact search fields. The input rule above floors every field at 44px and
+   15px text; these explicit opt-in classes let the search bars sit slimmer on
+   mobile. Scoped by class so no other field is affected. */
+input.input-compact {
+  min-height: 2.5rem !important;
+}
+
+input.input-compact-text {
+  font-size: 0.875rem !important;
+}
+
 /* Global Button System Redesign - Rounded Action Buttons */
 .btn-pill,
 button.btn-pill {

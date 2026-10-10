@@ -8,6 +8,9 @@ import AuthForm from '@/components/auth/auth-form';
 const mocks = vi.hoisted(() => {
   const router = { push: vi.fn(), refresh: vi.fn() };
   const loginFetch = vi.fn();
+  const getSession = vi.fn();
+  const listFactors = vi.fn();
+  const getAuthenticatorAssuranceLevel = vi.fn();
   const signInWithPassword = vi.fn();
   const signUp = vi.fn();
   const signInWithOtp = vi.fn();
@@ -27,7 +30,21 @@ const mocks = vi.hoisted(() => {
     resend,
     signInWithOAuth,
     resetPasswordForEmail,
-    auth: { signInWithPassword, signUp, signInWithOtp, verifyOtp, updateUser, resend, signInWithOAuth, resetPasswordForEmail },
+    getSession,
+    listFactors,
+    getAuthenticatorAssuranceLevel,
+    auth: {
+      getSession,
+      signInWithPassword,
+      signUp,
+      signInWithOtp,
+      verifyOtp,
+      updateUser,
+      resend,
+      signInWithOAuth,
+      resetPasswordForEmail,
+      mfa: { listFactors, getAuthenticatorAssuranceLevel },
+    },
   };
 });
 
@@ -56,6 +73,12 @@ beforeEach(() => {
   mocks.signUp.mockResolvedValue({ data: { session: null, user: null }, error: null });
   mocks.signInWithOAuth.mockResolvedValue({
     data: { provider: 'google', url: 'https://example.supabase.co/auth/v1/authorize' },
+    error: null,
+  });
+  mocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
+  mocks.listFactors.mockResolvedValue({ data: { all: [], totp: [] }, error: null });
+  mocks.getAuthenticatorAssuranceLevel.mockResolvedValue({
+    data: { currentLevel: 'aal1', nextLevel: 'aal1' },
     error: null,
   });
 });
@@ -416,6 +439,44 @@ it('returns a Google account through Google instead of a password or code form',
     expect(
       screen.getByText('Sign-in could not be completed. Please try again.')
     ).toBeInTheDocument();
+  });
+
+  it('shows the two-factor step when the password account requires it', async () => {
+    const user = userEvent.setup();
+    mocks.loginFetch.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/auth/providers') {
+        return { ok: true, status: 200, json: async () => ({ methods: ['email'] }) };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          mfaRequired: true,
+          factorId: 'factor-1',
+          user: { email: 'user@example.com', user_metadata: {} },
+        }),
+      };
+    });
+
+    const { container } = render(<AuthForm />);
+
+    await user.type(screen.getByRole('textbox'), 'user@example.com');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByRole('heading', { name: 'Enter your password' })).toBeInTheDocument();
+
+    const passwordInput = container.querySelector('input[type="password"]') as HTMLInputElement;
+    await user.type(passwordInput, 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    // A correct password alone must not land in the app: the session is still
+    // aal1 until the authenticator code is verified.
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Two-factor authentication' })).toBeInTheDocument()
+    );
+    expect(mocks.router.push).not.toHaveBeenCalled();
   });
 
   it('signs in with the entered email and password', async () => {

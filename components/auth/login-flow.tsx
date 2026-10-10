@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Eye, EyeOff, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { BrandWordmark } from '@/components/ui/brand-logo';
@@ -22,7 +22,7 @@ import { RememberedAccountChooser } from './remembered-account-chooser';
 import { SocialAuthButtons } from './social-auth-buttons';
 import { getSiteUrl, getAuthCallbackUrl } from '@/lib/utils/url-utils';
 
-type LoginStep = 'chooser' | 'email' | 'password' | 'otp';
+type LoginStep = 'chooser' | 'email' | 'password' | 'otp' | 'mfa';
 
 /**
  * Ask the server for the sign-in methods of an account, keyed by email.
@@ -83,6 +83,8 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
@@ -93,6 +95,51 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
   // Safe to call from the render body only because createClient() is a real
   // singleton — see lib/supabase/client.ts for what happens when it is not.
   const supabase = createClient();
+
+  /**
+   * A session that already belongs to an account with a verified authenticator
+   * factor is held at `aal1` until the challenge is verified. This runs on mount
+   * so that anyone the middleware bounces back here (a reload, or the OAuth
+   * callback landing on a protected route) still sees the code step instead of
+   * a login form they cannot get past.
+   */
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!active || !sessionData.session) return;
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totp = factors?.totp?.[0];
+      if (!active || !totp) return;
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!active || aal?.currentLevel === 'aal2') return;
+      setMfaFactorId(totp.id);
+      setRequestedStep('mfa');
+    })().catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
+
+  /**
+   * After any sign-in that does not itself go through the server password route
+   * (one-time code, or a session recovered on mount), decide whether the account
+   * still owes a second factor. Returns true when the code step was shown.
+   */
+  const showMfaChallengeIfRequired = async (): Promise<boolean> => {
+    try {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totp = factors?.totp?.[0];
+      if (!totp) return false;
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.currentLevel === 'aal2') return false;
+      setMfaFactorId(totp.id);
+      setRequestedStep('mfa');
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const handleRemoveAccount = (emailToRemove: string) => {
     // removeRememberedAccount notifies the store, which re-renders with the new
@@ -207,13 +254,11 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
         error?: string;
+        mfaRequired?: boolean;
+        factorId?: string;
         user?: {
-          email?: string | null;
-          user_metadata?: {
-            full_name?: string;
-            username?: string;
-            avatar_url?: string;
-          };
+          email?: string;
+          user_metadata?: { full_name?: string; username?: string; avatar_url?: string };
         };
       };
 
@@ -229,6 +274,15 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
           avatarUrl: data.user.user_metadata?.avatar_url,
           provider: 'password',
         });
+      }
+
+      if (data.mfaRequired && data.factorId) {
+        // Correct password, but the account has a verified authenticator factor:
+        // the session is only `aal1` until the code is verified.
+        setMfaFactorId(data.factorId);
+        setMfaCode('');
+        setRequestedStep('mfa');
+        return;
       }
 
       router.push('/');
@@ -294,7 +348,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
       setError(
         getAuthErrorMessage(
           err,
-          "Couldn't send the code — the server's email sender isn't configured. Please try again or contact support.",
+            "Couldn't send the code. The server's email sender isn't configured. Please try again or contact support.",
         ),
       );
     } finally {
@@ -336,10 +390,53 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
         });
       }
 
+      if (await showMfaChallengeIfRequired()) {
+        return;
+      }
+
       router.push('/');
       router.refresh();
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err, 'The code is invalid or has expired. Request a new one.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (!mfaFactorId) {
+      setError('Two-factor authentication is not set up correctly. Please sign in again.');
+      return;
+    }
+
+    const code = mfaCode.trim();
+    if (code.length < 6) {
+      setError('Enter the 6-digit code from your authenticator app.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ factorId: mfaFactorId, code }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'That code is incorrect or has expired. Try again.');
+      }
+
+      router.push('/');
+      router.refresh();
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : 'That code is incorrect or has expired. Try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -424,7 +521,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
                 }}
                 className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
+                <ChevronLeft className="w-3.5 h-3.5" />
                 <span>Saved accounts</span>
               </button>
             </div>
@@ -504,7 +601,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
               }}
               className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" />
               <span>Back</span>
             </button>
           </div>
@@ -615,7 +712,7 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
               }}
               className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" />
               <span>Back</span>
             </button>
           </div>
@@ -697,6 +794,72 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
           >
             Continue with password
           </Button>
+
+          {/* Footer: Terms of Use | Privacy Policy */}
+          <div className="text-center mt-8 pt-4 border-t border-[#1A1D1D]/50 text-[11px] text-[#94A3B8] flex items-center justify-center gap-3">
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</a>
+            <span className="text-[#1A1D1D]">|</span>
+            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 4: Two-Factor Authentication Challenge */}
+      {step === 'mfa' && (
+        <div>
+          {/* Back button */}
+          <div className="mb-5 text-left">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setSuccess(null);
+                setMfaCode('');
+                setRequestedStep('email');
+              }}
+              className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
+            </button>
+          </div>
+
+          {/* Heading */}
+          <h1 className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight text-center">
+            Two-factor authentication
+          </h1>
+          <p className="text-xs sm:text-sm text-[#94A3B8] text-center mt-1.5 mb-7">
+            Enter the 6-digit code from your authenticator app.
+          </p>
+
+          <form onSubmit={handleVerifyMfa} className="space-y-4">
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="mfa-code-input" className="text-xs font-medium text-[#94A3B8] block">
+                Authentication code
+              </label>
+              <input
+                id="mfa-code-input"
+                type="text"
+                required
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                /* Same treatment as the email code: numeric keypad, and no
+                   autocorrect/spellcheck so a pasted code stays intact. */
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                maxLength={6}
+                className="w-full px-4 py-2 text-center text-base sm:text-lg font-mono tracking-widest rounded-xl bg-[#000000] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8]/40 focus:outline-none focus:border-[#14B8A6]/60 transition-colors h-10.5 sm:h-11"
+              />
+            </div>
+
+            <Button type="submit" size="md" loading={loading} className="w-full font-semibold h-10.5 sm:h-11 rounded-full">
+              Verify &amp; continue
+            </Button>
+          </form>
 
           {/* Footer: Terms of Use | Privacy Policy */}
           <div className="text-center mt-8 pt-4 border-t border-[#1A1D1D]/50 text-[11px] text-[#94A3B8] flex items-center justify-center gap-3">

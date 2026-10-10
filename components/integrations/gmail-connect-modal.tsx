@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ArrowLeft, Link2, Link2Off } from 'lucide-react';
+import { Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ChevronLeft, Link2, Link2Off } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
@@ -159,7 +159,7 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
         start_date: today.toISOString().split('T')[0],
         status: 'active',
         provider_url: getKnownProviderWebsite(item.providerName),
-        notes: `[Gmail Discovery: Auto-linked from connected Gmail inbox — ${item.from || 'receipt email'}]`,
+                notes: `[Gmail Discovery: Auto-linked from connected Gmail inbox (${item.from || 'receipt email'})]`,
       });
     }
 
@@ -221,9 +221,10 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
             type="button"
             onClick={onBack}
             aria-label="Back to Add Subscription menu"
-            className="w-11 h-11 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D] shrink-0"
+            data-touch="compact"
+            className="w-9 h-9 shrink-0 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
         ) : null
       }

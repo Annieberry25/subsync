@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { SavingsRecommendationsSection } from '@/components/ai/savings-recommendations';
@@ -42,6 +42,8 @@ const handlers = () => ({
   onAskSubHalt: vi.fn(),
 });
 
+const toggle = () => screen.getByRole('button', { name: /savings recommendations/i });
+
 const renderSection = (subs: SubscriptionRow[], h = handlers()) => {
   render(
     <SavingsRecommendationsSection
@@ -50,10 +52,10 @@ const renderSection = (subs: SubscriptionRow[], h = handlers()) => {
       {...h}
     />
   );
+  // The section now starts collapsed; most specs below assert on its contents.
+  fireEvent.click(toggle());
   return h;
 };
-
-const toggle = () => screen.getByRole('button', { name: /savings recommendations/i });
 
 describe('SavingsRecommendationsSection', () => {
   beforeEach(() => {
@@ -97,6 +99,7 @@ describe('SavingsRecommendationsSection', () => {
         {...handlers()}
       />
     );
+    fireEvent.click(toggle());
 
     expect(screen.queryByText('Save $25.99/mo')).not.toBeInTheDocument();
     expect(screen.getByText('Save up to $25.99/mo')).toBeInTheDocument();
@@ -110,6 +113,7 @@ describe('SavingsRecommendationsSection', () => {
         {...handlers()}
       />
     );
+    fireEvent.click(toggle());
 
     expect(screen.queryByText(/High-Cost Subscription/)).not.toBeInTheDocument();
     expect(screen.getByText('ChatGPT')).toBeInTheDocument();
@@ -123,7 +127,7 @@ describe('SavingsRecommendationsSection', () => {
 
     // The headline is large and bold, and comes from the data.
     const headline = screen.getByText('Save up to $25.99/mo');
-    expect(headline.className).toContain('text-2xl');
+    expect(headline.className).toContain('text-xl');
     expect(headline.className).toContain('font-bold');
   });
 
@@ -136,6 +140,7 @@ describe('SavingsRecommendationsSection', () => {
         {...handlers()}
       />
     );
+    fireEvent.click(toggle());
 
     expect(screen.getByText('Save up to $25.00/mo')).toBeInTheDocument();
     expect(screen.queryByText(/Save up to \$300/)).not.toBeInTheDocument();
@@ -149,6 +154,7 @@ describe('SavingsRecommendationsSection', () => {
         {...handlers()}
       />
     );
+    fireEvent.click(toggle());
 
     const ask = screen.getByRole('button', { name: 'Ask SubHalt' });
     expect(ask.className).toContain('bg-[#F5F7F6]');
@@ -162,25 +168,31 @@ describe('SavingsRecommendationsSection', () => {
     expect(screen.queryByRole('button', { name: 'Review subscription' })).not.toBeInTheDocument();
   });
 
-  it('offers a dropdown beside the title that collapses and expands the list', async () => {
+  it('starts collapsed and the borderless chevron toggles the list', async () => {
     const user = userEvent.setup();
-    renderSection([sub()]);
+    render(
+      <SavingsRecommendationsSection
+        subscriptions={[sub()]}
+        activeSubscriptions={[sub()]}
+        {...handlers()}
+      />
+    );
 
     const button = toggle();
-    expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(button).toHaveAttribute('aria-controls', 'savings-recommendations-list');
-    expect(screen.getByText('Save up to $25.99/mo')).toBeInTheDocument();
-
-    await user.click(button);
-
-    expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
     expect(button).toHaveAttribute('aria-controls', 'savings-recommendations-list');
     expect(screen.queryByText('Save up to $25.99/mo')).not.toBeInTheDocument();
 
-    await user.click(toggle());
+    await user.click(button);
 
     expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+    expect(toggle()).toHaveAttribute('aria-controls', 'savings-recommendations-list');
     expect(screen.getByText('Save up to $25.99/mo')).toBeInTheDocument();
+
+    await user.click(toggle());
+
+    expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Save up to $25.99/mo')).not.toBeInTheDocument();
   });
 
   it('replaces See savings with an eye icon button labelled for assistive tech', async () => {

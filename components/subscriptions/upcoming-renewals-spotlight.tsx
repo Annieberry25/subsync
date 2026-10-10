@@ -4,50 +4,11 @@ import { memo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { cleanNotesUserText } from '@/lib/services/subscription-service';
-import { formatCurrency } from '@/lib/utils/metrics-utils';
-import { ServiceIcon } from '@/components/ui/service-icon';
+import { RenewalsTable } from '@/components/subscriptions/renewals-table';
 
 interface UpcomingRenewalsSpotlightProps {
   subscriptions: SubscriptionRow[];
   onEdit?: (subscription: SubscriptionRow) => void;
-}
-
-function getPlanName(sub: SubscriptionRow): string {
-  const cleanNotes = cleanNotesUserText(sub?.notes).trim();
-  if (cleanNotes && cleanNotes.toLowerCase().includes('plan')) {
-    return cleanNotes;
-  }
-  const nameLower = sub.name.toLowerCase();
-  if (nameLower.includes('netflix')) return 'Basic Plan';
-  if (nameLower.includes('spotify')) return 'Premium Plan';
-  if (nameLower.includes('chatgpt') || nameLower.includes('openai')) return 'Plus Plan';
-  if (nameLower.includes('icloud') || nameLower.includes('google')) return 'Storage Plan';
-  
-  const cycleName = sub.billing_cycle ? sub.billing_cycle.charAt(0).toUpperCase() + sub.billing_cycle.slice(1) : 'Monthly';
-  return `${cycleName} Plan`;
-}
-
-function getRenewalStatus(diffDays: number) {
-  if (diffDays === 0) {
-    return { text: 'Due today', color: '#D9363E' };
-  }
-  if (diffDays === 1) {
-    return { text: 'In 1 day', color: '#D9363E' };
-  }
-  if (diffDays <= 4) {
-    return { text: `In ${diffDays} days`, color: '#D9363E' };
-  }
-  return { text: `In ${diffDays} days`, color: '#94A3B8' };
-}
-
-function getCycleSuffix(billingCycle?: string): string {
-  if (!billingCycle) return '/month';
-  const lower = billingCycle.toLowerCase();
-  if (lower === 'yearly' || lower === 'annual') return '/yr';
-  if (lower === 'quarterly') return '/quarter';
-  if (lower === 'weekly') return '/wk';
-  return '/month';
 }
 
 export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight({ subscriptions, onEdit: _onEdit }: UpcomingRenewalsSpotlightProps) {
@@ -90,66 +51,16 @@ export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight
 
       {/* List Container / Empty State */}
       {displayItems.length === 0 ? (
-        <div className="p-6 text-center bg-[#0B0D0D] border border-[#1A1D1D] rounded-2xl">
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-1 min-h-[72px]">
           <p className="text-sm sm:text-base font-medium text-[#F5F7F6]/80">
             No renewals in the next 10 days.
           </p>
-          <p className="text-xs text-[#94A3B8]/60 mt-1">
+          <p className="text-xs text-[#94A3B8]/60">
             You&apos;re all caught up.
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-[#1A1D1D]/60">
-          {displayItems.map(({ sub, diffDays }) => {
-            const status = getRenewalStatus(diffDays);
-            const price = Number(sub.price) || 0;
-            const cycleSuffix = getCycleSuffix(sub.billing_cycle);
-            const planName = getPlanName(sub);
-
-            return (
-              <div
-                key={sub.id}
-                className="flex flex-col sm:grid sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] items-start sm:items-center py-3.5 px-1 gap-2.5 sm:gap-4 cursor-default"
-              >
-                {/* 1. Service Logo + Name + Plan */}
-                <div className="flex items-center gap-3.5 min-w-0 w-full sm:w-auto">
-                  <ServiceIcon name={sub.name} category={sub.category} providerUrl={sub.provider_url} className="w-9 h-9 rounded-xl shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm font-semibold text-[#F5F7F6] block">
-                      {sub.name}
-                    </span>
-                    <span className="text-xs text-[#94A3B8] block mt-0.5">
-                      {planName}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 2 & 3: Mobile sub-row / Desktop grid cells */}
-                <div className="flex sm:contents items-center justify-between w-full pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]/60 gap-2 min-w-0">
-                  {/* 2. Renewal Status */}
-                  <div className="flex items-center justify-start sm:justify-center text-left sm:text-center min-w-0">
-                    <span
-                      className="text-xs sm:text-sm font-medium whitespace-nowrap"
-                      style={{ color: status.color }}
-                    >
-                      {status.text}
-                    </span>
-                  </div>
-
-                  {/* 3. Single-line Price */}
-                  <div className="text-right min-w-0 shrink-0 justify-self-end">
-                    <span className="text-base sm:text-lg font-bold text-[#F5F7F6] whitespace-nowrap">
-                      {formatCurrency(price, sub.currency || 'USD')}
-                    </span>
-                    <span className="text-xs font-normal text-[#94A3B8] whitespace-nowrap">
-                      {cycleSuffix}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <RenewalsTable items={displayItems} />
       )}
     </div>
   );

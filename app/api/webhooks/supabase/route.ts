@@ -135,7 +135,7 @@ async function handleSubscriptionCreated(record: SubscriptionRowPayload | undefi
 
   const result = await sendPushToUser(record.user_id, {
     title: 'Subscription added',
-    body: `${name} — ${formatAmount(price, currency)} ${cycleLabel(record.billing_cycle ?? undefined)}`,
+    body: `${name}: ${formatAmount(price, currency)} ${cycleLabel(record.billing_cycle ?? undefined)}`,
     url: `/subscriptions?highlight=${record.id}&detail=true`,
     // One notification per subscription rather than a single shared tag, so
     // adding three at once does not leave only the last one visible.

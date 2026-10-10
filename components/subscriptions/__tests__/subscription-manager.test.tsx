@@ -158,12 +158,12 @@ describe('SubscriptionManager view toggle', () => {
     expect(container.querySelector('.table-scroll')).not.toBeNull();
   });
 
-  it('gives the toggle buttons a 44px touch target on small screens', () => {
+  it('sizes the toggle buttons compactly across breakpoints', () => {
     render(<SubscriptionManager />);
     const btn = screen.getByRole('button', { name: 'Table view' });
-    expect(btn.className).toContain('w-11');
-    expect(btn.className).toContain('h-11');
-    expect(btn.className).toContain('sm:w-9');
+    expect(btn.className).toContain('w-9');
+    expect(btn.className).toContain('h-9');
+    expect(btn.className).toContain('sm:w-8');
   });
 
   it('switches between the list and the cards view', async () => {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, CheckCircle2, Eye, EyeOff, ArrowLeft, AtSign } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Eye, EyeOff, ChevronLeft, AtSign } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { BrandWordmark } from '@/components/ui/brand-logo';
@@ -121,7 +121,7 @@ export function SignupFlow() {
       setError(
         getAuthErrorMessage(
           err,
-          "Couldn't send the code — the server's email sender isn't configured. Please try again or contact support.",
+            "Couldn't send the code. The server's email sender isn't configured. Please try again or contact support.",
         ),
       );
     } finally {
@@ -336,7 +336,7 @@ export function SignupFlow() {
               }}
               className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" />
               <span>Back</span>
             </button>
           </div>
@@ -464,7 +464,7 @@ export function SignupFlow() {
               }}
               className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5" />
               <span>Back</span>
             </button>
           </div>
