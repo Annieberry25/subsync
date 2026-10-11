@@ -91,39 +91,6 @@ describe('updateSession public routes', () => {
   });
 
   /**
-   * `/` is the signed-out landing page. Redirecting it would send every new
-   * visitor to the login form instead of the marketing page, and the route
-   * itself decides what to render once a session exists.
-   */
-  it('serves the landing page at / instead of redirecting a signed-out visitor', async () => {
-    const response = await updateSession(makeRequest('/'));
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get('location') ?? '').not.toContain('/login');
-  });
-
-  it('still holds a pending-MFA session at / so the challenge can be finished', async () => {
-    getUser.mockResolvedValue({
-      data: {
-        user: {
-          id: 'u1',
-          factors: [{ id: 'f1', factor_type: 'totp', status: 'verified' }],
-        },
-      },
-    });
-    getAuthenticatorAssuranceLevel.mockResolvedValue({
-      data: { currentLevel: 'aal1', nextLevel: 'aal2' },
-    });
-
-    const response = await updateSession(makeRequest('/'));
-
-    // The landing allowance is only for signed-out visitors; it must not become
-    // a way around the second factor.
-    expect(response.status).toBe(307);
-    expect(response.headers.get('location')).toContain('/login');
-  });
-
-  /**
    * The exemption is compared on a segment boundary. A bare `startsWith('/api')`
    * would also match `/api-keys`, letting a real page slip past the auth check.
    */

@@ -2,7 +2,6 @@
 
 import { ShieldCheck, FileText } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
-import { LegalDocumentBody } from '@/components/legal/document-body';
 
 interface LegalModalProps {
   isOpen: boolean;
@@ -10,12 +9,6 @@ interface LegalModalProps {
   type: 'privacy' | 'terms' | null;
 }
 
-/**
- * The signed-in Legal sheet.
- *
- * Renders the shared document body so this and the public `/privacy` and
- * `/terms` pages always show identical copy.
- */
 export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
   if (!isOpen || !type) return null;
 
@@ -35,9 +28,48 @@ export function LegalModal({ isOpen, onClose, type }: LegalModalProps) {
         </span>
       }
     >
-      <LegalDocumentBody type={type} />
+        {/* Content Body */}
+        <div className="space-y-4 text-xs sm:text-sm text-[#94A3B8] leading-relaxed">
+          {isPrivacy ? (
+            <>
+              <p className="font-medium text-[#F5F7F6]">Last updated: August 2026</p>
+              <p>
+                SubHalt is committed to protecting your privacy and security. This Privacy Policy outlines how your personal data and subscription metrics are collected, processed, and safeguarded.
+              </p>
+              <h3 className="text-[#F5F7F6] font-semibold text-sm pt-2">1. Data Storage & Isolation</h3>
+              <p>
+                Your subscription data, payment amounts, billing cycles, and personal details are strictly isolated to your user account using PostgreSQL Row Level Security (RLS). We do not sell or monetize your financial tracking data.
+              </p>
+              <h3 className="text-[#F5F7F6] font-semibold text-sm pt-2">2. External Services & Exchange Rates</h3>
+              <p>
+                SubHalt fetches currency exchange rate information from trusted public providers to enable default currency reporting. No personal identifiers or subscription details are transmitted to currency rate services.
+              </p>
+              <h3 className="text-[#F5F7F6] font-semibold text-sm pt-2">3. User Rights & Account Deletion</h3>
+              <p>
+                You retain full ownership of your data. You may export or permanently delete your account and all associated records at any time directly through your Account Settings.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-medium text-[#F5F7F6]">Last updated: August 2026</p>
+              <p>
+                By using SubHalt, you agree to these Terms of Service. SubHalt is a personal subscription management platform designed to help you track recurring expenses and billing dates.
+              </p>
+              <h3 className="text-[#F5F7F6] font-semibold text-sm pt-2">1. Usage Responsibility</h3>
+              <p>
+                SubHalt relies on subscription entries provided by you or extracted from user receipts. You are responsible for ensuring the accuracy of your entered subscription amounts, renewal dates, and account details.
+              </p>
+              <h3 className="text-[#F5F7F6] font-semibold text-sm pt-2">2. Financial Disclaimer</h3>
+              <p>
+                Calculated metrics and currency conversions are provided for informational tracking purposes. SubHalt is not a financial institution, automated billing processor, or legal advisor.
+              </p>
+              <h3 className="text-[#F5F7F6] font-semibold text-sm pt-2">3. Service Availability</h3>
+              <p>
+                We strive to maintain continuous service availability and cloud data synchronization. Features may be updated continuously to improve usability and security.
+              </p>
+            </>
+          )}
+        </div>
     </Sheet>
   );
 }
-
-export default LegalModal;
