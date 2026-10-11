@@ -29,8 +29,36 @@ function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 }
 
+/**
+ * Public legal documents. The marketing footer links to them, and a visitor
+ * deciding whether to sign up has no account to sign in with yet.
+ */
+const PUBLIC_LEGAL_ROUTES = ['/privacy', '/terms'] as const;
+
+function isPublicLegalRoute(pathname: string): boolean {
+  return (PUBLIC_LEGAL_ROUTES as readonly string[]).includes(pathname);
+}
+
+/**
+ * Google Search Console HTML-file verification, served from `public/`.
+ *
+ * Search Console does not follow redirects for the file-upload method, so a
+ * 307 to /login is a hard failure: the verifier reads the login page instead of
+ * the token and reports "wrong content". The file is static, but the matcher in
+ * middleware.ts only excludes image extensions and `favicon.ico`, so an `.html`
+ * request still lands here and would otherwise be redirected.
+ *
+ * Matched by pattern rather than exact name because Search Console issues a new
+ * token filename whenever the property is re-verified.
+ */
+const GOOGLE_VERIFICATION_FILE = /^\/google[a-z0-9]+\.html$/;
+
 export async function updateSession(request: NextRequest) {
-  if (isPublicRoute(request.nextUrl.pathname)) {
+  if (
+    isPublicRoute(request.nextUrl.pathname) ||
+    isPublicLegalRoute(request.nextUrl.pathname) ||
+    GOOGLE_VERIFICATION_FILE.test(request.nextUrl.pathname)
+  ) {
     return NextResponse.next({ request });
   }
 
@@ -101,8 +129,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  /**
+   * `/` is the signed-out landing page, not a protected route, so a visitor
+   * with no session has to be allowed through to it. Signed in, the page itself
+   * renders the dashboard, so there is nothing to redirect here either way.
+   */
+  const isLandingRoute = request.nextUrl.pathname === '/';
+
   // If user is not logged in and trying to access protected routes
-  if (!user && !isAuthPage && !isCallbackRoute) {
+  if (!user && !isAuthPage && !isCallbackRoute && !isLandingRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
