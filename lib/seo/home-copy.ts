@@ -17,6 +17,14 @@ export const HOME_DESCRIPTION =
 
 export const HOME_H1 = 'Never get surprise-charged again';
 
+/**
+ * The social-preview blurb, shared by `og:description` and
+ * `twitter:description`. It is intentionally not HOME_DESCRIPTION: the card
+ * leads with the H1 and drops the second sentence, because unfurls truncate
+ * hard and the first line is the part that survives.
+ */
+export const HOME_OG_DESCRIPTION = `${HOME_H1}. SubHalt tracks every subscription you pay for and alerts you before each renewal.`;
+
 export const HOME_SUBLINE =
   'SubHalt tracks every subscription you have and alerts you before each renewal.';
 

@@ -4,6 +4,7 @@ import {
   HOME_DESCRIPTION,
   HOME_H1,
   HOME_SUBLINE,
+  HOME_OG_DESCRIPTION,
 } from '@/lib/seo/home-copy';
 
 /**
@@ -26,6 +27,12 @@ describe('homepage SEO copy', () => {
     expect(HOME_H1).toBe('Never get surprise-charged again');
     expect(HOME_SUBLINE).toBe(
       'SubHalt tracks every subscription you have and alerts you before each renewal.',
+    );
+  });
+
+  it('pins the exact social preview description, led by the H1', () => {
+    expect(HOME_OG_DESCRIPTION).toBe(
+      'Never get surprise-charged again. SubHalt tracks every subscription you pay for and alerts you before each renewal.',
     );
   });
 });

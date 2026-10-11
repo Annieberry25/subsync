@@ -3,6 +3,7 @@ import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
 import { ADSENSE_CLIENT, ADSENSE_ENABLED, ADSENSE_LOADER_SRC } from "@/lib/config/adsense";
+import { HOME_TITLE, HOME_OG_DESCRIPTION } from "@/lib/seo/home-copy";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -61,21 +62,21 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: siteUrl,
     siteName: "SubHalt",
-    title: "SubHalt - Subscription Manager",
-    description: "Track, manage, and optimize all your recurring subscriptions seamlessly.",
+    title: HOME_TITLE,
+    description: HOME_OG_DESCRIPTION,
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "SubHalt - Subscription Manager",
+        alt: HOME_TITLE,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SubHalt - Subscription Manager",
-    description: "Track, manage, and optimize all your recurring subscriptions seamlessly.",
+    title: HOME_TITLE,
+    description: HOME_OG_DESCRIPTION,
     images: ["/og-image.png"],
   },
   robots: {
