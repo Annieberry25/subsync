@@ -91,6 +91,18 @@ describe('updateSession public routes', () => {
   });
 
   /**
+   * `/` is the public homepage. Redirecting a signed-out visitor (or a crawler)
+   * away from it is what made the site unindexable: Google only ever saw the
+   * login page.
+   */
+  it('serves the public homepage at / instead of redirecting a signed-out visitor', async () => {
+    const response = await updateSession(makeRequest('/'));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location') ?? '').not.toContain('/login');
+  });
+
+  /**
    * The exemption is compared on a segment boundary. A bare `startsWith('/api')`
    * would also match `/api-keys`, letting a real page slip past the auth check.
    */

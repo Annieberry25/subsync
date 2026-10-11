@@ -118,8 +118,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  /**
+   * `/` is the public homepage, not a protected route, so a signed-out visitor
+   * (and any crawler) has to be allowed through. Signed in, the page itself
+   * renders the dashboard, so there is nothing to redirect either way.
+   */
+  const isLandingRoute = request.nextUrl.pathname === '/';
+
   // If user is not logged in and trying to access protected routes
-  if (!user && !isAuthPage && !isCallbackRoute) {
+  if (!user && !isAuthPage && !isCallbackRoute && !isLandingRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
