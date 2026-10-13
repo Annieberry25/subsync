@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
+import { DEFAULT_USER_LEAD_MINUTES } from '@/lib/reminders/plan';
 
 /**
  * Reminder preferences, in the database.
@@ -17,17 +18,17 @@ import { logger } from '@/lib/logger';
 
 export interface ReminderPreference {
   subscriptionId: string;
-  /** Days before the billing date to send the email. Null when email is off. */
-  emailLeadDays: number | null;
-  /** Days before the billing date to push. Null when push is off. */
-  pushLeadDays: number | null;
+  /** Minutes before the billing date to send the email. Null when email is off. */
+  emailLeadMinutes: number | null;
+  /** Minutes before the billing date to push. Null when push is off. */
+  pushLeadMinutes: number | null;
   note?: string | null;
 }
 
 interface ReminderRow {
   subscription_id: string;
-  email_lead_days: number;
-  push_lead_days: number;
+  email_lead_minutes: number;
+  push_lead_minutes: number;
   email_enabled: boolean;
   push_enabled: boolean;
   note: string | null;
@@ -36,8 +37,8 @@ interface ReminderRow {
 function toPreference(row: ReminderRow): ReminderPreference {
   return {
     subscriptionId: row.subscription_id,
-    emailLeadDays: row.email_enabled ? row.email_lead_days : null,
-    pushLeadDays: row.push_enabled ? row.push_lead_days : null,
+    emailLeadMinutes: row.email_enabled ? row.email_lead_minutes : null,
+    pushLeadMinutes: row.push_enabled ? row.push_lead_minutes : null,
     note: row.note,
   };
 }
@@ -59,7 +60,7 @@ export async function fetchReminderPreferences(): Promise<ReminderPreference[]> 
 
     const { data, error } = await supabase
       .from('subscription_reminders')
-      .select('subscription_id, email_lead_days, push_lead_days, email_enabled, push_enabled, note');
+      .select('subscription_id, email_lead_minutes, push_lead_minutes, email_enabled, push_enabled, note');
 
     if (error) {
       logger.warn('[reminders] could not load preferences', { message: error.message });
@@ -78,8 +79,8 @@ export async function fetchReminderPreferences(): Promise<ReminderPreference[]> 
 export interface SaveReminderInput {
   subscriptionId: string;
   /** Null turns the email channel off rather than defaulting it on. */
-  emailLeadDays: number | null;
-  pushLeadDays: number | null;
+  emailLeadMinutes: number | null;
+  pushLeadMinutes: number | null;
   note?: string | null;
 }
 
@@ -103,10 +104,10 @@ export async function saveReminderPreference(input: SaveReminderInput): Promise<
       {
         user_id: user.id,
         subscription_id: input.subscriptionId,
-        email_enabled: input.emailLeadDays !== null,
-        email_lead_days: input.emailLeadDays ?? 3,
-        push_enabled: input.pushLeadDays !== null,
-        push_lead_days: input.pushLeadDays ?? 10,
+        email_enabled: input.emailLeadMinutes !== null,
+        email_lead_minutes: input.emailLeadMinutes ?? DEFAULT_USER_LEAD_MINUTES,
+        push_enabled: input.pushLeadMinutes !== null,
+        push_lead_minutes: input.pushLeadMinutes ?? DEFAULT_USER_LEAD_MINUTES,
         note: input.note ?? null,
         updated_at: new Date().toISOString(),
       },

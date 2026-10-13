@@ -15,11 +15,11 @@ import { logger } from '@/lib/logger';
  * ## Why this is worth the setup
  *
  * It exists to stop spending the Resend free tier. The Resend allowance is a
- * per-month email count, and renewal reminders at a 10-day lead multiply it by
- * every subscription a user holds. Push has no comparable per-message bill for
- * this volume, and the 10-day "upcoming" notice is exactly the kind of thing
- * that does not need an inbox: it is a nudge, and a phone notification is a
- * better delivery mechanism than mail.
+ * per-month email count, and an early reminder lead multiply it by every
+ * subscription a user holds. Push has no comparable per-message bill for this
+ * volume, and the early "upcoming" notice is exactly the kind of thing that does
+ * not need an inbox: it is a nudge, and a phone notification is a better
+ * delivery mechanism than mail.
  *
  * ## Failure handling
  *
@@ -126,9 +126,10 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
       await webpush.sendNotification(
         { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
         body,
-        // 10 days is the default reminder horizon. Anything longer and a push
-        // service that cannot reach the device drops it rather than holding it,
-        // which is the correct outcome — a stale renewal nudge is noise.
+        // A reminder now leads by at most a few days, so a 10-day TTL covers
+        // every lead with room to spare. A push service that cannot reach the
+        // device within it drops the message rather than holding it, which is
+        // the correct outcome — a stale renewal nudge is noise.
         { TTL: 60 * 60 * 24 * 10 }
       );
       result.sent++;

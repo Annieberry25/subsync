@@ -665,8 +665,8 @@ export interface Database {
           id: string
           user_id: string
           subscription_id: string
-          email_lead_days: number
-          push_lead_days: number
+          email_lead_minutes: number
+          push_lead_minutes: number
           email_enabled: boolean
           push_enabled: boolean
           note: string | null
@@ -677,8 +677,8 @@ export interface Database {
           id?: string
           user_id: string
           subscription_id: string
-          email_lead_days?: number
-          push_lead_days?: number
+          email_lead_minutes?: number
+          push_lead_minutes?: number
           email_enabled?: boolean
           push_enabled?: boolean
           note?: string | null
@@ -689,8 +689,8 @@ export interface Database {
           id?: string
           user_id?: string
           subscription_id?: string
-          email_lead_days?: number
-          push_lead_days?: number
+          email_lead_minutes?: number
+          push_lead_minutes?: number
           email_enabled?: boolean
           push_enabled?: boolean
           note?: string | null
@@ -707,6 +707,60 @@ export interface Database {
           },
           {
             foreignKeyName: 'subscription_reminders_subscription_id_fkey'
+            columns: ['subscription_id']
+            isOneToOne: false
+            referencedRelation: 'subscriptions'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      reminder_deliveries: {
+        Row: {
+          id: string
+          user_id: string
+          subscription_id: string
+          renewal_date: string
+          lead_minutes: number
+          channel: 'push' | 'email'
+          subscription_name: string | null
+          amount: number | null
+          currency: string | null
+          sent_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          subscription_id: string
+          renewal_date: string
+          lead_minutes: number
+          channel: 'push' | 'email'
+          subscription_name?: string | null
+          amount?: number | null
+          currency?: string | null
+          sent_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          subscription_id?: string
+          renewal_date?: string
+          lead_minutes?: number
+          channel?: 'push' | 'email'
+          subscription_name?: string | null
+          amount?: number | null
+          currency?: string | null
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'reminder_deliveries_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'reminder_deliveries_subscription_id_fkey'
             columns: ['subscription_id']
             isOneToOne: false
             referencedRelation: 'subscriptions'

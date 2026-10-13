@@ -105,7 +105,12 @@ export function renderRenewalReminderEmail(
         : `${sub.name} renews in ${days} days`;
 
   return {
-    subject: days <= 0 ? `${sub.name} payment due` : `${sub.name} renews in ${days} days`,
+    subject:
+      days <= 0
+        ? `${sub.name} payment due`
+        : days === 1
+          ? `${sub.name} renews tomorrow`
+          : `${sub.name} renews in ${days} days`,
     html: renderEmailLayout({
       preheader: `${cadence}. ${sub.nextBillingDate}.`,
       heading,
@@ -165,6 +170,30 @@ export function renderAccountDeletedEmail(): RenderedEmail {
         emailParagraph(
           "Hey friend! Thank you for staying in our hut for a while. We hate to see you go, we hope to have you back someday. In case you change your mind, here is the link below to sign up again. Take care!"
         ),
+      ].join(''),
+    }),
+  };
+}
+
+/**
+ * 6. Test notification.
+ *
+ * Triggered from Settings so a user can prove the email path works without
+ * waiting for a renewal. States the fact and that no action is needed.
+ */
+export function renderTestNotificationEmail(firstName?: string | null): RenderedEmail {
+  return {
+    subject: 'SubHalt test notification',
+    html: renderEmailLayout({
+      preheader: 'This is a test reminder from SubHalt.',
+      heading: 'Test notification',
+      bodyHtml: [
+        emailParagraph(
+          firstName
+            ? `${firstName}, if you are reading this, your renewal reminder emails are working.`
+            : 'If you are reading this, your renewal reminder emails are working.'
+        ),
+        emailFinePrint('You triggered this from Settings. No action is needed.'),
       ].join(''),
     }),
   };

@@ -1,141 +1,137 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { Check, BellRing, Mail } from 'lucide-react';
+import { Mail, BellRing } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
 import Sheet from '@/components/ui/sheet';
-import { getPushPermissionState, isPushSupported } from '@/lib/push/client';
+import { DEFAULT_USER_LEAD_MINUTES, MAX_LEAD_MINUTES } from '@/lib/reminders/plan';
 
 interface PaymentReminderModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * Lead offsets in minutes before the renewal, or null when a channel was
+   * explicitly turned off. The modal presents a Timing choice (radio: 12 hours /
+   * 3 hours / custom) and a Method choice (Email + Push checkboxes) and
+   * translates them into these two values.
+   */
   onSave: (reminder: {
-    /** Days before renewal for the email, or null to turn email off. */
-    emailLeadDays: number | null;
-    /** Days before renewal for the push, or null to turn push off. */
-    pushLeadDays: number | null;
+    emailLeadMinutes: number | null;
+    pushLeadMinutes: number | null;
     note?: string;
   }) => void;
   subscriptionName: string;
   nextBillingDate?: string;
-  /**
-   * Existing saved preference, so reopening the sheet shows what is set.
-   *
-   * `undefined` = nothing saved yet (push defaults on, email defaults off);
-   * `null` = the user explicitly turned that channel off.
-   */
-  initialEmailLeadDays?: number | null;
-  initialPushLeadDays?: number | null;
+  initialEmailLeadMinutes?: number | null;
+  initialPushLeadMinutes?: number | null;
 }
 
-/**
- * Why the two channels are separate controls
- *
- * Push replaces the 10-day "coming up" notice: it is free at this volume, arrives
- * while the app is closed, and is the better shape for a nudge. Email is opt-in
- * and charged against a monthly allowance, so it is off by default and carries a
- * user-chosen lead time rather than a fixed one — "3 days before" is what most
- * people mean by "tell me when it renews".
- */
+type TimingOption = '12_hours' | '3_hours' | 'custom';
 
-const DEFAULT_PUSH_LEAD_DAYS = 10;
-const DEFAULT_EMAIL_LEAD_DAYS = 3;
-
-const EMAIL_LEAD_CHOICES = [
-  { days: 1, label: '1 day before' },
-  { days: 2, label: '2 days before' },
-  { days: 3, label: '3 days before' },
-  { days: 5, label: '5 days before' },
-  { days: 7, label: '7 days before' },
-  { days: 14, label: '14 days before' },
-];
-
-const PUSH_LEAD_CHOICES = [
-  { days: 1, label: '1 day before' },
-  { days: 3, label: '3 days before' },
-  { days: 7, label: '7 days before' },
-  { days: 10, label: '10 days before' },
-  { days: 14, label: '14 days before' },
+const timingChoices: { id: TimingOption; label: string; minutes?: number }[] = [
+  { id: '12_hours', label: '12 Hours Before', minutes: 12 * 60 },
+  { id: '3_hours', label: '3 Hours Before', minutes: 3 * 60 },
+  { id: 'custom', label: 'Custom' },
 ];
 
 const REMINDER_FORM_ID = 'payment-reminder-form';
+
+/** Map the saved lead offsets in minutes back onto the Timing + Method controls. */
+function seedControls(
+  emailLeadMinutes: number | null | undefined,
+  pushLeadMinutes: number | null | undefined
+): { timing: TimingOption; email: boolean; push: boolean; customHours: string } {
+  const emailSaved = typeof emailLeadMinutes === 'number' && emailLeadMinutes > 0;
+  const pushSaved = typeof pushLeadMinutes === 'number' && pushLeadMinutes > 0;
+  const anySaved = emailLeadMinutes !== undefined || pushLeadMinutes !== undefined;
+
+  // No preference saved yet: this reminder is opt-in, so default to push on and
+  // email off, at the default heads-up. The automatic day-before reminder is
+  // separate and always on, so this only controls the user's own extra reminder.
+  const email = anySaved ? emailSaved : false;
+  const push = anySaved ? pushSaved : true;
+
+  const lead = emailSaved
+    ? (emailLeadMinutes as number)
+    : pushSaved
+      ? (pushLeadMinutes as number)
+      : DEFAULT_USER_LEAD_MINUTES;
+  const preset = timingChoices.find((t) => t.minutes === lead);
+
+  return {
+    timing: preset ? preset.id : 'custom',
+    email,
+    push,
+    customHours: String(Math.max(1, Math.round(lead / 60))),
+  };
+}
 
 export default function PaymentReminderModal({
   isOpen,
   onClose,
   onSave,
   subscriptionName,
-  initialEmailLeadDays,
-  initialPushLeadDays,
+  initialEmailLeadMinutes,
+  initialPushLeadMinutes,
 }: PaymentReminderModalProps) {
   const { toast } = useToast();
 
-  /*
-   * Three states, not two. `undefined` means no saved preference exists, `null`
-   * means the user turned the channel off. Push defaults on with no preference
-   * (matching the cron, which pushes with or without a row), email defaults off
-   * with no preference (matching the cron, which never emails without a row):
-   *
-   *   push:  !== null  -> true for undefined (no row) and for a lead; false for null
-   *   email: != null   -> true only for a lead; false for both undefined and null
-   *
-   * The asymmetry is the whole point — `?? null` when reading a pref out of the
-   * map would erase the difference and show push OFF for a reminder the cron
-   * sends anyway.
-   */
-  const [emailEnabled, setEmailEnabled] = useState(initialEmailLeadDays != null);
-  const [emailLeadDays, setEmailLeadDays] = useState<number>(
-    initialEmailLeadDays ?? DEFAULT_EMAIL_LEAD_DAYS
+  const [timing, setTiming] = useState<TimingOption>(
+    () => seedControls(initialEmailLeadMinutes, initialPushLeadMinutes).timing
   );
-  const [pushEnabled, setPushEnabled] = useState(initialPushLeadDays !== null);
-  const [pushLeadDays, setPushLeadDays] = useState<number>(
-    initialPushLeadDays ?? DEFAULT_PUSH_LEAD_DAYS
+  const [customHours, setCustomHours] = useState(
+    () => seedControls(initialEmailLeadMinutes, initialPushLeadMinutes).customHours
+  );
+  const [emailOn, setEmailOn] = useState(
+    () => seedControls(initialEmailLeadMinutes, initialPushLeadMinutes).email
+  );
+  const [pushOn, setPushOn] = useState(
+    () => seedControls(initialEmailLeadMinutes, initialPushLeadMinutes).push
   );
   const [note, setNote] = useState('');
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
   if (isOpen && !prevIsOpen) {
     setPrevIsOpen(true);
-    // Re-seed from props each time it opens. Without this the sheet kept the last
-    // values edited for a *different* subscription, so setting 3 days on Netflix
-    // and then opening Spotify showed 3 days already selected for it.
-    setEmailEnabled(initialEmailLeadDays != null);
-    setEmailLeadDays(initialEmailLeadDays ?? DEFAULT_EMAIL_LEAD_DAYS);
-    setPushEnabled(initialPushLeadDays !== null);
-    setPushLeadDays(initialPushLeadDays ?? DEFAULT_PUSH_LEAD_DAYS);
+    // Re-seed from props each time it opens so one subscription's choices do
+    // not leak into the next.
+    const seeded = seedControls(initialEmailLeadMinutes, initialPushLeadMinutes);
+    setTiming(seeded.timing);
+    setCustomHours(seeded.customHours);
+    setEmailOn(seeded.email);
+    setPushOn(seeded.push);
     setNote('');
   } else if (!isOpen && prevIsOpen) {
     setPrevIsOpen(false);
   }
 
-  const pushPermission = getPushPermissionState();
-  const pushAvailable = isPushSupported();
-
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!emailEnabled && !pushEnabled) {
-      toast.error('Choose at least one way to be reminded.', 'No Reminder Set');
+    if (!emailOn && !pushOn) {
+      toast.error('Choose at least one reminder method.', 'No Method Selected');
       return;
     }
 
-    if (
-      pushEnabled &&
-      pushAvailable &&
-      pushPermission === 'denied'
-    ) {
-      // Saving a preference the browser will never honour is worse than saying so:
-      // the user believes they set a reminder that can never arrive.
-      toast.error(
-        'Notifications are blocked for this site. Allow them in your browser settings first.',
-        'Notifications Blocked'
-      );
-      return;
+    let leadMinutes: number;
+    if (timing === 'custom') {
+      const hours = Number(customHours);
+      if (!Number.isFinite(hours) || hours <= 0) {
+        toast.error('Enter how many hours before the renewal.', 'Invalid Time');
+        return;
+      }
+      if (hours * 60 > MAX_LEAD_MINUTES) {
+        toast.error('Pick a time within 30 days before the renewal.', 'Too Far Ahead');
+        return;
+      }
+      leadMinutes = Math.round(hours * 60);
+    } else {
+      leadMinutes = timingChoices.find((t) => t.id === timing)?.minutes ?? DEFAULT_USER_LEAD_MINUTES;
     }
 
     onSave({
-      emailLeadDays: emailEnabled ? emailLeadDays : null,
-      pushLeadDays: pushEnabled ? pushLeadDays : null,
+      emailLeadMinutes: emailOn ? leadMinutes : null,
+      pushLeadMinutes: pushOn ? leadMinutes : null,
       note: note.trim() || undefined,
     });
 
@@ -150,7 +146,7 @@ export default function PaymentReminderModal({
       placement="bottom"
       size="sm"
       title="Payment Reminder"
-      description="Choose how you'd like to be reminded before this renews."
+      description="Choose when and how you'd like to be reminded before renewal."
       footer={
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
@@ -170,139 +166,106 @@ export default function PaymentReminderModal({
         </div>
       }
     >
-      {/* Form Body. Actions live in the Sheet footer and submit via `form`. */}
       <form id={REMINDER_FORM_ID} onSubmit={handleSave} className="space-y-5 pt-1">
-        {/* ---- Push ---- */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between gap-3">
-            <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-2">
-              <BellRing className="w-4 h-4 text-[#14B8A6]" />
-              Push notification
-            </label>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={pushEnabled}
-              aria-label="Push notification reminder"
-              onClick={() => setPushEnabled((v) => !v)}
-              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer border ${
-                pushEnabled
-                  ? 'bg-[#14B8A6] border-[#14B8A6]'
-                  : 'bg-[#0D0F0D] border-[#1A1D1D]'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
-                  pushEnabled ? 'left-[22px]' : 'left-0.5'
-                }`}
-              />
-            </button>
-          </div>
-
-          <p className="text-[11px] text-[#94A3B8]/80">
-            Free, and arrives even when the app is closed. Replaces the old 10-day
-            email.
-          </p>
-
-          {pushEnabled && (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {PUSH_LEAD_CHOICES.map((choice) => {
-                  const isSelected = pushLeadDays === choice.days;
-                  return (
-                    <button
-                      key={choice.days}
-                      type="button"
-                      onClick={() => setPushLeadDays(choice.days)}
-                      className={`px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 border transition-colors cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#14B8A6] text-[#091512] font-semibold border-[#14B8A6]'
-                          : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
-                      }`}
-                    >
-                      <span className="truncate">{choice.label}</span>
-                      {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {pushPermission === 'denied' && (
-                <p className="text-[11px] text-[#D9363E]">
-                  Notifications are blocked for this site. Allow them in your browser
-                  settings, otherwise this reminder cannot be delivered.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* ---- Email ---- */}
-        <div className="space-y-2.5 pt-1 border-t border-[#1A1D1D]/60">
-          <div className="flex items-center justify-between gap-3">
-            <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-2">
-              <Mail className="w-4 h-4 text-[#14B8A6]" />
-              Email
-            </label>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={emailEnabled}
-              aria-label="Email reminder"
-              onClick={() => setEmailEnabled((v) => !v)}
-              className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer border ${
-                emailEnabled
-                  ? 'bg-[#14B8A6] border-[#14B8A6]'
-                  : 'bg-[#0D0F0D] border-[#1A1D1D]'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
-                  emailEnabled ? 'left-[22px]' : 'left-0.5'
-                }`}
-              />
-            </button>
-          </div>
-
-          <p className="text-[11px] text-[#94A3B8]/80">
-                Off by default. Email uses a limited monthly allowance, so it is only
-            sent when you ask for it.
-          </p>
-
-          {emailEnabled && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {EMAIL_LEAD_CHOICES.map((choice) => {
-                const isSelected = emailLeadDays === choice.days;
-                return (
-                  <button
-                    key={choice.days}
-                    type="button"
-                    onClick={() => setEmailLeadDays(choice.days)}
-                    className={`px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 border transition-colors cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#14B8A6] text-[#091512] font-semibold border-[#14B8A6]'
-                        : 'bg-[#0D0F0D] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
-                    }`}
+        {/* ---- Timing (single choice, plain radio list) ---- */}
+        <fieldset className="space-y-2">
+          <legend className="text-[13px] font-medium text-[#94A3B8]">Reminder Timing</legend>
+          <div className="rounded-xl border border-[#1A1D1D] divide-y divide-[#1A1D1D] overflow-hidden">
+            {timingChoices.map((choice) => {
+              const isSelected = timing === choice.id;
+              return (
+                <label
+                  key={choice.id}
+                  className="flex items-center gap-3 px-3.5 py-2.5 min-h-[44px] cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="reminder-timing"
+                    value={choice.id}
+                    checked={isSelected}
+                    onChange={() => setTiming(choice.id)}
+                    className="w-4 h-4 shrink-0 accent-[#14B8A6]"
+                  />
+                  <span
+                    className={`text-xs ${isSelected ? 'text-[#F5F7F6] font-medium' : 'text-[#94A3B8]'}`}
                   >
-                    <span className="truncate">{choice.label}</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
-                  </button>
-                );
-              })}
+                    {choice.label}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          {timing === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={MAX_LEAD_MINUTES / 60}
+                step={1}
+                value={customHours}
+                onChange={(e) => setCustomHours(e.target.value)}
+                className="w-24 h-11 px-3.5 py-2 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
+                aria-label="Hours before renewal"
+              />
+              <span className="text-xs text-[#94A3B8]">hours before renewal</span>
             </div>
           )}
-        </div>
+        </fieldset>
 
-        {/* ---- Note ---- */}
-        <div className="space-y-1.5 pt-1">
-          <label className="text-[13px] font-medium text-[#94A3B8] block">
+        {/* ---- Method (independent channels) ---- */}
+        <fieldset className="space-y-2">
+          <legend className="text-[13px] font-medium text-[#94A3B8]">Reminder Method</legend>
+          <div className="grid grid-cols-2 gap-2">
+            <label
+              className={`px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-center gap-2 border transition-colors cursor-pointer ${
+                emailOn
+                  ? 'bg-[#1F2425] text-[#F5F7F6] font-semibold border-[#2A3032]'
+                  : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={emailOn}
+                onChange={(e) => setEmailOn(e.target.checked)}
+              />
+              <Mail className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">Email</span>
+            </label>
+
+            <label
+              className={`px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium flex items-center justify-center gap-2 border transition-colors cursor-pointer ${
+                pushOn
+                  ? 'bg-[#1F2425] text-[#F5F7F6] font-semibold border-[#2A3032]'
+                  : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={pushOn}
+                onChange={(e) => setPushOn(e.target.checked)}
+              />
+              <BellRing className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">Push Notification</span>
+            </label>
+          </div>
+        </fieldset>
+
+        {/* ---- Optional note ---- */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="reminder-note"
+            className="text-[13px] font-medium text-[#94A3B8] block"
+          >
             Optional Note
           </label>
           <textarea
+            id="reminder-note"
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Transfer money to my subscription account before renewal."
             className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] resize-none"
           />
         </div>

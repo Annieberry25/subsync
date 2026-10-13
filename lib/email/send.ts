@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Resend } from 'resend';
 import { logger } from '@/lib/logger';
-import { renderWelcomeEmail, renderSubscriptionCreatedEmail, renderRenewalReminderEmail, renderAccountDeleteCodeEmail, renderAccountDeletedEmail } from './templates';
+import { renderWelcomeEmail, renderSubscriptionCreatedEmail, renderRenewalReminderEmail, renderAccountDeleteCodeEmail, renderAccountDeletedEmail, renderTestNotificationEmail } from './templates';
 import { SIGN_IN_URL } from './layout';
 import type { EmailKind, SubscriptionEmailData } from './types';
 
@@ -108,6 +108,18 @@ export function sendRenewalReminderEmail(
 
 export function sendAccountDeleteCodeEmail(to: string, code: string): Promise<SendResult> {
   const { subject, html } = renderAccountDeleteCodeEmail(code);
+  return deliver(to, subject, html);
+}
+
+/**
+ * One-off test email for the Settings "Send test notification" button, so the
+ * delivery path can be verified without waiting for a renewal.
+ */
+export function sendTestNotificationEmail(
+  to: string,
+  firstName?: string | null
+): Promise<SendResult> {
+  const { subject, html } = renderTestNotificationEmail(firstName);
   return deliver(to, subject, html);
 }
 

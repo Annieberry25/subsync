@@ -21,6 +21,7 @@ import {
   saveReminderPreference,
   type ReminderPreference,
 } from '@/lib/services/reminder-preferences';
+import { describeLeadMinutes } from '@/lib/reminders/plan';
 
 import SubscriptionCard from './subscription-card';
 import SubscriptionTable from './subscription-table';
@@ -111,7 +112,7 @@ export default function SubscriptionManager() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [reminderSubscription, setReminderSubscription] = useState<SubscriptionRow | null>(null);
-  const [reminderReturnToDetailSub, setReminderReturnToDetailSub] = useState<SubscriptionRow | null>(null);
+  
   const [reminders, setReminders] = useState<Record<string, { timing: string; method: string; note?: string; dismissed?: boolean }>>(() => {
     if (typeof window === 'undefined') return {};
     try {
@@ -146,17 +147,18 @@ export default function SubscriptionManager() {
 
   const handleSaveReminder = async (
     subId: string,
-    data: { emailLeadDays: number | null; pushLeadDays: number | null; note?: string }
+    data: { emailLeadMinutes: number | null; pushLeadMinutes: number | null; note?: string }
   ) => {
     // localStorage first so the on-screen badge updates even if the write below
     // fails; the database copy is what the cron actually reads.
+    const lead = data.emailLeadMinutes ?? data.pushLeadMinutes;
     const updated = {
       ...reminders,
       [subId]: {
-        timing: data.emailLeadDays ? `${data.emailLeadDays}_days` : 'push_only',
-        method: data.emailLeadDays ? 'both' : 'push',
-        emailLeadDays: data.emailLeadDays,
-        pushLeadDays: data.pushLeadDays,
+        timing: lead ? describeLeadMinutes(lead) : 'push_only',
+        method: data.emailLeadMinutes ? 'both' : 'push',
+        emailLeadMinutes: data.emailLeadMinutes,
+        pushLeadMinutes: data.pushLeadMinutes,
         dismissed: false,
       },
     };
@@ -169,8 +171,8 @@ export default function SubscriptionManager() {
 
     const saved = await saveReminderPreference({
       subscriptionId: subId,
-      emailLeadDays: data.emailLeadDays,
-      pushLeadDays: data.pushLeadDays,
+      emailLeadMinutes: data.emailLeadMinutes,
+      pushLeadMinutes: data.pushLeadMinutes,
       note: data.note ?? null,
     });
 
@@ -179,8 +181,8 @@ export default function SubscriptionManager() {
         ...prev.filter((p) => p.subscriptionId !== subId),
         {
           subscriptionId: subId,
-          emailLeadDays: data.emailLeadDays,
-          pushLeadDays: data.pushLeadDays,
+          emailLeadMinutes: data.emailLeadMinutes,
+          pushLeadMinutes: data.pushLeadMinutes,
           note: data.note ?? null,
         },
       ]);
@@ -201,7 +203,7 @@ export default function SubscriptionManager() {
   };
 
   const handleDismissReminder = (sub: SubscriptionRow) => {
-    const existing = reminders[sub.id] || { timing: '7_days', method: 'both' };
+    const existing = reminders[sub.id] || { timing: '', method: 'both' };
     const updated = {
       ...reminders,
       [sub.id]: { ...existing, dismissed: true },
@@ -905,10 +907,6 @@ export default function SubscriptionManager() {
           setDeleteReturnToDetailSub(item);
           setDeletingSubscription(item);
         }}
-        onPaymentReminderRequest={(item) => {
-          setReminderReturnToDetailSub(item);
-          setReminderSubscription(item);
-        }}
       />
 
       {/* Subscription Form Modal */}
@@ -975,11 +973,6 @@ export default function SubscriptionManager() {
         isOpen={!!reminderSubscription}
         onClose={() => {
           setReminderSubscription(null);
-          if (reminderReturnToDetailSub) {
-            setSelectedDetailSub(reminderReturnToDetailSub);
-            setIsDetailOpen(true);
-            setReminderReturnToDetailSub(null);
-          }
         }}
         onSave={(data) => {
           if (reminderSubscription) {
@@ -988,14 +981,14 @@ export default function SubscriptionManager() {
         }}
         subscriptionName={reminderSubscription?.name || ''}
         nextBillingDate={reminderSubscription?.next_billing_date}
-        initialEmailLeadDays={
+        initialEmailLeadMinutes={
           reminderSubscription
-            ? reminderPrefBySub.get(reminderSubscription.id)?.emailLeadDays
+            ? reminderPrefBySub.get(reminderSubscription.id)?.emailLeadMinutes
             : undefined
         }
-        initialPushLeadDays={
+        initialPushLeadMinutes={
           reminderSubscription
-            ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadDays
+            ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadMinutes
             : undefined
         }
       />
