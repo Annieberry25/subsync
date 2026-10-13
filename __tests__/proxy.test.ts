@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
+ * Next 16 renamed the `middleware` file convention to `proxy`; this suite tracks
+ * that rename, so the exemptions are asserted against `proxy`.
+ *
  * The per-IP window (30 requests / 60s) sits in front of every path, including
  * the two that Paystack calls back into. When it tripped, the browser returned
  * from checkout onto a bare "Too Many Requests" page: the payment completed,
@@ -25,7 +28,7 @@ vi.mock('@/lib/supabase/middleware', () => ({
   updateSession: mocks.updateSession,
 }));
 
-import { middleware } from '@/middleware';
+import { proxy } from '@/proxy';
 
 function makeRequest(pathname: string): NextRequest {
   return {
@@ -41,11 +44,11 @@ beforeEach(() => {
   mocks.isRateLimited.mockResolvedValue(false);
 });
 
-describe('middleware rate limiting', () => {
+describe('proxy rate limiting', () => {
   it('never rate limits the Paystack callback', async () => {
     mocks.isRateLimited.mockResolvedValue(true);
 
-    const response = await middleware(makeRequest('/api/paystack/callback'));
+    const response = await proxy(makeRequest('/api/paystack/callback'));
 
     expect(mocks.isRateLimited).not.toHaveBeenCalled();
     expect(mocks.updateSession).toHaveBeenCalled();
@@ -55,16 +58,32 @@ describe('middleware rate limiting', () => {
   it('never rate limits the Paystack webhook', async () => {
     mocks.isRateLimited.mockResolvedValue(true);
 
-    const response = await middleware(makeRequest('/api/paystack/webhook'));
+    const response = await proxy(makeRequest('/api/paystack/webhook'));
 
     expect(mocks.isRateLimited).not.toHaveBeenCalled();
+    expect(response.status).not.toBe(429);
+  });
+
+  /**
+   * `/sw.js` is the push service worker script. It is a static file that the
+   * matcher does not exclude (its list is image extensions only), so it reached
+   * here and could be answered with a 429. The browser would then install a body
+   * that is not JavaScript and push would break with no visible cause.
+   */
+  it('never rate limits the push service worker script', async () => {
+    mocks.isRateLimited.mockResolvedValue(true);
+
+    const response = await proxy(makeRequest('/sw.js'));
+
+    expect(mocks.isRateLimited).not.toHaveBeenCalled();
+    expect(mocks.updateSession).toHaveBeenCalled();
     expect(response.status).not.toBe(429);
   });
 
   it('still rate limits every other route', async () => {
     mocks.isRateLimited.mockResolvedValue(true);
 
-    const response = await middleware(makeRequest('/api/paystack/initialize'));
+    const response = await proxy(makeRequest('/api/paystack/initialize'));
 
     expect(mocks.isRateLimited).toHaveBeenCalled();
     expect(mocks.updateSession).not.toHaveBeenCalled();
@@ -72,7 +91,7 @@ describe('middleware rate limiting', () => {
   });
 
   it('lets requests through when the window has room', async () => {
-    const response = await middleware(makeRequest('/settings'));
+    const response = await proxy(makeRequest('/settings'));
 
     expect(mocks.updateSession).toHaveBeenCalled();
     expect(response.status).not.toBe(429);

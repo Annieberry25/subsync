@@ -979,7 +979,6 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
         }}
         onEdit={() => {}}
         onDeleteRequest={() => {}}
-        onPaymentReminderRequest={() => {}}
         onRestoreRequest={async (sub) => {
           setIsDetailOpen(false);
           setSelectedSub(null);

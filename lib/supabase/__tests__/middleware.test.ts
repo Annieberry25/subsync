@@ -76,6 +76,22 @@ describe('updateSession public routes', () => {
     }
   );
 
+  /**
+   * The push service worker is a public static file, but the matcher only
+   * excludes image extensions, so `/sw.js` was caught and 307'd to /login for a
+   * request without the session cookie. The browser then received the login page
+   * as its worker script and registration failed with an unsupported MIME type,
+   * so push silently never subscribed.
+   */
+  it('serves the push service worker instead of redirecting to /login', async () => {
+    const response = await updateSession(makeRequest('/sw.js'));
+
+    expect(response.status).toBe(200);
+    const location = response.headers.get('location');
+    expect(location ?? '').not.toContain('/login');
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
   it('still redirects a protected page to /login when signed out', async () => {
     const response = await updateSession(makeRequest('/subscriptions'));
 

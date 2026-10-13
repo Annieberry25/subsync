@@ -127,13 +127,20 @@ export async function enablePushNotifications(): Promise<PushPermissionState> {
       ? window.btoa(String.fromCharCode(...new Uint8Array(currentKey)))
       : null;
 
-    const subscription =
-      existing && (!currentKeyB64 || currentKeyB64 === publicKey)
-        ? existing
-        : await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(publicKey),
-          });
+    let subscription: PushSubscription;
+    if (existing && (!currentKeyB64 || currentKeyB64 === publicKey)) {
+      subscription = existing;
+    } else {
+      // `subscribe()` rejects with InvalidStateError while a subscription bound to
+      // a different key still exists, so it has to be dropped first — otherwise
+      // the stale subscription is left in place and the switch reports ON while
+      // the server has nothing to send to.
+      if (existing) await existing.unsubscribe().catch(() => undefined);
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
 
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
@@ -158,6 +165,42 @@ export async function enablePushNotifications(): Promise<PushPermissionState> {
     return 'granted';
   } catch {
     return 'granted';
+  }
+}
+
+/**
+ * Re-assert an existing browser subscription to the server.
+ *
+ * A device can hold a live `PushSubscription` whose row never reached the
+ * database — a 401, a 429, a dropped request, or a table that did not exist yet
+ * at enable time. The settings switch reads the browser subscription, so it
+ * shows ON while the cron sees no endpoint and pushes nothing. Opening settings
+ * re-POSTs the current subscription; the route upserts on (user_id, endpoint),
+ * so this is idempotent and repairs the row.
+ */
+export async function syncPushSubscription(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration(SERVICE_WORKER_PATH);
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return false;
+
+    const json = subscription.toJSON();
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return false;
+
+    const res = await fetch(SUBSCRIBE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint: json.endpoint,
+        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
   }
 }
 

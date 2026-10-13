@@ -10,6 +10,7 @@ import {
   Mail,
 } from 'lucide-react';
 import { goBack } from '@/lib/back-nav';
+import { SUPPORT_MAILTO } from '@/lib/constants/contact';
 
 interface HelpTopic {
   id: string;
@@ -425,7 +426,7 @@ export default function HelpPage() {
         </div>
 
         <a
-          href="mailto:support@subhalt.app"
+          href={SUPPORT_MAILTO}
           className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-colors cursor-pointer shrink-0"
         >
           Contact Support

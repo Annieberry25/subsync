@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import DashboardV2 from '@/components/dashboard/dashboard-v2';
-import { MinimalHome } from '@/components/home/minimal-home';
+import { LandingPage } from '@/components/landing/landing-page';
 import { HOME_TITLE, HOME_DESCRIPTION } from '@/lib/seo/home-copy';
 
 /**
@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootPage() {
   const user = await getUser();
 
-  if (!user) return <MinimalHome />;
+  if (!user) return <LandingPage />;
 
   return <DashboardV2 />;
 }

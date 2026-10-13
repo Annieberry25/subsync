@@ -17,7 +17,7 @@ import { useInbox, type InboxItem } from '@/lib/contexts/inbox-context';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { fetchSubscriptions, type SubscriptionRow } from '@/lib/services/subscription-service';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
-import PaymentReminderModal from '@/components/subscriptions/payment-reminder-modal';
+
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { AdBanner } from '@/components/dashboard/ad-banner';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -52,8 +52,7 @@ export default function InboxPageContent() {
   // Modals for Actions
   const [selectedSub, setSelectedSub] = useState<SubscriptionRow | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [reminderSub, setReminderSub] = useState<SubscriptionRow | null>(null);
-  const [isReminderOpen, setIsReminderOpen] = useState(false);
+  
 
   // Long press timer ref for mobile interactions
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -585,31 +584,7 @@ export default function InboxPageContent() {
         }}
         onEdit={() => {}}
         onDeleteRequest={() => {}}
-        onPaymentReminderRequest={(sub) => {
-          setSelectedSub(null);
-          setIsDetailOpen(false);
-          setReminderSub(sub);
-          setIsReminderOpen(true);
-        }}
       />
-
-      {/* Payment Reminder Modal */}
-      {reminderSub && (
-        <PaymentReminderModal
-          subscriptionName={reminderSub.name}
-          nextBillingDate={reminderSub.next_billing_date}
-          isOpen={isReminderOpen}
-          onClose={() => {
-            setIsReminderOpen(false);
-            setReminderSub(null);
-          }}
-          onSave={() => {
-            setIsReminderOpen(false);
-            setReminderSub(null);
-            toast.success(`Reminder set for ${reminderSub.name}`, 'Reminder Configured');
-          }}
-        />
-      )}
     </div>
   );
 }

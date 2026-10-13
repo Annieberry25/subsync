@@ -26,6 +26,7 @@ import {
   fetchReminderPreferences,
   type ReminderPreference,
 } from '@/lib/services/reminder-preferences';
+import { describeLeadMinutes } from '@/lib/reminders/plan';
 import { MetricCardSkeleton } from '@/components/ui/skeleton';
 import { StatGrid } from '@/components/ui/stat-grid';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -130,8 +131,8 @@ export default function DashboardV2() {
   });
 
   /* Server-backed reminder preferences, loaded so the sheet shows what the cron
-     will actually do. With no row the cron pushes at 10 days and never emails,
-     which is exactly what the sheet must display by default. */
+     will actually do. With no row the automatic day-before reminder still runs,
+     but the user's own extra reminder stays off until they configure one. */
   const [reminderPrefs, setReminderPrefs] = useState<ReminderPreference[]>([]);
 
   const reminderPrefBySub = useMemo(() => {
@@ -259,17 +260,18 @@ const handleSave = async (
 
   const handleSaveReminder = async (
     subId: string,
-    data: { emailLeadDays: number | null; pushLeadDays: number | null; note?: string }
+    data: { emailLeadMinutes: number | null; pushLeadMinutes: number | null; note?: string }
   ) => {
     // The localStorage copy keeps the on-screen badge working offline; the database
     // copy is the one the reminder cron reads.
+    const lead = data.emailLeadMinutes ?? data.pushLeadMinutes;
     const updated = {
       ...reminders,
       [subId]: {
-        timing: data.emailLeadDays ? `${data.emailLeadDays}_days` : 'push_only',
-        method: data.emailLeadDays ? 'both' : 'push',
-        emailLeadDays: data.emailLeadDays,
-        pushLeadDays: data.pushLeadDays,
+        timing: lead ? describeLeadMinutes(lead) : 'push_only',
+        method: data.emailLeadMinutes ? 'both' : 'push',
+        emailLeadMinutes: data.emailLeadMinutes,
+        pushLeadMinutes: data.pushLeadMinutes,
         dismissed: false,
       },
     };
@@ -282,8 +284,8 @@ const handleSave = async (
 
     const saved = await saveReminderPreference({
       subscriptionId: subId,
-      emailLeadDays: data.emailLeadDays,
-      pushLeadDays: data.pushLeadDays,
+      emailLeadMinutes: data.emailLeadMinutes,
+      pushLeadMinutes: data.pushLeadMinutes,
       note: data.note ?? null,
     });
 
@@ -303,8 +305,8 @@ const handleSave = async (
       ...prev.filter((p) => p.subscriptionId !== subId),
       {
         subscriptionId: subId,
-        emailLeadDays: data.emailLeadDays,
-        pushLeadDays: data.pushLeadDays,
+        emailLeadMinutes: data.emailLeadMinutes,
+        pushLeadMinutes: data.pushLeadMinutes,
         note: data.note ?? null,
       },
     ]);
@@ -500,14 +502,14 @@ const handleSave = async (
         }}
         subscriptionName={reminderSubscription?.name || ''}
         nextBillingDate={reminderSubscription?.next_billing_date}
-        initialEmailLeadDays={
+        initialEmailLeadMinutes={
           reminderSubscription
-            ? reminderPrefBySub.get(reminderSubscription.id)?.emailLeadDays
+            ? reminderPrefBySub.get(reminderSubscription.id)?.emailLeadMinutes
             : undefined
         }
-        initialPushLeadDays={
+        initialPushLeadMinutes={
           reminderSubscription
-            ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadDays
+            ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadMinutes
             : undefined
         }
       />
@@ -537,10 +539,6 @@ const handleSave = async (
         onDeleteRequest={(sub: SubscriptionRow) => {
           setSelectedDetailSub(null);
           setDeletingSubscription(sub);
-        }}
-        onPaymentReminderRequest={(sub: SubscriptionRow) => {
-          setSelectedDetailSub(null);
-          setReminderSubscription(sub);
         }}
         onCancellationAssistance={(sub: SubscriptionRow) => {
           setSelectedDetailSub(null);

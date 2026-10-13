@@ -11,6 +11,7 @@ import {
   enablePushNotifications,
   disablePushNotifications,
   hasPushSubscription,
+  syncPushSubscription,
   type PushPermissionState,
 } from '@/lib/push/client';
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
@@ -48,6 +49,7 @@ import {
   SUBHALT_SUBSCRIPTION_NAME,
   buildPlusSubscriptionRecord,
 } from '@/lib/constants/plus-plan';
+import { SUPPORT_MAILTO } from '@/lib/constants/contact';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import {
   fetchSubscriptions,
@@ -201,19 +203,24 @@ function SettingsContent() {
   const { theme, setTheme } = useTheme();
 
   const sectionParam = (searchParams.get('section') as SettingsSection) || 'account';
+  const hasSectionParam = searchParams.has('section');
   const [activeSection, setActiveSection] = useState<SettingsSection>(sectionParam);
   
   // Mobile two-level navigation state: null = showing category list screen; non-null = viewing specific section page
   const [mobileSectionView, setMobileSectionView] = useState<SettingsSection | null>(
-    searchParams.has('section') ? sectionParam : null
+    hasSectionParam ? sectionParam : null
   );
 
-  // Sync section from URL param (render-phase adjustment).
-  const [prevSectionParam, setPrevSectionParam] = useState(sectionParam);
-  if (sectionParam !== prevSectionParam) {
-    setPrevSectionParam(sectionParam);
+  // Sync section from URL param (render-phase adjustment). Tracked as null when
+  // the query has no `section`, because the `|| 'account'` default above would
+  // otherwise re-open the Account section whenever the param is cleared — so the
+  // mobile back button landed on Account instead of the category list.
+  const sectionKey = hasSectionParam ? sectionParam : null;
+  const [prevSectionKey, setPrevSectionKey] = useState<SettingsSection | null>(sectionKey);
+  if (sectionKey !== prevSectionKey) {
+    setPrevSectionKey(sectionKey);
     setActiveSection(sectionParam);
-    setMobileSectionView(sectionParam);
+    setMobileSectionView(sectionKey);
   }
 
   const {
@@ -274,8 +281,14 @@ function SettingsContent() {
       if (!active) return;
       setPushSupported(isPushSupported());
       setPushPermission(getPushPermissionState());
-      void hasPushSubscription().then((subscribed) => {
-        if (active) setPushEnabled(subscribed);
+      // A device can hold a live subscription whose row never reached the
+      // server (a dropped POST, an expired session, or a /sw.js that was being
+      // served as the login page). Re-POST the browser subscription on open so
+      // the switch can only read ON when the cron actually has an endpoint.
+      void syncPushSubscription().then((synced) => {
+        void hasPushSubscription().then((subscribed) => {
+          if (active) setPushEnabled(subscribed && synced);
+        });
       });
     });
     return () => {
@@ -721,7 +734,6 @@ function SettingsContent() {
         onClose={() => setIsViewSubscriptionOpen(false)}
         onEdit={() => {}}
         onDeleteRequest={() => {}}
-        onPaymentReminderRequest={() => {}}
       />
 
       <PaymentResultSheet
@@ -973,14 +985,16 @@ function SettingsContent() {
         </SettingsGroup>
 
         {/* Danger zone: standalone row with its own red rounded corners,
-            deliberately not wrapped in a card. */}
+            deliberately not wrapped in a card. No trailing chevron: this opens a
+            confirmation sheet rather than navigating anywhere, and a chevron
+            elsewhere in the settings list means "there is another page". Reading
+            a destructive action as a navigation is the wrong guess to invite. */}
         <button
           type="button"
           onClick={() => setIsDeleteAccountOpen(true)}
-          className="w-full flex items-center justify-between gap-4 min-h-[56px] px-4 rounded-2xl border border-[#D9363E]/50 text-[#D9363E] hover:bg-[#D9363E]/10 transition-colors cursor-pointer"
+          className="w-full flex items-center min-h-[56px] px-4 rounded-2xl border border-[#D9363E]/50 text-[#D9363E] hover:bg-[#D9363E]/10 transition-colors cursor-pointer"
         >
           <span className="text-sm font-medium">Delete SubHalt Account</span>
-          <ChevronRight className="w-4 h-4 shrink-0 text-[#D9363E]/70" aria-hidden="true" />
         </button>
       </section>
     );
@@ -1041,11 +1055,7 @@ function SettingsContent() {
             />
           </SettingsRow>
 
-          <SettingsRow
-            icon={Bell}
-            title="In-app Alerts"
-            description="Inbox unread badges & bell indicators"
-          >
+          <SettingsRow icon={Bell} title="In-app Alerts">
             <ToggleSwitch
               checked={notificationPreferences.inApp}
               ariaLabel="In-app alerts"
@@ -1075,7 +1085,7 @@ function SettingsContent() {
                 ? 'Not supported by this browser'
                 : pushPermission === 'denied'
                   ? 'Blocked for this site. Allow them in your browser settings'
-                  : 'Renewal reminders, weekly recap & new insights'
+                  : undefined
             }
           >
             <ToggleSwitch
@@ -1130,7 +1140,7 @@ function SettingsContent() {
             title="Renewal Emails"
             description={
               notificationPreferences.email
-                ? 'Emails at the lead time you chose per subscription'
+                ? undefined
                 : 'Off. Renewal reminders are sent as push instead'
             }
           >
@@ -1238,7 +1248,7 @@ function SettingsContent() {
             description="Reach out directly to the SubHalt support team"
           >
             <a
-              href="mailto:support@subhalt.app"
+              href={SUPPORT_MAILTO}
               className="text-xs font-semibold text-[#14B8A6] hover:underline"
             >
               Email

@@ -7,7 +7,6 @@ import {
   parseAccountLinks,
   parseAttachedReceipts,
   cleanNotesUserText,
-  getKnownProviderManagementUrl
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { toAbsoluteUrl } from '@/lib/utils/url-utils';
@@ -19,7 +18,6 @@ interface SubscriptionDetailModalProps {
   onClose: () => void;
   onEdit: (subscription: SubscriptionRow) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
-  onPaymentReminderRequest: (subscription: SubscriptionRow) => void;
   onRestoreRequest?: (subscription: SubscriptionRow) => void;
   onCancellationAssistance?: (subscription: SubscriptionRow) => void;
 }
@@ -45,7 +43,6 @@ export default function SubscriptionDetailModal({
   onClose,
   onEdit,
   onDeleteRequest,
-  onPaymentReminderRequest,
   onRestoreRequest,
   onCancellationAssistance,
 }: SubscriptionDetailModalProps) {
@@ -97,25 +94,21 @@ export default function SubscriptionDetailModal({
     ? rawStartDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
 
-  /* Resolved once so the footer action and the handler can never disagree. */
-  const manageSubscriptionUrl =
-    getKnownProviderManagementUrl(subscription.name) || activeProviderUrl;
-
-  const handleManageWebsite = () => {
-    if (manageSubscriptionUrl) {
-      window.open(manageSubscriptionUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    // A dead control that only reports "no URL configured" gave the user no way
-    // out. Without a portal link the useful action is to let them supply one.
-    onClose();
-    onEdit(subscription);
-  };
-
   /* Pinned in the Sheet footer so the actions stay reachable while the
-     detail sections scroll behind them. */
+     detail sections scroll behind them.
+
+     Reminder and provider-management live on the subscription card rather than
+     here: the card already carries a "Payment reminder" and a "Manage
+     subscription" control for the same row, so repeating them here gave the
+     same job two entry points and pushed the sheet's pinned footer past the
+     width of a phone. This sheet keeps only what is specific to viewing a
+     single subscription: edit, cancel, delete, restore.
+
+     The row is pushed to the end rather than starting at the left edge so the
+     actions line up with the sheet's own footer buttons (the cancel/save pair
+     on sibling sheets) instead of floating against the opposite margin. */
   const actions = (
-    <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-3 text-xs">
+    <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-3 text-xs">
       {onRestoreRequest ? (
         <button
           type="button"
@@ -138,25 +131,6 @@ export default function SubscriptionDetailModal({
             className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
           >
             Edit Subscription
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onPaymentReminderRequest(subscription);
-            }}
-            className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-          >
-            Set Reminder
-          </button>
-
-          <button
-            type="button"
-            onClick={handleManageWebsite}
-            className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-          >
-            {manageSubscriptionUrl ? 'Manage Subscription' : 'Add Provider Link'}
           </button>
 
           {onCancellationAssistance && (

@@ -23,7 +23,19 @@ import { hasVerifiedMfaFactor } from '@/lib/auth/mfa';
  * Compare on a segment boundary rather than a bare prefix so a route like
  * `/robots.txt.bak` cannot slip through on the strength of its prefix.
  */
-const PUBLIC_ROUTES = ['/api', '/robots.txt', '/sitemap.xml', '/manifest.webmanifest'] as const;
+const PUBLIC_ROUTES = [
+  '/api',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/manifest.webmanifest',
+  // The push service worker. It is a public static file, but the matcher in
+  // middleware.ts only excludes image extensions, so `/sw.js` was being caught
+  // and 307'd to /login for any request without the session cookie. A service
+  // worker registration that receives the login page as its script fails with an
+  // unsupported MIME type, so push silently never subscribed. It must be
+  // fetchable by the browser's worker machinery without a session.
+  '/sw.js',
+] as const;
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
