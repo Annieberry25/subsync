@@ -10,6 +10,7 @@ import { addDays, triggerDateFromMinutes, utcToday } from './dates';
 import {
   deliveryKey,
   planReminders,
+  FINAL_HOURS_LEAD_MINUTES,
   MAX_LEAD_MINUTES,
   type PlannedReminder,
   type PlannerPreference,
@@ -280,11 +281,28 @@ export async function runRenewalReminders({
 
     if (item.channel === 'push') {
       const renewsOn = humanizeRenewal(item.minutesUntilRenewal);
+      const isFinalCall = item.leadMinutes === FINAL_HOURS_LEAD_MINUTES;
+
+      /*
+       * The final call is worded as an action rather than a second notice, and
+       * deep-links to the subscription itself rather than the list, so cancelling
+       * is one tap from the notification. `highlight` + `detail` is the existing
+       * deep-link contract the app already uses to open a single subscription.
+       */
+      const payload = isFinalCall
+        ? {
+            title: `${item.name} ${renewsOn}`,
+            body: 'Cancel it now if you do not want to be charged again.',
+            url: `/subscriptions?highlight=${encodeURIComponent(item.subscriptionId)}&detail=true`,
+          }
+        : {
+            title: `${item.name} ${renewsOn}`,
+            body: 'A heads-up so the next charge is not a surprise.',
+            url: '/subscriptions',
+          };
 
       const result = await sendPushToUser(item.userId, {
-        title: `${item.name} ${renewsOn}`,
-        body: 'A heads-up so the next charge is not a surprise.',
-        url: '/subscriptions',
+        ...payload,
         tag: `renewal-${item.subscriptionId}-${item.leadMinutes}`,
       });
 

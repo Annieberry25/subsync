@@ -129,7 +129,7 @@ beforeEach(() => {
 const RUN_AT = new Date('2026-10-12T09:00:00Z');
 
 describe('runRenewalReminders — in-app inbox', () => {
-  it('writes one inbox notice per due stage when the automatic reminder goes out by email', async () => {
+  it('writes one inbox notice when the automatic reminder goes out by email', async () => {
     mocks.sendPush.mockResolvedValue({ sent: 0, failed: 0, removed: 0, skipped: true });
     mocks.sendEmail.mockResolvedValue({ ok: true });
 
@@ -140,9 +140,9 @@ describe('runRenewalReminders — in-app inbox', () => {
 
     expect(report.emailsSent).toBe(1);
     expect(report.pushSent).toBe(0);
-    // One notice for the 2d stage and one for the 10-day nudge: the inbox carries
-    // each stage rather than collapsing the renewal to a single row.
-    expect(inserted.inbox).toHaveLength(2);
+    // One notice: only the most urgent due stage is scheduled per channel, and
+    // both channels of that single stage share the one notice.
+    expect(inserted.inbox).toHaveLength(1);
     expect(inserted.inbox[0]).toMatchObject({
       user_id: 'u1',
       type: 'renewal',
@@ -172,7 +172,7 @@ describe('runRenewalReminders — in-app inbox', () => {
     // The opt-in chose the 2-day lead, which the automatic stage already sends, so
     // there is still exactly one email and no extra notice.
     expect(report.emailsSent).toBe(1);
-    expect(inserted.inbox).toHaveLength(2);
+    expect(inserted.inbox).toHaveLength(1);
   });
 
   it('does not duplicate a notice a later run already wrote for the renewal', async () => {
@@ -202,7 +202,7 @@ describe('runRenewalReminders — in-app inbox', () => {
     // Nothing left the app, but the in-app inbox is itself a channel.
     expect(report.emailsSent).toBe(0);
     expect(report.pushSent).toBe(0);
-    expect(inserted.inbox).toHaveLength(2);
+    expect(inserted.inbox).toHaveLength(1);
     expect(inserted.inbox[0]).toMatchObject({ user_id: 'u1', type: 'renewal' });
   });
 

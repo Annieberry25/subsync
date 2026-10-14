@@ -5,7 +5,8 @@ import {
   autoLeadMinutesFor,
   AUTO_LEAD_MINUTES_MONTHLY,
   AUTO_LEAD_MINUTES_ANNUAL,
-  UPCOMING_LEAD_MINUTES,
+UPCOMING_LEAD_MINUTES,
+  FINAL_HOURS_LEAD_MINUTES,
   DEFAULT_USER_LEAD_MINUTES,
   type PlannerSubscription,
   type PlannerPreference,
@@ -90,12 +91,18 @@ describe('planReminders (automatic stages)', () => {
     expect(auto.map((p) => p.channel).sort()).toEqual(['email', 'push']);
   });
 
+  /**
+   * Ten days out on a daily cron, the 10-day nudge is the only thing due, so it
+   * wins on its own channel. Later, once a closer stage is due, it is superseded
+   * instead of arriving late.
+   */
   it('sends the 10-day nudge on push only', () => {
-    const { planned } = run([sub('s1', RENEWAL)], [], [], TWO_DAYS_OUT);
+    const { planned } = run([sub('s1', '2026-03-11')], [], [], new Date('2026-03-01T09:00:00Z'));
 
-    const upcoming = planned.filter((p) => p.leadMinutes === UPCOMING_LEAD_MINUTES);
-    expect(upcoming.map((p) => p.channel)).toEqual(['push']);
-    expect(upcoming.some((p) => p.channel === 'email')).toBe(false);
+    expect(planned.filter((p) => p.leadMinutes === UPCOMING_LEAD_MINUTES).map((p) => p.channel)).toEqual([
+      'push',
+    ]);
+    expect(planned.some((p) => p.channel === 'email')).toBe(false);
   });
 
   it('sends only the 1-day stage the next day, the 2-day one already recorded', () => {
@@ -137,6 +144,56 @@ describe('planReminders (automatic stages)', () => {
     expect(skipped.find((s) => s.leadMinutes === 2 * DAY && s.channel === 'push')?.reason).toBe(
       'already_delivered'
     );
+  });
+
+  /**
+   * The burst this prevents. With every stage's window open at once the engine
+   * planned all of them, which delivered five notifications for one charge and a
+   * "10 days before" push the day before the charge.
+   */
+  it('sends only the most urgent stage when several windows are open at once', () => {
+    const { planned, skipped } = run([sub('s1', RENEWAL)], [], [], TWO_DAYS_OUT);
+
+    expect(planned.map((p) => [p.leadMinutes, p.channel])).toEqual([
+      [2 * DAY, 'push'],
+      [2 * DAY, 'email'],
+    ]);
+
+    // The 10-day nudge is dropped, and reported as superseded rather than silently
+    // vanishing.
+    const superseded = skipped.filter((s) => s.reason === 'superseded_by_closer_stage');
+    expect(superseded.map((s) => s.leadMinutes)).toEqual([UPCOMING_LEAD_MINUTES]);
+    expect(superseded[0].channel).toBe('push');
+  });
+
+  it('collapses a late run to the single closest stage per channel', () => {
+    // The day before the renewal: 2d, 1d and 10d are all open at once.
+    const { planned } = run([sub('s1', RENEWAL)], [], [], ONE_DAY_OUT);
+
+    expect(planned.map((p) => p.leadMinutes)).toEqual([1 * DAY, 1 * DAY]);
+    expect(planned.map((p) => p.channel).sort()).toEqual(['email', 'push']);
+  });
+
+  it('sends the final call on push only, in the last few hours', () => {
+    // 3h out. Push is due for the actionable final call; the email channel has no
+    // 3h stage, so its own closest stage — the 1-day one — is what is still owed
+    // there. Each channel resolves independently.
+    const { planned } = run([sub('s1', RENEWAL)], [], [], new Date('2026-03-04T21:00:00Z'));
+
+    expect(
+      planned
+        .map((p) => [p.leadMinutes, p.channel])
+        .sort((a, b) => (a[1] as string).localeCompare(b[1] as string))
+    ).toEqual([
+      [1 * DAY, 'email'],
+      [FINAL_HOURS_LEAD_MINUTES, 'push'],
+    ]);
+  });
+
+  it('does not fire the final call early', () => {
+    const { planned } = run([sub('s1', RENEWAL)], [], [], TWO_DAYS_OUT);
+
+    expect(planned.some((p) => p.leadMinutes === FINAL_HOURS_LEAD_MINUTES)).toBe(false);
   });
 
   it('catches a missed run up, but not after the renewal has passed', () => {
@@ -241,4 +298,5 @@ describe('planReminders (opt-in Payment Reminder)', () => {
       'push',
     ]);
   });
+
 });

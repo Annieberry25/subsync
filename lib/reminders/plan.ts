@@ -52,6 +52,21 @@ export const ANNUAL_CYCLES: readonly string[] = ['yearly', 'annual'];
  */
 export const UPCOMING_LEAD_MINUTES = 10 * 24 * 60;
 
+/**
+ * The last call: 3 hours before renewal, push only.
+ *
+ * This one is deliberately actionable rather than a repeat of the 1-day warning.
+ * The 2-day and 1-day stages are notices; by this point the user either acted or
+ * did not, and another "heads up" would be noise. Offering the cancel explicitly
+ * gives the second message a reason to exist — and a notification the user can act
+ * on is worth the extra tap even if they opened the first one.
+ *
+ * At least a day is NOT assumed here: this stage cannot ride the daily cron. Its
+ * window is [renewal - 3h, renewal), which a single 09:00 UTC run never lands in.
+ * It needs a run close to the renewal, so the endpoint has to be invoked hourly.
+ */
+export const FINAL_HOURS_LEAD_MINUTES = 3 * 60;
+
 /** The automatic offsets that apply to a subscription's billing cycle. */
 export function autoLeadMinutesFor(billingCycle: string | null | undefined): number[] {
   const cycle = (billingCycle ?? '').trim().toLowerCase();
@@ -110,7 +125,9 @@ export type SkipReason =
   | 'push_disabled'
   | 'email_off'
   | 'not_due'
-  | 'already_delivered';
+  | 'already_delivered'
+  /** Due, but a closer stage went out this run instead. */
+  | 'superseded_by_closer_stage';
 
 export interface SkippedReminder {
   subscriptionId: string;
@@ -238,33 +255,92 @@ export function planReminders(input: PlanInput): Plan {
       continue;
     }
 
-    // ---- Automatic: staged by billing cycle, email + push, ignores preferences --
+    // ---- Candidates ----
+    // Everything that is currently inside its lead window, per channel.
+    const candidates: { channel: ReminderChannel; leadMinutes: number }[] = [];
+
+    // Automatic: staged by billing cycle, email + push, ignores preferences.
     for (const lead of autoLeadMinutesFor(sub.billingCycle)) {
-      decide(sub, 'push', lead, minutes, days, alreadyDelivered, plan);
-      decide(sub, 'email', lead, minutes, days, alreadyDelivered, plan);
+      candidates.push({ channel: 'push', leadMinutes: lead });
+      candidates.push({ channel: 'email', leadMinutes: lead });
     }
 
-    // ---- The 10-day "coming up" nudge: push only, always on ----
-    decide(sub, 'push', UPCOMING_LEAD_MINUTES, minutes, days, alreadyDelivered, plan);
+    // The 10-day "coming up" nudge: push only, always on.
+    candidates.push({ channel: 'push', leadMinutes: UPCOMING_LEAD_MINUTES });
 
-    // ---- The user's own opt-in reminder, independent of the above ----
+    // The final call: push only, inside the last few hours before the charge.
+    candidates.push({ channel: 'push', leadMinutes: FINAL_HOURS_LEAD_MINUTES });
+
+    // The user's own opt-in reminder, independent of the above.
     const pref = input.preferences.get(sub.id);
     const autoLeads = autoLeadMinutesFor(sub.billingCycle);
 
     if (pref?.pushEnabled) {
       const lead = pref.pushLeadMinutes > 0 ? pref.pushLeadMinutes : DEFAULT_USER_LEAD_MINUTES;
-      // A custom offset that coincides with an automatic one collapses into it
-      // (same delivery key), so it is only scheduled here when it is genuinely a
-      // separate reminder.
-      if (lead !== UPCOMING_LEAD_MINUTES && !autoLeads.includes(lead)) {
-        decide(sub, 'push', lead, minutes, days, alreadyDelivered, plan);
+      // A custom offset that coincides with an automatic stage collapses into it
+      // (same delivery key), so it is only a candidate when it is genuinely
+      // separate.
+      if (lead !== UPCOMING_LEAD_MINUTES && lead !== FINAL_HOURS_LEAD_MINUTES && !autoLeads.includes(lead)) {
+        candidates.push({ channel: 'push', leadMinutes: lead });
       }
     }
 
     if (pref?.emailEnabled) {
       const lead = pref.emailLeadMinutes > 0 ? pref.emailLeadMinutes : DEFAULT_USER_LEAD_MINUTES;
       if (!autoLeads.includes(lead)) {
-        decide(sub, 'email', lead, minutes, days, alreadyDelivered, plan);
+        candidates.push({ channel: 'email', leadMinutes: lead });
+      }
+    }
+
+    /*
+     * Only the most urgent due stage is scheduled, per channel.
+     *
+     * The engine treats any run inside a lead window as due, so that a missed run
+     * still catches up. But the automatic reminder has several stages, and after a
+     * missed day — or simply a run later than one stage's day — every stage is open
+     * at once. Scheduling them all produced a burst: five notifications for a single
+     * charge (2d push, 2d email, 1d push, 1d email, 10d push), including a "10 days
+     * before" push arriving the day before the charge.
+     *
+     * Collapsing to the closest due lead per channel keeps the catch-up that matters
+     * — the most urgent reminder is never lost — and drops the rest, so a run that
+     * has fallen behind produces one clear message instead of a pile.
+     */
+    for (const channel of ['push', 'email'] as ReminderChannel[]) {
+      const leads = candidates
+        .filter((c) => c.channel === channel)
+        .map((c) => c.leadMinutes);
+      if (leads.length === 0) continue;
+
+      /*
+       * Ask `decide` about every candidate, because it is what reports not_due and
+       * already_delivered and it is the only thing that consults the delivery
+       * ledger. Everything it plans is temporarily set aside, then only the closest
+       * lead is put back. The others become `superseded_by_closer_stage`, so the
+       * run still explains itself instead of quietly sending five messages.
+       */
+      const staged: PlannedReminder[] = [];
+      for (const lead of leads) {
+        const before = plan.planned.length;
+        decide(sub, channel, lead, minutes, days, alreadyDelivered, plan);
+        if (plan.planned.length > before) staged.push(...plan.planned.splice(before));
+      }
+
+      if (staged.length === 0) continue;
+
+      const mostUrgent = Math.min(...staged.map((p) => p.leadMinutes));
+      for (const item of staged) {
+        if (item.leadMinutes === mostUrgent) {
+          plan.planned.push(item);
+          continue;
+        }
+        plan.skipped.push({
+          subscriptionId: sub.id,
+          channel,
+          leadMinutes: item.leadMinutes,
+          renewalDate: sub.renewalDate,
+          reason: 'superseded_by_closer_stage',
+        });
       }
     }
   }
