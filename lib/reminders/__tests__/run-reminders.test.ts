@@ -101,7 +101,7 @@ function baseState(): DbState {
         name: 'Netflix',
         price: 15.99,
         currency: 'USD',
-        next_billing_date: '2026-10-13',
+        next_billing_date: '2026-10-14',
         status: 'active',
       },
     ],
@@ -121,19 +121,28 @@ beforeEach(() => {
   mocks.isPushConfigured.mockReturnValue(true);
 });
 
+/**
+ * Renewal two days out at 39 hours, run at 09:00. At that point the 2-day stage
+ * and the 10-day nudge are due and the 1-day stage is not, which keeps the
+ * expected channel counts unambiguous.
+ */
+const RUN_AT = new Date('2026-10-12T09:00:00Z');
+
 describe('runRenewalReminders — in-app inbox', () => {
-  it('writes one inbox_items row when the automatic reminder goes out by email', async () => {
+  it('writes one inbox notice per due stage when the automatic reminder goes out by email', async () => {
     mocks.sendPush.mockResolvedValue({ sent: 0, failed: 0, removed: 0, skipped: true });
     mocks.sendEmail.mockResolvedValue({ ok: true });
 
     const report = await runRenewalReminders({
       supabase: makeSupabase(baseState()) as never,
-      now: new Date('2026-10-12T12:00:00Z'),
+      now: RUN_AT,
     });
 
     expect(report.emailsSent).toBe(1);
     expect(report.pushSent).toBe(0);
-    expect(inserted.inbox).toHaveLength(1);
+    // One notice for the 2d stage and one for the 10-day nudge: the inbox carries
+    // each stage rather than collapsing the renewal to a single row.
+    expect(inserted.inbox).toHaveLength(2);
     expect(inserted.inbox[0]).toMatchObject({
       user_id: 'u1',
       type: 'renewal',
@@ -143,26 +152,27 @@ describe('runRenewalReminders — in-app inbox', () => {
     expect(inserted.activity).toHaveLength(1);
   });
 
-  it('collapses the automatic and the opt-in reminder into a single inbox row', async () => {
+  it('collapses an opt-in reminder into an automatic stage that already covers it', async () => {
     const state = baseState();
     state.prefs.push({
       subscription_id: 's1',
       email_enabled: true,
-      email_lead_minutes: 720,
+      email_lead_minutes: 2 * 24 * 60,
       push_enabled: false,
-      push_lead_minutes: 720,
+      push_lead_minutes: 2 * 24 * 60,
     });
     mocks.sendPush.mockResolvedValue({ sent: 0, failed: 0, removed: 0, skipped: true });
     mocks.sendEmail.mockResolvedValue({ ok: true });
 
     const report = await runRenewalReminders({
       supabase: makeSupabase(state) as never,
-      now: new Date('2026-10-12T12:00:00Z'),
+      now: RUN_AT,
     });
 
-    // Automatic 24h and the user's 12h both fire, but only one inbox notice.
-    expect(report.emailsSent).toBe(2);
-    expect(inserted.inbox).toHaveLength(1);
+    // The opt-in chose the 2-day lead, which the automatic stage already sends, so
+    // there is still exactly one email and no extra notice.
+    expect(report.emailsSent).toBe(1);
+    expect(inserted.inbox).toHaveLength(2);
   });
 
   it('does not duplicate a notice a later run already wrote for the renewal', async () => {
@@ -173,7 +183,7 @@ describe('runRenewalReminders — in-app inbox', () => {
 
     const report = await runRenewalReminders({
       supabase: makeSupabase(state) as never,
-      now: new Date('2026-10-12T12:00:00Z'),
+      now: RUN_AT,
     });
 
     expect(report.emailsSent).toBe(1);
@@ -186,13 +196,13 @@ describe('runRenewalReminders — in-app inbox', () => {
 
     const report = await runRenewalReminders({
       supabase: makeSupabase(baseState()) as never,
-      now: new Date('2026-10-12T12:00:00Z'),
+      now: RUN_AT,
     });
 
     // Nothing left the app, but the in-app inbox is itself a channel.
     expect(report.emailsSent).toBe(0);
     expect(report.pushSent).toBe(0);
-    expect(inserted.inbox).toHaveLength(1);
+    expect(inserted.inbox).toHaveLength(2);
     expect(inserted.inbox[0]).toMatchObject({ user_id: 'u1', type: 'renewal' });
   });
 
@@ -202,7 +212,7 @@ describe('runRenewalReminders — in-app inbox', () => {
 
     await runRenewalReminders({
       supabase: makeSupabase(baseState()) as never,
-      now: new Date('2026-10-12T12:00:00Z'),
+      now: RUN_AT,
       dryRun: true,
     });
 

@@ -26,11 +26,11 @@ interface PaymentReminderModalProps {
   initialPushLeadMinutes?: number | null;
 }
 
-type TimingOption = '12_hours' | '3_hours' | 'custom';
+type TimingOption = '3_days' | '5_days' | 'custom';
 
 const timingChoices: { id: TimingOption; label: string; minutes?: number }[] = [
-  { id: '12_hours', label: '12 Hours Before', minutes: 12 * 60 },
-  { id: '3_hours', label: '3 Hours Before', minutes: 3 * 60 },
+  { id: '3_days', label: '3 Days Before', minutes: 3 * 24 * 60 },
+  { id: '5_days', label: '5 Days Before', minutes: 5 * 24 * 60 },
   { id: 'custom', label: 'Custom' },
 ];
 
@@ -40,7 +40,7 @@ const REMINDER_FORM_ID = 'payment-reminder-form';
 function seedControls(
   emailLeadMinutes: number | null | undefined,
   pushLeadMinutes: number | null | undefined
-): { timing: TimingOption; email: boolean; push: boolean; customHours: string } {
+): { timing: TimingOption; email: boolean; push: boolean; customDays: string } {
   const emailSaved = typeof emailLeadMinutes === 'number' && emailLeadMinutes > 0;
   const pushSaved = typeof pushLeadMinutes === 'number' && pushLeadMinutes > 0;
   const anySaved = emailLeadMinutes !== undefined || pushLeadMinutes !== undefined;
@@ -62,7 +62,7 @@ function seedControls(
     timing: preset ? preset.id : 'custom',
     email,
     push,
-    customHours: String(Math.max(1, Math.round(lead / 60))),
+    customDays: String(Math.max(1, Math.round(lead / 1440))),
   };
 }
 
@@ -79,8 +79,8 @@ export default function PaymentReminderModal({
   const [timing, setTiming] = useState<TimingOption>(
     () => seedControls(initialEmailLeadMinutes, initialPushLeadMinutes).timing
   );
-  const [customHours, setCustomHours] = useState(
-    () => seedControls(initialEmailLeadMinutes, initialPushLeadMinutes).customHours
+  const [customDays, setCustomDays] = useState(
+    () => seedControls(initialEmailLeadMinutes, initialPushLeadMinutes).customDays
   );
   const [emailOn, setEmailOn] = useState(
     () => seedControls(initialEmailLeadMinutes, initialPushLeadMinutes).email
@@ -97,7 +97,7 @@ export default function PaymentReminderModal({
     // not leak into the next.
     const seeded = seedControls(initialEmailLeadMinutes, initialPushLeadMinutes);
     setTiming(seeded.timing);
-    setCustomHours(seeded.customHours);
+    setCustomDays(seeded.customDays);
     setEmailOn(seeded.email);
     setPushOn(seeded.push);
     setNote('');
@@ -115,16 +115,16 @@ export default function PaymentReminderModal({
 
     let leadMinutes: number;
     if (timing === 'custom') {
-      const hours = Number(customHours);
-      if (!Number.isFinite(hours) || hours <= 0) {
-        toast.error('Enter how many hours before the renewal.', 'Invalid Time');
+      const days = Number(customDays);
+      if (!Number.isFinite(days) || days <= 0) {
+        toast.error('Enter how many days before the renewal.', 'Invalid Time');
         return;
       }
-      if (hours * 60 > MAX_LEAD_MINUTES) {
+      if (days * 24 * 60 > MAX_LEAD_MINUTES) {
         toast.error('Pick a time within 30 days before the renewal.', 'Too Far Ahead');
         return;
       }
-      leadMinutes = Math.round(hours * 60);
+      leadMinutes = Math.round(days * 24 * 60);
     } else {
       leadMinutes = timingChoices.find((t) => t.id === timing)?.minutes ?? DEFAULT_USER_LEAD_MINUTES;
     }
@@ -201,14 +201,14 @@ export default function PaymentReminderModal({
               <input
                 type="number"
                 min={1}
-                max={MAX_LEAD_MINUTES / 60}
+                max={MAX_LEAD_MINUTES / (24 * 60)}
                 step={1}
-                value={customHours}
-                onChange={(e) => setCustomHours(e.target.value)}
+                value={customDays}
+                onChange={(e) => setCustomDays(e.target.value)}
                 className="w-24 h-11 px-3.5 py-2 text-xs rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6]"
-                aria-label="Hours before renewal"
+                aria-label="Days before renewal"
               />
-              <span className="text-xs text-[#94A3B8]">hours before renewal</span>
+              <span className="text-xs text-[#94A3B8]">days before renewal</span>
             </div>
           )}
         </fieldset>

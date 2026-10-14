@@ -37,14 +37,14 @@ describe('PaymentReminderModal (Timing radio + Method checkboxes)', () => {
     await save();
 
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ emailLeadMinutes: null, pushLeadMinutes: 720 })
+      expect.objectContaining({ emailLeadMinutes: null, pushLeadMinutes: 7200 })
     );
   });
 
   it('offers 12 hours, 3 hours and a custom offset', () => {
     renderSheet();
-    expect(screen.getByRole('radio', { name: '12 Hours Before' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: '3 Hours Before' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '3 Days Before' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '5 Days Before' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Custom' })).toBeInTheDocument();
   });
 
@@ -54,48 +54,48 @@ describe('PaymentReminderModal (Timing radio + Method checkboxes)', () => {
     await save();
 
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ emailLeadMinutes: 720, pushLeadMinutes: 720 })
+      expect.objectContaining({ emailLeadMinutes: 7200, pushLeadMinutes: 7200 })
     );
   });
 
   it('carries the chosen offset to both channels', async () => {
     const { onSave } = renderSheet();
-    await userEvent.click(screen.getByRole('radio', { name: '3 Hours Before' }));
+    await userEvent.click(screen.getByRole('radio', { name: '5 Days Before' }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Email' }));
     await save();
 
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ emailLeadMinutes: 180, pushLeadMinutes: 180 })
+      expect.objectContaining({ emailLeadMinutes: 7200, pushLeadMinutes: 7200 })
     );
   });
 
   it('re-seeds the controls from saved lead offsets', async () => {
-    const { onSave } = renderSheet({ initialEmailLeadMinutes: 180, initialPushLeadMinutes: 180 });
-    expect(screen.getByRole('radio', { name: '3 Hours Before' })).toBeChecked();
+    const { onSave } = renderSheet({ initialEmailLeadMinutes: 7200, initialPushLeadMinutes: 7200 });
+    expect(screen.getByRole('radio', { name: '5 Days Before' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Email' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Push Notification' })).toBeChecked();
 
     await save();
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ emailLeadMinutes: 180, pushLeadMinutes: 180 })
+      expect.objectContaining({ emailLeadMinutes: 7200, pushLeadMinutes: 7200 })
     );
   });
 
   it('turns a custom number of hours into minutes', async () => {
     const { onSave } = renderSheet();
     await userEvent.click(screen.getByRole('radio', { name: 'Custom' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Hours before renewal' }), {
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Days before renewal' }), {
       target: { value: '5' },
     });
     await save();
 
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ pushLeadMinutes: 300 }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ pushLeadMinutes: 7200 }));
   });
 
   it('refuses a custom offset that is not in the future', async () => {
     const { onSave } = renderSheet();
     await userEvent.click(screen.getByRole('radio', { name: 'Custom' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Hours before renewal' }), {
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Days before renewal' }), {
       target: { value: '0' },
     });
     await save();

@@ -11,22 +11,57 @@ import {
  *
  * Two kinds of reminder come out of here:
  *
- *   1. The automatic day-before reminder. Always on, both channels, not stored
- *      per subscription. It exists so nobody is surprised by a charge.
+ *   1. The automatic reminders. Always on, email + push + inbox, not stored per
+ *      subscription, staged by billing cycle (2d/1d for monthly, 7d/1d for
+ *      annual) plus a push-only "coming up" nudge at 10 days.
  *   2. The user's own opt-in reminder from the Payment Reminder sheet. They pick
- *      an offset in hours (12h, 3h, or a custom number) and one or both channels,
- *      and it fires at that offset. If the user never sets one, it never sends.
+ *      an offset in days (3 days, 5 days, or a custom number) and one or both
+ *      channels, and it fires at that offset. If the user never sets one, it
+ *      never sends.
  *
  * Offsets are minutes, anchored to midnight UTC of the renewal date (a renewal
- * is a DATE with no time). This is what allows 12h and 3h to be distinct: a
- * day-granular engine cannot tell twelve hours from three.
+ * is a DATE with no time). Kept in minutes rather than days so a custom offset
+ * can still express a partial day, even though the presets are now whole days.
  */
 
-/** 24h before renewal: the automatic, always-on day-before reminder. */
-export const AUTO_LEAD_MINUTES = 24 * 60;
+/**
+ * Automatic reminder offsets, in minutes before renewal.
+ *
+ * Staged by billing cycle because an annual charge is worth knowing about much
+ * earlier than a monthly one: a monthly renewal is a small, frequent event, so
+ * two nudges close in are enough, while a yearly charge is large enough that a
+ * single day-before notice leaves no room to cancel in time.
+ *
+ * Every offset is at least 24h. That is deliberate rather than incidental: the
+ * cron runs once a day, and a window narrower than the gap between two runs would
+ * open and close entirely between them. Lead times are the daily cron can
+ * actually honour.
+ */
+export const AUTO_LEAD_MINUTES_MONTHLY = [2 * 24 * 60, 1 * 24 * 60] as const;
+export const AUTO_LEAD_MINUTES_ANNUAL = [7 * 24 * 60, 1 * 24 * 60] as const;
 
-/** 12h before renewal: the default opt-in heads-up. */
-export const DEFAULT_USER_LEAD_MINUTES = 12 * 60;
+/** Billing cycles that get the wider annual notice. */
+export const ANNUAL_CYCLES: readonly string[] = ['yearly', 'annual'];
+
+/**
+ * The "coming up" nudge: 10 days out, push only.
+ *
+ * Push rather than email on purpose. Ten days is early enough that the user may
+ * not act on it, and an email that far ahead mostly trains people to archive
+ * unread mail from the address. It stays in the inbox, so it is not lost.
+ */
+export const UPCOMING_LEAD_MINUTES = 10 * 24 * 60;
+
+/** The automatic offsets that apply to a subscription's billing cycle. */
+export function autoLeadMinutesFor(billingCycle: string | null | undefined): number[] {
+  const cycle = (billingCycle ?? '').trim().toLowerCase();
+  return (ANNUAL_CYCLES as readonly string[]).includes(cycle)
+    ? [...AUTO_LEAD_MINUTES_ANNUAL]
+    : [...AUTO_LEAD_MINUTES_MONTHLY];
+}
+
+/** 5 days before renewal: the default opt-in heads-up. */
+export const DEFAULT_USER_LEAD_MINUTES = 5 * 24 * 60;
 
 /** The widest custom offset the UI allows (30 days), and the query horizon. */
 export const MAX_LEAD_MINUTES = 30 * 24 * 60;
@@ -40,6 +75,8 @@ export interface PlannerSubscription {
   price: number;
   currency: string;
   renewalDate: IsoDate;
+  /** Decides whether the automatic stages are the monthly or the annual set. */
+  billingCycle: string;
 }
 
 export interface PlannerPreference {
@@ -57,6 +94,8 @@ export interface PlannedReminder {
   price: number;
   currency: string;
   renewalDate: IsoDate;
+  /** Carried through so delivery can label the cycle instead of assuming. */
+  billingCycle: string;
   daysUntilRenewal: number;
   minutesUntilRenewal: number;
   channel: ReminderChannel;
@@ -161,6 +200,7 @@ function decide(
     price: sub.price,
     currency: sub.currency,
     renewalDate: renewal,
+    billingCycle: sub.billingCycle,
     daysUntilRenewal: days,
     minutesUntilRenewal: minutes,
     channel,
@@ -198,25 +238,32 @@ export function planReminders(input: PlanInput): Plan {
       continue;
     }
 
-    // ---- Automatic day-before: always, both channels, ignores preferences ----
-    decide(sub, 'push', AUTO_LEAD_MINUTES, minutes, days, alreadyDelivered, plan);
-    decide(sub, 'email', AUTO_LEAD_MINUTES, minutes, days, alreadyDelivered, plan);
+    // ---- Automatic: staged by billing cycle, email + push, ignores preferences --
+    for (const lead of autoLeadMinutesFor(sub.billingCycle)) {
+      decide(sub, 'push', lead, minutes, days, alreadyDelivered, plan);
+      decide(sub, 'email', lead, minutes, days, alreadyDelivered, plan);
+    }
+
+    // ---- The 10-day "coming up" nudge: push only, always on ----
+    decide(sub, 'push', UPCOMING_LEAD_MINUTES, minutes, days, alreadyDelivered, plan);
 
     // ---- The user's own opt-in reminder, independent of the above ----
     const pref = input.preferences.get(sub.id);
+    const autoLeads = autoLeadMinutesFor(sub.billingCycle);
 
     if (pref?.pushEnabled) {
       const lead = pref.pushLeadMinutes > 0 ? pref.pushLeadMinutes : DEFAULT_USER_LEAD_MINUTES;
-      // A custom offset equal to the automatic one collapses into it (same key),
-      // so it is only scheduled here when it is genuinely a separate reminder.
-      if (lead !== AUTO_LEAD_MINUTES) {
+      // A custom offset that coincides with an automatic one collapses into it
+      // (same delivery key), so it is only scheduled here when it is genuinely a
+      // separate reminder.
+      if (lead !== UPCOMING_LEAD_MINUTES && !autoLeads.includes(lead)) {
         decide(sub, 'push', lead, minutes, days, alreadyDelivered, plan);
       }
     }
 
     if (pref?.emailEnabled) {
       const lead = pref.emailLeadMinutes > 0 ? pref.emailLeadMinutes : DEFAULT_USER_LEAD_MINUTES;
-      if (lead !== AUTO_LEAD_MINUTES) {
+      if (!autoLeads.includes(lead)) {
         decide(sub, 'email', lead, minutes, days, alreadyDelivered, plan);
       }
     }

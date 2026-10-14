@@ -111,7 +111,7 @@ export async function runRenewalReminders({
   // ---- Load candidate subscriptions renewing between today and the horizon ----
   const { data: subs, error: subsError } = await supabase
     .from('subscriptions')
-    .select('id, user_id, name, price, currency, next_billing_date, status')
+    .select('id, user_id, name, price, currency, next_billing_date, billing_cycle, status')
     .neq('status', 'canceled')
     .gte('next_billing_date', today)
     .lte('next_billing_date', horizon)
@@ -175,6 +175,7 @@ export async function runRenewalReminders({
     price: Number(r.price) || 0,
     currency: r.currency ?? 'USD',
     renewalDate: r.next_billing_date,
+    billingCycle: r.billing_cycle ?? 'monthly',
   }));
 
   const plan = planReminders({ subscriptions: plannerSubs, preferences, alreadyDelivered, now });
@@ -198,13 +199,19 @@ export async function runRenewalReminders({
   }
 
   // ---- Send ----
-  // Every due renewal, keyed by (subscription, renewal). The in-app inbox is a
-  // channel in its own right: it gets one notice per renewal whether or not the
-  // email or push leg could be delivered, and the automatic and opt-in reminders
-  // for the same charge collapse into that single notice.
+  // Every due reminder, keyed by (subscription, renewal, lead stage). The in-app
+  // inbox is a channel in its own right: it gets a notice whether or not the
+  // email or push leg could be delivered.
+  //
+  // Keyed by the lead offset, not just the renewal. The automatic reminder is
+  // deliberately staged (2d then 1d for monthly, 7d then 1d for annual), and the
+  // in-app inbox is meant to carry every stage — collapsing to one notice per
+  // renewal would silently swallow all but the last one. The two channels of the
+  // same stage still share one notice, so a stage is not listed twice just
+  // because it went out on both email and push.
   const notified = new Map<string, PlannedReminder>();
   for (const item of plan.planned) {
-    notified.set(`${item.subscriptionId}|${item.renewalDate}`, item);
+    notified.set(`${item.subscriptionId}|${item.renewalDate}|${item.leadMinutes}`, item);
   }
 
   for (const item of plan.planned) {
@@ -319,7 +326,7 @@ export async function runRenewalReminders({
       name: item.name,
       price: item.price,
       currency: item.currency,
-      billingCycle: 'monthly',
+      billingCycle: item.billingCycle,
       nextBillingDate: item.renewalDate,
       daysUntilRenewal: item.daysUntilRenewal,
     };
@@ -433,15 +440,17 @@ async function addInboxReminder(
     leadMinutes: number;
   }
 ): Promise<void> {
-  // One notice per (subscription, renewal). A later run can send the same
-  // renewal on a channel that was unavailable the first time, so the check is
-  // against the DB rather than just the current run's set.
+// One notice per (subscription, renewal, lead stage). A later run can send the
+  // same stage on a channel that was unavailable the first time, so the check is
+  // against the DB rather than just the current run's set. The stage is part of
+  // the lookup because a renewal now produces several distinct notices by design.
   const { data: existing, error: lookupError } = await supabase
     .from('inbox_items')
     .select('id')
     .eq('user_id', item.userId)
     .filter('metadata->>renewalDate', 'eq', item.renewalDate)
-    .eq('metadata->>subscriptionId', item.subscriptionId)
+    .filter('metadata->>subscriptionId', 'eq', item.subscriptionId)
+    .filter('metadata->>leadMinutes', 'eq', item.leadMinutes)
     .limit(1);
 
   if (!lookupError && existing && existing.length > 0) return;
