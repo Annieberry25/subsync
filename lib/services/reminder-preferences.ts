@@ -118,6 +118,22 @@ export async function saveReminderPreference(input: SaveReminderInput): Promise<
       logger.warn('[reminders] could not save preference', { message: error.message });
       return false;
     }
+
+    /*
+     * Deliver what the account is already owed, right now.
+     *
+     * The engine only ever runs on a schedule, so a reminder saved after the day's
+     * tick would otherwise wait up to 24 hours even when it was due at the moment
+     * it was configured. This asks the server to check immediately; the endpoint is
+     * scoped to the caller, so it covers this user's opt-in reminder and any
+     * automatic stage already due across all of their subscriptions.
+     *
+     * Fire and forget. The preference is already saved, which is what the caller
+     * is waiting on; a delivery failure here must not turn a successful save into
+     * a reported failure, and the next cron tick picks up anything missed.
+     */
+    void fetch('/api/reminders/run-now', { method: 'POST' }).catch(() => undefined);
+
     return true;
   } catch (err) {
     logger.warn('[reminders] save failed', {

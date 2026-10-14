@@ -70,6 +70,16 @@ export interface RunReminderOptions {
   supabase: SupabaseClient<Database>;
   now?: Date;
   dryRun?: boolean;
+  /**
+   * Restrict the run to one account.
+   *
+   * The cron passes nothing and covers everyone. A user-triggered run passes their
+   * own id, so saving a reminder can immediately deliver whatever that account is
+   * already owed — both their own opt-in reminder and any automatic stage that has
+   * come due — without waiting for the next scheduled tick, and without ever
+   * touching anybody else's rows.
+   */
+  userId?: string;
 }
 
 function todayIso(now: Date): string {
@@ -92,6 +102,7 @@ export async function runRenewalReminders({
   supabase,
   now = new Date(),
   dryRun = false,
+  userId,
 }: RunReminderOptions): Promise<ReminderRunReport> {
   const today = todayIso(now);
   const horizon = addDays(today, Math.ceil(MAX_LEAD_MINUTES / 1440));
@@ -110,13 +121,18 @@ export async function runRenewalReminders({
   };
 
   // ---- Load candidate subscriptions renewing between today and the horizon ----
-  const { data: subs, error: subsError } = await supabase
+  let subsQuery = supabase
     .from('subscriptions')
     .select('id, user_id, name, price, currency, next_billing_date, billing_cycle, status')
     .neq('status', 'canceled')
     .gte('next_billing_date', today)
     .lte('next_billing_date', horizon)
     .limit(MAX_SUBSCRIPTIONS_PER_RUN);
+
+  // Scoped run: only this account's subscriptions are ever candidates.
+  if (userId) subsQuery = subsQuery.eq('user_id', userId);
+
+  const { data: subs, error: subsError } = await subsQuery;
 
   if (subsError) throw subsError;
 

@@ -34,7 +34,10 @@ function tableMock(resultFor: (calls: string[], writePayload: unknown) => unknow
   ];
   for (const method of methods) {
     builder[method] = (...args: unknown[]) => {
-      calls.push(method);
+      // eq records its column and value so a mock can actually filter on it.
+      // Without that, a user-scoped run would look like it covered everyone and
+      // the scoping test could not tell a working filter from an ignored one.
+      calls.push(method === 'eq' ? `eq:${String(args[0])}=${String(args[1])}` : method);
       if (method === 'insert' || method === 'upsert') writePayload = args[0];
       return builder;
     };
@@ -60,7 +63,15 @@ const inserted = {
 function makeSupabase(state: DbState) {
   return {
     from(table: string) {
-      if (table === 'subscriptions') return tableMock(() => ({ data: state.subs, error: null }));
+      if (table === 'subscriptions') {
+        return tableMock((calls) => {
+          // Honour an explicit user_id filter, so a scoped run is observably scoped.
+          const scoped = calls.find((c) => c.startsWith('eq:user_id='));
+          if (!scoped) return { data: state.subs, error: null };
+          const wanted = scoped.slice('eq:user_id='.length);
+          return { data: state.subs.filter((s) => s.user_id === wanted), error: null };
+        });
+      }
       if (table === 'subscription_reminders') return tableMock(() => ({ data: state.prefs, error: null }));
       if (table === 'profiles') return tableMock(() => ({ data: state.profiles, error: null }));
       if (table === 'reminder_deliveries') {
@@ -217,5 +228,58 @@ describe('runRenewalReminders — in-app inbox', () => {
     });
 
     expect(inserted.inbox).toHaveLength(0);
+  });
+});
+
+/**
+ * A user-triggered run is reachable from the browser, so the scoping is the only
+ * thing standing between one account and another's notifications. It has to be a
+ * filter on the query, not a post-filter, or a later code change could reintroduce
+ * a leak without any test noticing.
+ */
+describe('runRenewalReminders — user scoping', () => {
+  it('covers only the requested account when scoped', async () => {
+    const state = baseState();
+    state.subs = [
+      { ...state.subs[0], id: 'mine', user_id: 'u1', name: 'Mine' },
+      { ...state.subs[0], id: 'theirs', user_id: 'u2', name: 'Theirs' },
+    ];
+    state.profiles = [
+      { id: 'u1', email: 'u1@example.com' },
+      { id: 'u2', email: 'u2@example.com' },
+    ];
+    mocks.sendPush.mockResolvedValue({ sent: 0, failed: 0, removed: 0, skipped: true });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: RUN_AT,
+      userId: 'u1',
+    });
+
+    expect(report.considered).toBe(1);
+    expect(report.items.every((i) => i.name === 'Mine')).toBe(true);
+    expect(inserted.deliveries.every((d) => d.user_id === 'u1')).toBe(true);
+  });
+
+  it('covers every account when no scope is given', async () => {
+    const state = baseState();
+    state.subs = [
+      { ...state.subs[0], id: 'mine', user_id: 'u1', name: 'Mine' },
+      { ...state.subs[0], id: 'theirs', user_id: 'u2', name: 'Theirs' },
+    ];
+    state.profiles = [
+      { id: 'u1', email: 'u1@example.com' },
+      { id: 'u2', email: 'u2@example.com' },
+    ];
+    mocks.sendPush.mockResolvedValue({ sent: 0, failed: 0, removed: 0, skipped: true });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: RUN_AT,
+    });
+
+    expect(report.considered).toBe(2);
   });
 });
