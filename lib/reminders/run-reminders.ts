@@ -10,7 +10,7 @@ import { addDays, triggerDateFromMinutes, utcToday } from './dates';
 import {
   deliveryKey,
   planReminders,
-  FINAL_HOURS_LEAD_MINUTES,
+  SECOND_CALL_LEAD_MINUTES,
   MAX_LEAD_MINUTES,
   type PlannedReminder,
   type PlannerPreference,
@@ -297,15 +297,34 @@ export async function runRenewalReminders({
 
     if (item.channel === 'push') {
       const renewsOn = humanizeRenewal(item.minutesUntilRenewal);
-      const isFinalCall = item.leadMinutes === FINAL_HOURS_LEAD_MINUTES;
+      const isSecondCall = item.leadMinutes === SECOND_CALL_LEAD_MINUTES;
 
       /*
-       * The final call is worded as an action rather than a second notice, and
+       * The second call is skipped when the user has already opened the renewal
+       * notice in the app since the first one arrived.
+       *
+       * This is the only engagement signal available that we actually hold: a
+       * read inbox row. Push and email cannot be read-confirmed — the push service
+       * reports sent-or-failed, never seen — so this cannot tell us whether they
+       * read the first message, only whether they came into the app and looked.
+       * That is a deliberately conservative gate: it suppresses the follow-up only
+       * when the user demonstrably acted in-app, and still sends it otherwise
+       * rather than assuming they saw the first one.
+       */
+      if (isSecondCall && (await hasReadRenewalNotice(supabase, item))) {
+        await releaseClaim(supabase, claimedId);
+        report.skipped++;
+        report.items.push({ ...base, action: 'skipped', reason: 'renewal_notice_already_read' });
+        continue;
+      }
+
+      /*
+       * The second call is worded as an action rather than a second notice, and
        * deep-links to the subscription itself rather than the list, so cancelling
        * is one tap from the notification. `highlight` + `detail` is the existing
        * deep-link contract the app already uses to open a single subscription.
        */
-      const payload = isFinalCall
+      const payload = isSecondCall
         ? {
             title: `${item.name} ${renewsOn}`,
             body: 'Cancel it now if you do not want to be charged again.',
@@ -403,6 +422,40 @@ export async function runRenewalReminders({
   });
 
   return report;
+}
+
+/**
+ * Whether the user has already opened this renewal's notice in the app.
+ *
+ * The in-app inbox row for the renewal is written by the earlier stages, so a read
+ * row means the user came into the app and looked at it since the first
+ * notification. Used to decide whether the second call on the day before is still
+ * worth sending.
+ *
+ * Errors resolve to `false` — an unreachable inbox must not suppress a reminder
+ * that was otherwise due.
+ */
+async function hasReadRenewalNotice(
+  supabase: SupabaseClient<Database>,
+  item: { userId: string; subscriptionId: string; renewalDate: string }
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('inbox_items')
+    .select('id')
+    .eq('user_id', item.userId)
+    .eq('is_read', true)
+    .filter('metadata->>subscriptionId', 'eq', item.subscriptionId)
+    .filter('metadata->>renewalDate', 'eq', item.renewalDate)
+    .limit(1);
+
+  if (error) {
+    logger.warn('[reminders] could not check whether the notice was read', {
+      subscriptionId: item.subscriptionId,
+      message: error.message,
+    });
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
 }
 
 async function releaseClaim(

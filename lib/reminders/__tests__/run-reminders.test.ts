@@ -52,6 +52,8 @@ interface DbState {
   profiles: Array<Record<string, unknown>>;
   deliveries: Array<Record<string, unknown>>;
   inboxExisting: Array<Record<string, unknown>>;
+  /** Read renewal notices, used to gate the second call on the day before. */
+  inboxRead: Array<Record<string, unknown>>;
 }
 
 const inserted = {
@@ -95,6 +97,9 @@ function makeSupabase(state: DbState) {
             inserted.inbox.push(payload as Record<string, unknown>);
             return { data: null, error: null };
           }
+          // An eq on is_read distinguishes the "has the notice been opened"
+          // lookup from the duplicate check for writing a notice.
+          if (calls.includes('eq:is_read=true')) return { data: state.inboxRead, error: null };
           return { data: state.inboxExisting, error: null };
         });
       }
@@ -120,6 +125,7 @@ function baseState(): DbState {
     profiles: [{ id: 'u1', email: 'u1@example.com' }],
     deliveries: [],
     inboxExisting: [],
+    inboxRead: [],
   };
 }
 
@@ -228,6 +234,44 @@ describe('runRenewalReminders — in-app inbox', () => {
     });
 
     expect(inserted.inbox).toHaveLength(0);
+  });
+});
+
+/**
+ * The second call on the day before is the one reminder that is conditional: it
+ * only goes out when the user has not already opened the renewal notice in the
+ * app. That is the only engagement signal we actually hold — push and email
+ * cannot be read-confirmed.
+ */
+describe('runRenewalReminders — second call gate', () => {
+  const EVENING = new Date('2026-10-13T21:00:00Z');
+
+  it('sends the second call when the renewal notice has not been read', async () => {
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(baseState()) as never,
+      now: EVENING,
+    });
+
+    expect(report.items.some((i) => i.leadMinutes === 720 && i.channel === 'push')).toBe(true);
+    expect(report.items.some((i) => i.reason === 'renewal_notice_already_read')).toBe(false);
+  });
+
+  it('withholds the second call when the user already opened the notice', async () => {
+    const state = baseState();
+    state.inboxRead = [{ id: 'already-read' }];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: EVENING,
+    });
+
+    expect(report.items.some((i) => i.reason === 'renewal_notice_already_read')).toBe(true);
+    expect(report.items.some((i) => i.leadMinutes === 720 && i.action === 'sent')).toBe(false);
   });
 });
 

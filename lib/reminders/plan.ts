@@ -53,19 +53,23 @@ export const ANNUAL_CYCLES: readonly string[] = ['yearly', 'annual'];
 export const UPCOMING_LEAD_MINUTES = 10 * 24 * 60;
 
 /**
- * The last call: 3 hours before renewal, push only.
+ * The second call: a 12h lead, push only, actionable.
  *
- * This one is deliberately actionable rather than a repeat of the 1-day warning.
- * The 2-day and 1-day stages are notices; by this point the user either acted or
- * did not, and another "heads up" would be noise. Offering the cancel explicitly
- * gives the second message a reason to exist — and a notification the user can act
- * on is worth the extra tap even if they opened the first one.
+ * The user asked for two touches on the day before rather than one, and for the
+ * second to carry a cancel action. A 12h lead is the honest way to express that:
+ * its window is [12:00, 24:00) on the day before the charge, so it can only be
+ * delivered by a run inside that window. The single daily cron at 09:00 is too
+ * early for it, which is why vercel.json pairs a second daily run at 21:00.
  *
- * At least a day is NOT assumed here: this stage cannot ride the daily cron. Its
- * window is [renewal - 3h, renewal), which a single 09:00 UTC run never lands in.
- * It needs a run close to the renewal, so the endpoint has to be invoked hourly.
+ * Actionable rather than a repeat: the 1-day notice has already been seen by
+ * anyone who acted, so this asks for the decision instead of restating the
+ * warning.
+ *
+ * The stage is unconditional in the planner. Whether it is actually sent is
+ * decided at delivery time, where the engine can see whether the user has opened
+ * the notice in the app since the first one — see `run-reminders.ts`.
  */
-export const FINAL_HOURS_LEAD_MINUTES = 3 * 60;
+export const SECOND_CALL_LEAD_MINUTES = 12 * 60;
 
 /** The automatic offsets that apply to a subscription's billing cycle. */
 export function autoLeadMinutesFor(billingCycle: string | null | undefined): number[] {
@@ -268,8 +272,9 @@ export function planReminders(input: PlanInput): Plan {
     // The 10-day "coming up" nudge: push only, always on.
     candidates.push({ channel: 'push', leadMinutes: UPCOMING_LEAD_MINUTES });
 
-    // The final call: push only, inside the last few hours before the charge.
-    candidates.push({ channel: 'push', leadMinutes: FINAL_HOURS_LEAD_MINUTES });
+    // The second call on the day before: push only, actionable.
+    // The second call on the day before: push only, actionable.
+    candidates.push({ channel: 'push', leadMinutes: SECOND_CALL_LEAD_MINUTES });
 
     // The user's own opt-in reminder, independent of the above.
     const pref = input.preferences.get(sub.id);
@@ -280,7 +285,7 @@ export function planReminders(input: PlanInput): Plan {
       // A custom offset that coincides with an automatic stage collapses into it
       // (same delivery key), so it is only a candidate when it is genuinely
       // separate.
-      if (lead !== UPCOMING_LEAD_MINUTES && lead !== FINAL_HOURS_LEAD_MINUTES && !autoLeads.includes(lead)) {
+      if (lead !== UPCOMING_LEAD_MINUTES && lead !== SECOND_CALL_LEAD_MINUTES && !autoLeads.includes(lead)) {
         candidates.push({ channel: 'push', leadMinutes: lead });
       }
     }

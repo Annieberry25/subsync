@@ -6,7 +6,7 @@ import {
   AUTO_LEAD_MINUTES_MONTHLY,
   AUTO_LEAD_MINUTES_ANNUAL,
 UPCOMING_LEAD_MINUTES,
-  FINAL_HOURS_LEAD_MINUTES,
+  SECOND_CALL_LEAD_MINUTES,
   DEFAULT_USER_LEAD_MINUTES,
   type PlannerSubscription,
   type PlannerPreference,
@@ -174,26 +174,43 @@ describe('planReminders (automatic stages)', () => {
     expect(planned.map((p) => p.channel).sort()).toEqual(['email', 'push']);
   });
 
-  it('sends the final call on push only, in the last few hours', () => {
-    // 3h out. Push is due for the actionable final call; the email channel has no
-    // 3h stage, so its own closest stage — the 1-day one — is what is still owed
-    // there. Each channel resolves independently.
-    const { planned } = run([sub('s1', RENEWAL)], [], [], new Date('2026-03-04T21:00:00Z'));
+  /**
+   * The second call on the day before. Its window is [12:00, 24:00) the day
+   * before, so the 09:00 cron cannot deliver it — the paired 21:00 run can.
+   */
+  it('schedules the second call at a 12-hour lead, push only', () => {
+    // The two real cron times on the day before.
+    const morning = run([sub('s1', RENEWAL)], [], [], new Date('2026-03-04T09:00:00Z'));
+    const evening = run(
+      [sub('s1', RENEWAL)],
+      [],
+      [
+        deliveryKey('s1', RENEWAL, 2 * DAY, 'push'),
+        deliveryKey('s1', RENEWAL, 2 * DAY, 'email'),
+        deliveryKey('s1', RENEWAL, 1 * DAY, 'push'),
+        deliveryKey('s1', RENEWAL, 1 * DAY, 'email'),
+      ],
+      new Date('2026-03-04T21:00:00Z')
+    );
 
-    expect(
-      planned
-        .map((p) => [p.leadMinutes, p.channel])
-        .sort((a, b) => (a[1] as string).localeCompare(b[1] as string))
-    ).toEqual([
+    // 09:00 is 15h out, before the 12h window opens, so the run owes the 1-day
+    // stage on push and email.
+    expect(morning.planned.map((p) => [p.leadMinutes, p.channel]).sort()).toEqual([
       [1 * DAY, 'email'],
-      [FINAL_HOURS_LEAD_MINUTES, 'push'],
+      [1 * DAY, 'push'],
+    ]);
+
+    // 21:00 is 3h out and inside the 12h window. With the 1-day stage already
+    // delivered, the actionable second call is all that is left, and only on push.
+    expect(evening.planned.map((p) => [p.leadMinutes, p.channel])).toEqual([
+      [SECOND_CALL_LEAD_MINUTES, 'push'],
     ]);
   });
 
-  it('does not fire the final call early', () => {
+  it('does not schedule the second call before noon on the day before', () => {
     const { planned } = run([sub('s1', RENEWAL)], [], [], TWO_DAYS_OUT);
 
-    expect(planned.some((p) => p.leadMinutes === FINAL_HOURS_LEAD_MINUTES)).toBe(false);
+    expect(planned.some((p) => p.leadMinutes === SECOND_CALL_LEAD_MINUTES)).toBe(false);
   });
 
   it('catches a missed run up, but not after the renewal has passed', () => {
