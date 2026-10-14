@@ -194,3 +194,333 @@ export function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+/* ------------------------------------------------------------------------- *
+ * Security mail: codes and magic links.
+ *
+ * A separate shell rather than a variant of renderEmailLayout, because the
+ * difference is structural rather than cosmetic: the code is the content, and the
+ * alignment is left throughout rather than the centred composition the rest of the
+ * mail uses.
+ *
+ * ## Why the theme is BRAND and not a separate palette
+ *
+ * The first version of this file invented its own dark slate (#1a1a1e, #0e0e11).
+ * That was wrong twice over: it ignored DESIGN_SYSTEM.md, which is authoritative
+ * for Midnight, and it produced a visibly different black next to the product.
+ * Everything below is read from BRAND so security mail and the app cannot drift.
+ *
+ * ## Why the wordmark is a pre-cropped asset
+ *
+ * The app crops the 2000x2000 source canvases with CSS (components/ui/
+ * brand-logo.tsx), which email cannot rely on: overflow/absolute positioning is
+ * unreliable in Outlook and unsupported in parts of Gmail. The two sources are
+ * also opposite colours — the dark one is for a dark surface, the light one for a
+ * white one — so the wrong pick is either invisible or a black square. The
+ * cropped pair in public/ sidesteps both: real pixels, real width/height, correct
+ * for the surface this shell uses.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Two palettes, because the card is painted to match the theme the reader is
+ * actually in. Wide viewports get the light card, narrow ones the dark card that
+ * matches the dashboard. The values are the light palette inline; the dark one is
+ * applied by the media query, so a client that ignores it renders the light theme.
+ */
+const SECURITY = {
+  /**
+   * Two palettes, because the card is painted to match the theme it is read in.
+   *
+   * The light palette is the inline base on purpose: web is the default appearance,
+   * so a client that ignores the media query still shows the white card. Inverting
+   * this left the web card grey. The dark palette is applied by the query.
+   */
+  dark: {
+    card: '#1C2020',
+    border: '#2A2F2F',
+    primary: '#F5F7F6',
+    secondary: '#94A3B8',
+  },
+  light: {
+    card: '#FFFFFF',
+    border: '#E5E7EB',
+    primary: '#1A1D1D',
+    secondary: '#6B7280',
+  },
+  accent: BRAND.accent,
+  accentText: BRAND.accentText,
+} as const;
+
+/**
+ * The two wordmarks, cropped to the artwork's bounding box by
+ * scripts/crop-wordmarks.ts and verified as white+teal / black+teal on a fully
+ * transparent background rather than assumed from the filename.
+ *
+ * Both are needed because the page is unpainted: the reader's theme decides
+ * whether it is light or dark, and a wordmark baked for one is invisible on the
+ * other. `wide` is the white-background variant shown in a browser, `narrow` the
+ * dark-background variant shown on a phone.
+ *
+ * Fallbacks only. Gmail strips `data:` URIs, so a real send passes `cid:`
+ * references on logoSrc / logoSrcNarrow with both PNGs attached inline.
+ */
+function readWordmark(file: string): string {
+  try {
+    return `data:image/png;base64,${readFileSync(join(process.cwd(), 'public', file)).toString('base64')}`;
+  } catch {
+    return '';
+  }
+}
+
+const wideWordmark = readWordmark('logo_wordmark_light_email.png');
+const narrowWordmark = readWordmark('logo_wordmark_dark_email.png');
+
+export interface SecurityLayoutInput {
+  preheader: string;
+  heading: string;
+  greeting: string;
+  /** Built from emailCodeBlock / emailSecurityNote. */
+  bodyHtml: string;
+  /** The "if you didn't ask for this" line, shown under the panel. */
+  footerNote: string;
+  /**
+   * Source for the wordmark shown at desktop widths, i.e. on a light background.
+   * Real sends pass `cid:` references with both PNGs attached inline, because
+   * Gmail strips `data:` URIs.
+   */
+  logoSrc?: string;
+  /** Source for the wordmark shown on narrow viewports, i.e. on a dark background. */
+  logoSrcNarrow?: string;
+}
+
+/**
+ * Dark, strictly left-aligned shell for account-security mail.
+ *
+ * Structure deliberately mirrors renderEmailLayout, which reads well in real
+ * clients, with two changes: nothing is centred, and the CTA is left aligned. The
+ * only alignment attribute present is `align="left"`, so a client default cannot
+ * pull the column into the middle on its own.
+ *
+ * ## How the dark surface survives real clients
+ *
+ * Three things are needed together and each covers a different failure:
+ *
+ *   1. `<meta name="color-scheme" content="dark">` plus `supported-color-schemes`.
+ *      Without these, Gmail and Apple Mail apply their *own* dark palette over
+ *      ours and the panel goes navy.
+ *   2. A `bgcolor` **attribute** on the tables as well as the inline style. Outlook
+ *      and a good share of Windows clients ignore `background-color` in CSS, which
+ *      leaves white text on a white page.
+ *   3. Every text colour stated explicitly, so a client that forces colours still
+ *      renders something readable.
+ *
+ * `border-radius` is progressive: Outlook ignores it, which leaves a square panel,
+ * so nothing depends on it carrying meaning.
+ */
+export function renderSecurityEmailLayout({
+  preheader,
+  heading,
+  greeting,
+  bodyHtml,
+  footerNote,
+  logoSrc,
+  logoSrcNarrow,
+}: SecurityLayoutInput): string {
+  const wide = logoSrc ?? wideWordmark;
+  const narrow = logoSrcNarrow ?? narrowWordmark;
+  return `<!DOCTYPE html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<meta name="x-apple-disable-message-reformatting">
+<title>${escapeHtml(heading)}</title>
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings>
+  <o:PixelsPerInch>96</o:PixelsPerInch>
+</o:OfficeDocumentSettings></xml></noscript>
+<![endif]-->
+<style>
+/* Outlook ignores media queries entirely, so the only rules here are the theme
+     swap and the narrow-viewport fallback. The page is deliberately uncoloured so
+     the reader's own theme shows through; the card is painted to match. All
+     structure is inline.
+
+     The light palette is inline and the dark one is the override. That ordering is
+     deliberate: web is the default appearance, so a client that ignores this sheet
+     shows the white card rather than a grey one.
+
+     The theme breakpoint is 1024px, not 600px. At 600 the mobile client reported a
+     viewport wider than the breakpoint, so the mobile rules never matched and the
+     phone kept the white card. 1024px still separates a phone from a desktop while
+     tolerating a misreported or content-expanded viewport. */
+  @media screen and (max-width: 1024px) {
+    /* Border only: the card has no fill to repaint. */
+    .secur-card      { border-color: ${SECURITY.dark.border} !important; }
+    .secur-divider   { border-top-color: ${SECURITY.dark.border} !important; }
+    .secur-primary   { color: ${SECURITY.dark.primary} !important; }
+    .secur-secondary { color: ${SECURITY.dark.secondary} !important; }
+    .secur-logo-web    { display: none !important; }
+    .secur-logo-mobile { display: block !important; }
+  }
+  @media screen and (max-width: 600px) {
+    .secur-pad  { padding-left: 24px !important; padding-right: 24px !important; }
+    .secur-code { font-size: 28px !important; letter-spacing: 6px !important; }
+    .secur-h1   { font-size: 24px !important; }
+  }
+</style>
+</head>
+<!-- The page declares no background at all, so the recipient's own light or dark
+     theme shows through: dark on a phone, light in a browser. Painting it here is
+     what previously fought the client. -->
+<body style="margin:0; padding:0;">
+<div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">${escapeHtml(preheader)}</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td class="secur-page" align="center" style="padding:32px 16px;">
+
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" align="center"
+             style="width:100%; max-width:560px; border-collapse:collapse;">
+
+        <!-- Two wordmarks, one per surface. The reader's theme decides whether the page
+             behind is light or dark, and each mark is baked for one of them, so the
+             media query swaps which is visible rather than trying to recolour. The
+             white-background mark is visible by default, matching the inline light
+             card. -->
+        <tr>
+          <td align="left" style="padding:0 0 22px;">
+            ${
+              wide
+                ? `<img class="secur-logo-web" src="${wide}" alt="SubHalt" width="116" height="32" style="display:block; width:116px; height:32px; border:0; outline:none; text-decoration:none;">`
+                : ''
+            }
+            ${
+              narrow
+                ? `<img class="secur-logo-mobile" src="${narrow}" alt="SubHalt" width="116" height="32" style="display:none; width:116px; height:32px; border:0; outline:none; text-decoration:none;">`
+                : ''
+            }
+            ${wide || narrow ? '' : `<span class="secur-primary" style="font-family:${BRAND.fontStack}; font-size:20px; font-weight:700; letter-spacing:-0.02em; color:${SECURITY.light.primary};">SubHalt</span>`}
+          </td>
+        </tr>
+
+        <!-- The panel carries no fill, only its border. That removes the white card from
+             the mobile view entirely, and the border is what still reads as the
+             elevated container. Text sits on the reader's own page colour. -->
+        <tr>
+          <td class="secur-pad secur-card" align="left"
+              style="border:1px solid ${SECURITY.light.border}; border-radius:20px; padding:34px;">
+
+            <h1 class="secur-h1 secur-primary" style="margin:0 0 18px; font-family:${BRAND.fontStack}; font-size:26px; line-height:1.25; font-weight:700; letter-spacing:-0.02em; text-align:left; color:${SECURITY.light.primary};">
+              ${escapeHtml(heading)}
+            </h1>
+
+            <p class="secur-primary" style="margin:0 0 16px; font-family:${BRAND.fontStack}; font-size:15px; line-height:1.6; text-align:left; color:${SECURITY.light.primary};">
+              ${greeting}
+            </p>
+
+            ${bodyHtml}
+
+            <p class="secur-divider secur-secondary" style="margin:24px 0 0; padding-top:20px; border-top:1px solid ${SECURITY.light.border}; font-family:${BRAND.fontStack}; font-size:13px; line-height:1.6; text-align:left; color:${SECURITY.light.secondary};">
+              ${escapeHtml(footerNote)}
+            </p>
+            <p class="secur-secondary" style="margin:8px 0 0; font-family:${BRAND.fontStack}; font-size:12px; line-height:1.6; text-align:left; color:${SECURITY.light.secondary};">
+              SubHalt &middot; Track, manage and cancel your subscriptions.
+            </p>
+
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+}
+
+/**
+ * The verification code, or the call to action for a magic link.
+ *
+ * With `href` it renders a pill button: border-radius 9999px, the vibrant accent
+ * fill, bold dark text, and left aligned in its own cell so it sits on the same
+ * margin as everything above it — not centred, and not stretched to the panel
+ * edge. Outlook gets a VML roundrect, the same pattern renderSignInButton uses.
+ *
+ * Without `href` it renders the code as large monospaced text on its own surface.
+ */
+export function emailCodeBlock(
+  value: string,
+  options: { href?: string; label?: string } = {}
+): string {
+  if (options.href) {
+    const label = options.label ?? value;
+    /*
+     * VML needs a pixel width, and a fixed one would either clip a long label or
+     * stretch a short one across the panel. ~9px per character at 15px bold plus
+     * the 32px of padding either side tracks the real width closely enough.
+     */
+    const vmlWidth = Math.max(120, label.length * 9 + 72);
+    return `
+<!-- Full-width block. A bare align="left" table is inline-level in several
+     renderers, which let the expiry note flow in beside the button; an outer
+     100% row forces the note onto the next line. -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="left" style="margin:24px 0;">
+  <tr>
+    <td align="left" style="padding:0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin:0;">
+        <tr>
+          <td align="left" style="border-radius:9999px; background:${SECURITY.accent}; mso-padding-alt:15px 32px;">
+            <!--[if mso]>
+            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" arcsize="50%"
+                         style="height:50px;v-text-anchor:middle;width:${vmlWidth}px;" fillcolor="${SECURITY.accent}">
+              <w:anchorlock/>
+              <center style="color:${SECURITY.accentText};font-family:${BRAND.fontStack};font-size:15px;font-weight:700;">${escapeHtml(label)}</center>
+            </v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-- -->
+            <a href="${options.href}"
+               style="display:inline-block; padding:15px 32px; line-height:20px;
+                      font-family:${BRAND.fontStack}; font-size:15px; font-weight:700;
+                      color:${SECURITY.accentText}; text-decoration:none; border-radius:9999px;
+                      background:${SECURITY.accent};">
+              ${escapeHtml(label)}
+            </a>
+            <!--<![endif]-->
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`;
+  }
+
+  /*
+   * The code, with no box of its own. A second bordered container inside the panel
+   * read as one frame inside another and made the page look crowded; the panel is
+   * already the surface, so the code only needs size, weight and letter-spacing to
+   * stand out. Padding above and below is asymmetric on purpose — the gap up to
+   * the explanatory line is smaller than the gap down to the closing note, so the
+   * code sits with the sentence that introduces it rather than floating.
+   */
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="left" style="margin:18px 0 20px;">
+  <tr>
+    <!-- No fill here either. It previously matched the card, which put a coloured
+         bar behind the code; with an unpainted card there is nothing to match. -->
+    <td class="secur-pad" align="left" style="padding:4px 0 0;">
+<div class="secur-code secur-primary"
+     style="font-family:'SF Mono', SFMono-Regular, ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+            font-size:36px; line-height:1.1; font-weight:700; letter-spacing:10px;
+            text-align:left; color:${SECURITY.light.primary};">${escapeHtml(value)}</div>
+    </td>
+  </tr>
+</table>`;
+}
+
+/** Prose line inside a security email, in the body colour. */
+export function emailSecurityNote(text: string): string {
+  return `<p class="secur-secondary" style="margin:0; font-family:${BRAND.fontStack}; font-size:15px; line-height:1.65; text-align:left; color:${SECURITY.light.secondary};">${text}</p>`;
+}
