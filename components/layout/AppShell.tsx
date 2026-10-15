@@ -44,15 +44,37 @@ function AppFrame({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  /*
+   * `/` is two pages: the public homepage signed out, the dashboard signed in.
+   *
+   * The shell used to decide between them from `loading || !email`, which is true
+   * for the whole of the loading window — including for someone who is definitely
+   * signed in. So the shell drew itself bare, the dashboard's greeting and stat
+   * cards painted at the top of the viewport, and the sidebar and header arriving
+   * a moment later pushed the lot down the page. That is the jump.
+   *
+   * The shell only stays bare once it knows there is no session. While the session
+   * is still resolving it draws the chrome it is about to need and withholds the
+   * content, so nothing can paint in the wrong frame and then be shoved aside. A
+   * signed-out visitor loses a frame of empty sidebar; a signed-in user keeps their
+   * dashboard where it belongs.
+   */
   const isRoot = pathname === '/';
-  const isPublicHome = isRoot && (loading || !email);
+  const isResolvingSession = isRoot && loading;
+  const isSignedOutHome = isRoot && !loading && !email;
 
-  return isFullPageRoute(pathname) || isPublicHome ? (
-    <div className="min-h-[100dvh] bg-[#000000] text-white antialiased font-sans">
-      {children}
-      <ToastContainer />
-    </div>
-  ) : (
+  const showChrome = !isFullPageRoute(pathname) && !isSignedOutHome;
+
+  if (!showChrome) {
+    return (
+      <div className="min-h-[100dvh] bg-[#000000] text-white antialiased font-sans">
+        {children}
+        <ToastContainer />
+      </div>
+    );
+  }
+
+  return (
     <div className="flex min-h-[100dvh] bg-[#000000] text-white antialiased font-sans">
       {/* Sidebar */}
       <Sidebar
@@ -83,7 +105,10 @@ function AppFrame({ children }: { children: React.ReactNode }) {
           id="main-content"
           className="flex-1 px-(--spacing-gutter) pt-6 sm:pt-7 lg:pt-8 pb-[calc(var(--spacing-dock)+var(--spacing-safe-b)+5.5rem)] lg:pb-8 overflow-x-clip w-full max-w-full"
         >
-          <div className="max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">{children}</div>
+          {/* Withheld while `/` is still deciding which page it is. */}
+          <div className="max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">
+            {isResolvingSession ? null : children}
+          </div>
         </main>
       </div>
 
