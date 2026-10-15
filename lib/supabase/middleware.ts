@@ -42,6 +42,30 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 /**
+ * Pages that must stay reachable without a session.
+ *
+ * `/` is the public homepage rather than a protected route: signed in, the page
+ * itself renders the dashboard, so there is nothing to redirect either way. The
+ * marketing pages hang off it and are linked from it, so a signed-out visitor
+ * following any of them was bounced straight to /login — which reads as the link
+ * being broken rather than as the page being private.
+ *
+ * /help is here for the same reason: the landing page's footer links it, and a
+ * public page that sends its own visitors to the login screen is a dead end.
+ *
+ * /plans is deliberately NOT listed. It is a checkout funnel rather than an
+ * explainer, and making it public is a product decision rather than a
+ * mechanical one.
+ *
+ * Compared exactly, so a route like `/about-us` does not inherit `/about`.
+ */
+const PUBLIC_PAGES = ['/', '/features', '/how-it-works', '/about', '/help'] as const;
+
+function isPublicPage(pathname: string): boolean {
+  return (PUBLIC_PAGES as readonly string[]).includes(pathname);
+}
+
+/**
  * Google Search Console HTML-file verification, served from `public/`.
  *
  * Search Console does not follow redirects for the file-upload method, so a
@@ -131,14 +155,13 @@ export async function updateSession(request: NextRequest) {
   }
 
   /**
-   * `/` is the public homepage, not a protected route, so a signed-out visitor
-   * (and any crawler) has to be allowed through. Signed in, the page itself
-   * renders the dashboard, so there is nothing to redirect either way.
+   * A signed-out visitor (and any crawler) has to be allowed through the public
+   * marketing pages, not just the homepage.
    */
-  const isLandingRoute = request.nextUrl.pathname === '/';
+  const isPublicPageRoute = isPublicPage(request.nextUrl.pathname);
 
   // If user is not logged in and trying to access protected routes
-  if (!user && !isAuthPage && !isCallbackRoute && !isLandingRoute) {
+  if (!user && !isAuthPage && !isCallbackRoute && !isPublicPageRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

@@ -86,7 +86,23 @@ export function getVisibleNavItems(isAdmin: boolean): NavItem[] {
  * Routes that render without the app shell. The dock and sidebar must both
  * stay off these, since they carry their own centred layout.
  */
-export const FULL_PAGE_ROUTES = ['/login', '/signup', '/plans'] as const;
+/**
+ * Routes rendered without the app chrome. The marketing pages sit alongside the
+ * account entry points: a signed-out visitor reaching /features should not be
+ * shown a sidebar, a dock, or a header built for the signed-in app.
+ */
+export const FULL_PAGE_ROUTES = [
+  '/login',
+  '/signup',
+  '/plans',
+  '/features',
+  '/how-it-works',
+  '/about',
+  // The footer and the marketing pages link here, and a signed-out visitor
+  // following that link was getting the signed-in app shell — sidebar, dock and
+  // an avatar — wrapped around a help centre they cannot sign into.
+  '/help',
+] as const;
 
 export function isFullPageRoute(pathname: string): boolean {
   return (FULL_PAGE_ROUTES as readonly string[]).includes(pathname);

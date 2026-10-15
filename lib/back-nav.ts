@@ -38,5 +38,16 @@ export function goBack(router: Router): void {
     return;
   }
 
+  /*
+   * A page reached directly — the help centre from a shared link, a deep link
+   * from a search result — has nothing behind it, and `router.back()` on an empty
+   * history is a no-op, which leaves the control doing nothing at all. Home is the
+   * only destination that is correct from any of them.
+   */
+  if (typeof window !== 'undefined' && window.history.length <= 1) {
+    router.push('/');
+    return;
+  }
+
   router.back();
 }

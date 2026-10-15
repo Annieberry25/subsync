@@ -257,9 +257,13 @@ export default function HelpPage() {
   const categories = Array.from(new Set(HELP_TOPICS.map((t) => t.category)));
 
   return (
-    <div className="space-y-6 max-w-4xl min-h-[85dvh] animate-fade-in text-[#F5F7F6]">
-      {/* Header. The chevron is mobile-only: below lg the sidebar is gone, so the
-          dock is the only way out and Help is reached from More or Settings. */}
+    // Own page padding. /help is a full-page route, so the shell's <main> padding
+    // is not there; without this the content sat flush against the screen edges on
+    // a phone. Safe-area insets win wherever they are larger.
+    <div className="space-y-6 max-w-4xl min-h-[85dvh] px-[max(1.25rem,var(--spacing-safe-l))] pt-4 sm:px-8 animate-fade-in text-[#F5F7F6]">
+      {/* Header. The chevron is the way out: /help is a full-page route, so there is
+          no sidebar to fall back on at any width, and goBack now sends a visitor
+          who arrived directly to Home rather than nowhere. */}
       <div>
         <div className="flex items-center gap-1.5">
           <button
@@ -267,7 +271,7 @@ export default function HelpPage() {
             onClick={() => goBack(router)}
             aria-label="Go back"
             data-touch="compact"
-            className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer lg:hidden"
+            className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
