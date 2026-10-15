@@ -105,7 +105,7 @@ describe('planReminders (automatic stages)', () => {
     expect(planned.some((p) => p.channel === 'email')).toBe(false);
   });
 
-  it('sends only the 1-day stage the next day, the 2-day one already recorded', () => {
+  it('sends only the 1-day push the next day, the single automatic email already went at 2 days', () => {
     const twoDayKey = deliveryKey('s1', RENEWAL, 2 * DAY, 'push');
     const twoDayEmailKey = deliveryKey('s1', RENEWAL, 2 * DAY, 'email');
     const upcomingKey = deliveryKey('s1', RENEWAL, UPCOMING_LEAD_MINUTES, 'push');
@@ -117,8 +117,10 @@ describe('planReminders (automatic stages)', () => {
       ONE_DAY_OUT
     );
 
-    expect(planned.map((p) => p.leadMinutes)).toEqual([1 * DAY, 1 * DAY]);
-    expect(planned.map((p) => p.channel).sort()).toEqual(['email', 'push']);
+    // The automatic email is a single send at the earliest stage, so there is no
+    // second automatic email waiting at the 1-day mark.
+    expect(planned.map((p) => p.leadMinutes)).toEqual([1 * DAY]);
+    expect(planned.map((p) => p.channel)).toEqual(['push']);
     expect(
       skipped
         .filter((s) => s.reason === 'already_delivered')
@@ -166,12 +168,16 @@ describe('planReminders (automatic stages)', () => {
     expect(superseded[0].channel).toBe('push');
   });
 
-  it('collapses a late run to the single closest stage per channel', () => {
+  it('collapses a late run to the single closest push stage, alongside the one automatic email', () => {
     // The day before the renewal: 2d, 1d and 10d are all open at once.
     const { planned } = run([sub('s1', RENEWAL)], [], [], ONE_DAY_OUT);
 
-    expect(planned.map((p) => p.leadMinutes)).toEqual([1 * DAY, 1 * DAY]);
-    expect(planned.map((p) => p.channel).sort()).toEqual(['email', 'push']);
+    // Push collapses to the closest stage it owes. Email has only one stage in
+    // total, so there is nothing to collapse: it is still owed exactly one send.
+    expect(planned.map((p) => [p.leadMinutes, p.channel]).sort()).toEqual([
+      [1 * DAY, 'push'],
+      [2 * DAY, 'email'],
+    ]);
   });
 
   /**
@@ -194,10 +200,10 @@ describe('planReminders (automatic stages)', () => {
     );
 
     // 09:00 is 15h out, before the 12h window opens, so the run owes the 1-day
-    // stage on push and email.
+    // push plus the single automatic email, which is still outstanding.
     expect(morning.planned.map((p) => [p.leadMinutes, p.channel]).sort()).toEqual([
-      [1 * DAY, 'email'],
       [1 * DAY, 'push'],
+      [2 * DAY, 'email'],
     ]);
 
     // 21:00 is 3h out and inside the 12h window. With the 1-day stage already

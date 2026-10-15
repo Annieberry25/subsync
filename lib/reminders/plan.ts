@@ -263,11 +263,22 @@ export function planReminders(input: PlanInput): Plan {
     // Everything that is currently inside its lead window, per channel.
     const candidates: { channel: ReminderChannel; leadMinutes: number }[] = [];
 
-    // Automatic: staged by billing cycle, email + push, ignores preferences.
-    for (const lead of autoLeadMinutesFor(sub.billingCycle)) {
+    // Automatic: staged by billing cycle, ignores preferences.
+    //
+    // Push is a stage per billing cycle — a heads-up, then a last call. Email is
+    // deliberately ONE automatic send, not one per stage. Two automatic emails for
+    // a single charge was the behaviour before, and on a monthly plan it meant a
+    // message at two days out and another at the last call, which reads as a
+    // duplicate and burns the sending quota for no extra warning.
+    const autoLeads = autoLeadMinutesFor(sub.billingCycle);
+    for (const lead of autoLeads) {
       candidates.push({ channel: 'push', leadMinutes: lead });
-      candidates.push({ channel: 'email', leadMinutes: lead });
     }
+
+    // The earliest stage, so the single automatic email lands as far ahead of the
+    // charge as the plan allows rather than as late as possible.
+    const autoEmailLead = autoLeads[0];
+    candidates.push({ channel: 'email', leadMinutes: autoEmailLead });
 
     // The 10-day "coming up" nudge: push only, always on.
     candidates.push({ channel: 'push', leadMinutes: UPCOMING_LEAD_MINUTES });
@@ -278,7 +289,6 @@ export function planReminders(input: PlanInput): Plan {
 
     // The user's own opt-in reminder, independent of the above.
     const pref = input.preferences.get(sub.id);
-    const autoLeads = autoLeadMinutesFor(sub.billingCycle);
 
     if (pref?.pushEnabled) {
       const lead = pref.pushLeadMinutes > 0 ? pref.pushLeadMinutes : DEFAULT_USER_LEAD_MINUTES;
@@ -292,7 +302,13 @@ export function planReminders(input: PlanInput): Plan {
 
     if (pref?.emailEnabled) {
       const lead = pref.emailLeadMinutes > 0 ? pref.emailLeadMinutes : DEFAULT_USER_LEAD_MINUTES;
-      if (!autoLeads.includes(lead)) {
+      /*
+       * Collapses only into the one automatic email stage, and not into every
+       * automatic stage. A person who explicitly asked for an email at this offset
+       * is asking for it: if the chosen lead happens to match a stage that only
+       * emits a push, swallowing it would silently drop a reminder they set up.
+       */
+      if (lead !== autoEmailLead) {
         candidates.push({ channel: 'email', leadMinutes: lead });
       }
     }
