@@ -125,6 +125,32 @@ function dbRowToItem(row: InboxItemDbRow): InboxItem {
 
 const InboxContext = createContext<InboxContextType | undefined>(undefined);
 
+/** Order-insensitive id-list equality, so an unchanged read is recognised as such. */
+function sameIds(a: string[], b: string[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((id) => set.has(id));
+}
+
+/** Equality over the fields the cache actually stores. */
+function sameItems(a: InboxItem[], b: InboxItem[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((item, i) => {
+    const other = b[i];
+    return (
+      other !== undefined &&
+      item.id === other.id &&
+      item.title === other.title &&
+      item.description === other.description &&
+      item.type === other.type &&
+      item.isRead === other.isRead &&
+      item.date === other.date
+    );
+  });
+}
+
 export function InboxProvider({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -152,14 +178,31 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     }
   }, [archivedIds, favouritedIds]);
 
+  /*
+   * Re-reading storage must not manufacture new state out of nothing.
+   *
+   * persistCache dispatches `subhalt_inbox_updated` and this is what answers it,
+   * so this runs immediately after every write. It used to `setArchivedIds(parsed)`
+   * unconditionally, and `JSON.parse` always yields a fresh array: a new identity
+   * even when the contents were identical. That rebuilt `persistCache`, which
+   * rebuilt `markAllAsRead`, which re-fired the Inbox page's
+   * `useEffect(..., [markAllAsRead])`, which called markAllAsRead again. No floor,
+   * no exit, and the CPU pegged so the whole app stopped responding to clicks the
+   * moment Inbox was opened.
+   *
+   * Returning `prev` when nothing actually changed makes React bail out of the
+   * update, so the identities survive and the cycle terminates after one pass.
+   */
   const refreshFromStorage = useCallback(() => {
     if (typeof window === 'undefined') return;
     try {
       const parsedItems = readItemsFromStorage();
       const overrides = readOverridesFromStorage();
-      if (parsedItems.length > 0) setRawItems(parsedItems);
-      setArchivedIds(overrides.archivedIds);
-      setFavouritedIds(overrides.favouritedIds);
+      if (parsedItems.length > 0) {
+        setRawItems((prev) => (sameItems(prev, parsedItems) ? prev : parsedItems));
+      }
+      setArchivedIds((prev) => (sameIds(prev, overrides.archivedIds) ? prev : overrides.archivedIds));
+      setFavouritedIds((prev) => (sameIds(prev, overrides.favouritedIds) ? prev : overrides.favouritedIds));
     } catch (err) {
       logger.warn('[inbox-context] refreshFromStorage error', { message: err instanceof Error ? err.message : String(err) });
     }
