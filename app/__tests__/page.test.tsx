@@ -50,8 +50,10 @@ beforeEach(async () => {
   vi.resetModules();
   getClaims.mockReset();
   getUser.mockReset();
-  // Most tests are the happy path: claims verify locally, no network fallback.
+  // Absent claims is the ambiguous case, so it is the default here: the page must
+  // confirm it against the Auth server before calling anybody signed out.
   getClaims.mockResolvedValue(signedOutClaims);
+  getUser.mockResolvedValue({ data: { user: null }, error: null });
 });
 
 describe('homepage /', () => {
@@ -113,6 +115,23 @@ describe('homepage /', () => {
    */
   it('does not show the public page to a signed-in user when verification fails', async () => {
     getClaims.mockResolvedValue({ data: null, error: new Error('jwks unavailable') });
+    getUser.mockResolvedValue(signedInUser);
+    const { RootPage } = await loadPage();
+
+    render(await RootPage());
+
+    expect(screen.getByTestId('dashboard')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: HOME_H1 })).not.toBeInTheDocument();
+  });
+
+  /**
+   * A regression that followed a Google sign-in. `getClaims()` came back with no
+   * claims and no error when it could not verify the token, which is
+   * indistinguishable from signed out from here, and the marketing page was served
+   * to people holding a live session.
+   */
+  it('does not show the landing page when claims are absent but the session is live', async () => {
+    getClaims.mockResolvedValue({ data: null, error: null });
     getUser.mockResolvedValue(signedInUser);
     const { RootPage } = await loadPage();
 
