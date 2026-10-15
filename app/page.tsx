@@ -39,17 +39,28 @@ const hasSession = cache(async (): Promise<boolean> => {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.getClaims();
 
-    if (error) {
-      // Verification could not complete. Ask the Auth server directly.
-      const { data: fallback, error: fallbackError } = await supabase.auth.getUser();
-      if (fallbackError) throw fallbackError;
-      return Boolean(fallback.user);
-    }
+    // Verified from the cookie: the common case, and it costs no network.
+    if (!error && data?.claims) return true;
 
-    return Boolean(data?.claims);
+    /*
+     * Absent claims are not proof of an absent session.
+     *
+     * `getClaims()` can come back with no claims and no error when it cannot verify
+     * the token — an unavailable signing key, a token it declines to read. That is
+     * indistinguishable, from here, from a signed-out visitor, and treating it as
+     * signed-out served the marketing page to people who were signed in.
+     *
+     * So only a positive claim is trusted. Everything else is settled against the
+     * Auth server, which is slower and cannot be fooled by a cookie we failed to
+     * read. The cost is one round trip for signed-out visitors; the alternative is
+     * showing the wrong page to signed-in ones.
+     */
+    const { data: fallback, error: fallbackError } = await supabase.auth.getUser();
+    if (fallbackError) throw fallbackError;
+    return Boolean(fallback.user);
   } catch {
-    // Only reached if the fallback also failed. The middleware is the authority on
-    // who is allowed in; this only decides which of the two pages to draw.
+    // Only reached if the Auth server could not be reached either. The middleware
+    // is the authority on who is allowed in; this only decides which page to draw.
     return false;
   }
 });
