@@ -89,10 +89,38 @@ vi.mock('@/lib/contexts/inbox-context', async (orig) => {
   };
 });
 
-vi.mock('@/lib/supabase/client', () => ({
-  supabase: { auth: { getUser: vi.fn() }, from: vi.fn(() => ({ select: vi.fn() })) },
-  default: { auth: { getUser: vi.fn() }, from: vi.fn(() => ({ select: vi.fn() })) },
-}));
+vi.mock('@/lib/supabase/client', () => {
+  /*
+   * createClient is what lib/services/reminder-preferences.ts imports. Without it
+   * that module threw on every call, the provider never received its preferences,
+   * and the warnings buried the reason the table was missing.
+   *
+   * Built inside the factory because vi.mock is hoisted above the module scope.
+   */
+  const chainable = new Proxy(
+    {},
+    {
+      get: (_t, prop) => {
+        if (prop === 'then') return undefined;
+        return () => chainable;
+      },
+    }
+  );
+
+  const supabase = {
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+      getClaims: async () => ({ data: { sub: 'test-user' }, error: null }),
+    },
+    from: () => chainable,
+  };
+
+  return {
+    createClient: () => supabase,
+    supabase,
+    default: supabase,
+  };
+});
 
 vi.mock('@/lib/services/subscription-service', async (orig) => {
   const actual = await orig<typeof import('@/lib/services/subscription-service')>();
