@@ -3,13 +3,23 @@ import { render, screen } from '@testing-library/react';
 import { HOME_TITLE, HOME_DESCRIPTION, HOME_H1 } from '@/lib/seo/home-copy';
 
 /**
- * The session lookup is mocked so both branches of `/` can be exercised without
- * Supabase. `getUser` is the only thing the page asks of it.
+ * `/` branches on the session: the public homepage when signed out, the dashboard
+ * when signed in. The decision is made on the server, before any HTML is sent.
+ *
+ * It used to be made by fetching the user, with every failure caught and read as
+ * "nobody is signed in". That conflated two different things, and a transient
+ * blip served the marketing page to someone holding a live session — inside an app
+ * they could not get out of. The page now verifies claims from the cookie, and a
+ * failed verification is checked authoritatively rather than answered with the
+ * landing page.
+ *
+ * The tests below keep the original contract (SEO metadata per branch, indexed H1,
+ * never a 500) and pin the new one.
  */
-const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
+const { getClaims, getUser } = vi.hoisted(() => ({ getClaims: vi.fn(), getUser: vi.fn() }));
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({ auth: { getUser } })),
+  createClient: vi.fn(async () => ({ auth: { getClaims, getUser } })),
 }));
 
 // The dashboard pulls in charts and data hooks that have nothing to do with
@@ -18,15 +28,35 @@ vi.mock('@/components/dashboard/dashboard-v2', () => ({
   default: () => <div data-testid="dashboard" />,
 }));
 
-import { generateMetadata, default as RootPage } from '@/app/page';
+// getClaims() resolves to `{ data: { claims, header, signature }, error }`, so the
+// verified payload is nested under `claims`. A bare object here would read as an
+// absent claim.
+const signedInClaims = { data: { claims: { sub: 'u1' } }, error: null };
+const signedOutClaims = { data: null, error: null };
+const signedInUser = { data: { user: { id: 'u1' } }, error: null };
 
-beforeEach(() => {
+/*
+ * The page memoises its session check with React cache(). Outside a request scope
+ * that memo is still shared, so a check made in one test would answer the next one
+ * and the branches could not be exercised independently. Resetting the module
+ * registry gives each test its own cache.
+ */
+const loadPage = async () => {
+  const mod = await import('@/app/page');
+  return { RootPage: mod.default, generateMetadata: mod.generateMetadata };
+};
+
+beforeEach(async () => {
+  vi.resetModules();
+  getClaims.mockReset();
   getUser.mockReset();
+  // Most tests are the happy path: claims verify locally, no network fallback.
+  getClaims.mockResolvedValue(signedOutClaims);
 });
 
 describe('homepage /', () => {
   it('signed out: metadata carries the exact indexed title and description', async () => {
-    getUser.mockResolvedValue({ data: { user: null }, error: null });
+    const { generateMetadata } = await loadPage();
 
     const meta = await generateMetadata();
 
@@ -35,7 +65,7 @@ describe('homepage /', () => {
   });
 
   it('signed out: renders the public page with the indexed H1', async () => {
-    getUser.mockResolvedValue({ data: { user: null }, error: null });
+    const { RootPage } = await loadPage();
 
     render(await RootPage());
 
@@ -44,7 +74,8 @@ describe('homepage /', () => {
   });
 
   it('signed in: renders the dashboard, not the public page', async () => {
-    getUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
+    getClaims.mockResolvedValue(signedInClaims);
+    const { RootPage } = await loadPage();
 
     render(await RootPage());
 
@@ -53,15 +84,48 @@ describe('homepage /', () => {
   });
 
   it('signed in: keeps dashboard metadata off the public title', async () => {
-    getUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
+    getClaims.mockResolvedValue(signedInClaims);
+    const { generateMetadata } = await loadPage();
 
     const meta = await generateMetadata();
 
     expect(meta.title).toBe('Dashboard');
   });
 
+  /**
+   * A verified claim answers from the cookie against the cached signing keys, so
+   * the common path must not reach for the Auth server. That was a round trip on
+   * every load of the homepage.
+   */
+  it('does not call the Auth server when the claims verify', async () => {
+    getClaims.mockResolvedValue(signedInClaims);
+    const { RootPage } = await loadPage();
+
+    render(await RootPage());
+
+    expect(getUser).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The regression. Verification failing is not evidence that nobody is signed in,
+   * so it must be settled against the Auth server rather than answered with the
+   * marketing page.
+   */
+  it('does not show the public page to a signed-in user when verification fails', async () => {
+    getClaims.mockResolvedValue({ data: null, error: new Error('jwks unavailable') });
+    getUser.mockResolvedValue(signedInUser);
+    const { RootPage } = await loadPage();
+
+    render(await RootPage());
+
+    expect(screen.getByTestId('dashboard')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: HOME_H1 })).not.toBeInTheDocument();
+  });
+
   it('a Supabase failure still serves the public page rather than a 500', async () => {
-    getUser.mockRejectedValue(new Error('env missing'));
+    getClaims.mockRejectedValue(new Error('env missing'));
+    getUser.mockRejectedValue(new Error('unreachable'));
+    const { RootPage } = await loadPage();
 
     render(await RootPage());
 
