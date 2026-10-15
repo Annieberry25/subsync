@@ -116,7 +116,13 @@ export function MarketingPage({
     <div className="flex min-h-[100dvh] flex-col bg-[#0B0D0D] text-[#F5F7F6] antialiased font-sans">
       <SiteHeader />
 
-      <main className={`${PAGE_SHELL} flex-1 pb-16 pt-10 sm:pb-24 sm:pt-16`}>
+      {/*
+        The gap under the header. It looks small in a browser because a browser tab
+        has no inset above it, but on a phone added to the Home Screen the header
+        is 64px *plus* the notch, so a token sized for the desktop header left the
+        first heading sitting almost against it.
+      */}
+      <main className={`${PAGE_SHELL} flex-1 pb-16 pt-12 sm:pb-24 sm:pt-16`}>
         {label && <h2 className={TYPE.label}>{label}</h2>}
         <h1 className={`${TYPE.h1} mt-3`}>{title}</h1>
         {lead && <p className={`${TYPE.lead} mt-4 sm:mt-5`}>{lead}</p>}

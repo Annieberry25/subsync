@@ -48,7 +48,21 @@ export function SiteHeader({ shell = '' }: { shell?: string }) {
     'block rounded-lg px-3 py-2.5 text-[15px] text-[#94A3B8] transition-colors hover:bg-white/5 hover:text-[#F5F7F6]';
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#1A1D1D] bg-[#0B0D0D]/95 backdrop-blur-md">
+    /*
+     * The top padding is the safe-area inset, and it is what makes this bar usable
+     * once the site is added to a home screen.
+     *
+     * `viewportFit: "cover"` is set in app/layout.tsx, which is what lets
+     * `env(safe-area-inset-*)` resolve to a real number — and it also means the page
+     * extends up behind the status bar and the notch. Added to the Home Screen,
+     * that inset goes from zero to roughly 44px, and a bar with no room for it put
+     * the wordmark and the menu button underneath the status bar with no way to
+     * reach them.
+     *
+     * The height is left at a plain 4rem so the bar is 64px tall plus the inset,
+     * rather than a total that grows and shrinks with the device.
+     */
+    <header className="sticky top-0 z-30 border-b border-[#1A1D1D] bg-[#0B0D0D]/95 backdrop-blur-md pt-[var(--spacing-safe-t)]">
       <div
         className={`${shell} mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-4 px-[max(1.25rem,var(--spacing-safe-l))] sm:px-8`}
       >

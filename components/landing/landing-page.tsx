@@ -100,11 +100,13 @@ export function LandingPage() {
         </p>
 
         {/*
-          Three columns only from `lg`. At `sm` and `md` each column is under
-          250px on a tablet in portrait, which wraps every sentence into a narrow
-          ribbon and reads as broken rather than as a layout.
+          Three columns only from `lg`, not `sm`. At `sm` and `md` each column is
+          under 250px on a tablet in portrait, which wraps every sentence into a
+          narrow ribbon and reads as broken rather than as a layout. One column
+          below desktop and three above is the only width where all three fit their
+          own text.
         */}
-        <div className="mt-8 grid gap-8 sm:mt-10 sm:grid-cols-3 sm:gap-6 lg:gap-8">
+        <div className="mt-8 grid gap-8 sm:mt-10 lg:grid-cols-3 lg:gap-8">
           {STEPS.map((step) => (
             <div key={step.title}>
               <h3 className={TYPE.h3}>{step.title}</h3>
