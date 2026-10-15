@@ -54,7 +54,22 @@ export async function POST(request: Request) {
       (user) => typeof user.email === 'string' && user.email.toLowerCase() === email
     );
 
-    return NextResponse.json({ methods: match ? getAccountAuthMethods(match) : [] });
+    if (!match) {
+      /*
+       * Not found is not the same as found-with-no-methods, and the difference is
+       * the whole point of this endpoint. Returning 200 with an empty list told the
+       * client "this account cannot use Google", which is the one thing an empty
+       * search result cannot establish — so a Google account whose row the search
+       * missed was routed to a password form it can never pass.
+       *
+       * A non-200 is the endpoint's own documented signal for "I could not
+       * determine this", and it is what makes the caller fall back to the provider
+       * stored on the remembered account.
+       */
+      return NextResponse.json({ methods: [] }, { status: 404 });
+    }
+
+    return NextResponse.json({ methods: getAccountAuthMethods(match) });
   } catch {
     return NextResponse.json({ methods: [] }, { status: 500 });
   }
