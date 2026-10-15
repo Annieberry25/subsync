@@ -678,10 +678,10 @@ function SettingsContent() {
         isOpen={showSignOutConfirm}
         onClose={() => setShowSignOutConfirm(false)}
         onConfirm={handleSignOut}
-        title="Log out?"
-        description="You'll need to sign in again to access your subscriptions and reminders on this device."
-        confirmText="Log out"
-        cancelText="Stay signed in"
+        title="Are you sure you want to log out"
+        description=""
+        confirmText="Yes"
+        cancelText="No"
         variant="danger"
       />
 

@@ -199,14 +199,25 @@ describe('MorePage', () => {
 
     // The button only opens the confirmation; nothing is signed out yet.
     expect(mocks.signOut).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    // The prompt is the question on its own, answered with Yes/No rather than
+    // repeating the action in both buttons.
+    expect(
+      within(dialog).getByText('Are you sure you want to log out'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Yes' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'No' })).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText(/sign in again to access/i),
+    ).not.toBeInTheDocument();
   });
 
   it('signs out and hard-navigates to login once confirmed', async () => {
     render(<MorePage />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Log out' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes' }));
 
     expect(mocks.signOut).toHaveBeenCalledTimes(1);
     expect(mocks.toastError).not.toHaveBeenCalled();
@@ -217,7 +228,7 @@ describe('MorePage', () => {
     render(<MorePage />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Log out' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes' }));
 
     expect(mocks.toastError).toHaveBeenCalledTimes(1);
   });

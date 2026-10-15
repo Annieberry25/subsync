@@ -106,7 +106,19 @@ export interface SheetProps {
   children?: React.ReactNode;
   /** Pinned to the bottom of the panel, outside the scrolling body. */
   footer?: React.ReactNode;
+  /**
+   * Drops the hairline above the footer. Dialogs whose footer is a short row of
+   * pills read better without it; sheets with a richer footer keep it.
+   */
+  hideFooterDivider?: boolean;
   showClose?: boolean;
+  /**
+   * Whether tapping the backdrop dismisses the sheet. Off for prompts that carry
+   * a Cancel button and a close control: a stray tap beside the panel should not
+   * answer a destructive question, and the reader already has two deliberate ways
+   * out.
+   */
+  dismissOnBackdrop?: boolean;
   className?: string;
   bodyClassName?: string;
   /** Allow drag-to-dismiss. Off for dialogs that must be answered. */
@@ -115,9 +127,10 @@ export interface SheetProps {
   /**
    * `center` is the default, but on phones it degrades to a bottom sheet with
    * top-rounded corners, which is both easier to reach and safer for the
-   * one-handed case. `bottom` stays a sheet at every width.
+   * one-handed case. `bottom` stays a sheet at every width. `modal` stays centred
+   * at every width, for prompts that must be answered rather than swiped away.
    */
-  placement?: 'center' | 'bottom';
+  placement?: 'center' | 'bottom' | 'modal';
 }
 
 const SIZE_CLASSES = {
@@ -137,7 +150,9 @@ export function Sheet({
   headerAction,
   children,
   footer,
+  hideFooterDivider = false,
   showClose = true,
+  dismissOnBackdrop = true,
   className = '',
   bodyClassName = '',
   dismissible = true,
@@ -150,6 +165,61 @@ export function Sheet({
   const dragState = useRef<{ startY: number; offset: number } | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [rejected, setRejected] = useState(false);
+  const closingRef = useRef(false);
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const shakeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  /**
+   * Close, but play the exit first. Unmounting outright means the dialog simply
+   * disappears, which reads as a glitch rather than as an answer. The panel is
+   * kept mounted for the length of the animation and `onClose` is what finally
+   * unmounts it.
+   *
+   * The re-entry guard is a ref rather than the state, so a second tap within the
+   * animation window is dropped without the closure going stale.
+   */
+  const SHEET_EXIT_MS = 150;
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setIsClosing(true);
+    closeTimerRef.current = setTimeout(() => {
+      setIsClosing(false);
+      closingRef.current = false;
+      onClose();
+    }, SHEET_EXIT_MS);
+  }, [onClose]);
+
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+    },
+    []
+  );
+
+  /**
+   * Tapping the backdrop closes the sheet, unless the sheet has opted out — in
+   * which case the panel shakes. A gesture that silently does nothing reads as a
+   * broken control, so the refusal is made visible.
+   */
+  const handleBackdropClick = () => {
+    if (dismissOnBackdrop) {
+      requestClose();
+      return;
+    }
+
+    setRejected(false);
+    if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
+    // Cleared first so a second attempt re-triggers the same animation rather
+    // than being ignored for leaving the class already in place.
+    shakeTimerRef.current = setTimeout(() => {
+      setRejected(true);
+      shakeTimerRef.current = setTimeout(() => setRejected(false), 450);
+    }, 30);
+  };
 
   const titleId = useId();
   const descriptionId = useId();
@@ -176,7 +246,7 @@ export function Sheet({
     (event: KeyboardEvent) => {
       if (event.key === 'Escape' && dismissible) {
         event.stopPropagation();
-        onClose();
+        requestClose();
         return;
       }
 
@@ -207,7 +277,7 @@ export function Sheet({
         first.focus();
       }
     },
-    [dismissible, onClose],
+    [dismissible, requestClose],
   );
 
   useEffect(() => {
@@ -252,7 +322,7 @@ export function Sheet({
     const state = dragState.current;
     dragState.current = null;
     setDragging(false);
-    if (state && state.offset > DRAG_DISMISS_THRESHOLD) onClose();
+    if (state && state.offset > DRAG_DISMISS_THRESHOLD) requestClose();
     setDragOffset(0);
   };
 
@@ -260,14 +330,31 @@ export function Sheet({
 
   const hasHeader = Boolean(title || description || headerAction || headerLeading);
   const isBottom = placement === 'bottom';
+  const isModal = placement === 'modal';
+  /*
+   * A modal is pinned to the middle of the screen at every width, and gets
+   * horizontal gutters there. Without them a centred `w-full` panel sits flush to
+   * both edges of a phone, so its rounded corners are cut off by the viewport
+   * rather than being visible.
+   */
+  const alignment = isModal
+    ? 'items-center px-4'
+    : isBottom
+      ? 'items-end'
+      : 'items-end sm:items-center';
+  const radius = isModal ? 'rounded-[20px]' : 'rounded-t-[20px] sm:rounded-[20px]';
 
   const panel = (
     <div
       data-sheet-root=""
-      className={`fixed inset-0 z-[70] flex justify-center bg-black/70 animate-in fade-in duration-200 ${
-        isBottom ? 'items-end' : 'items-end sm:items-center'
-      }`}
-      onClick={onClose}
+      className={`fixed inset-0 z-[70] flex justify-center ${
+        /* A modal hides the page behind it: a prompt must not appear to be a
+           panel floating on top of another screen still in use. */
+        isModal ? 'bg-black' : 'bg-black/70'
+      } ${
+        isClosing ? 'animate-backdrop-exit' : 'animate-backdrop-enter'
+      } ${alignment}`}
+      onClick={handleBackdropClick}
     >
       <div
         ref={panelRef}
@@ -279,7 +366,11 @@ export function Sheet({
         tabIndex={-1}
         data-sheet-panel=""
         onClick={(event) => event.stopPropagation()}
-        className={`w-full ${SIZE_CLASSES[size]} flex flex-col bg-[#0F1111] border border-[#1A1D1D] rounded-t-[20px] sm:rounded-[20px] outline-none max-h-[92dvh] sm:max-h-[85dvh] animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 ${className}`}
+        className={`w-full ${SIZE_CLASSES[size]} flex flex-col bg-[#0F1111] border border-[#1A1D1D] ${radius} outline-none max-h-[92dvh] sm:max-h-[85dvh] ${
+          rejected ? 'animate-subtle-shake' : ''
+        } ${
+          isClosing ? 'animate-sheet-exit' : 'animate-sheet-enter'
+        } ${className}`}
         style={
           dragOffset > 0
             ? {
@@ -328,7 +419,7 @@ export function Sheet({
             {showClose && (
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
                 aria-label="Close"
                 className="w-11 h-11 shrink-0 -mr-1 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer border border-[#1A1D1D]"
               >
@@ -348,7 +439,9 @@ export function Sheet({
 
         {footer && (
           <div
-            className="shrink-0 border-t border-[#1A1D1D] px-4 py-3 sm:px-5 sm:py-4 pb-[max(0.75rem,var(--spacing-safe-b))] bg-[#0F1111] rounded-b-[20px]"
+            className={`shrink-0 px-4 py-3 sm:px-5 sm:py-4 pb-[max(0.75rem,var(--spacing-safe-b))] bg-[#0F1111] rounded-b-[20px] ${
+              hideFooterDivider ? '' : 'border-t border-[#1A1D1D]'
+            }`}
           >
             {footer}
           </div>

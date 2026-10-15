@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   CheckCheck, 
@@ -29,10 +29,11 @@ export default function InboxPageContent() {
   const { toast } = useToast();
   const { planTier } = usePlan();
   const { 
-    items, 
-    archivedItems, 
-    unreadCount, 
-    markAsRead, 
+    items,
+    archivedItems,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
     deleteItem, 
     archiveItem, 
     unarchiveItem,
@@ -42,6 +43,18 @@ export default function InboxPageContent() {
   
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
+
+  /*
+   * Arriving at the Inbox is the read receipt.
+   *
+   * The bell hides while the Inbox route is active, but nothing changed any
+   * item's read state on the way in, so unreadCount stayed put and the bell came
+   * straight back on the next page. Clearing it here is what makes the bell mean
+   * "there is something you have not looked at yet".
+   */
+  useEffect(() => {
+    markAllAsRead();
+  }, [markAllAsRead]);
   
   // WhatsApp-style Action Menu State
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);

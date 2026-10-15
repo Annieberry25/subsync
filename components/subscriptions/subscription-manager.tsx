@@ -527,7 +527,11 @@ export default function SubscriptionManager() {
     if (err) {
       toast.error(err.message, 'Deletion Failed');
     } else {
-      toast.success(`Moved "${deletingSubscription.name}" to Deleted.`, 'Subscription Moved to Deleted');
+      toast.success('Removed', undefined, {
+        label: 'View',
+        ariaLabel: 'View deleted subscriptions',
+        onClick: () => router.push('/history/deleted'),
+      });
       setDeletingSubscription(null);
       setDeleteReturnToDetailSub(null);
       await loadData();

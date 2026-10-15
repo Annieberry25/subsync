@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ChevronRight, LogOut, User as UserIcon, HelpCircle, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, User as UserIcon, HelpCircle, Crown } from 'lucide-react';
 import { getVisibleNavItems, isNavItemActive, type NavItem } from '@/lib/nav';
 import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
@@ -168,7 +168,15 @@ export default function MorePage() {
           }
           className="flex items-center gap-3.5 min-h-[56px] px-4 transition-colors hover:bg-[#121414]"
         >
-          <Sparkles className="w-5 h-5 shrink-0 text-[#94A3B8]" aria-hidden="true" />
+          {/*
+  Primary on Plus, because it marks a state the account is already in. Muted on
+  the upgrade prompt, where the row is offering something rather than reporting
+  a status.
+*/}
+<Crown
+          className={`w-5 h-5 shrink-0 ${isPlus ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`}
+          aria-hidden="true"
+        />
           <span className="flex-1 text-sm text-[#F5F7F6] font-medium">
             {isPlus ? 'Plus' : 'Upgrade Plan'}
           </span>
@@ -189,10 +197,10 @@ export default function MorePage() {
         isOpen={showSignOutConfirm}
         onClose={() => setShowSignOutConfirm(false)}
         onConfirm={handleSignOut}
-        title="Log out?"
-        description="You'll need to sign in again to access your subscriptions and reminders on this device."
-        confirmText="Log out"
-        cancelText="Stay signed in"
+        title="Are you sure you want to log out"
+        description=""
+        confirmText="Yes"
+        cancelText="No"
         variant="danger"
       />
     </div>

@@ -76,7 +76,7 @@ export function RememberedAccountChooser({
                 onSelectAccount(account);
               }
             }}
-            className="w-full group p-3 sm:p-3.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] hover:border-[#14B8A6]/40 flex items-center justify-between gap-3 transition-all cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-[#14B8A6]/30"
+            className="w-full group p-3 sm:p-3.5 rounded-xl bg-[#0D0F0F] hover:bg-[#1A1D1D] border border-[#1A1D1D] hover:border-[#2A2F2F] flex items-center justify-between gap-3 transition-all cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-[#2A2F2F]"
           >
             <div className="flex items-center gap-3 min-w-0">
               {account.avatarUrl ? (
@@ -89,13 +89,13 @@ export function RememberedAccountChooser({
                   unoptimized
                 />
               ) : (
-                <div className="w-9 h-9 rounded-full bg-[#14B8A6]/15 border border-[#14B8A6]/30 text-[#14B8A6] font-bold text-xs flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-full bg-[#1A1D1D] border border-[#2A2F2F] text-[#F5F7F6] font-bold text-xs flex items-center justify-center shrink-0">
                   {getInitials(account)}
                 </div>
               )}
 
               <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm font-semibold text-[#F5F7F6] truncate group-hover:text-[#14B8A6] transition-colors">
+                <p className="text-xs sm:text-sm font-semibold text-[#F5F7F6] truncate group-hover:text-[#94A3B8] transition-colors">
                   {getLabel(account)}
                 </p>
                 <p className="text-[11px] sm:text-xs text-[#94A3B8] truncate">

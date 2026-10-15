@@ -8,15 +8,20 @@ import { useInbox } from '@/lib/contexts/inbox-context';
 import { useSettings } from '@/lib/contexts/user-settings-context';
 
 interface HeaderProps {
-  hasUnreadNotifications?: boolean;
   onOpenAskSubHalt?: () => void;
 }
 
-export default function Header({ hasUnreadNotifications, onOpenAskSubHalt }: HeaderProps) {
+export default function Header({ onOpenAskSubHalt }: HeaderProps) {
   const pathname = usePathname();
   const { unreadCount } = useInbox();
   const { assistantName: _assistantName } = useSettings();
-  const showUnread = Boolean(hasUnreadNotifications || unreadCount > 0);
+  /*
+   * The bell is the primary route into the Inbox now that Inbox no longer has a
+   * dock slot. It appears only while there is genuinely something unread, and
+   * never on the Inbox itself: arriving there clears the unread state, so the
+   * count cannot be a number the reader has already dealt with.
+   */
+  const showUnread = unreadCount > 0;
   const isInboxRoute = pathname.startsWith('/inbox');
 
   return (

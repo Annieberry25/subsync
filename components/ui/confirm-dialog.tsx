@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Trash2, RefreshCw, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 
 interface ConfirmDialogProps {
@@ -18,18 +18,12 @@ interface ConfirmDialogProps {
 
 const variantStyles = {
   danger: {
-    Icon: Trash2,
-    iconBg: 'bg-[#D9363E]/10 border-[#D9363E]/20 text-[#D9363E]',
     btnBg: 'bg-[#D9363E] hover:bg-[#B91C1C] text-white',
   },
   warning: {
-    Icon: AlertTriangle,
-    iconBg: 'bg-[#F59E0B]/10 border-[#F59E0B]/20 text-[#F59E0B]',
     btnBg: 'bg-[#F59E0B] hover:bg-[#D97706] text-white',
   },
   info: {
-    Icon: RefreshCw,
-    iconBg: 'bg-[#14B8A6]/15 border-[#14B8A6]/30 text-[#14B8A6]',
     btnBg: 'bg-[#14B8A6] hover:opacity-90 text-[#091512] font-semibold',
   },
 } as const;
@@ -47,33 +41,40 @@ export default function ConfirmDialog({
   children,
 }: ConfirmDialogProps) {
   const currentVariant = variantStyles[variant];
-  const Icon = currentVariant.Icon;
 
   return (
     <Sheet
       open={isOpen}
       onClose={onClose}
       size="sm"
-      /* The icon rides along with the title so it keeps its leading position
-         in the header; Sheet owns the accessible name and description. */
-      title={
-        <span className="flex items-center gap-3.5 min-w-0 pr-2">
-          <span
-            className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${currentVariant.iconBg}`}
-          >
-            <Icon className="w-5 h-5" />
-          </span>
-          {title}
-        </span>
-      }
+      /* The footer is a short row of pills, so the hairline above it only adds
+         weight. The close X stays: the Cancel button is the deliberate answer,
+         while the X is the reflex to back out of a prompt you opened by accident. */
+      hideFooterDivider
+      /* A prompt must be answered, so it stays centred on a phone too. The
+         default placement degrades to a bottom sheet, which put a logout question
+         at the bottom of the screen instead of in front of the reader. */
+      placement="modal"
+      /* A prompt carrying a Cancel button and a close control must not be
+         answered by a stray tap beside it. Both of those remain deliberate ways
+         out, as does Escape. */
+      dismissOnBackdrop={false}
+      /* The title is the question on its own. It used to lead a 40px icon tile,
+         which read as a second, louder heading. */
+      title={title}
       description={description}
       footer={
-        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
+        /*
+          One row at every width, with Cancel on the left and Confirm on the
+          right, spread apart rather than sitting shoulder to shoulder. Stacking
+          them full-width on a phone made the prompt twice the height it needed.
+        */
+        <div className="flex flex-row items-center justify-between gap-4">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="w-full sm:w-auto px-5 py-3 min-h-[44px] rounded-xl text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center border border-[#1A1D1D]"
+            className="px-5 py-2.5 min-h-[44px] rounded-full text-xs font-semibold text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center border border-[#1A1D1D]"
           >
             {cancelText}
           </button>
@@ -85,7 +86,7 @@ export default function ConfirmDialog({
               onClose();
             }}
             disabled={loading}
-            className={`w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer ${currentVariant.btnBg}`}
+            className={`px-5 py-2.5 min-h-[44px] rounded-full text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-60 ${currentVariant.btnBg}`}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             <span>{confirmText}</span>

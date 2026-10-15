@@ -4,6 +4,22 @@ import { useState, createContext, useContext, useCallback } from 'react';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
+/**
+ * A single forward action on the toast, surfaced as a chevron beside the copy.
+ * Used where the toast reports a move the reader may want to undo or inspect, so
+ * the destination is one tap away instead of something they have to go and find.
+ */
+export interface ToastAction {
+  /** Short visible text shown before the chevron, e.g. "View". */
+  label: string;
+  /**
+   * Fuller name for assistive tech. "View" alone is a weak accessible name on a
+   * control that navigates somewhere, so callers set this to say where.
+   */
+  ariaLabel?: string;
+  onClick: () => void;
+}
+
 export interface ToastItem {
   id: string;
   type: ToastType;
@@ -11,6 +27,7 @@ export interface ToastItem {
   message: string;
   duration?: number;
   shakeKey?: number;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
@@ -18,10 +35,10 @@ interface ToastContextValue {
   addToast: (toast: Omit<ToastItem, 'id'>) => void;
   removeToast: (id: string) => void;
   toast: {
-    success: (message: string, title?: string) => void;
-    error: (message: string, title?: string) => void;
-    info: (message: string, title?: string) => void;
-    warning: (message: string, title?: string) => void;
+    success: (message: string, title?: string, action?: ToastAction) => void;
+    error: (message: string, title?: string, action?: ToastAction) => void;
+    info: (message: string, title?: string, action?: ToastAction) => void;
+    warning: (message: string, title?: string, action?: ToastAction) => void;
   };
 }
 
@@ -41,7 +58,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [timeoutsRef]);
 
   const addToast = useCallback(
-    ({ type, title, message, duration = 4000 }: Omit<ToastItem, 'id'>) => {
+    ({ type, title, message, duration = 4000, action }: Omit<ToastItem, 'id'>) => {
       setToasts((prev) => {
         const existingIndex = prev.findIndex(
           (t) => t.type === type && t.title === title && t.message === message
@@ -65,13 +82,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           updated[existingIndex] = {
             ...existing,
             duration,
+            // Refreshed too: the same message can reappear with a different
+            // destination, and a stale closure would send the reader nowhere.
+            action,
             shakeKey: Date.now(),
           };
           return updated;
         }
 
         const id = Math.random().toString(36).substring(2, 9);
-        const newToast: ToastItem = { id, type, title, message, duration, shakeKey: 0 };
+        const newToast: ToastItem = { id, type, title, message, duration, action, shakeKey: 0 };
 
         if (duration > 0) {
           const newTimeout = setTimeout(() => {
@@ -87,10 +107,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 
   const toast = {
-    success: (message: string, title?: string) => addToast({ type: 'success', message, title }),
-    error: (message: string, title?: string) => addToast({ type: 'error', message, title }),
-    info: (message: string, title?: string) => addToast({ type: 'info', message, title }),
-    warning: (message: string, title?: string) => addToast({ type: 'warning', message, title }),
+    success: (message: string, title?: string, action?: ToastAction) =>
+      addToast({ type: 'success', message, title, action }),
+    error: (message: string, title?: string, action?: ToastAction) =>
+      addToast({ type: 'error', message, title, action }),
+    info: (message: string, title?: string, action?: ToastAction) =>
+      addToast({ type: 'info', message, title, action }),
+    warning: (message: string, title?: string, action?: ToastAction) =>
+      addToast({ type: 'warning', message, title, action }),
   };
 
   return (

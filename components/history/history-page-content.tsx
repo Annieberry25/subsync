@@ -10,8 +10,7 @@ import {
   ChevronDown,
   AlertCircle,
   SlidersHorizontal,
-  ChevronLeft,
-  Loader2
+  ChevronLeft
 } from 'lucide-react';
 import { 
   fetchSubscriptions, 
@@ -28,7 +27,6 @@ import {
   fetchActivityLog,
   type ActivityRecord
 } from '@/lib/services/activity-service';
-import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useInbox } from '@/lib/contexts/inbox-context';
@@ -37,6 +35,7 @@ import SubscriptionDetailModal from '@/components/subscriptions/subscription-det
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { AdBanner } from '@/components/dashboard/ad-banner';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
+import { ActionMenu } from '@/components/ui/action-menu';
 
 export type HistorySection = 'all' | 'archive' | 'deleted' | 'restored';
 
@@ -421,7 +420,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
     if (err) {
       toast.error(err.message, 'Restore Failed');
     } else {
-      toast.success(`"${sub.name}" has been restored to active subscriptions.`, 'Subscription Restored');
+      toast.success(`${sub.name} subscription restored`);
       await loadData();
     }
   };
@@ -435,7 +434,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
     if (err) {
       toast.error(err.message, 'Permanent Deletion Failed');
     } else {
-      toast.success(`"${permDeletingSub.name}" was permanently removed.`, 'Permanently Deleted');
+      toast.success('Permanently removed');
       setPermDeletingSub(null);
       await loadData();
     }
@@ -656,7 +655,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                       {archivedList.map((sub) => (
                         <div
                           key={sub.id}
-                          className="w-full rounded-2xl p-5 bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#14B8A6] flex flex-col justify-between transition-all duration-300 gap-4"
+                          className="w-full rounded-2xl p-4 sm:p-5 bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#14B8A6] flex flex-col justify-between transition-all duration-300 gap-3 sm:gap-4"
                         >
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -664,56 +663,37 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                                 name={sub.name}
                                 category={sub.category}
                                 providerUrl={sub.provider_url}
-                                className="w-10 h-10 rounded-xl shrink-0"
+                                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shrink-0"
                               />
                               <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-[#F5F7F6] text-[18px] tracking-tight truncate">
+                                <h3 className="font-semibold text-[#F5F7F6] text-[17px] sm:text-[18px] tracking-tight truncate">
                                   {sub.name}
                                 </h3>
-                                <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#F59E0B]/10 border border-[#F59E0B]/30 text-[#F59E0B] mt-0.5">
-                                  Archived
-                                </span>
                               </div>
                             </div>
-                          </div>
 
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className="text-2xl font-bold text-[#F5F7F6] tracking-tight">
-                              {formatCurrency(Number(sub.price), sub.currency)}
-                            </span>
-                            <span className="text-xs text-[#94A3B8]">/ {sub.billing_cycle}</span>
-                          </div>
-
-                          <div className="flex items-center justify-between text-xs text-[#94A3B8]">
-                            <span>Category: <strong className="text-[#F5F7F6] font-medium">{sub.category}</strong></span>
-                          </div>
-
-                          <div className="flex items-center gap-2 pt-2 border-t border-[#1A1D1D]">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSub(sub);
-                                setIsDetailOpen(true);
-                              }}
-                              className="flex-1 py-2 px-3 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-semibold text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                            >
-                              <ChevronRight className="w-3.5 h-3.5 text-[#14B8A6]" />
-                              <span>View Details</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleRestore(sub)}
-                              disabled={restoringId === sub.id}
-                              className="flex-1 py-2 px-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-xs font-semibold text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
-                            >
-                              {restoringId === sub.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />
-                              ) : (
-                                <RotateCcw className="w-3.5 h-3.5 text-[#091512]" />
-                              )}
-                              <span>Restore</span>
-                            </button>
+                            {/* Same single control as the Deleted cards, so the two
+                                lists behave identically. */}
+                            <ActionMenu
+                              triggerLabel={`Actions for ${sub.name}`}
+                              items={[
+                                {
+                                  label: 'View Details',
+                                  icon: ChevronRight,
+                                  onSelect: () => {
+                                    setSelectedSub(sub);
+                                    setIsDetailOpen(true);
+                                  },
+                                },
+                                {
+                                  label: 'Restore',
+                                  icon: RotateCcw,
+                                  busy: restoringId === sub.id,
+                                  busyLabel: 'Restoring',
+                                  onSelect: () => handleRestore(sub),
+                                },
+                              ]}
+                            />
                           </div>
                         </div>
                       ))}
@@ -785,7 +765,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                 {deletedList.map((sub) => (
                   <div
                     key={sub.id}
-                    className="w-full rounded-2xl p-5 bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#D9363E]/60 flex flex-col justify-between transition-all duration-300 gap-4"
+                    className="w-full rounded-2xl p-4 sm:p-5 bg-[#0B0D0D] border border-[#1A1D1D] hover:border-[#D9363E]/60 flex flex-col justify-between transition-all duration-300 gap-3 sm:gap-4"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -793,67 +773,44 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                           name={sub.name}
                           category={sub.category}
                           providerUrl={sub.provider_url}
-                          className="w-10 h-10 rounded-xl shrink-0"
+                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shrink-0"
                         />
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-[#F5F7F6] text-[18px] tracking-tight truncate">
+                          <h3 className="font-semibold text-[#F5F7F6] text-[17px] sm:text-[18px] tracking-tight truncate">
                             {sub.name}
                           </h3>
-                          <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#D9363E]/10 border border-[#D9363E]/30 text-[#D9363E] mt-0.5">
-                            Soft Deleted
-                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-2xl font-bold text-[#F5F7F6] tracking-tight">
-                        {formatCurrency(Number(sub.price), sub.currency)}
-                      </span>
-                      <span className="text-xs text-[#94A3B8]">/ {sub.billing_cycle}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-[#94A3B8]">
-                      <span>Category: <strong className="text-[#F5F7F6] font-medium">{sub.category}</strong></span>
-                    </div>
-
-                    <div className="flex flex-col gap-2 pt-2 border-t border-[#1A1D1D]">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSub(sub);
-                            setIsDetailOpen(true);
-                          }}
-                          className="flex-1 py-2 px-3 rounded-xl bg-[#0B0D0D] hover:bg-[#1A1D1D] text-xs font-semibold text-[#F5F7F6] border border-[#1A1D1D] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          <ChevronRight className="w-3.5 h-3.5 text-[#14B8A6]" />
-                          <span>View Details</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRestore(sub)}
-                          disabled={restoringId === sub.id}
-                          className="flex-1 py-2 px-3 rounded-xl bg-[#14B8A6] hover:opacity-90 text-xs font-semibold text-[#091512] transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
-                        >
-                          {restoringId === sub.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#091512]" />
-                          ) : (
-                            <RotateCcw className="w-3.5 h-3.5 text-[#091512]" />
-                          )}
-                          <span>Restore</span>
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setPermDeletingSub(sub)}
-                        className="w-full py-2 px-3 rounded-xl bg-[#D9363E]/10 hover:bg-[#D9363E]/20 text-xs font-semibold text-[#D9363E] border border-[#D9363E]/30 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete Permanently</span>
-                      </button>
+                      {/* One control rather than three buttons and a divider: the
+                          actions are secondary, and the destructive one is a
+                          deliberate step away from Restore. */}
+                      <ActionMenu
+                        triggerLabel={`Actions for ${sub.name}`}
+                        items={[
+                          {
+                            label: 'View Details',
+                            icon: ChevronRight,
+                            onSelect: () => {
+                              setSelectedSub(sub);
+                              setIsDetailOpen(true);
+                            },
+                          },
+                          {
+                            label: 'Restore',
+                            icon: RotateCcw,
+                            busy: restoringId === sub.id,
+                            busyLabel: 'Restoring',
+                            onSelect: () => handleRestore(sub),
+                          },
+                          {
+                            label: 'Delete Permanently',
+                            icon: Trash2,
+                            tone: 'danger',
+                            onSelect: () => setPermDeletingSub(sub),
+                          },
+                        ]}
+                      />
                     </div>
                   </div>
                 ))}
@@ -903,11 +860,13 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                               {item.provider}
                             </td>
                             <td className="py-4 px-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                                item.previousState === 'Archived'
-                                  ? 'bg-[#F59E0B]/10 border-[#F59E0B]/30 text-[#F59E0B]'
-                                  : 'bg-[#D9363E]/10 border-[#D9363E]/30 text-[#D9363E]'
-                              }`}>
+                              {/*
+                                The origin state is plain text, not a badge. It was
+                                an outlined pill, which promoted the least important
+                                column on the row into a status chip and, when it was
+                                red, read as a problem rather than as history.
+                              */}
+                              <span className="text-xs font-medium text-[#94A3B8]">
                                 {item.previousState}
                               </span>
                             </td>
@@ -925,20 +884,14 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
                     scrolling on a phone. */}
                 <ul className="md:hidden divide-y divide-[#1A1D1D]">
                   {restoredHistory.map((item) => (
-                    <li key={item.id} className="card-pad space-y-2">
+                    <li key={item.id} className="card-pad py-3 space-y-1.5">
                       <p className="text-sm font-bold text-[#F5F7F6]">{item.name}</p>
                       <p className="text-xs text-[#94A3B8]">{item.provider}</p>
-                      <div className="flex items-center justify-between gap-3 pt-1">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                            item.previousState === 'Archived'
-                              ? 'bg-[#F59E0B]/10 border-[#F59E0B]/30 text-[#F59E0B]'
-                              : 'bg-[#D9363E]/10 border-[#D9363E]/30 text-[#D9363E]'
-                          }`}
-                        >
+                      <div className="flex items-center justify-between gap-3 pt-0.5">
+                        <span className="text-xs font-medium text-[#94A3B8]">
                           {item.previousState}
                         </span>
-                        <span className="text-xs font-medium text-[#94A3B8] text-right">
+                        <span className="text-xs font-medium text-[#94A3B8] text-right ml-auto">
                           {new Date(item.dateRestored).toLocaleString('en-US', {
                             month: 'short',
                             day: 'numeric',
@@ -993,7 +946,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
         onConfirm={handleConfirmPermanentDelete}
         loading={permDeleteLoading}
         title={`Permanently delete "${permDeletingSub?.name}"?`}
-        description="Are you sure you want to permanently erase this subscription? This action cannot be undone and will permanently remove all saved information."
+        description="This action cannot be undone and will permanently remove all saved information."
         confirmText="Delete Permanently"
         variant="danger"
       />

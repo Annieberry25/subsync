@@ -1,7 +1,7 @@
 'use client';
 
 import { useToast } from '@/lib/hooks/use-toast';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, ChevronRight } from 'lucide-react';
 
 const icons = {
   success: CheckCircle2,
@@ -11,18 +11,35 @@ const icons = {
 };
 
 /**
- * Colour is carried by the icon and the text only.
+ * A neutral grey chip carrying the status, next to the copy.
  *
- * The surface is solid black rather than a translucent tint so a toast never
- * reads as a coloured card competing with the page for attention; the status is
- * unambiguous from the icon and the coloured copy. A single neutral hairline
- * keeps the solid black readable against the near-black app shell.
+ * The chip is the only element that changes colour for a successful or
+ * informational toast: a light square holding a near-black glyph. That keeps the
+ * check legible on a grey surface, where a bare coloured check would not be, and
+ * stops the status colour from bleeding into the text.
+ *
+ * Errors keep red on both the chip and the copy, because the text is what a
+ * reader acts on and it has to be unmistakably the error. Warning keeps its amber
+ * chip so the severity signal survives now that the text is white.
  */
-const styles = {
-  success: 'text-[#14B8A6]',
-  error: 'text-rose-400',
-  info: 'text-[#14B8A6]',
-  warning: 'text-amber-400',
+const chips = {
+  success: 'bg-[#F5F7F6] text-[#0B0D0D]',
+  info: 'bg-[#F5F7F6] text-[#0B0D0D]',
+  warning: 'bg-[#F59E0B] text-[#0B0D0D]',
+  error: 'bg-[#D9363E] text-[#FFFFFF]',
+};
+
+/**
+ * Copy colour. Success and info are white, because the reader can proceed and the
+ * chip already says what happened. Warning and error carry their status colour in
+ * the text itself, since the text is what gets acted on and a warning that reads
+ * white reads like a confirmation.
+ */
+const copy = {
+  success: 'text-[#F5F7F6]',
+  info: 'text-[#F5F7F6]',
+  warning: 'text-[#F59E0B]',
+  error: 'text-[#D9363E]',
 };
 
 export function ToastContainer() {
@@ -49,27 +66,73 @@ export function ToastContainer() {
             role="alert"
             className="pointer-events-auto transition-all duration-200"
           >
+            {/*
+              Slim. Padding is 4/6px vertical and the close control 24px, so a
+              single-line toast is about 28px tall. The copy is clamped to two
+              lines because wrapping is what actually drives the height on a
+              phone: the same sentence that sits on one line at 400px wraps to
+              four at 360px, and the toast grows with it.
+
+              Alignment is centred at every width. Top-aligning on mobile looked
+              right for a two-line toast but left the text hanging at the top when
+              the copy was short, which is the common case.
+            */}
             <div
               key={toast.shakeKey || 'initial'}
-              className={`flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#000000] border border-[#1C2924] shadow-xl transition-all ${
+              className={`flex items-center gap-1.5 py-1 pl-1.5 pr-0.5 sm:gap-2 sm:py-1.5 sm:pl-2 sm:pr-1 rounded-[18px] bg-[#1C2020] border border-[#2A2F2F] shadow-xl transition-all ${
                 toast.shakeKey ? 'animate-subtle-shake' : 'animate-in slide-in-from-bottom-5 fade-in duration-200'
-              } ${styles[toast.type]}`}
+              }`}
             >
-              <IconComponent className="w-5 h-5 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                {toast.title && (
-                  <h4 className="text-xs font-bold subhalt-heading mb-0.5 leading-tight">{toast.title}</h4>
-                )}
-                <p className="text-xs subhalt-subtitle font-medium leading-relaxed break-words">{toast.message}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeToast(toast.id)}
-                aria-label="Close notification"
-                className="text-current opacity-70 hover:opacity-100 transition-opacity min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-white/10 shrink-0 cursor-pointer"
+              <span
+                aria-hidden="true"
+                className={`shrink-0 grid place-items-center w-[18px] h-[18px] rounded-full ${chips[toast.type]}`}
               >
-                <X className="w-4 h-4" />
-              </button>
+                <IconComponent className="w-2.5 h-2.5" />
+              </span>
+
+              <div className={`flex-1 min-w-0 ${copy[toast.type]}`}>
+                {toast.title && (
+                  <h4 className="text-xs font-bold subhalt-heading leading-[1.35]">{toast.title}</h4>
+                )}
+                <p className="text-xs font-medium leading-[1.35] break-words line-clamp-2">
+                  {toast.message}
+                </p>
+              </div>
+
+              {toast.action && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.action?.onClick();
+                    removeToast(toast.id);
+                  }}
+                  aria-label={toast.action.ariaLabel ?? toast.action.label}
+                  className="relative shrink-0 grid grid-flow-col items-center gap-0.5 h-6 pl-2 pr-1 rounded-full text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-white/10 transition-colors cursor-pointer before:absolute before:-inset-1 before:content-['']"
+                >
+                  <span className="text-[11px] font-semibold leading-none">
+                    {toast.action.label}
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/*
+                The close X is dropped once the toast has an action. The chevron
+                dismisses on click as well as navigating, so the X becomes a
+                second identical affordance and the row is carrying a control the
+                reader does not need. Toasts without an action keep it, since
+                nothing else closes them early.
+              */}
+              {!toast.action && (
+                <button
+                  type="button"
+                  onClick={() => removeToast(toast.id)}
+                  aria-label="Close notification"
+                  className="relative shrink-0 grid place-items-center w-6 h-6 rounded-full text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-white/10 transition-colors cursor-pointer before:absolute before:-inset-1 before:content-['']"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
           </div>
         );

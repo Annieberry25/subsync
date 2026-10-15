@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ChevronLeft, AlertCircle, Trash2 } from 'lucide-react';
 import {
   fetchSubscriptions,
@@ -236,6 +236,7 @@ export default function RenewalsPageContent() {
    * control and leads with the upcoming list.
    */
   const searchParams = useSearchParams();
+  const router = useRouter();
   const fromAlert = searchParams.get('from') === 'alert';
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>(initialCache || []);
   const [loading, setLoading] = useState(!initialCache);
@@ -300,12 +301,15 @@ export default function RenewalsPageContent() {
         return;
       }
       setSubscriptions((current) => current.filter((row) => row.id !== sub.id));
-      toast.success(
-        `"${sub.name}" moved to Deleted. You can restore it from Past Activity.`,
-        'Subscription Removed'
-      );
+      // The toast reports one fact and offers the way back. Explanatory copy was
+      // cut because the chevron already goes where the subscription went.
+      toast.success('Removed', undefined, {
+        label: 'View',
+        ariaLabel: 'View deleted subscriptions',
+        onClick: () => router.push('/history/deleted'),
+      });
     },
-    [toast]
+    [toast, router]
   );
 
   return (
