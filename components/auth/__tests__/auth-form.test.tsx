@@ -331,6 +331,45 @@ it('returns a Google account through Google instead of a password or code form',
     expect(screen.queryByRole('heading', { name: 'Enter your password' })).not.toBeInTheDocument();
   });
 
+  /**
+   * The reported failure. A Google account whose row the admin search misses used
+   * to be told, with a 200, that it had no Google methods — and the one place it
+   * can never authenticate was a password form.
+   *
+   * The endpoint now answers a miss with a non-200, which is its documented "I
+   * could not determine this", so the stored provider carries the decision and the
+   * account goes back through Google.
+   */
+  it('sends a remembered Google account through Google when the method lookup cannot find it', async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'missed@example.com', displayName: 'Missed', lastUsed: 1, provider: 'google' },
+      ])
+    );
+    mocks.loginFetch.mockImplementation((url: string) =>
+      url === '/api/auth/providers'
+        ? Promise.resolve({ ok: false, status: 404, json: async () => ({ methods: [] }) })
+        : Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true }) })
+    );
+
+    render(<AuthForm />);
+    await waitFor(() => screen.getByText('Choose an account to continue'));
+
+    await user.click(screen.getByText('missed@example.com'));
+
+    // Must go through Google's own authentication, with the account chooser, rather
+    // than being handed a session or being asked for a password it does not have.
+    expect(mocks.signInWithOAuth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'google',
+        options: expect.objectContaining({ queryParams: { prompt: 'select_account' } }),
+      })
+    );
+    expect(screen.queryByRole('heading', { name: 'Enter your password' })).not.toBeInTheDocument();
+  });
+
   it('routes a remembered email/password account to the password form even when the stored provider says google', async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(
