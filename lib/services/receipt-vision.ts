@@ -18,8 +18,38 @@ import { logger } from '@/lib/logger';
 
 const GROQ_CHAT_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
-/** Groq vision-capable model used for transcription. */
-const VISION_MODEL = process.env.GROQ_VISION_MODEL?.trim() || 'llama-3.2-90b-vision-preview';
+/**
+ * Vision models to try, in order.
+ *
+ * This used to be a single hardcoded id — `llama-3.2-90b-vision-preview` — which
+ * Groq shut down on 14 April 2025. Every screenshot then failed with "we could not
+ * read that image" and no other symptom, because the real provider error was
+ * logged and the user was told to try a clearer photo. The feature was simply dead
+ * and looked like a bad upload.
+ *
+ * A list is the fix that generalises. Groq retires models on a rolling schedule and
+ * the recommended replacement is often retired within a year — the successor named
+ * for the 3.2 vision model, llama-4-scout, was itself retired in July 2026 — so
+ * pinning one id is a recurring outage rather than a one-off.
+ *
+ * `GROQ_VISION_MODEL` is tried first, ahead of this list.
+ */
+const FALLBACK_VISION_MODELS = [
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'llama-3.2-90b-vision-preview',
+  'llama-3.2-11b-vision-preview',
+] as const;
+
+/**
+ * `GROQ_VISION_MODEL` is tried first. The fallback list still follows it, because a
+ * pinned id that gets retired would otherwise take the feature down with no way to
+ * recover without a deploy — which is precisely how the last one failed.
+ */
+function visionModelCandidates(): string[] {
+  const pinned = process.env.GROQ_VISION_MODEL?.trim();
+  return pinned ? [pinned, ...FALLBACK_VISION_MODELS] : [...FALLBACK_VISION_MODELS];
+}
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_TRANSCRIPT_CHARS = 6_000;
@@ -87,65 +117,120 @@ export async function transcribeReceiptImage(
   }
 
   const dataUrl = `data:${mimeType};base64,${toBase64(bytes)}`;
+  const candidates = visionModelCandidates();
+  const failures: { model: string; status: number; message: string }[] = [];
 
-  const body = {
-    model: VISION_MODEL,
-    temperature: 0,
-    max_tokens: 1400,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: TRANSCRIPTION_PROMPT },
-          { type: 'image_url', image_url: { url: dataUrl } },
-        ],
-      },
-    ],
-  };
+  for (const model of candidates) {
+    const body = {
+      model,
+      temperature: 0,
+      max_tokens: 1400,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: TRANSCRIPTION_PROMPT },
+            { type: 'image_url', image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+    };
 
-  const res = await fetch(GROQ_CHAT_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-
-  if (!res.ok) {
-    let message = `Vision provider error ${res.status}`;
+    let res: Response;
     try {
-      const errBody = (await res.json()) as { error?: { message?: string } };
-      if (errBody?.error?.message) message = errBody.error.message;
-    } catch {
-      // keep the status-based message
+      res = await fetch(GROQ_CHAT_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // Network or timeout. Trying the next model cannot help, so stop here.
+      const detail = err instanceof Error ? err.message : String(err);
+      logger.error('[receipt] vision request failed', { model, detail });
+      throw new VisionUnavailableError(
+        'Image scanning could not reach the provider. Please try again shortly, or paste the receipt text.'
+      );
     }
-    logger.warn('[receipt] vision transcription failed', { status: res.status, message });
-    throw new VisionUnavailableError(
-      'We could not read that image. Try a clearer screenshot, or paste the receipt text instead.'
-    );
+
+    if (!res.ok) {
+      let message = `Vision provider error ${res.status}`;
+      try {
+        const errBody = (await res.json()) as { error?: { message?: string } };
+        if (errBody?.error?.message) message = errBody.error.message;
+      } catch {
+        // keep the status-based message
+      }
+      failures.push({ model, status: res.status, message });
+
+      /*
+       * Only a complaint about the model is worth retrying with a different one.
+       * A 401 is a bad key and a 429 is a quota, and both would fail identically on
+       * every candidate, turning one honest error into four.
+       */
+      const aboutTheModel = /model|deprecat|decommission|not found|no longer|not available/i.test(message);
+      if (!aboutTheModel || res.status === 401 || res.status === 429) {
+        logger.error('[receipt] vision transcription failed', {
+          model,
+          status: res.status,
+          message,
+        });
+        throw new VisionUnavailableError(unavailableMessage(failures));
+      }
+      continue;
+    }
+
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const raw = (data.choices?.[0]?.message?.content ?? '').trim();
+
+    if (!raw) {
+      throw new VisionUnavailableError('The image did not contain any readable text.');
+    }
+
+    if (raw.replace(/[^A-Za-z]/g, '').toUpperCase().includes(NOT_A_RECEIPT.replace(/_/g, ''))) {
+      return { text: '', model, notAReceipt: true };
+    }
+
+    // Models sometimes wrap output in a fenced block despite the instructions.
+    const text = raw
+      .replace(/^```[a-z]*\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim()
+      .slice(0, MAX_TRANSCRIPT_CHARS);
+
+    return { text, model, notAReceipt: false };
   }
 
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const raw = (data.choices?.[0]?.message?.content ?? '').trim();
+  logger.error('[receipt] every vision model was unavailable', { failures });
+  throw new VisionUnavailableError(unavailableMessage(failures));
+}
 
-  if (!raw) {
-    throw new VisionUnavailableError('The image did not contain any readable text.');
+/**
+ * Says what actually went wrong, without telling the reader to try a clearer photo
+ * when the service is the problem.
+ *
+ * The previous message always blamed the image, which is why a dead model read as a
+ * bad screenshot for as long as it went unnoticed.
+ */
+function unavailableMessage(failures: { status: number; message: string }[]): string {
+  const last = failures[failures.length - 1];
+  if (!last) {
+    return 'Image scanning is unavailable right now. Please paste the receipt text instead.';
   }
 
-  if (raw.replace(/[^A-Za-z]/g, '').toUpperCase().includes(NOT_A_RECEIPT.replace(/_/g, ''))) {
-    return { text: '', model: VISION_MODEL, notAReceipt: true };
+  if (last.status === 401 || last.status === 403) {
+    return 'Image scanning is not authorised on this server. Please paste the receipt text instead.';
   }
-
-  // Models sometimes wrap output in a fenced block despite the instructions.
-  const text = raw
-    .replace(/^```[a-z]*\s*/i, '')
-    .replace(/\s*```$/i, '')
-    .trim()
-    .slice(0, MAX_TRANSCRIPT_CHARS);
-
-  return { text, model: VISION_MODEL, notAReceipt: false };
+  if (last.status === 429) {
+    return 'Image scanning has hit its usage limit right now. Please try again later, or paste the receipt text.';
+  }
+  if (/model|deprecat|decommission|not found|no longer|not available/i.test(last.message)) {
+    return 'Image scanning is unavailable: the configured vision model is no longer offered. Please paste the receipt text instead.';
+  }
+  return 'We could not read that image. Try a clearer screenshot, or paste the receipt text instead.';
 }
