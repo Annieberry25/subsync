@@ -46,6 +46,15 @@ async function lookupAccountMethods(email: string): Promise<string[] | null> {
   }
 }
 
+/**
+ * Forces Google's account chooser on every sign-in through the form, so the person
+ * picks the account and confirms before access is granted rather than being handed
+ * whichever account the browser happened to use last.
+ */
+const GOOGLE_ACCOUNT_PICKER_PROMPT: Record<string, string> = {
+  prompt: 'select_account',
+};
+
 export function LoginFlow({ initialError }: { initialError?: string } = {}) {
   /**
    * The saved-accounts list is localStorage, i.e. an external store, so it is
@@ -497,8 +506,6 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
           accounts={rememberedAccounts}
           onSelectAccount={handleSelectAccount}
           onRemoveAccount={handleRemoveAccount}
-          onSocialAuth={handleSocialAuth}
-          socialLoading={socialLoading}
           onUseAnotherAccount={() => {
             setError(null);
             setSuccess(null);
@@ -542,11 +549,21 @@ export function LoginFlow({ initialError }: { initialError?: string } = {}) {
             Log in to your account to manage your recurring subscriptions.
           </p>
 
-          {/* Social buttons */}
+          {/*
+           * Google's own account picker, every time.
+           *
+           * Without a prompt, Google reuses whichever account last signed in and
+           * drops the person straight into the app with no confirmation step. The
+           * whole point of this button is that somebody is choosing to authenticate
+           * with Google, so the choice has to be theirs to make: which account, and
+           * a deliberate Continue before access is granted.
+           */}
           <SocialAuthButtons
             loadingProvider={socialLoading}
             disabled={loading}
-            onSelect={handleSocialAuth}
+            onSelect={(provider) =>
+              handleSocialAuth(provider, GOOGLE_ACCOUNT_PICKER_PROMPT)
+            }
           />
 
           {/* OR divider */}

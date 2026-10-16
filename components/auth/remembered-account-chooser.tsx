@@ -6,21 +6,13 @@ import { ChevronRight } from 'lucide-react';
 import { RememberedAccount } from '@/lib/auth/remembered-accounts';
 import { Button } from '@/components/ui/button';
 import { BrandWordmark } from '@/components/ui/brand-logo';
-import type { SocialAuthProviderId } from '@/lib/supabase/cookie-options';
-import { SocialAuthButtons } from './social-auth-buttons';
 
 interface RememberedAccountChooserProps {
   accounts: RememberedAccount[];
   onSelectAccount: (account: RememberedAccount) => void;
   onRemoveAccount?: (email: string) => void;
+  /** Opens the full sign-in form, which is where the providers live. */
   onUseAnotherAccount: () => void;
-  /**
-   * Starts an OAuth sign-in. Optional so the chooser still renders in isolation
-   * (tests, storybook), but the login flow always passes it.
-   */
-  onSocialAuth?: (provider: SocialAuthProviderId) => void;
-  /** Id of the provider currently awaiting redirect, if any. */
-  socialLoading?: string | null;
 }
 
 export function RememberedAccountChooser({
@@ -28,8 +20,6 @@ export function RememberedAccountChooser({
   onSelectAccount,
   onRemoveAccount: _onRemoveAccount,
   onUseAnotherAccount,
-  onSocialAuth,
-  socialLoading = null,
 }: RememberedAccountChooserProps) {
   const getInitials = (account: RememberedAccount) => {
     const nameStr = account.displayName || account.username || account.email;
@@ -111,36 +101,27 @@ export function RememberedAccountChooser({
         ))}
       </div>
 
-      {/* 4. OR divider */}
-      <div className="flex items-center gap-3 my-7 py-0.5">
-        <div className="flex-1 h-px bg-[#1A1D1D]" />
-        <span className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wider">OR</span>
-        <div className="flex-1 h-px bg-[#1A1D1D]" />
-      </div>
-
       {/*
-       * 5. Social sign-in.
+       * No provider buttons here, deliberately.
        *
-       * The chooser is a dead end for anyone who signed in with Google: it only
-       * offers password/one-time-code accounts and a link to the email form, so
-       * after signing out the Google button was one tap out of sight and read as
-       * "Google sign-in is broken". Keeping the providers here means every
-       * reachable step of the login flow shows them.
+       * This screen answers one question: which saved account are you? It listed
+       * the providers underneath as well, and that muddied it — the same Google
+       * destination was one tap away in two places, and picking the button instead
+       * of the account skipped the lookup that decides how that account must
+       * authenticate, which is how a Google account ended up being shown a
+       * password form.
+       *
+       * Choosing an account goes through Google, with Google's own picker, because
+       * that is how the account signs in. Anyone else taps the button below, which
+       * opens the full form where the providers live.
        */}
-      {onSocialAuth && (
-        <SocialAuthButtons loadingProvider={socialLoading} onSelect={onSocialAuth} />
-      )}
-
-      {/* 6. Log in to another account */}
       <Button
         variant="secondary"
         size="md"
         onClick={onUseAnotherAccount}
-        className={`w-full text-xs sm:text-sm font-semibold h-10 sm:h-10.5 rounded-full ${
-          onSocialAuth ? 'mt-3' : ''
-        }`}
+        className="w-full mt-6 text-xs sm:text-sm font-semibold h-10 sm:h-10.5 rounded-full"
       >
-        Log in to another account
+        Sign in with another account
       </Button>
 
       {/* 7. Sign-up footer */}
