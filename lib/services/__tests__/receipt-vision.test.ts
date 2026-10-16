@@ -73,13 +73,41 @@ describe('transcribeReceiptImage', () => {
     fetchMock.mockResolvedValue(modelGoneResponse('whatever'));
 
     await expect(transcribeReceiptImage(BYTES, 'image/png')).rejects.toThrow(
-      /no longer offered/i
+      /no vision model on the configured provider/i
     );
     // The old wording told people to try a clearer screenshot, which is nonsense
     // when nothing is wrong with the screenshot.
     await expect(transcribeReceiptImage(BYTES, 'image/png')).rejects.not.toThrow(
       /clearer screenshot/i
     );
+  });
+
+  /**
+   * The model that leads the list. Groq no longer hosts anything marketed as
+   * vision-capable, and this is the current generation of the one model on their
+   * list that accepts image input.
+   */
+  it('tries qwen/qwen3.8-27b first, the current image-capable model', async () => {
+    fetchMock.mockResolvedValue(okResponse('AMAZON PRIME 14.99'));
+
+    await transcribeReceiptImage(BYTES, 'image/png');
+
+    const first = JSON.parse(fetchMock.mock.calls[0][1].body as string).model;
+    expect(first).toBe('qwen/qwen3.8-27b');
+  });
+
+  it('walks past a model that exists but cannot read images', async () => {
+    // A 400 complaining about the image payload, not about the model id.
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: 'This model does not support image input.' } }),
+    }).mockResolvedValueOnce(okResponse('SPOTIFY 10.99'));
+
+    const result = await transcribeReceiptImage(BYTES, 'image/png');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.text).toContain('SPOTIFY');
   });
 
   it('does not retry every model when the key itself is rejected', async () => {
