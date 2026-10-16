@@ -53,7 +53,9 @@ export function AdBanner({
   className = '',
 }: AdBannerProps) {
   const [dismissed, setDismissed] = useState(false);
-  const insRef = useRef<HTMLModElement>(null);
+  // React's JSX types resolve <ins> to HTMLModElement, which is what it demands
+// here even though the element is a plain HTMLElement at runtime.
+const insRef = useRef<HTMLModElement>(null);
 
   const enabled = ADSENSE_ENABLED && adSlot;
 
@@ -79,8 +81,27 @@ export function AdBanner({
   }
 
   return (
+    /*
+     * Narrow on a phone, and nothing is cropped.
+     *
+     * The slot was full-width inside a container that runs to ~1280px, with
+     * `data-full-width-responsive="true"`, so on a phone AdSense was still being
+     * offered its large mobile formats. The old response was to cap the slot at
+     * 60px behind `overflow-hidden`, which chopped the creative in half — and
+     * AdSense's rules do not permit obscuring ad content, so that was a risk to the
+     * whole account rather than a display choice.
+     *
+     * The width is the lever AdSense actually responds to: give the slot a narrow
+     * box on a phone and it selects a format that fits it, so the ad is genuinely
+     * small instead of a large one cut to size. The container grows to whatever the
+     * chosen creative needs and clips nothing.
+     *
+     * If this ever comes back unfilled rather than small, the account only has large
+     * formats enabled for this slot and the fix is fewer placements, not more
+     * cropping.
+     */
     <div
-      className={`w-full rounded-2xl border border-[#1A1D1D] bg-[#0B0D0D] overflow-hidden ${className}`}
+      className={`mx-auto w-full max-w-[320px] rounded-2xl border border-[#1A1D1D] bg-[#0B0D0D] sm:max-w-none ${className}`}
       role="region"
       aria-label="Advertisement"
     >
@@ -99,13 +120,11 @@ export function AdBanner({
         </button>
       </div>
 
-      {/* Below the sm breakpoint (phones) the slot is capped at 60px so the ad
-          cannot push the dashboard down; from sm up it keeps the original
-          90px minimum and is unconstrained, so the web layout is unchanged. */}
+      {/* Height is a floor, never a ceiling. A ceiling would crop whatever Google
+          serves, which is both a layout bug and an AdSense policy problem. */}
       <ins
         ref={insRef}
-        className="adsbygoogle overflow-hidden min-h-[50px] max-h-[60px] sm:min-h-[90px] sm:max-h-none"
-        style={{ display: 'block' }}
+        className="adsbygoogle block min-h-[50px] sm:min-h-[90px]"
         data-ad-client={ADSENSE_CLIENT}
         data-ad-slot={adSlot}
         data-ad-format="auto"
