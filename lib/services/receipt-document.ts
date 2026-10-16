@@ -428,8 +428,20 @@ function corruptError(failure: { name: string; message: string }, bytes: Uint8Ar
     );
   }
 
+  /*
+   * The pdf.js error name is included deliberately.
+   *
+   * This branch is the catch-all, so every structural problem pdf.js can raise --
+   * an unsupported version, a malformed xref, a damaged object stream -- produced
+   * one identical sentence. Reported from a server log, which the person who
+   * uploaded the file cannot see, that made a reproducible failure undiagnosable:
+   * nothing could be fixed without the log and nobody else had it.
+   *
+   * The name describes this person's own file and carries no account data, and it is
+   * the difference between "ask them to try again" and knowing what to change.
+   */
   return new ReceiptFileError(
-    'This PDF could not be opened. Please try re-downloading it from the provider, or upload a screenshot instead.',
+    `This PDF could not be opened (${failure.name}). Please try re-downloading it from the provider, or upload a screenshot instead.`,
     'corrupt'
   );
 }
