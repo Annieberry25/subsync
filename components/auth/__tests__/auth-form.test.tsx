@@ -109,8 +109,11 @@ describe('AuthForm', () => {
    * verifier is a cookie on that host, so a redirectTo built from
    * NEXT_PUBLIC_SITE_URL delivered the callback somewhere it did not exist and
    * `exchangeCodeForSession` failed.
+   *
+   * The prompt is part of it now: without one, Google reuses whichever account last
+   * signed in and drops the person into the app with no confirmation step.
    */
-  it('starts Google sign-in against the live browser origin', async () => {
+  it('starts Google sign-in against the live browser origin, with the account picker', async () => {
     const user = userEvent.setup();
     render(<AuthForm />);
 
@@ -119,7 +122,10 @@ describe('AuthForm', () => {
     await waitFor(() =>
       expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { prompt: 'select_account' },
+        },
       })
     );
   });
@@ -187,12 +193,37 @@ describe('AuthForm', () => {
   });
 
   /**
-   * Regression: the chooser only offered password/one-time-code accounts plus a
-   * link to the email form, so after signing out of a Google account the
-   * "Continue with Google" button was a tap out of sight and read as broken
-   * social sign-in.
+   * The chooser answers one question: which saved account. It used to carry the
+   * provider buttons as well, which put the same Google destination one tap away
+   * in two places on one screen.
+   *
+   * Taking the button instead of the account also skipped the lookup that decides
+   * how that account must authenticate, which is how a Google account ended up
+   * being shown a password form. The providers now live only on the full form,
+   * behind "Sign in with another account".
    */
-  it('keeps Google sign-in reachable from the account chooser', async () => {
+  it('keeps the providers off the account chooser', async () => {
+    window.localStorage.setItem(
+      'subhalt_remembered_accounts',
+      JSON.stringify([
+        { email: 'user@example.com', displayName: 'User', lastUsed: 1 },
+      ])
+    );
+
+    render(<AuthForm />);
+    await waitFor(() => screen.getByText('Choose an account to continue'));
+
+    expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /sign in with another account/i })
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * And that control must actually reach the form the providers live on, or the
+   * chooser becomes a dead end for anyone who did not save an account.
+   */
+  it('reaches the full form, with Google, from the account chooser', async () => {
     const user = userEvent.setup();
     window.localStorage.setItem(
       'subhalt_remembered_accounts',
@@ -204,13 +235,18 @@ describe('AuthForm', () => {
     render(<AuthForm />);
     await waitFor(() => screen.getByText('Choose an account to continue'));
 
-    const googleButton = screen.getByRole('button', { name: 'Continue with Google' });
+    await user.click(screen.getByRole('button', { name: /sign in with another account/i }));
+
+    const googleButton = await screen.findByRole('button', { name: 'Continue with Google' });
     await user.click(googleButton);
 
     await waitFor(() =>
       expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: { prompt: 'select_account' },
+        },
       })
     );
   });
