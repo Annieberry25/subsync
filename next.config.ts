@@ -32,6 +32,22 @@ const nextConfig: NextConfig = {
   // pdfjs-dist ships a worker and WASM-backed decoders that must stay outside
   // the server bundle for the legacy build to resolve at runtime.
   serverExternalPackages: ['pdfjs-dist'],
+  /*
+   * ...and the worker's files must still be traced into the deployment.
+   *
+   * `serverExternalPackages` only stops Next.js from bundling pdf.js; it does not
+   * copy anything into the output. pdf.js reads a document by spinning up
+   * `pdf.worker.mjs` through a dynamic import, so on Vercel the request failed
+   * with `Setting up fake worker failed: Cannot find module
+   * '/var/task/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'` and every
+   * PDF upload was rejected. Nothing was wrong with the files people uploaded.
+   *
+   * The whole legacy build directory is traced rather than just the worker, because
+   * the decoders sit beside it and are loaded the same way.
+   */
+  outputFileTracingIncludes: {
+    '/*': ['./node_modules/pdfjs-dist/legacy/build/**/*'],
+  },
   images: {
     remotePatterns: [
       {
