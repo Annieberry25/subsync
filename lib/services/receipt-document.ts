@@ -393,6 +393,20 @@ async function openPdf(bytes: Uint8Array): Promise<PdfOpenResult> {
  * diagnose, so the two cases are separated.
  */
 function corruptError(failure: { name: string; message: string }, bytes: Uint8Array): ReceiptFileError {
+  /*
+   * Log the real pdf.js failure before it is flattened into a user-facing string.
+   *
+   * The message below has been identical for every structural problem pdf.js can
+   * hit, so an unsupported version, a damaged xref and a file format pdf.js cannot
+   * read all looked the same from the outside and none could be told apart. This is
+   * the only place the underlying name and message survive.
+   */
+  logger.error('[receipt] PDF could not be opened', {
+    failure: failure.name,
+    detail: failure.message,
+    bytes: bytes.length,
+  });
+
   const looksLikePdf =
     bytes.length >= 4 &&
     bytes[0] === 0x25 &&
