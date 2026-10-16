@@ -47,26 +47,16 @@ async function lookupAccountMethods(email: string): Promise<string[] | null> {
 }
 
 /**
- * Asks Google for its own account picker *and* its consent screen, and forces
- * `authuser=0` so the browser cannot satisfy the request from a live Google
- * session.
+ * Asks Google for its own account picker on every sign-in, so the person picks the
+ * account rather than being handed whichever one the browser last used.
  *
- * `select_account` on its own only offers the choice of which account. It does not
- * make Google confirm anything, and it lets a browser with an active Google
- * session skip straight through, which is how signing in could complete without
- * the person ever being asked. Adding `consent` brings back the "Continue as ..."
- * step, and `authuser=0` is what makes Google show the sign-in method options —
- * passkey, password, and whatever else the account has configured — instead of
- * assuming the last method used.
- *
- * Whether a method chooser ultimately appears is Google's call: it depends on what
- * the account has enabled, and iOS does not offer passkeys the way Chrome and
- * Android do. This asks for the full flow rather than a silent sign-in; it cannot
- * force Google to offer a method the account does not have.
+ * Deliberately a single value. Google's `prompt` does accept space-separated
+ * values like `select_account consent`, but only when they arrive URL-encoded;
+ * passed through literally the request is malformed and Google rejects the sign-in
+ * outright. That is not a risk worth carrying for an extra screen.
  */
 const GOOGLE_ACCOUNT_PICKER_PROMPT: Record<string, string> = {
-  prompt: 'select_account consent',
-  authuser: '0',
+  prompt: 'select_account',
 };
 
 export function LoginFlow({ initialError }: { initialError?: string } = {}) {
