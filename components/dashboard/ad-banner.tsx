@@ -82,23 +82,20 @@ const insRef = useRef<HTMLModElement>(null);
 
   return (
     /*
-     * Narrow on a phone, and nothing is cropped.
+     * A short banner on a phone: 320px wide and 50px tall below `sm`, unconstrained
+     * above it.
      *
-     * The slot was full-width inside a container that runs to ~1280px, with
-     * `data-full-width-responsive="true"`, so on a phone AdSense was still being
-     * offered its large mobile formats. The old response was to cap the slot at
-     * 60px behind `overflow-hidden`, which chopped the creative in half — and
-     * AdSense's rules do not permit obscuring ad content, so that was a risk to the
-     * whole account rather than a display choice.
+     * Width and height are the two halves of a size *request* to a responsive unit,
+     * which selects a format that fits the box it is given. Asking for a maximum
+     * instead is a different thing and a bad one: it lets Google render a 320x100
+     * and then cuts it off, which is the obscuring AdSense does not permit.
      *
-     * The width is the lever AdSense actually responds to: give the slot a narrow
-     * box on a phone and it selects a format that fits it, so the ad is genuinely
-     * small instead of a large one cut to size. The container grows to whatever the
-     * chosen creative needs and clips nothing.
+     * The old code did exactly that -- capped at 60px behind `overflow-hidden` --
+     * so the ad looked small because half of it was missing.
      *
-     * If this ever comes back unfilled rather than small, the account only has large
-     * formats enabled for this slot and the fix is fewer placements, not more
-     * cropping.
+     * If Google ignores the request and serves something taller, it overflows this
+     * box instead of being silently cut. That is the point: a visible overlap is a
+     * bug we can see, a cropped ad is a policy problem we cannot.
      */
     <div
       className={`mx-auto w-full max-w-[320px] rounded-2xl border border-[#1A1D1D] bg-[#0B0D0D] sm:max-w-none ${className}`}
@@ -120,11 +117,22 @@ const insRef = useRef<HTMLModElement>(null);
         </button>
       </div>
 
-      {/* Height is a floor, never a ceiling. A ceiling would crop whatever Google
-          serves, which is both a layout bug and an AdSense policy problem. */}
+      {/*
+       * Height is fixed, not capped, and the width above is fixed too.
+       *
+       * These are the two halves of a size request, not a crop. A responsive unit
+       * reads the box it is given and picks a format that fits it, so 320x50 asks
+       * for the short banner. A `max-h` with `overflow-hidden` did something else
+       * entirely: it let Google render a 320x100 and cut it in half, which is the
+       * obscuring AdSense does not permit.
+       *
+       * If Google ignores the request and serves something taller, it will overflow
+       * this box rather than be silently cut. That is deliberate: a visible overlap
+       * is a bug we can see, a cropped ad is a policy problem we cannot.
+       */}
       <ins
         ref={insRef}
-        className="adsbygoogle block min-h-[50px] sm:min-h-[90px]"
+        className="adsbygoogle block h-[50px] sm:h-[90px]"
         data-ad-client={ADSENSE_CLIENT}
         data-ad-slot={adSlot}
         data-ad-format="auto"
