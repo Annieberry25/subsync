@@ -124,7 +124,7 @@ describe('AuthForm', () => {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { prompt: 'select_account' },
+          queryParams: { prompt: 'select_account consent', authuser: '0' },
         },
       })
     );
@@ -245,7 +245,7 @@ describe('AuthForm', () => {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: { prompt: 'select_account' },
+          queryParams: { prompt: 'select_account consent', authuser: '0' },
         },
       })
     );
