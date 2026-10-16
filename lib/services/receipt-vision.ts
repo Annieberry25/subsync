@@ -32,9 +32,16 @@ const GROQ_CHAT_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
  * for the 3.2 vision model, llama-4-scout, was itself retired in July 2026 — so
  * pinning one id is a recurring outage rather than a one-off.
  *
+ * Groq no longer hosts a model marketed as vision-capable; the Llama 4 pair and both
+ * 3.2 vision models are all gone. `qwen/qwen3.8-27b` leads the list because it is
+ * the current generation of Groq's one model that accepts image input, and the 3.6
+ * generation before it was documented as text-and-image. The retired ids follow it
+ * so an account that still has access to any of them is covered.
+ *
  * `GROQ_VISION_MODEL` is tried first, ahead of this list.
  */
 const FALLBACK_VISION_MODELS = [
+  'qwen/qwen3.8-27b',
   'meta-llama/llama-4-scout-17b-16e-instruct',
   'meta-llama/llama-4-maverick-17b-128e-instruct',
   'llama-3.2-90b-vision-preview',
@@ -167,12 +174,28 @@ export async function transcribeReceiptImage(
       failures.push({ model, status: res.status, message });
 
       /*
-       * Only a complaint about the model is worth retrying with a different one.
-       * A 401 is a bad key and a 429 is a quota, and both would fail identically on
-       * every candidate, turning one honest error into four.
+       * Retry only what a different model could plausibly fix.
+       *
+       * A 404 or a complaint naming the model means this one is gone or cannot read
+       * images. A 400 usually means the same thing here -- the model exists but
+       * rejects an image payload it has no vision for -- and is worth one more
+       * attempt rather than being reported as a bad upload.
+       *
+       * A 401/403 is a bad key and a 429 is a quota; both fail identically on every
+       * candidate, so trying four models would turn one honest error into four. A 5xx
+       * is the provider being unwell, and hammering it is the wrong response.
        */
-      const aboutTheModel = /model|deprecat|decommission|not found|no longer|not available/i.test(message);
-      if (!aboutTheModel || res.status === 401 || res.status === 429) {
+      const aboutTheModel =
+        res.status === 404 ||
+        res.status === 400 ||
+        /model|deprecat|decommission|not found|no longer|not available|vision|image/i.test(message);
+      if (
+        !aboutTheModel ||
+        res.status === 401 ||
+        res.status === 403 ||
+        res.status === 429 ||
+        res.status >= 500
+      ) {
         logger.error('[receipt] vision transcription failed', {
           model,
           status: res.status,
@@ -229,8 +252,12 @@ function unavailableMessage(failures: { status: number; message: string }[]): st
   if (last.status === 429) {
     return 'Image scanning has hit its usage limit right now. Please try again later, or paste the receipt text.';
   }
-  if (/model|deprecat|decommission|not found|no longer|not available/i.test(last.message)) {
-    return 'Image scanning is unavailable: the configured vision model is no longer offered. Please paste the receipt text instead.';
+  if (
+    last.status === 400 ||
+    last.status === 404 ||
+    /model|deprecat|decommission|not found|no longer|not available|vision|image/i.test(last.message)
+  ) {
+    return 'Image scanning is unavailable: no vision model on the configured provider could read this file. Please paste the receipt text instead.';
   }
   return 'We could not read that image. Try a clearer screenshot, or paste the receipt text instead.';
 }
