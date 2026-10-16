@@ -429,19 +429,23 @@ function corruptError(failure: { name: string; message: string }, bytes: Uint8Ar
   }
 
   /*
-   * The pdf.js error name is included deliberately.
+   * Both the name and the message, deliberately.
    *
-   * This branch is the catch-all, so every structural problem pdf.js can raise --
-   * an unsupported version, a malformed xref, a damaged object stream -- produced
-   * one identical sentence. Reported from a server log, which the person who
-   * uploaded the file cannot see, that made a reproducible failure undiagnosable:
-   * nothing could be fixed without the log and nobody else had it.
+   * A bare `Error` with no name is what pdf.js throws when it cannot bring up its
+   * worker at all, which is a very different problem from a malformed document --
+   * and the name alone cannot tell them apart. The message is what says which.
    *
-   * The name describes this person's own file and carries no account data, and it is
-   * the difference between "ask them to try again" and knowing what to change.
+   * It is truncated and stripped of control characters: this is a diagnostic for a
+   * file the reader uploaded themselves, and it is the only place the cause is
+   * visible to anyone who can act on it.
    */
+  const detail = failure.message
+    .replace(/[\s\u0000-\u001f]+/g, ' ')
+    .trim()
+    .slice(0, 140);
+
   return new ReceiptFileError(
-    `This PDF could not be opened (${failure.name}). Please try re-downloading it from the provider, or upload a screenshot instead.`,
+    `This PDF could not be opened (${failure.name}${detail ? `: ${detail}` : ''}). Please try re-downloading it from the provider, or upload a screenshot instead.`,
     'corrupt'
   );
 }
