@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate HyperFrames video subproject with its own tooling and its own
+    // AGENTS.md; its vendored gsap.min.js and render scripts are not app code.
+    "launch-video/**",
   ]),
   {
     rules: {
