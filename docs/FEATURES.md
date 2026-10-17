@@ -96,9 +96,18 @@ earning its keep — with the savings measured.
 - Saturday weekly recap push; full test-notification endpoint.
 
 ### 9. AI assistant & savings
-- **Ask SubHalt**: chat grounded in your actual subscriptions and bills, with
-  optional live web search, saved conversation history — plus a deterministic
-  offline engine that answers from local data when AI is unavailable.
+- **Ask SubHalt**: tool-calling agent grounded in your real data (`lib/ai/tools.ts`,
+  `lib/ai/agent.ts`). Reads/phases execute against your own rows via RLS —
+  subscriptions, spending summaries, bill totals, insight engine — and live web
+  search with citations fills in external facts. No answer is hardcoded: every
+  figure comes from a tool result. Saved conversation history, plus a
+  deterministic offline engine when AI is unavailable.
+- **Assistant actions (Plus)**: the agent can *propose* writes — add, edit,
+  pause, resume or cancel a subscription, log or correct a bill payment — but
+  never executes them. Each proposal renders as a confirmation card in the
+  chat; only after you tap Confirm does `/api/ai/actions` re-validate (auth,
+  plan, schema) and write via the same tables the app uses. Free tier keeps
+  full reads and analysis.
 - **Smart insights** card shared with push notifications.
 - **Savings recommendations** (expensive plans, upcoming renewals, expiring
   trials) and **Cancellation Intelligence**: it finds cheaper plans, links the

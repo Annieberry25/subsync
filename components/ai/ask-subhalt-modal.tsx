@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, User, ExternalLink, History, Trash2 } from 'lucide-react';
+import { X, Send, User, ExternalLink, History, Trash2, Check, ShieldCheck } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { useSettings, useCurrency } from '@/lib/contexts/user-settings-context';
 import { SubHaltAvatar } from '@/components/ui/subhalt-avatar';
@@ -18,6 +18,7 @@ import {
   generateConversationId,
   type SavedConversation,
   type ChatMessageItem,
+  type StoredPendingAction,
 } from '@/lib/services/assistant-history-service';
 import { logger } from '@/lib/logger';
 import {
@@ -43,6 +44,7 @@ interface ChatMessage {
   timestamp: string;
   relatedSubs?: SubscriptionRow[];
   sources?: { title: string; uri: string }[];
+  pendingActions?: StoredPendingAction[];
 }
 
 interface AiSource {
@@ -57,14 +59,14 @@ const PRESET_QUESTIONS = [
   'How much did I pay on bills this month?',
   'Which bill providers am I using most?',
   'Find subscriptions I could cancel.',
-  'How much could I save?',
+  'Pause a subscription I am not using.',
   'Are there any outages affecting my electricity provider?',
 ];
 
 async function askSubHaltApi(params: {
   question: string;
   history: { role: 'user' | 'assistant'; text: string }[];
-}): Promise<{ answer: string; sources: AiSource[]; configured: boolean }> {
+}): Promise<{ answer: string; sources: AiSource[]; configured: boolean; pendingActions: StoredPendingAction[] }> {
   const res = await fetch('/api/ai/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -72,7 +74,13 @@ async function askSubHaltApi(params: {
   });
 
   const json = (await res.json().catch(() => null)) as
-    | { configured?: boolean; answer?: string; sources?: AiSource[]; error?: string }
+    | {
+        configured?: boolean;
+        answer?: string;
+        sources?: AiSource[];
+        pendingActions?: StoredPendingAction[];
+        error?: string;
+      }
     | null;
 
   if (!res.ok || !json) {
@@ -84,6 +92,7 @@ async function askSubHaltApi(params: {
     answer: json.answer || '',
     sources: Array.isArray(json.sources) ? json.sources : [],
     configured: Boolean(json.configured),
+    pendingActions: Array.isArray(json.pendingActions) ? json.pendingActions : [],
   };
 }
 
@@ -128,6 +137,7 @@ export function AskSubHaltModal({
       text: m.text,
       timestamp: m.timestamp,
       relatedSubs: m.relatedSubs,
+      pendingActions: m.pendingActions,
     }));
 
     if (current) {
@@ -179,6 +189,48 @@ export function AskSubHaltModal({
     setSavedConversations((prev) => prev.filter((c) => c.id !== id));
   };
 
+  const updateActionState = (
+    messageId: string,
+    actionId: string,
+    patch: Partial<StoredPendingAction>
+  ) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId && m.pendingActions
+          ? {
+              ...m,
+              pendingActions: m.pendingActions.map((a) => (a.id === actionId ? { ...a, ...patch } : a)),
+            }
+          : m
+      )
+    );
+  };
+
+  const handleConfirmAction = async (messageId: string, action: StoredPendingAction) => {
+    updateActionState(messageId, action.id, { state: 'confirming', resultMessage: undefined });
+    try {
+      const res = await fetch('/api/ai/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool: action.tool, args: action.args }),
+      });
+      const json = (await res.json().catch(() => null)) as { ok?: boolean; message?: string; error?: string } | null;
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || json?.message || 'The action could not be applied.');
+      }
+      updateActionState(messageId, action.id, { state: 'done', resultMessage: json.message || 'Done.' });
+    } catch (err) {
+      updateActionState(messageId, action.id, {
+        state: 'error',
+        resultMessage: err instanceof Error ? err.message : 'The action failed.',
+      });
+    }
+  };
+
+  const handleCancelAction = (messageId: string, action: StoredPendingAction) => {
+    updateActionState(messageId, action.id, { state: 'canceled', resultMessage: undefined });
+  };
+
   // Sync provided subscriptions into local state (render-phase adjustment).
   const [prevProvidedSubs, setPrevProvidedSubs] = useState<SubscriptionRow[] | null>(providedSubs ?? null);
   if (providedSubs && providedSubs !== prevProvidedSubs) {
@@ -211,7 +263,7 @@ export function AskSubHaltModal({
       const welcomeMessage: ChatMessage = {
         id: 'welcome',
         sender: 'assistant',
-        text: `Hello! I'm ${assistantName}, your finance assistant for SubHalt. I can help you understand what you're spending on subscriptions and bills, remind you about renewals and due payments, find savings, and look up current news about any service or provider you deal with. What would you like to know?`,
+        text: `Hello! I'm ${assistantName}, your finance assistant for SubHalt. I answer from your real subscriptions and bills, can look up current news about any provider, and — on Plus — can make changes for you: add, edit, pause or cancel a subscription and log bill payments. Anything I change, you approve first from a confirmation card. What would you like to know?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       Promise.resolve().then(() => {
@@ -340,6 +392,7 @@ export function AskSubHaltModal({
     let responseText = '';
     let sources: AiSource[] = [];
     let related: SubscriptionRow[] = [];
+    let pendingActions: StoredPendingAction[] = [];
 
     try {
       const result = await askSubHaltApi({
@@ -350,6 +403,7 @@ export function AskSubHaltModal({
       if (result.configured && result.answer) {
         responseText = result.answer;
         sources = result.sources;
+        pendingActions = result.pendingActions.map((action) => ({ ...action, state: 'pending' as const }));
         setIsOffline(false);
       } else {
         // AI not configured — degrade to local intelligence so chat still works.
@@ -379,6 +433,7 @@ export function AskSubHaltModal({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       relatedSubs: related,
       sources,
+      pendingActions,
     };
 
     setMessages((prev) => [...prev, assistantMsg]);
@@ -586,6 +641,70 @@ export function AskSubHaltModal({
                         </a>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Pending write actions — nothing runs until the user confirms */}
+                {msg.pendingActions && msg.pendingActions.length > 0 && (
+                  <div className="pt-2 space-y-2">
+                    {msg.pendingActions.map((action) => {
+                      const state = action.state ?? 'pending';
+                      return (
+                        <div
+                          key={action.id}
+                          className="rounded-xl border border-[#14B8A6]/40 bg-[#0F1111] p-3 space-y-2"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-[#14B8A6] shrink-0" />
+                            <span className="text-xs font-semibold text-[#F5F7F6]">{action.title}</span>
+                          </div>
+                          <p className="text-[11px] text-[#94A3B8]">{action.description}</p>
+                          {action.details.length > 0 && (
+                            <div className="space-y-1 rounded-lg bg-[#121414] px-2.5 py-2">
+                              {action.details.map((detail, i) => (
+                                <div key={`${detail.label}-${i}`} className="flex items-center justify-between gap-3 text-[11px]">
+                                  <span className="text-[#94A3B8]">{detail.label}</span>
+                                  <span className="text-[#F5F7F6] font-medium text-right">{detail.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {state === 'pending' && (
+                            <div className="flex gap-2 pt-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmAction(msg.id, action)}
+                                className="px-3 py-1.5 rounded-lg bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] font-semibold text-[11px] transition-colors cursor-pointer"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCancelAction(msg.id, action)}
+                                className="px-3 py-1.5 rounded-lg bg-[#1A1D1D] hover:bg-[#262929] text-[#94A3B8] border border-[#3F3F46]/40 text-[11px] font-medium transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                          {state === 'confirming' && (
+                            <p className="text-[11px] text-[#94A3B8] animate-pulse">Applying...</p>
+                          )}
+                          {state === 'done' && (
+                            <p className="text-[11px] text-[#14B8A6] flex items-center gap-1">
+                              <Check className="w-3 h-3 shrink-0" />
+                              <span>{action.resultMessage || 'Done.'}</span>
+                            </p>
+                          )}
+                          {state === 'canceled' && (
+                            <p className="text-[11px] text-[#94A3B8]">Canceled — nothing was changed.</p>
+                          )}
+                          {state === 'error' && (
+                            <p className="text-[11px] text-red-400">{action.resultMessage || 'The action failed.'}</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

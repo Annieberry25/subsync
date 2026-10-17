@@ -11,6 +11,8 @@ export interface PlanLimits {
   hasGmailConnect: boolean;
   /** Email Forwarding: the personal auto-import address for receipt forwarding. */
   hasEmailForwarding: boolean;
+  /** AI assistant write actions: create/edit/cancel subscriptions, log bills. */
+  hasAssistantActions: boolean;
 }
 
 export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
@@ -29,6 +31,9 @@ export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
     // receipt, subscribe through a provider.
     hasGmailConnect: false,
     hasEmailForwarding: false,
+    // Free can ask the assistant anything and get reads/analysis; only Plus can
+    // have it propose changes (each still confirmed by the user before writing).
+    hasAssistantActions: false,
   },
   plus: {
     maxSubscriptions: 50,
@@ -40,6 +45,7 @@ export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
     hasAdvancedInsights: true,
     hasGmailConnect: true,
     hasEmailForwarding: true,
+    hasAssistantActions: true,
   },
   pro: {
     maxSubscriptions: Infinity,
@@ -51,6 +57,7 @@ export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
     hasAdvancedInsights: true,
     hasGmailConnect: true,
     hasEmailForwarding: true,
+    hasAssistantActions: true,
   },
 };
 
@@ -61,7 +68,7 @@ export const FREE_SUBSCRIPTION_LIMIT = PLAN_LIMITS.free.maxSubscriptions;
  * Feature keys used to mark a UI affordance as Plus-only. Kept as a union so a
  * typo fails to compile rather than silently rendering no badge.
  */
-export type PlusFeature = 'gmail' | 'emailForwarding' | 'advancedInsights';
+export type PlusFeature = 'gmail' | 'emailForwarding' | 'advancedInsights' | 'assistantActions';
 
 /**
  * Whether a feature is included in the user's plan. Single source of truth for
@@ -81,6 +88,8 @@ export function hasPlanFeature(
       return limits.hasEmailForwarding;
     case 'advancedInsights':
       return limits.hasAdvancedInsights;
+    case 'assistantActions':
+      return limits.hasAssistantActions;
     default:
       return false;
   }

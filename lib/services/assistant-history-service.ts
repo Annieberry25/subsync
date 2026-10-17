@@ -2,12 +2,24 @@ import { createClient } from '@/lib/supabase/client';
 import type { Json } from '@/lib/types/database.types';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 
+export interface StoredPendingAction {
+  id: string;
+  tool: string;
+  args: Record<string, unknown>;
+  title: string;
+  description: string;
+  details: { label: string; value: string }[];
+  state?: 'pending' | 'confirming' | 'done' | 'canceled' | 'error';
+  resultMessage?: string;
+}
+
 export interface ChatMessageItem {
   id: string;
   sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
   relatedSubs?: SubscriptionRow[];
+  pendingActions?: StoredPendingAction[];
 }
 
 export interface SavedConversation {
