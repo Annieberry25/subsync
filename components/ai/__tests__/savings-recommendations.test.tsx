@@ -20,6 +20,12 @@ vi.mock('@/lib/contexts/user-settings-context', () => ({
 
 // $25.99/mo clears the $20 "high-cost" threshold, and the far-out renewal date
 // stays clear of the 7-day window, so exactly one recommendation is generated.
+const isoDaysFromNow = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
 const sub = (over: Partial<SubscriptionRow> = {}): SubscriptionRow =>
   ({
     id: 'sub-1',
@@ -29,7 +35,7 @@ const sub = (over: Partial<SubscriptionRow> = {}): SubscriptionRow =>
     billing_cycle: 'monthly',
     category: 'Streaming',
     status: 'active',
-    next_billing_date: '2026-12-15',
+    next_billing_date: isoDaysFromNow(30),
     notes: '',
     provider_url: 'https://netflix.com',
     account_links: [],
@@ -263,5 +269,16 @@ describe('SavingsRecommendationsSection', () => {
 
     await user.click(askButtons[0]);
     expect(h.onAskSubHalt).toHaveBeenCalledTimes(1);
+  });
+
+  it('recommends nothing — rather than something invented — when no rule applies', () => {
+    // Cheap active subscription, renewal far away, not a trial: no rule matches.
+    // The old fallback would still have manufactured a recommendation for it.
+    renderSection([sub({ price: 9.99, next_billing_date: isoDaysFromNow(30) })]);
+
+    expect(screen.queryByText(/Save up to/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText('No savings to recommend right now — we only flag savings we can see in your data.')
+    ).toBeInTheDocument();
   });
 });

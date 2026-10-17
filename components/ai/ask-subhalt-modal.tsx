@@ -306,29 +306,36 @@ export function AskSubHaltModal({
     }
 
     if (qLower.includes('increased in price') || qLower.includes('price increase') || qLower.includes('changed price')) {
-      const priceChanges = activeSubs.filter(
-        (s: SubscriptionRow) => (s.notes && s.notes.toLowerCase().includes('price')) || s.price > 15
+      // Only notes the user (or an import) actually recorded about pricing count
+      // as evidence. A bare price threshold is not a price change, so it is not
+      // treated as one.
+      const noted = activeSubs.filter(
+        (s: SubscriptionRow) => s.notes && s.notes.toLowerCase().includes('price')
       );
-      if (priceChanges.length > 0) {
-        const names = priceChanges.map((s: SubscriptionRow) => `${s.name} (${formatCurrency(s.price, s.currency || defaultCurrency)}/${s.billing_cycle})`).join(', ');
+      if (noted.length > 0) {
         return {
-          responseText: `SubHalt detected price adjustments or high tier updates on ${priceChanges.length} subscription${priceChanges.length === 1 ? '' : 's'}: ${names}.`,
-          related: priceChanges,
+          responseText: `${noted.length === 1 ? 'One subscription has a note' : `${noted.length} subscriptions have notes`} mentioning a price change: ${noted.map((s: SubscriptionRow) => s.name).join(', ')}. Open each subscription to see the note.`,
+          related: noted,
         };
       }
       return {
-        responseText: `None of your active subscriptions show recent unannounced price increases. All ${activeSubs.length} subscriptions appear stable.`,
+        responseText: "I don't have any recorded price-change notes in your subscriptions, so I can't claim one happened. Add it to a subscription's notes and I'll surface it here.",
       };
     }
 
     if (qLower.includes('cancel') || qLower.includes('save') || qLower.includes('could i save')) {
       const potential = calculatePotentialSavings(allSubs, defaultCurrency, exchangeRates);
       const candidates = allSubs.filter(
-        (s: SubscriptionRow) => s.status === 'paused' || s.status === 'trial' || s.price >= 20
+        (s: SubscriptionRow) => s.status === 'paused' || s.status === 'trial'
       );
+      if (potential > 0 && candidates.length > 0) {
+        return {
+          responseText: `Based on your real data, ending or cancelling ${candidates.map((s: SubscriptionRow) => s.name).join(', ')} would free up ${formatCurrency(potential, defaultCurrency)}/month. That is the only savings I can verify right now — I won't guess beyond your numbers.`,
+          related: candidates.slice(0, 3),
+        };
+      }
       return {
-        responseText: `Based on your portfolio analysis, you could save up to ${formatCurrency(potential > 0 ? potential : 45.0, defaultCurrency)}/month by optimizing trial periods and reviewing high-cost plans.`,
-        related: candidates.slice(0, 3),
+        responseText: "I went through all your subscriptions and found nothing to recommend as savings right now — there are no paused or trial subscriptions to trim. I'd rather tell you that than invent a number.",
       };
     }
 

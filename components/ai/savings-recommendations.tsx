@@ -48,7 +48,7 @@ export const SavingsRecommendationsSection = memo(function SavingsRecommendation
       id: 'expensive-' + expensive.id,
       sub: expensive,
       type: 'expensive',
-      description: `Billed at ${formatCurrency(expensive.price, expensive.currency || defaultCurrency)}/${expensive.billing_cycle}. Reviewing unused features could save you up to ${formatCurrency(monthly * 12, defaultCurrency)}/year.`,
+      description: `Billed at ${formatCurrency(expensive.price, expensive.currency || defaultCurrency)}/${expensive.billing_cycle}. Cancelling or switching to a cheaper tier would free up up to ${formatCurrency(monthly * 12, defaultCurrency)}/year.`,
       monthlySavings: monthly,
     });
   }
@@ -83,17 +83,10 @@ export const SavingsRecommendationsSection = memo(function SavingsRecommendation
     });
   }
 
-  if (recommendations.length === 0 && activeSubs.length > 0) {
-    // Fallback recommendation
-    const firstSub = activeSubs[0];
-    recommendations.push({
-      id: 'fallback-' + firstSub.id,
-      sub: firstSub,
-      type: 'unused',
-      description: `Check your tier and feature usage to ensure you're getting maximum value.`,
-      monthlySavings: getNormalizedMonthlyPrice(firstSub),
-    });
-  }
+  /* No fallback recommendation. If nothing above applies, there is nothing to
+     recommend — inventing one (e.g. "check your tier" on the first subscription)
+     would put a made-up savings figure in front of the user, which is exactly the
+     trust this section exists to earn. The empty state below covers this case. */
 
   return (
     <div className="min-w-0">
@@ -196,7 +189,7 @@ export const SavingsRecommendationsSection = memo(function SavingsRecommendation
           </div>
         ) : (
           <div className="py-2 text-xs text-[#94A3B8]">
-            No active savings recommendations at this time. Add more subscriptions to see optimization insights.
+            No savings to recommend right now — we only flag savings we can see in your data.
           </div>
         )}
       </div>
