@@ -3,6 +3,7 @@ import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import {
   fetchSubscriptions,
@@ -94,6 +95,7 @@ function MetricCard({
 
 export default function DashboardV2() {
   const { toast } = useToast();
+  const router = useRouter();
   const { defaultCurrency, exchangeRates } = useCurrency();
   const { isPlus, planTier } = usePlan();
 
@@ -252,7 +254,11 @@ const handleSave = async (
     if (err) {
       toast.error(err.message, 'Deletion Failed');
     } else {
-      toast.success(`Removed "${deletingSubscription.name}".`, 'Subscription Deleted');
+      toast.success('Removed', undefined, {
+        label: 'View',
+        ariaLabel: 'View deleted subscriptions',
+        onClick: () => router.push('/history/deleted'),
+      });
       setDeletingSubscription(null);
       await loadData();
     }
