@@ -4,6 +4,7 @@
  * Intended to run from a cron endpoint (or Vercel Cron / instrumentation).
  */
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sendPushToUser } from '@/lib/push/send';
 import { scanGmailForSubscriptions } from '@/lib/services/gmail-service';
 import {
   buildReceiptDraft,
@@ -63,6 +64,7 @@ export async function monitorGmailSubscriptionsForAllUsers(opts?: {
       );
 
       const status = 'ok';
+      let createdForUser = 0;
       for (const item of candidates) {
         const draft = buildReceiptDraft({
           providerName: item.providerName,
@@ -75,8 +77,10 @@ export async function monitorGmailSubscriptionsForAllUsers(opts?: {
           paymentDate: item.date,
         });
         const result = await ingestReceiptDraft(admin, userId, draft, 'Gmail Monitoring');
-        if (result.status === 'created') summary.created += 1;
-        else if (result.status === 'duplicate') summary.duplicates += 1;
+        if (result.status === 'created') {
+          summary.created += 1;
+          createdForUser += 1;
+        } else if (result.status === 'duplicate') summary.duplicates += 1;
         else if (result.status === 'limit_reached') summary.limitReached += 1;
         else summary.invalid += 1;
       }
@@ -89,6 +93,23 @@ export async function monitorGmailSubscriptionsForAllUsers(opts?: {
           last_scan_count: discovered.length,
         })
         .eq('user_id', userId);
+
+      // The scan's whole point is finding things the user forgot about, so a
+      // silent import defeats it. One push per user per scan, and only when a
+      // row was genuinely created — duplicates must not re-notify. Best-effort:
+      // a push failure must never flip the scan itself to an error.
+      if (createdForUser > 0) {
+        try {
+          await sendPushToUser(userId, {
+            title: 'Hey friend! I just caught something',
+            body: `I found ${createdForUser} new subscription${createdForUser === 1 ? '' : 's'} in your email. Log in to check your inbox.`,
+            url: '/inbox',
+            tag: 'gmail-discovery',
+          });
+        } catch {
+          // sendPushToUser logs its own failures; the scan outcome stands.
+        }
+      }
     } catch (err) {
       summary.errors.push(`Scan failed for ${userId}: ${err instanceof Error ? err.message : String(err)}`);
       await admin

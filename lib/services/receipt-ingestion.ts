@@ -226,13 +226,16 @@ export async function ingestReceiptDraft(
     await recordEmailDiscovery(userId, 'email_forwarding');
   }
 
+  const detectedFrom =
+    source === 'Gmail Monitoring' ? 'your Gmail inbox' : 'your email forwarding';
+
   const { data: item, error: inboxError } = await admin
     .from('inbox_items')
     .insert({
       user_id: userId,
       type: 'plan_update',
       title: `${trimmedName} added`,
-      description: `A new subscription with ${sub.name} for ${sub.price} ${sub.currency} was detected from your email forwarding.`,
+      description: `A new subscription with ${sub.name} for ${sub.price} ${sub.currency} was detected from ${detectedFrom}.`,
       date: new Date().toISOString(),
       is_read: false,
       is_favourited: false,
@@ -245,7 +248,7 @@ export async function ingestReceiptDraft(
       provider_url: sub.provider_url,
       metadata: {
         source,
-        created_from: 'email_forwarding',
+        created_from: source === 'Gmail Monitoring' ? 'gmail_monitoring' : 'email_forwarding',
       } as Json,
     })
     .select()
