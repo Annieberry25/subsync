@@ -4,7 +4,7 @@ import {
   getNormalizedMonthlyPrice,
   formatCurrency,
 } from '@/lib/utils/metrics-utils';
-import type { SubscriptionRow } from '@/lib/services/subscription-service';
+import { isOverdueSubscription, type SubscriptionRow } from '@/lib/services/subscription-service';
 
 /**
  * Insight generation.
@@ -53,6 +53,78 @@ export function buildInsights(subscriptions: SubscriptionRow[]): SmartInsightCan
   const totalAnnualSpend = calculateAnnualSpend(subscriptions);
 
   const candidates: SmartInsightCandidate[] = [];
+
+  // Catch-it-before-it-bills rules. Both use the shared overdue definition so
+  // this engine can never disagree with the dashboard banner or the renewals
+  // page about what is overdue.
+
+  const overdueSubs = subscriptions.filter((sub) => isOverdueSubscription(sub));
+  if (overdueSubs.length > 0) {
+    const overdueMonthly = overdueSubs.reduce(
+      (acc, sub) => acc + getNormalizedMonthlyPrice(sub),
+      0
+    );
+    candidates.push({
+      id: 'renewal-overdue',
+      title: 'Overdue Subscriptions',
+      category: 'actionable',
+      priority: 98,
+      preview:
+        overdueSubs.length === 1
+          ? `${overdueSubs[0].name} is past its billing date.`
+          : `${overdueSubs.length} subscriptions are past their billing date.`,
+      observation:
+        overdueSubs.length === 1
+          ? `${overdueSubs[0].name} was due on ${overdueSubs[0].next_billing_date} and is still marked ${overdueSubs[0].status}, about ${formatCurrency(getNormalizedMonthlyPrice(overdueSubs[0]))}/month.`
+          : `${overdueSubs.length} subscriptions (${overdueSubs
+              .slice(0, 3)
+              .map((s) => s.name)
+              .join(', ')}) are past their billing dates, about ${formatCurrency(overdueMonthly)}/month together.`,
+      meaning:
+        'An overdue charge can go through the moment your payment method works, so money you have not budgeted can still leave.',
+      recommendation:
+        'Cancel or pause the ones you no longer want before they bill again.',
+    });
+  }
+
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const trialEndingSoon = activeSubs.filter((sub) => {
+    if (sub.status !== 'trial') return false;
+    if (isOverdueSubscription(sub)) return false;
+    const next = new Date(sub.next_billing_date);
+    if (Number.isNaN(next.getTime())) return false;
+    return next.getTime() - startOfToday.getTime() <= 7 * MS_PER_DAY;
+  });
+  if (trialEndingSoon.length > 0) {
+    const first = trialEndingSoon[0];
+    const daysUntil = Math.max(
+      0,
+      Math.ceil(
+        (new Date(first.next_billing_date).getTime() - startOfToday.getTime()) / MS_PER_DAY
+      )
+    );
+    const daysLabel = daysUntil === 0 ? 'less than a day' : `${daysUntil} day${daysUntil === 1 ? '' : 's'}`;
+    candidates.push({
+      id: 'trial-ending-soon',
+      title: 'Trial Ending Soon',
+      category: 'actionable',
+      priority: 96,
+      preview:
+        trialEndingSoon.length === 1
+          ? `${first.name} starts billing in ${daysLabel}.`
+          : `${trialEndingSoon.length} free trials are about to start billing.`,
+      observation:
+        trialEndingSoon.length === 1
+          ? `Your ${first.name} trial ends on ${first.next_billing_date} and will bill ${formatCurrency(getNormalizedMonthlyPrice(first))} unless you cancel first.`
+          : `${trialEndingSoon.map((s) => s.name).join(', ')} all start billing within the next 7 days.`,
+      meaning:
+        'Trials convert to paid automatically — the charge happens unless you decide against it first.',
+      recommendation:
+        'Cancel from the subscription page before the trial ends if you are not planning to keep it.',
+    });
+  }
 
   // 1. Genuine duplicate subscriptions (strictly verified — never guess).
   const nameCounts: Record<string, number> = {};

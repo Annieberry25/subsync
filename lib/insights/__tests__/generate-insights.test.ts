@@ -6,6 +6,13 @@ import {
 } from '@/lib/insights/generate-insights';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 
+function isoDaysFromNow(days: number): string {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function makeSub(overrides: Partial<SubscriptionRow> = {}): SubscriptionRow {
   return {
     id: 'sub_1',
@@ -18,7 +25,8 @@ function makeSub(overrides: Partial<SubscriptionRow> = {}): SubscriptionRow {
     status: 'active',
     start_date: '2024-06-01',
     end_date: null,
-    next_billing_date: '2026-12-01',
+    // Relative so the fixture cannot become "overdue" as real time passes.
+    next_billing_date: isoDaysFromNow(30),
     payment_method: 'Credit Card',
     provider_url: null,
     notes: null,
@@ -86,5 +94,37 @@ describe('insight generation', () => {
     const ids = buildInsights(subs).map((i) => i.id);
     expect(ids).toContain('everything-looks-good');
     expect(ids).not.toContain('no-subscriptions');
+  });
+
+  it('flags an overdue subscription as actionable and pushable', () => {
+    const subs = [makeSub({ id: 'a', name: 'Gym', next_billing_date: isoDaysFromNow(-3) })];
+    const top = getTopInsight(subs);
+    expect(top?.id).toBe('renewal-overdue');
+    expect(top?.category).toBe('actionable');
+    expect(getPushableInsight(subs)?.id).toBe('renewal-overdue');
+  });
+
+  it('does not treat a canceled past-due row as overdue', () => {
+    const subs = [
+      makeSub({ id: 'a', status: 'canceled', next_billing_date: isoDaysFromNow(-3) }),
+    ];
+    expect(buildInsights(subs).map((i) => i.id)).not.toContain('renewal-overdue');
+  });
+
+  it('flags a trial that starts billing within a week', () => {
+    const subs = [
+      makeSub({ id: 'a', name: 'Audible', status: 'trial', next_billing_date: isoDaysFromNow(3) }),
+    ];
+    const top = getTopInsight(subs);
+    expect(top?.id).toBe('trial-ending-soon');
+    expect(top?.category).toBe('actionable');
+    expect(getPushableInsight(subs)?.id).toBe('trial-ending-soon');
+  });
+
+  it('says nothing about a trial that ends far away', () => {
+    const subs = [
+      makeSub({ id: 'a', status: 'trial', next_billing_date: isoDaysFromNow(21) }),
+    ];
+    expect(buildInsights(subs).map((i) => i.id)).not.toContain('trial-ending-soon');
   });
 });

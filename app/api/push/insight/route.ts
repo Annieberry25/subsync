@@ -81,8 +81,8 @@ export async function POST(request: Request) {
     }
 
     const result = await sendPushToUser(user.id, {
-      title: 'SubHalt found something',
-      body: 'Hey friend, look what your SubHalt assistant found for you. Tap to review',
+      title: 'Hey friend! I just caught something',
+      body: 'Log in to check your smart insight.',
       // The card lives on the dashboard; there is no separate insights route, so
       // this is where the tap has to land for the user to see the same insight
       // that triggered the notification.
