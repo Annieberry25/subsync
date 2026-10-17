@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { env } from '@/lib/env';
 import { getAccountAuthMethods } from '@/lib/auth/account-methods';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 /**
  * Returns the sign-in methods of the account for a given email, so the login
@@ -21,6 +22,18 @@ export async function POST(request: Request) {
 
     if (!email || !email.includes('@')) {
       return NextResponse.json({ methods: [] }, { status: 400 });
+    }
+
+    // This endpoint can confirm whether an account exists and which sign-in
+    // methods it uses, so it is the app's main enumeration surface. A per-IP
+    // bucket tighter than the global 30/min window keeps probing slow; on
+    // exhaustion the client falls back to provider-based routing.
+    const allowed = await checkRateLimit(`auth-providers:ip:${getClientIp(request)}`, {
+      windowSeconds: 60,
+      maxRequests: 5,
+    });
+    if (!allowed) {
+      return NextResponse.json({ methods: [] }, { status: 429 });
     }
 
     if (!env.SUPABASE_SERVICE_ROLE_KEY) {

@@ -27,11 +27,15 @@ export const dynamic = 'force-dynamic';
  * purchases, and the daily reminder cron sits at 09:00 so the two do not collide.
  *
  * ## Idempotency
- * Guarded by an activity_log row keyed to the Monday of the current ISO week
- * (`lib/utils/iso-week.ts`), so a retried or overlapping run cannot send the
- * recap twice, and a new week re-arms the check on its own. Retries here are
- * plausible: Vercel will re-run a cron that overruns its window, and this sends
- * one message per user rather than per subscription.
+ * Claim-first and atomic. Before sending, the route inserts this week's
+ * activity row via `upsert(..., ignoreDuplicates)`; the partial unique index
+ * on (`user_id`, `title`) for `weekly_recap_pushed` rows (migration 020)
+ * makes exactly one run win, so a retried or overlapping run cannot send the
+ * recap twice and a new week re-arms the check on its own. A claim that does
+ * not end in a send (no push permission, or push failure) is released so a
+ * later run can retry it. If the index is missing (migration not applied),
+ * the upsert errors and the route falls back to the old check-then-insert
+ * behaviour rather than failing.
  */
 
 const MAX_USERS_PER_RUN = 500;
@@ -117,6 +121,37 @@ export async function GET(request: Request) {
           ? 'You are tracking 1 subscription. Tap to see it.'
           : `You are tracking ${count} subscriptions. Tap to review them.`;
 
+      // Atomic claim before the send: the partial unique index on
+      // (user_id, title) makes a concurrent second claim lose, so only one
+      // run can proceed to send. A missing index (migration not applied)
+      // surfaces as claim.error and falls back to check-then-insert below.
+      const claim = await supabase
+        .from('activity_log')
+        .upsert(
+          {
+            user_id: userId,
+            type: 'weekly_recap_pushed',
+            title: `Weekly recap pushed — ${weekStart.slice(0, 10)}`,
+            description: `Weekly recap sent for ${count} active subscriptions.`,
+            timestamp: new Date().toISOString(),
+            amount: 0,
+            currency: 'USD',
+          },
+          { onConflict: 'user_id,title', ignoreDuplicates: true }
+        )
+        .select('id');
+
+      const claimId = claim.data?.[0]?.id ?? null;
+
+      if (claim.error) {
+        logger.warn('[cron/weekly-recap] atomic claim unavailable; using fallback', {
+          message: claim.error.message,
+        });
+      } else if (!claimId) {
+        summary.skippedAlreadySent++;
+        continue;
+      }
+
       const result = await sendPushToUser(userId, {
         title: 'Your week in subscriptions',
         body,
@@ -128,22 +163,29 @@ export async function GET(request: Request) {
 
       if (result.skipped) {
         // No permission granted. Normal — most users will be in this bucket.
+        // Release the claim so a later run can retry it.
+        if (claimId) await supabase.from('activity_log').delete().eq('id', claimId);
         continue;
       }
 
       if (result.sent > 0) {
         summary.sent++;
-        await supabase.from('activity_log').insert({
-          user_id: userId,
-          type: 'weekly_recap_pushed',
-          title: 'Weekly recap pushed',
-          description: `Weekly recap sent for ${count} active subscriptions.`,
-          timestamp: new Date().toISOString(),
-          amount: 0,
-          currency: 'USD',
-        });
+        if (!claimId) {
+          // Fallback path (no unique index): record the send the way this
+          // route always did.
+          await supabase.from('activity_log').insert({
+            user_id: userId,
+            type: 'weekly_recap_pushed',
+            title: 'Weekly recap pushed',
+            description: `Weekly recap sent for ${count} active subscriptions.`,
+            timestamp: new Date().toISOString(),
+            amount: 0,
+            currency: 'USD',
+          });
+        }
       } else {
         summary.failed++;
+        if (claimId) await supabase.from('activity_log').delete().eq('id', claimId);
       }
     }
 

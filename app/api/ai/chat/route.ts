@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth/access';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { getAiAnswer, type AiChatHistoryItem } from '@/lib/ai/server';
 import { buildAiUserContext, renderUserContext } from '@/lib/ai/context';
 import { logger } from '@/lib/logger';
@@ -11,6 +12,8 @@ const MAX_QUESTION_LENGTH = 1000;
 const MAX_HISTORY = 10;
 const MAX_SUBSCRIPTIONS = 300;
 const MAX_BILLS = 300;
+const RATE_LIMIT_WINDOW_SECONDS = 300;
+const RATE_LIMIT_MAX_QUESTIONS = 20;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -18,6 +21,19 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  // Each question costs a provider request, so one account is bounded to a
+  // rate no real conversation reaches.
+  const allowed = await checkRateLimit(`user:ai-chat:${user.id}`, {
+    windowSeconds: RATE_LIMIT_WINDOW_SECONDS,
+    maxRequests: RATE_LIMIT_MAX_QUESTIONS,
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'You are sending questions very quickly. Please wait a moment and try again.', errorLabel: 'ai' },
+      { status: 429 }
+    );
   }
 
   let body: { question?: unknown; history?: unknown } = {};

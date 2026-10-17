@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth/access';
+import { checkRateLimit } from '@/lib/rate-limit';
 import {
   generateAccountDeleteCode,
   isAccountDeleteCodeConfigured,
 } from '@/lib/services/account-delete-code';
 import { sendAccountDeleteCodeEmail } from '@/lib/email/send';
+
+const RATE_LIMIT_WINDOW_SECONDS = 600;
+const RATE_LIMIT_MAX_CODES = 3;
 
 /**
  * Emails a one-time deletion code to the signed-in user.
@@ -21,6 +25,19 @@ export async function POST() {
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized user session.' }, { status: 401 });
+  }
+
+  // The code window is short and self-rotating, but a signed-in account must
+  // not be able to turn this into a mail-bomb on the recipient's own inbox.
+  const allowed = await checkRateLimit(`user:delete-code:${user.id}`, {
+    windowSeconds: RATE_LIMIT_WINDOW_SECONDS,
+    maxRequests: RATE_LIMIT_MAX_CODES,
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'A code was sent recently. Please wait a few minutes before requesting another.' },
+      { status: 429 }
+    );
   }
 
   if (!user.email) {

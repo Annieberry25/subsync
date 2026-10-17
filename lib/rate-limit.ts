@@ -1,18 +1,32 @@
 /**
- * Postgres-backed sliding-window rate limiter for the Edge middleware.
+ * Postgres-backed sliding-window rate limiter.
  *
  * Each new counter is read/written via the `check_rate_limit` SECURITY DEFINER
  * RPC (persistent across cold starts and instances). A tiny in-memory cache
- * short-circuits repeat requests within the same window so the middleware
- * only touches the database once per bucket per instance.
+ * short-circuits repeat requests within the same window so callers only touch
+ * the database once per bucket per instance.
+ *
+ * Used by the Edge middleware for the global per-IP window, and directly by
+ * sensitive route handlers that need a tighter or per-user bucket (account
+ * method lookup, AI chat, Gmail scans, deletion codes, receipt scans).
  */
 
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 import type { Database } from '@/lib/types/database.types';
 
-const WINDOW_SECONDS = 60; // sliding window length
-const MAX_REQUESTS = 30; // allowed requests per window per client
+const WINDOW_SECONDS = 60; // sliding window length for the global IP bucket
+const MAX_REQUESTS = 30; // allowed requests per window per IP
+
+/** Cap for the in-memory decision cache; stale entries are pruned past it. */
+const MAX_CACHE_ENTRIES = 10_000;
+
+export interface RateLimitOptions {
+  /** Sliding window length in seconds. */
+  windowSeconds: number;
+  /** Allowed requests per window. */
+  maxRequests: number;
+}
 
 interface CachedDecision {
   allowed: boolean;
@@ -26,32 +40,62 @@ const supabase = createClient<Database>(
   env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 );
 
-export async function isRateLimited(request: Request): Promise<boolean> {
-  const bucketKey = `ip:${getClientIp(request)}`;
+function pruneCache(now: number): void {
+  if (decisionCache.size < MAX_CACHE_ENTRIES) return;
+  for (const [key, decision] of decisionCache) {
+    if (decision.expiresAt <= now) decisionCache.delete(key);
+  }
+  while (decisionCache.size >= MAX_CACHE_ENTRIES) {
+    const oldest = decisionCache.keys().next().value;
+    if (oldest === undefined) break;
+    decisionCache.delete(oldest);
+  }
+}
+
+/**
+ * Checks (and consumes) one unit from `bucketKey`. Returns true when the
+ * request is allowed.
+ *
+ * Fails open: if the rate-limit store is unreachable the request is allowed,
+ * so an infrastructure error never bricks the app. The failure is cached for
+ * a few seconds to avoid hammering a broken store.
+ */
+export async function checkRateLimit(
+  bucketKey: string,
+  options: RateLimitOptions
+): Promise<boolean> {
   const now = Date.now();
 
   const cached = decisionCache.get(bucketKey);
   if (cached && cached.expiresAt > now) {
-    return !cached.allowed;
+    return cached.allowed;
   }
 
   try {
     const { data } = await supabase.rpc('check_rate_limit', {
       p_bucket_key: bucketKey,
-      p_window_seconds: WINDOW_SECONDS,
-      p_max_requests: MAX_REQUESTS,
+      p_window_seconds: options.windowSeconds,
+      p_max_requests: options.maxRequests,
     });
 
     const allowed = data?.allowed !== false;
-    const retryAfter = data?.retry_after_seconds ?? WINDOW_SECONDS;
+    const retryAfter = data?.retry_after_seconds ?? options.windowSeconds;
+    pruneCache(now);
     decisionCache.set(bucketKey, { allowed, expiresAt: now + retryAfter * 1000 });
-    return !allowed;
+    return allowed;
   } catch {
-    // Fail open if the rate-limit store is unreachable; never brick the app
-    // behind an infrastructure error. Re-check after a short backoff.
+    pruneCache(now);
     decisionCache.set(bucketKey, { allowed: true, expiresAt: now + 5_000 });
-    return false;
+    return true;
   }
+}
+
+export async function isRateLimited(request: Request): Promise<boolean> {
+  const allowed = await checkRateLimit(`ip:${getClientIp(request)}`, {
+    windowSeconds: WINDOW_SECONDS,
+    maxRequests: MAX_REQUESTS,
+  });
+  return !allowed;
 }
 
 export function getClientIp(request: Request): string {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser, resolveServerPlanTier } from '@/lib/auth/access';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
 import { getPlanLimits } from '@/lib/constants/plan-limits';
 import { parseReceiptDocument, type ReceiptExtraction, type ReceiptKind } from '@/lib/services/receipt-parser';
@@ -79,6 +80,16 @@ export async function POST(request: Request) {
     return fail(401, 'Sign in to scan a receipt.');
   }
 
+  // Bounds concurrent scans per account. The monthly quota below is the real
+  // limit; this keeps a burst from racing past the counter before it lands.
+  const allowed = await checkRateLimit(`user:receipt-scan:${user.id}`, {
+    windowSeconds: 60,
+    maxRequests: 6,
+  });
+  if (!allowed) {
+    return fail(429, 'You are scanning very quickly. Please wait a moment and try again.');
+  }
+
   let form: FormData;
   try {
     form = await request.formData();
@@ -111,9 +122,11 @@ export async function POST(request: Request) {
   const file = form.get('file');
   const pastedText = typeof form.get('text') === 'string' ? (form.get('text') as string) : '';
 
-  const respond = (body: ExtractPayload, source: ReceiptScanSource) => {
-    // Fire-and-forget: a failed counter write must not fail the extraction.
-    void recordReceiptScan(user.id, source);
+  const respond = async (body: ExtractPayload, source: ReceiptScanSource) => {
+    // Awaited, not fire-and-forget: the next request's quota check must see
+    // this scan, otherwise concurrent requests can outrun the monthly cap.
+    // A failed counter write still must not fail the extraction.
+    await recordReceiptScan(user.id, source);
     return NextResponse.json<ExtractResponseBody>({ ok: true, ...body });
   };
 
