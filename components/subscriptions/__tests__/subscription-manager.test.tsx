@@ -133,6 +133,19 @@ vi.mock('@/lib/services/subscription-service', async (orig) => {
 
 import SubscriptionManager from '@/components/subscriptions/subscription-manager';
 
+/*
+ * Billing dates are relative to today on purpose. Hardcoded dates turn
+ * overdue once the calendar passes them, and the manager hides overdue rows
+ * from the main list — so the old fixed dates (2026-10) made the table vanish
+ * and every test that waits for it time out. The suite now stays valid
+ * whenever it runs.
+ */
+const futureDate = (daysFromNow: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromNow);
+  return date.toISOString().slice(0, 10);
+};
+
 const rows = [
   {
     id: 'sub-1',
@@ -142,7 +155,7 @@ const rows = [
     billing_cycle: 'monthly',
     category: 'Streaming',
     status: 'active',
-    next_billing_date: '2026-10-14',
+    next_billing_date: futureDate(10),
     notes: 'Standard plan',
     provider_url: 'https://netflix.com',
     account_links: [],
@@ -155,7 +168,7 @@ const rows = [
     billing_cycle: 'monthly',
     category: 'Music',
     status: 'active',
-    next_billing_date: '2026-10-02',
+    next_billing_date: futureDate(20),
     notes: 'Duo plan',
     provider_url: 'https://spotify.com',
     account_links: [],
