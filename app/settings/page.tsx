@@ -37,6 +37,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plug,
+  Activity,
   type LucideIcon,
 } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -269,6 +270,17 @@ function SettingsContent() {
      nothing. */
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushToggling, setPushToggling] = useState(false);
+  const [pushRegistrationWarning, setPushRegistrationWarning] = useState(false);
+  const [pushHealth, setPushHealth] = useState<{
+    configured: boolean;
+    devices: number;
+    lastDeviceSyncAt: string | null;
+    lastPushAt: string | null;
+    lastPushFor: string | null;
+    lastEmailAt: string | null;
+  } | null>(null);
+  const [testingNotifications, setTestingNotifications] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   useEffect(() => {
     // Deferred rather than read synchronously in the effect body: a setState that
@@ -281,20 +293,82 @@ function SettingsContent() {
       if (!active) return;
       setPushSupported(isPushSupported());
       setPushPermission(getPushPermissionState());
-      // A device can hold a live subscription whose row never reached the
-      // server (a dropped POST, an expired session, or a /sw.js that was being
-      // served as the login page). Re-POST the browser subscription on open so
-      // the switch can only read ON when the cron actually has an endpoint.
-      void syncPushSubscription().then((synced) => {
-        void hasPushSubscription().then((subscribed) => {
-          if (active) setPushEnabled(subscribed && synced);
-        });
+
+      // The switch reflects DEVICE state only.
+      //
+      // It used to require the repair POST below to have succeeded as well, which
+      // made the switch a network indicator: a 401 from a lapsed session, a 500,
+      // or one dropped packet on mobile data rendered as "notifications are off"
+      // and flipped itself back on the next visit. The user's setting never
+      // changed — only the request did.
+      void hasPushSubscription().then((subscribed) => {
+        if (active) setPushEnabled(subscribed);
       });
+
+      // A device can hold a live subscription whose row never reached the server
+      // (a dropped POST, an expired session, or a /sw.js that was being served as
+      // the login page). Repair it on open, but report a failure as a warning —
+      // never as a switched-off preference.
+      void syncPushSubscription().then((synced) => {
+        if (active && !synced) setPushRegistrationWarning(true);
+      });
+
+      void fetch('/api/push/status')
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (active && data) setPushHealth(data);
+        })
+        .catch(() => undefined);
     });
     return () => {
       active = false;
     };
   }, []);
+
+  /**
+   * Fires a real push and a real email at this account, and reports what each
+   * channel actually did.
+   *
+   * The endpoint has existed for a while with nothing calling it, which is why a
+   * silently failing push could not be diagnosed without reading server logs: the
+   * delivery ledger records the moment Apple accepted a message, not the moment
+   * a phone displayed it, so "the reminder went out" and "I got the reminder"
+   * were indistinguishable from inside the app.
+   */
+  const handleTestNotifications = async () => {
+    if (testingNotifications) return;
+    setTestingNotifications(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/notifications/test', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setTestResult(data?.error ?? 'The test could not be run.');
+        return;
+      }
+
+      const push = data.push ?? {};
+      const attempted = (push.sent ?? 0) + (push.failed ?? 0);
+      const pushLine = !push.configured
+        ? 'Push is not configured on the server.'
+        : push.skipped
+          ? 'Push was skipped — this device is not registered.'
+          : attempted === 0
+            ? 'Push was skipped — no devices registered.'
+            : `Push accepted by ${push.sent} of ${attempted} registered device${attempted === 1 ? '' : 's'}${push.removed ? `, ${push.removed} expired` : ''}.`;
+
+      const email = data.email ?? {};
+      const emailLine = email.ok
+        ? `Email sent to ${data.recipient}.`
+        : `Email failed${email.error ? `: ${email.error}` : '.'}`;
+
+      setTestResult(`${pushLine} ${emailLine} If no notification appeared, the push was accepted but not displayed — on iPhone that means enabling notifications from the Home Screen app, not the browser.`);
+    } catch {
+      setTestResult('Could not reach the server.');
+    } finally {
+      setTestingNotifications(false);
+    }
+  };
 
   // Account Deletion States
   const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
@@ -1085,7 +1159,9 @@ function SettingsContent() {
                 ? 'Not supported by this browser'
                 : pushPermission === 'denied'
                   ? 'Blocked for this site. Allow them in your browser settings'
-                  : undefined
+                  : pushRegistrationWarning
+                    ? 'This device is registered, but the server could not be reached to confirm it — reminders may not arrive until it reconnects'
+                    : undefined
             }
           >
             <ToggleSwitch
@@ -1108,6 +1184,7 @@ function SettingsContent() {
                   setPushPermission(permission);
                   const subscribed = await hasPushSubscription();
                   setPushEnabled(subscribed);
+                  if (subscribed) setPushRegistrationWarning(false);
 
                   if (permission === 'unsupported') {
                     toast.error(
@@ -1133,6 +1210,51 @@ function SettingsContent() {
                 }
               }}
             />
+          </SettingsRow>
+
+          {/*
+            Delivery health, with a way to test it without waiting for a renewal.
+
+            "Last push" is the moment the push service accepted a message, which
+            is deliberately not labelled "received": iOS accepts pushes for
+            subscriptions created outside an installed web app and then displays
+            nothing, so the two are not the same event and the UI must not imply
+            they are.
+          */}
+          <SettingsRow
+            icon={Activity}
+            title="Delivery Check"
+            description={
+              pushHealth
+                ? [
+                    `${pushHealth.devices} device${pushHealth.devices === 1 ? '' : 's'} registered`,
+                    pushHealth.lastPushAt
+                      ? `last push accepted ${new Date(pushHealth.lastPushAt).toLocaleString()}${
+                          pushHealth.lastPushFor ? ` (${pushHealth.lastPushFor})` : ''
+                        }`
+                      : 'no push sent yet',
+                    pushHealth.lastEmailAt
+                      ? `last email ${new Date(pushHealth.lastEmailAt).toLocaleString()}`
+                      : 'no email sent yet',
+                  ].join(' · ')
+                : 'Checking…'
+            }
+          >
+            <div className="flex flex-col items-end gap-1">
+              <button
+                type="button"
+                onClick={handleTestNotifications}
+                disabled={testingNotifications}
+                className="px-3 py-2 rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {testingNotifications ? 'Sending…' : 'Send test notification'}
+              </button>
+              {testResult && (
+                <p className="max-w-[280px] text-right text-[11px] leading-relaxed text-[#94A3B8]">
+                  {testResult}
+                </p>
+              )}
+            </div>
           </SettingsRow>
 
           <SettingsRow
