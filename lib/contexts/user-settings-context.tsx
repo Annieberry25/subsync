@@ -123,6 +123,8 @@ interface SettingsContextValue {
   assistantName: string;
   isGmailConnected: boolean;
   gmailEmail: string | null;
+  /** True when a Gmail row exists but its Google grant expired and must be re-authorized. */
+  gmailNeedsReconnect: boolean;
   billingDetails: BillingDetails | null;
   paymentMethods: PaymentMethodItem[];
   billingTransactions: TransactionItem[];
@@ -175,6 +177,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [assistantName, setAssistantNameState] = useState<string>('SubHalt Assistant');
   const [isGmailConnected, setIsGmailConnectedState] = useState<boolean>(false);
   const [gmailEmail, setGmailEmailState] = useState<string | null>(null);
+  const [gmailNeedsReconnect, setGmailNeedsReconnectState] = useState<boolean>(false);
   const [billingDetails, setBillingDetailsState] = useState<BillingDetails | null>(null);
   const [paymentMethods, setPaymentMethodsState] = useState<PaymentMethodItem[]>([]);
   const [billingTransactions, setBillingTransactionsState] = useState<TransactionItem[]>([]);
@@ -369,6 +372,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
             const connected = !!data.connected;
             setIsGmailConnectedState(connected);
             setGmailEmailState(connected ? (data.email ?? null) : null);
+            setGmailNeedsReconnectState(!!data.needsReconnect);
             if (typeof window !== 'undefined') {
               safeSetItem('subhalt_gmail_connected', connected ? 'true' : 'false');
             }
@@ -790,6 +794,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const setGmailConnection = (connected: boolean, email?: string | null) => {
     setIsGmailConnectedState(connected);
     setGmailEmailState(connected ? email ?? null : null);
+    setGmailNeedsReconnectState(false);
     if (typeof window !== 'undefined') {
       safeSetItem('subhalt_gmail_connected', connected ? 'true' : 'false');
     }
@@ -896,6 +901,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       assistantName,
       isGmailConnected,
       gmailEmail,
+      gmailNeedsReconnect,
       billingDetails,
       paymentMethods,
       billingTransactions,
@@ -909,7 +915,7 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
       refreshSettings: loadUserSettings,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Same intent as currencyValue above.
-    [timezone, notificationPreferences, assistantName, isGmailConnected, gmailEmail, billingDetails, paymentMethods, billingTransactions]
+    [timezone, notificationPreferences, assistantName, isGmailConnected, gmailEmail, gmailNeedsReconnect, billingDetails, paymentMethods, billingTransactions]
   );
 
   const aggregateValue = useMemo<UserSettingsContextValue>(

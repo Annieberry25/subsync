@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ChevronLeft, Link2, Link2Off } from 'lucide-react';
+import { Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ChevronLeft, Link2, Link2Off, Info, KeyRound } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
@@ -49,18 +49,27 @@ function toBillingCycle(raw: string): BillingCycle {
 }
 
 export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequireUpgrade, autoScan }: GmailConnectModalProps) {
-  const { isGmailConnected, gmailEmail, setGmailConnection } = useSettings();
+  const { isGmailConnected, gmailEmail, gmailNeedsReconnect, setGmailConnection } = useSettings();
   const { planTier } = usePlan();
   const { addInboxItem } = useInbox();
   const { toast } = useToast();
 
   const [step, setStep] = useState<'auth' | 'connecting' | 'scanning' | 'results' | 'done'>('auth');
   const [discovered, setDiscovered] = useState<DiscoveredSubscription[]>([]);
+  const [alreadyKnown, setAlreadyKnown] = useState<number>(0);
   const [selectedDiscovered, setSelectedDiscovered] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [reconnectRequired, setReconnectRequired] = useState(false);
   const autoScanStarted = React.useRef(false);
+
+  /**
+   * A Google grant that expired or was revoked. Known from the server on load,
+   * or set the moment a scan comes back with `gmail_token_expired` — either way
+   * the sheet stops offering "scan again" and offers a re-authorization instead.
+   */
+  const grantExpired = gmailNeedsReconnect || reconnectRequired;
 
   const startScan = useCallback(async () => {
     setError(null);
@@ -69,11 +78,15 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
       const res = await fetch('/api/gmail/scan', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) {
+        // A dead grant is the one scan failure the user can fix immediately, so
+        // it switches the sheet into its reconnect state instead of a dead end.
+        if (data?.code === 'gmail_token_expired') setReconnectRequired(true);
         setError(data?.error || 'Gmail scan failed. Please try again.');
         setStep('auth');
         return;
       }
       const list: DiscoveredSubscription[] = Array.isArray(data.discovered) ? data.discovered : [];
+      setAlreadyKnown(typeof data.alreadyKnown === 'number' ? data.alreadyKnown : 0);
       setDiscovered(list);
       setSelectedDiscovered(list.map((d) => d.providerName));
       setStep('results');
@@ -90,9 +103,11 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
       setError(null);
       setStep('auth');
       setDiscovered([]);
+      setAlreadyKnown(0);
       setSelectedDiscovered([]);
       setImporting(false);
       setDisconnecting(false);
+      setReconnectRequired(false);
     }
   }
 
@@ -237,8 +252,8 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
             </div>
           )}
 
-          {/* Step 1: Authorization info / connected state */}
-          {step === 'auth' && !isGmailConnected && (
+          {/* Step 1a: Authorization info / connected state */}
+          {step === 'auth' && !isGmailConnected && !grantExpired && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold text-[#F5F7F6]">
@@ -260,6 +275,13 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
                   <CheckCircle2 className="w-4 h-4 text-[#14B8A6] shrink-0 mt-0.5" />
                   <span>
                     You will be redirected to Google to approve access, then returned here to review what we found.
+                  </span>
+                </div>
+                <div className="flex items-start gap-2.5 text-xs text-[#94A3B8]">
+                  <Info className="w-4 h-4 text-[#14B8A6] shrink-0 mt-0.5" />
+                  <span>
+                    If Google shows “Google hasn&apos;t verified this app”, choose{' '}
+                    <span className="text-[#F5F7F6] font-medium">Advanced → Go to SubHalt (unsafe)</span> to continue.
                   </span>
                 </div>
               </div>
@@ -293,8 +315,59 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
             </div>
           )}
 
+          {/* Step 1c: The Google grant expired — re-authorize in one tap. */}
+          {step === 'auth' && grantExpired && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-[#F5F7F6] flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-[#F59E0B]" />
+                  Gmail connection expired
+                </h4>
+                <p className="text-xs text-[#94A3B8] leading-relaxed">
+                  Google stopped accepting this connection, so scanning is paused. This is
+                  expected while the app sits in Google&apos;s testing mode — refresh tokens expire
+                  after 7 days. Your subscriptions are untouched.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[#0F1414] border border-[#F59E0B]/30 space-y-2">
+                <p className="text-xs text-[#F5F7F6] font-medium">
+                  {gmailEmail || 'Your Gmail account'}
+                </p>
+                <p className="text-[11px] text-[#94A3B8]">Reconnect to resume scanning for receipts.</p>
+              </div>
+
+              <div className="pt-2 flex flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="px-4 py-2.5 rounded-xl bg-[#1A1D1D] hover:bg-[#2A2224] text-[#F87171] hover:text-[#FCA5A5] text-xs font-medium transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Link2Off className="w-3.5 h-3.5" />
+                  {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartOAuth}
+                  className="px-4 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] font-semibold text-xs transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <Link2 className="w-4 h-4" />
+                  <span>Reconnect Gmail</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Step 1b: Connected state */}
-          {step === 'auth' && isGmailConnected && (
+          {step === 'auth' && isGmailConnected && !grantExpired && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold text-[#F5F7F6]">
@@ -377,12 +450,16 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
                 <h4 className="text-sm font-semibold text-[#F5F7F6]">
                   {discovered.length > 0
                     ? `Discovered Subscriptions (${discovered.length})`
-                    : 'No Subscriptions Found'}
+                    : alreadyKnown > 0
+                      ? 'You’re all caught up'
+                      : 'No Subscriptions Found'}
                 </h4>
                 <p className="text-xs text-[#94A3B8]">
                   {discovered.length > 0
-                    ? 'Select subscriptions found in your Gmail receipt history to import into SubHalt.'
-                    : 'We scanned your inbox for receipts and invoices but did not find any recurring subscriptions. Try adding one manually.'}
+                    ? 'Select subscriptions found in your Gmail receipt history to import into SubHalt. Anything you already track is skipped.'
+                    : alreadyKnown > 0
+                      ? `We scanned your inbox. The ${alreadyKnown} subscription${alreadyKnown === 1 ? '' : 's'} we found ${alreadyKnown === 1 ? 'is' : 'are'} already in SubHalt — nothing new to import.`
+                      : 'We scanned your inbox for receipts and invoices but did not find any recurring subscriptions. Try adding one manually.'}
                 </p>
               </div>
 
@@ -430,8 +507,14 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
                 </div>
               ) : (
                 <div className="py-6 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-[#1A1D1D] border border-[#1A1D1D] flex items-center justify-center text-[#94A3B8] mx-auto">
-                    <Mail className="w-6 h-6" />
+                  <div
+                    className={`w-12 h-12 rounded-full border flex items-center justify-center mx-auto ${
+                      alreadyKnown > 0
+                        ? 'bg-[#14B8A6]/10 border-[#14B8A6]/30 text-[#14B8A6]'
+                        : 'bg-[#1A1D1D] border-[#1A1D1D] text-[#94A3B8]'
+                    }`}
+                  >
+                    {alreadyKnown > 0 ? <CheckCircle2 className="w-6 h-6" /> : <Mail className="w-6 h-6" />}
                   </div>
                   <button
                     type="button"

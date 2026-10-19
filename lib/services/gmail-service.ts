@@ -19,6 +19,7 @@ import {
 import {
   deriveProviderFromSender,
   stripHtmlToText,
+  normalizeSubscriptionName,
   GENERIC_PROVIDER_NAME,
 } from '@/lib/services/receipt-discovery';
 import {
@@ -43,6 +44,53 @@ export interface GmailCredentials {
 
 export const GMAIL_READONLY_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 export const GMAIL_STATE_COOKIE = 'subhalt_gmail_oauth_state';
+
+/**
+ * The stored Google grant is no longer usable: it expired (an unverified OAuth
+ * app left in Google's "Testing" mode expires refresh tokens after 7 days), or
+ * the user revoked access. Distinct from a transient API failure because the
+ * only fix is a fresh authorization — retrying cannot recover it.
+ */
+export class GmailTokenExpiredError extends Error {
+  constructor(message = 'Gmail authorization has expired.') {
+    super(message);
+    this.name = 'GmailTokenExpiredError';
+  }
+}
+
+function errorStatus(err: unknown): number | null {
+  if (typeof err !== 'object' || err === null) return null;
+  const candidate = err as { response?: { status?: unknown }; code?: unknown; status?: unknown };
+  for (const value of [candidate.response?.status, candidate.code, candidate.status]) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
+/**
+ * Does this failure mean "the grant is dead, re-authorize"?
+ *
+ * Deliberately conservative: it only claims a dead grant when Google said so in
+ * words. A 403 (quota, for example) is not treated as an expired grant, because
+ * flipping the connection into a "reconnect" state on a transient blip would
+ * send the user through an unnecessary OAuth round-trip.
+ */
+export function isGmailTokenError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  const haystack = message.toLowerCase();
+  if (
+    haystack.includes('invalid_grant') ||
+    haystack.includes('unauthorized_client') ||
+    haystack.includes('revoked')
+  ) {
+    return true;
+  }
+  if (haystack.includes('token') && (haystack.includes('expired') || haystack.includes('invalid'))) {
+    return true;
+  }
+  return errorStatus(err) === 401;
+}
 
 /**
  * CSRF state for the Gmail OAuth flow, bound to the user who started it.
@@ -71,6 +119,8 @@ export interface GmailStatus {
   email?: string;
   lastScanAt?: string | null;
   lastScanCount?: number | null;
+  /** A connection row exists, but its Google grant is gone and must be re-authorized. */
+  needsReconnect?: boolean;
 }
 
 /** True when Google OAuth credentials are present in the environment. */
@@ -254,9 +304,85 @@ export async function getAuthedGmailClient(
   // Force a token exchange up front so a caller can never act on a stale or
   // absent access_token. The library refreshes whenever the stored access token
   // is missing/expiring, and we never persisted one.
-  await client.getAccessToken();
+  try {
+    await client.getAccessToken();
+  } catch (err) {
+    if (isGmailTokenError(err)) {
+      // Persist the dead-grant state so the UI can offer a reconnect instead of
+      // letting every future scan fail with the same opaque message.
+      await markGmailGrantExpired(userId);
+      throw new GmailTokenExpiredError();
+    }
+    throw err;
+  }
   const gmail = google.gmail({ version: 'v1', auth: client });
   return { gmail, email: conn.email };
+}
+
+/**
+ * Split a scan's discoveries into the ones worth showing and the ones the user
+ * already has.
+ *
+ * A receipt scan re-reads a year of mail, so without this the sheet re-offers
+ * everything on every visit — which reads as "it scanned and found the same
+ * thing again" and invites duplicate imports. Matches the background monitor's
+ * own filter (gmail-monitor) so both paths agree on what counts as new.
+ */
+export function partitionNewDiscoveries(
+  discovered: DiscoveredSubscription[],
+  existingNames: string[]
+): { discovered: DiscoveredSubscription[]; alreadyKnown: number } {
+  const existing = new Set(existingNames.map((name) => normalizeSubscriptionName(name)));
+  const fresh = discovered.filter(
+    (item) => !existing.has(normalizeSubscriptionName(item.providerName))
+  );
+  return { discovered: fresh, alreadyKnown: discovered.length - fresh.length };
+}
+
+/**
+ * Mark the stored grant as unusable.
+ *
+ * `gmail_connections.status` is constrained to ('connected', 'revoked',
+ * 'error') by migration 008, so a dead grant is stored as 'error' and read
+ * back as `needsReconnect`. Best-effort: a failure to write must not mask the
+ * original error the caller is about to surface.
+ */
+export async function markGmailGrantExpired(userId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await admin
+      .from('gmail_connections')
+      .update({
+        status: 'error',
+        last_scan_at: new Date().toISOString(),
+        last_scan_status: 'error',
+      })
+      .eq('user_id', userId);
+  } catch (err) {
+    console.error(
+      '[gmail] could not record the expired grant:',
+      err instanceof Error ? err.message : err
+    );
+  }
+}
+
+/** Record a failed scan for a connection whose grant is still considered live. */
+export async function recordGmailScanFailure(userId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await admin
+      .from('gmail_connections')
+      .update({
+        last_scan_at: new Date().toISOString(),
+        last_scan_status: 'error',
+      })
+      .eq('user_id', userId);
+  } catch (err) {
+    console.error(
+      '[gmail] could not record the failed scan:',
+      err instanceof Error ? err.message : err
+    );
+  }
 }
 
 export async function disconnectGmail(userId: string): Promise<void> {
@@ -277,17 +403,29 @@ export async function disconnectGmail(userId: string): Promise<void> {
   await admin.from('gmail_connections').delete().eq('user_id', userId);
 }
 
-export async function getGmailStatus(userId: string): Promise<GmailStatus> {
-  const conn = await getGmailConnection(userId);
-  if (!conn || conn.status !== 'connected') {
-    return { connected: false };
+/**
+ * Map a connection row to the client-safe status shape.
+ *
+ * A row that exists but is no longer 'connected' means the grant died (or was
+ * revoked): the user still has a Gmail connection on file, but scanning it
+ * would fail until they re-authorize. Split out from the query so the mapping
+ * stays testable without a database.
+ */
+export function gmailStatusFromRow(conn: GmailConnectionRow | null): GmailStatus {
+  if (!conn) return { connected: false };
+  if (conn.status === 'connected') {
+    return {
+      connected: true,
+      email: conn.email,
+      lastScanAt: conn.last_scan_at,
+      lastScanCount: conn.last_scan_count,
+    };
   }
-  return {
-    connected: true,
-    email: conn.email,
-    lastScanAt: conn.last_scan_at,
-    lastScanCount: conn.last_scan_count,
-  };
+  return { connected: false, needsReconnect: conn.status === 'error' || conn.status === 'revoked' };
+}
+
+export async function getGmailStatus(userId: string): Promise<GmailStatus> {
+  return gmailStatusFromRow(await getGmailConnection(userId));
 }
 
 // ---------------------------------------------------------------------------
