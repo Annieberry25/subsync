@@ -238,10 +238,11 @@ describe('runRenewalReminders — in-app inbox', () => {
 });
 
 /**
- * The second call on the day before is the one reminder that is conditional: it
- * only goes out when the user has not already opened the renewal notice in the
- * app. That is the only engagement signal we actually hold — push and email
- * cannot be read-confirmed.
+ * The second call on the day before is the last thing standing between a user
+ * and an unannounced charge. It used to be withheld when the earlier in-app
+ * notice had been opened — a proxy for "they saw it" that cannot detect a push
+ * the device accepted and never displayed. It is now gated only on the
+ * subscription still being active.
  */
 describe('runRenewalReminders — second call gate', () => {
   const EVENING = new Date('2026-10-13T21:00:00Z');
@@ -256,10 +257,12 @@ describe('runRenewalReminders — second call gate', () => {
     });
 
     expect(report.items.some((i) => i.leadMinutes === 720 && i.channel === 'push')).toBe(true);
-    expect(report.items.some((i) => i.reason === 'renewal_notice_already_read')).toBe(false);
+    expect(report.items.some((i) => i.reason === 'subscription_not_active')).toBe(false);
   });
 
-  it('withholds the second call when the user already opened the notice', async () => {
+  it('still sends the second call when the earlier notice was already opened', async () => {
+    // The regression this covers: a read inbox row used to silence the final
+    // warning, which is how a charge could arrive with nothing delivered.
     const state = baseState();
     state.inboxRead = [{ id: 'already-read' }];
     mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
@@ -270,7 +273,22 @@ describe('runRenewalReminders — second call gate', () => {
       now: EVENING,
     });
 
-    expect(report.items.some((i) => i.reason === 'renewal_notice_already_read')).toBe(true);
+    expect(report.items.some((i) => i.reason === 'renewal_notice_already_read')).toBe(false);
+    expect(report.items.some((i) => i.leadMinutes === 720 && i.action === 'sent')).toBe(true);
+  });
+
+  it('withholds the second call when the subscription is no longer active', async () => {
+    const state = baseState();
+    state.subs = [{ ...state.subs[0], status: 'paused' }];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: EVENING,
+    });
+
+    expect(report.items.some((i) => i.reason === 'subscription_not_active')).toBe(true);
     expect(report.items.some((i) => i.leadMinutes === 720 && i.action === 'sent')).toBe(false);
   });
 });

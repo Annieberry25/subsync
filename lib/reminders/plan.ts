@@ -96,6 +96,12 @@ export interface PlannerSubscription {
   renewalDate: IsoDate;
   /** Decides whether the automatic stages are the monthly or the annual set. */
   billingCycle: string;
+  /**
+   * Carried from the row so delivery can check it at send time. The planner keys
+   * and schedules only on the renewal date; whether a notice is still worth
+   * sending is a question about the subscription's state right now.
+   */
+  status?: string | null;
 }
 
 export interface PlannerPreference {
@@ -131,7 +137,9 @@ export type SkipReason =
   | 'not_due'
   | 'already_delivered'
   /** Due, but a closer stage went out this run instead. */
-  | 'superseded_by_closer_stage';
+  | 'superseded_by_closer_stage'
+  /** The last call, but the subscription is no longer active so there is nothing to warn about. */
+  | 'subscription_not_active';
 
 export interface SkippedReminder {
   subscriptionId: string;
