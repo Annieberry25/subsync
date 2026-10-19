@@ -1,5 +1,4 @@
 import type { MetadataRoute } from "next";
-import { BILL_PAYMENT_ENABLED } from "@/lib/config/feature-flags";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.xyz";
 
@@ -7,23 +6,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   const routes = [
     "",
-    "/plans",
     "/features",
     "/how-it-works",
     "/about",
     "/help",
-    "/settings",
-    "/profile",
-    "/export",
-    ...(BILL_PAYMENT_ENABLED ? ["/bills"] : []),
-    "/history",
-    "/history/all",
-    "/history/archive",
-    "/history/deleted",
-    "/history/restored",
-    "/renewals",
-    "/inbox",
-    "/subscriptions",
+    /*
+     * Public routes only.
+     *
+     * Every other page the app serves sits behind the session guard and answers
+     * 307 → /login for anyone who is not signed in — Googlebot included. Listing
+     * them advertised twelve URLs that could only ever redirect, which Search
+     * Console reports as redirect errors and spends crawl budget on pages that
+     * cannot be indexed no matter how often they are fetched.
+     *
+     * Worth revisiting separately: /plans is an in-app checkout screen, so
+     * nothing publicly indexable states what the plans cost. That is a content
+     * decision, not a sitemap one.
+     */
   ];
 
   return routes.map((route) => ({
