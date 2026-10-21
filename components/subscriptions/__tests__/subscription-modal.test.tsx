@@ -62,7 +62,11 @@ function nextFrame() {
   return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-async function renderOpen(initialData?: SubscriptionRow | null, savedId: string | null = 'sub_new') {
+async function renderOpen(
+  initialData?: SubscriptionRow | null,
+  savedId: string | null = 'sub_new',
+  existingSubscriptions: SubscriptionRow[] = []
+) {
   const onClose = vi.fn();
   const onSave = vi.fn(async () => savedId);
   const onRequireUpgrade = vi.fn();
@@ -73,6 +77,7 @@ async function renderOpen(initialData?: SubscriptionRow | null, savedId: string 
       onSave={onSave}
       initialData={initialData}
       onRequireUpgrade={onRequireUpgrade}
+      existingSubscriptions={existingSubscriptions}
     />
   );
   view.rerender(
@@ -82,6 +87,7 @@ async function renderOpen(initialData?: SubscriptionRow | null, savedId: string 
       onSave={onSave}
       initialData={initialData}
       onRequireUpgrade={onRequireUpgrade}
+      existingSubscriptions={existingSubscriptions}
     />
   );
   await nextFrame();
@@ -340,6 +346,113 @@ describe('SubscriptionModal', () => {
       )
     );
     expect(mocks.toast.success).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Adding a service that is already tracked.
+ *
+ * The user forgot they had added it. The answer is not a second row — two
+ * rows for one service is what makes the totals and the reminders wrong — it
+ * is another account on the row that is already there. The form says so, fills
+ * itself from that row so nothing is left blank, and saves onto it.
+ */
+describe('SubscriptionModal already-tracked service', () => {
+  const tracked = makeSubscription({
+    id: 'sub_existing',
+    name: 'Netflix',
+    price: 15.99,
+    currency: 'NGN',
+    billing_cycle: 'yearly',
+    category: 'Software',
+    status: 'trial',
+    next_billing_date: '2026-12-24',
+  });
+
+  it('turns into an add-another-account form once the name matches', async () => {
+    const user = userEvent.setup();
+    await renderOpen(null, 'sub_new', [tracked]);
+
+    await user.type(
+      screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
+      'netflix'
+    );
+
+    // The form says what it is about to do, before the user saves anything.
+    expect(
+      await screen.findByRole('heading', { name: 'Add Another Account' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/is already on your list/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Add Another Account' })
+    ).toBeInTheDocument();
+  });
+
+  it('fills every compulsory field from the subscription already tracked', async () => {
+    const user = userEvent.setup();
+    await renderOpen(null, 'sub_new', [tracked]);
+
+    await user.type(
+      screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
+      'Netflix'
+    );
+
+    // Price, currency, cycle, category, status and the renewal date all come
+    // from the row that is already there. None of them is left blank.
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('15.99')).toHaveValue(15.99)
+    );
+    expect(screen.getByPlaceholderText('15.99')).toHaveValue(15.99);
+    expect(screen.getByDisplayValue('NGN (₦)')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('yearly')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Software')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('trial')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2026-12-24')).toBeInTheDocument();
+  });
+
+  it('saves onto the subscription already tracked instead of creating a new one', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen(null, 'sub_new', [tracked]);
+
+    await user.type(
+      screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
+      'Netflix'
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Add Another Account' }));
+
+    // The id it saves to is the row that is already there.
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][1]).toBe('sub_existing');
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      name: 'Netflix',
+      price: 15.99,
+      currency: 'NGN',
+      billing_cycle: 'yearly',
+      category: 'Software',
+      status: 'trial',
+      next_billing_date: '2026-12-24',
+    });
+  });
+
+  it('does not treat a cancelled subscription as the same service', async () => {
+    const user = userEvent.setup();
+    await renderOpen(null, 'sub_new', [{ ...tracked, status: 'canceled' }]);
+
+    await user.type(
+      screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
+      'Netflix'
+    );
+
+    // A subscription that was cancelled and started again is a new one.
+    expect(
+      screen.queryByRole('heading', { name: 'Add Another Account' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Add Subscription' })
+    ).toBeInTheDocument();
   });
 });
 

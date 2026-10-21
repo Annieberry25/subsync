@@ -14,7 +14,8 @@ import {
   isOverdueSubscription,
   isSubscriptionDeleted,
   type SubscriptionRow,
-  type SubscriptionInsert
+  type SubscriptionInsert,
+  type SubscriptionUpdate
 } from '@/lib/services/subscription-service';
 import {
   fetchReminderPreferences,
@@ -107,20 +108,6 @@ export default function SubscriptionManager() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
   const [returnToDetailSub, setReturnToDetailSub] = useState<SubscriptionRow | null>(null);
-
-  /**
-   * The subscription the user is already tracking, when the add form was
-   * filled with a name that matches one.
-   *
-   * Two rows for the same service is the thing users hit most: they add
-   * Netflix, forget they added it, and add it again. The fix is not a second
-   * row — it is a second account on the row they already have — so the save
-   * is intercepted and offered back to them as "add another account".
-   */
-  const [duplicateSubscription, setDuplicateSubscription] = useState<SubscriptionRow | null>(null);
-
-  /** Opens the edit form on an existing row with one empty account row. */
-  const [startWithNewAccountLink, setStartWithNewAccountLink] = useState(false);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
   const [deleteReturnToDetailSub, setDeleteReturnToDetailSub] = useState<SubscriptionRow | null>(null);
@@ -448,6 +435,12 @@ export default function SubscriptionManager() {
     /*
      * The same service, added twice.
      *
+     * The form normally catches this itself: typing a name that is already
+     * tracked turns it into an "add another account" form, and the save
+     * writes to the row that is already there. This is the backstop for the
+     * paths that do not go through that form — a receipt review, a provider
+     * link — so a second row for one service can never be written.
+     *
      * The name is compared the way the discovery paths compare it — case and
      * whitespace ignored — so "Netflix" and "netflix " are the same service.
      * A cancelled row does not block a new one: a subscription that was
@@ -461,13 +454,32 @@ export default function SubscriptionManager() {
     );
 
     if (duplicate) {
-      // Close the add form first: the dialog has to be the thing on screen, and
-      // two sheets stacked make both unreadable.
-      setIsModalOpen(false);
-      setEditingSubscription(null);
-      setStartWithNewAccountLink(false);
-      setDuplicateSubscription(duplicate);
-      return null;
+      /*
+       * The receipt or the account belongs to the subscription that is already
+       * there, so the row is updated rather than duplicated. The account
+       * links are only written when the caller brought some: a path that
+       * knows nothing about accounts must not wipe the ones on the row.
+       */
+      const payload: SubscriptionUpdate = { ...data };
+      if (!payload.account_links || payload.account_links.length === 0) {
+        delete payload.account_links;
+      }
+
+      const { error: err, synced } = await updateSubscription(duplicate.id, payload);
+      if (err) throw err;
+      if (synced) {
+        toast.success(
+          `${duplicate.name} is already on your list — the details were added to it.`,
+          'Already Tracked'
+        );
+      } else {
+        toast.warning(
+          'Saved on this device only. It will sync to your account when you are back online.',
+          'Offline Save'
+        );
+      }
+      await loadData();
+      return duplicate.id;
     }
 
     const { data: created, error: err, synced } = await createSubscription(data);
@@ -971,36 +983,12 @@ export default function SubscriptionManager() {
         }}
       />
 
-      {/* Duplicate Guard: the same service, added twice. */}
-      <ConfirmDialog
-        isOpen={!!duplicateSubscription}
-        onClose={() => setDuplicateSubscription(null)}
-        onConfirm={() => {
-          const target = duplicateSubscription;
-          setDuplicateSubscription(null);
-          if (!target) return;
-          setEditingSubscription(target);
-          setStartWithNewAccountLink(true);
-          setIsModalOpen(true);
-        }}
-        title={
-          duplicateSubscription
-            ? `You already track "${duplicateSubscription.name}"`
-            : 'Already tracked'
-        }
-        description="Adding it again would create a second row for the same service. Add another account to the one you already have instead — that way the reminders and the total stay right."
-        confirmText="Add another account"
-        cancelText="Cancel"
-        variant="info"
-      />
-
       {/* Subscription Form Modal */}
       <SubscriptionModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           setEditingSubscription(null);
-          setStartWithNewAccountLink(false);
           if (returnToDetailSub) {
             const updated = subscriptions.find((s) => s.id === returnToDetailSub.id) || returnToDetailSub;
             setSelectedDetailSub(updated);
@@ -1013,14 +1001,13 @@ export default function SubscriptionManager() {
             ? () => {
                 setIsModalOpen(false);
                 setEditingSubscription(null);
-                setStartWithNewAccountLink(false);
                 setIsAddPathModalOpen(true);
               }
             : undefined
         }
         onSave={handleSave}
         initialData={editingSubscription}
-        startWithNewAccountLink={startWithNewAccountLink}
+        existingSubscriptions={activeSubscriptions}
         pendingReceiptFile={pendingReceiptFile}
         onRequireUpgrade={() => {
           // Close the form so the upgrade sheet is not stacked behind it.

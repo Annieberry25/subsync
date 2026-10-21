@@ -8,6 +8,9 @@ const mockSearchParams = vi.hoisted(() => ({ value: new URLSearchParams() }));
 const mockCreateSubscription = vi.hoisted(() =>
   vi.fn(async () => ({ data: { id: 'sub-new' }, error: null, synced: true }))
 );
+const mockUpdateSubscription = vi.hoisted(() =>
+  vi.fn(async (id: string) => ({ data: { id }, error: null, synced: true }))
+);
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams.value,
@@ -134,6 +137,7 @@ vi.mock('@/lib/services/subscription-service', async (orig) => {
     fetchSubscriptions: vi.fn(async () => ({ data: mockSubscriptions.value, error: null })),
     archiveSubscription: vi.fn(async () => {}),
     createSubscription: mockCreateSubscription,
+    updateSubscription: mockUpdateSubscription,
   };
 });
 
@@ -307,39 +311,31 @@ describe('SubscriptionManager duplicate guard', () => {
     await openManualForm(user);
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'netflix');
-    await user.type(screen.getByPlaceholderText('15.99'), '15.99');
 
-    const submit = screen
-      .getAllByRole('button', { name: 'Add Subscription' })
-      .find((b) => b.getAttribute('form') === 'subscription-modal-form');
-    await user.click(submit!);
-
-    // The dialog names the service that is already tracked.
-    expect(await screen.findByText(/You already track/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add another account' })).toBeInTheDocument();
-
-    // And nothing was written.
-    expect(mockCreateSubscription).not.toHaveBeenCalled();
+    // The form recognises the service and becomes the "add another account"
+    // form, with the existing row's values already in it.
+    expect(
+      await screen.findByRole('heading', { name: 'Add Another Account' })
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('15.99')).toHaveValue(15.99)
+    );
   });
 
-  it('opens the existing subscription with an empty account row when another account is chosen', async () => {
+  it('saves the extra account onto the subscription already tracked', async () => {
     const user = userEvent.setup();
     await openManualForm(user);
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
-    await user.type(screen.getByPlaceholderText('15.99'), '15.99');
 
     const submit = screen
-      .getAllByRole('button', { name: 'Add Subscription' })
+      .getAllByRole('button', { name: 'Add Another Account' })
       .find((b) => b.getAttribute('form') === 'subscription-modal-form');
     await user.click(submit!);
 
-    await user.click(await screen.findByRole('button', { name: 'Add another account' }));
-
-    // The form now edits the row that already exists, with an account row
-    // waiting to be filled in.
-    expect(await screen.findByRole('heading', { name: 'Edit Subscription' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Account URL/i)).toBeInTheDocument();
+    // The row that is already there is updated. Nothing new is created.
+    await waitFor(() => expect(mockUpdateSubscription).toHaveBeenCalledTimes(1));
+    expect(mockUpdateSubscription.mock.calls[0][0]).toBe('sub-1');
     expect(mockCreateSubscription).not.toHaveBeenCalled();
   });
 

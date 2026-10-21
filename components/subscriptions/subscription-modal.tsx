@@ -21,6 +21,7 @@ import { CustomSelect } from '@/components/ui/custom-select';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { hasReachedAccountLinkCap } from '@/lib/constants/plan-limits';
+import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
 
 interface SubscriptionModalProps {
@@ -34,15 +35,16 @@ interface SubscriptionModalProps {
   /** Opens the upgrade sheet when a Plus-only feature is attempted. */
   onRequireUpgrade?: () => void;
   /**
-   * Seeds one empty account row when the form opens on an existing
-   * subscription.
+   * The subscriptions this user already tracks.
    *
-   * Reached from the duplicate guard: the user tried to add a subscription they
-   * already track, and the app offers to add another account to it rather than
-   * creating a second row for the same thing. Pre-adding the row leaves only
-   * the account URL to fill in.
+   * Used to recognise a service that is already on the list. When the typed
+   * name matches one of these, the form stops being an "add a subscription"
+   * form and becomes an "add another account to it" form: the same service,
+   * another login. The row that is already there is updated instead of a
+   * second one being created, because two rows for one service is what makes
+   * the totals and the reminders wrong.
    */
-  startWithNewAccountLink?: boolean;
+  existingSubscriptions?: SubscriptionRow[];
 }
 
 const categories = ['Streaming', 'Software', 'Utilities', 'Fitness', 'Finance', 'Education', 'Gaming', 'Other'] as const;
@@ -118,7 +120,7 @@ export default function SubscriptionModal({
   initialData,
   pendingReceiptFile,
   onRequireUpgrade,
-  startWithNewAccountLink = false,
+  existingSubscriptions = [],
 }: SubscriptionModalProps) {
   const { toast } = useToast();
   const { planTier } = usePlan();
@@ -142,18 +144,20 @@ export default function SubscriptionModal({
 
   const [prevInitialData, setPrevInitialData] = useState(initialData);
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
-  const [prevStartWithNewAccountLink, setPrevStartWithNewAccountLink] = useState(
-    startWithNewAccountLink
-  );
 
-  if (
-    isOpen !== prevIsOpen ||
-    initialData !== prevInitialData ||
-    startWithNewAccountLink !== prevStartWithNewAccountLink
-  ) {
+  /**
+   * The subscription the typed name already belongs to.
+   *
+   * Set the moment the name matches one the user tracks, and it is what turns
+   * this form into the "add another account" form. It is also the row the
+   * save writes to, so no second row is ever created for a service that is
+   * already on the list.
+   */
+  const [duplicateOf, setDuplicateOf] = useState<SubscriptionRow | null>(null);
+
+  if (isOpen !== prevIsOpen || initialData !== prevInitialData) {
     setPrevIsOpen(isOpen);
     setPrevInitialData(initialData);
-    setPrevStartWithNewAccountLink(startWithNewAccountLink);
     if (initialData) {
       setName(initialData.name);
       setPrice(initialData.price.toString());
@@ -169,32 +173,7 @@ export default function SubscriptionModal({
       setProviderUrl(actualProviderUrl);
       setIsUserEditedUrl(Boolean(actualProviderUrl));
       
-      const existingLinks = parseAccountLinks(initialData);
-
-      /* The seeded row respects the plan's account-link cap. If this plan is
-         already at its limit the row is not added: the section's Plus note is
-         showing anyway, and the "Add account link" button is the control that
-         explains the limit. Seeding a row the plan forbids would hand the user
-         a value the save path would have to reject. */
-      const canSeedAccountLink =
-        startWithNewAccountLink &&
-        !hasReachedAccountLinkCap({ tier: planTier, linkCount: existingLinks.length });
-
-      setAccountLinks(
-        canSeedAccountLink
-          ? [
-              ...existingLinks,
-              {
-                id: nextAccountLinkId(existingLinks),
-                label: existingLinks.length === 0 ? 'Personal' : `Account ${existingLinks.length + 1}`,
-                // Pre-filled from the provider table, exactly like the button
-                // does, so the user is never asked to paste a URL SubHalt
-                // already knows.
-                url: getKnownProviderAccountUrl(initialData.name) || '',
-              },
-            ]
-          : existingLinks
-      );
+      setAccountLinks(parseAccountLinks(initialData));
       setNotes(cleanNotesUserText(initialData.notes));
     } else {
       setName('');
@@ -213,6 +192,7 @@ export default function SubscriptionModal({
       setAccountLinks([]);
       setNotes('');
     }
+    setDuplicateOf(null);
     setFieldErrors({});
   }
 
@@ -231,6 +211,70 @@ export default function SubscriptionModal({
       );
     }
     if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
+
+    /*
+     * A service that is already tracked turns this into an "add another
+     * account" form. The save then writes to that row instead of creating a
+     * second one for the same service.
+     */
+    const match = initialData?.id ? null : findTrackedMatch(val);
+    if (match && match.id !== duplicateOf?.id) {
+      setDuplicateOf(match);
+      carryOverFrom(match);
+    } else if (!match) {
+      setDuplicateOf(null);
+    }
+  };
+
+  /**
+   * Finds a tracked subscription for the same service.
+   *
+   * Compared the way the discovery paths compare it — case and whitespace
+   * ignored — so "Netflix" and "netflix " are the same service. A cancelled
+   * row is not a match: a subscription that was cancelled and then started
+   * again is a new subscription, not a second account on the old one.
+   */
+  const findTrackedMatch = (value: string): SubscriptionRow | null => {
+    const normalized = normalizeSubscriptionName(value);
+    if (!normalized) return null;
+    return (
+      existingSubscriptions.find(
+        (sub) => sub.status !== 'canceled' && normalizeSubscriptionName(sub.name) === normalized
+      ) ?? null
+    );
+  };
+
+  /**
+   * Fills the form with the tracked row's values.
+   *
+   * Nothing is left blank. The price, the renewal date, the currency, the
+   * cycle, the category and the status all come from the subscription that is
+   * already there, because another account for the same service is the same
+   * service at the same price — and the user can still change any of them.
+   * The notes carry over as the user typed them, without the history markers
+   * the form does not know about.
+   */
+  const carryOverFrom = (match: SubscriptionRow) => {
+    setPrice((current) => (current.trim() ? current : match.price.toString()));
+    setCurrency(match.currency);
+    setBillingCycle(match.billing_cycle as typeof billingCycles[number]);
+    setCategory(match.category as typeof categories[number]);
+    setStatus(match.status as typeof statuses[number]);
+    setNextBillingDate(match.next_billing_date);
+    setNotes(cleanNotesUserText(match.notes));
+    if (!isUserEditedUrl) setProviderUrl(match.provider_url || '');
+
+    const existing = parseAccountLinks(match);
+    setAccountLinks([
+      ...existing,
+      {
+        id: nextAccountLinkId(existing),
+        label: existing.length === 0 ? 'Personal' : `Account ${existing.length + 1}`,
+        // Pre-filled from the provider table, exactly like the button does, so
+        // the user is never asked to paste a URL SubHalt already knows.
+        url: getKnownProviderAccountUrl(match.name) || '',
+      },
+    ]);
   };
 
   const handleAddAccountLink = () => {
@@ -319,6 +363,33 @@ export default function SubscriptionModal({
     e.preventDefault();
     if (!validateForm()) return;
 
+    /*
+     * The row this save writes to.
+     *
+     * Normally the row being edited. When the typed name belongs to a service
+     * that is already tracked, it is that row — so a second account for the
+     * same service is added to the subscription that is already there, and no
+     * second row is created for it.
+     */
+    const saveTarget = initialData?.id ? initialData : duplicateOf;
+
+    /*
+     * Another account is a Plus feature. A plan that is already at its limit
+     * is told so here, at the moment of the save, instead of being allowed to
+     * save a form whose only point was the extra account.
+     */
+    if (
+      saveTarget &&
+      duplicateOf &&
+      hasReachedAccountLinkCap({
+        tier: planTier,
+        linkCount: parseAccountLinks(saveTarget).length,
+      })
+    ) {
+      onRequireUpgrade?.();
+      return;
+    }
+
 setLoading(true);
     const parsedPrice = parseFloat(price);
 
@@ -331,12 +402,13 @@ setLoading(true);
     // only holds the user-visible text, so without this an ordinary edit would
     // strip [AttachedReceipts: ...] and [HistoryState: ...] — silently erasing
     // the row's attachments and, for an archived/deleted row, resurrecting it
-    // into the active list.
+    // into the active list. The same applies to the row an extra account is
+    // being added to.
     const formattedNotes = formatNotesWithAccountLinks(
       notes,
       validAccountLinks,
-      initialData ? getSubscriptionHistoryState(initialData).metadata ?? null : null,
-      initialData ? parseAttachedReceipts(initialData) : null
+      saveTarget ? getSubscriptionHistoryState(saveTarget).metadata ?? null : null,
+      saveTarget ? parseAttachedReceipts(saveTarget) : null
     );
 
     try {
@@ -356,7 +428,7 @@ setLoading(true);
           account_links: validAccountLinks,
           notes: formattedNotes,
         },
-        initialData?.id
+        saveTarget?.id
       );
 
       // null means the caller handled the submit itself (e.g. a plan-limit
@@ -402,7 +474,18 @@ setLoading(true);
         open={isOpen}
         onClose={onClose}
         size="lg"
-        title={initialData?.id ? 'Edit Subscription' : 'Add New Subscription'}
+        title={
+          initialData?.id
+            ? 'Edit Subscription'
+            : duplicateOf
+              ? 'Add Another Account'
+              : 'Add New Subscription'
+        }
+        description={
+          duplicateOf
+            ? `You already track ${duplicateOf.name}. This adds another account to it instead of creating a second subscription.`
+            : undefined
+        }
         /* Reached from the Add Subscription chooser, so it needs its own way
            back to that menu. The header's close button already covers Cancel,
            and Import Receipt lives on the chooser as its own step. */
@@ -433,7 +516,9 @@ setLoading(true);
                   ? 'Saving...'
                   : initialData?.id
                     ? 'Update Subscription'
-                    : 'Add Subscription'
+                    : duplicateOf
+                      ? 'Add Another Account'
+                      : 'Add Subscription'
               }
               className="w-full sm:w-auto px-6 py-3 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -444,6 +529,8 @@ setLoading(true);
                 </>
               ) : initialData?.id ? (
                 <span>Update Subscription</span>
+              ) : duplicateOf ? (
+                <span>Add Another Account</span>
               ) : (
                 <>
                   <span className="sm:hidden">Add</span>
@@ -457,6 +544,21 @@ setLoading(true);
           {/* Form. The Sheet body owns the scroll; the submit button in the
               footer targets this form by id. */}
           <form id={SUBSCRIPTION_FORM_ID} onSubmit={handleSubmit} className="space-y-6 sm:space-y-7 pt-1 pb-3">
+            {/* The service is already on the list, so this form is adding an
+                account to it. Said here, inside the form, because the user
+                has to know that what they are about to save is not a new
+                subscription. */}
+            {duplicateOf && (
+              <div className="px-3.5 py-3 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-start gap-2.5">
+                <Link2 className="w-4 h-4 text-[#14B8A6] shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed text-[#94A3B8]">
+                  <span className="text-[#F5F7F6] font-semibold">{duplicateOf.name}</span> is already
+                  on your list. This adds another account to it — the price, date and details below
+                  are that subscription&apos;s, and saving will not create a second row.
+                </p>
+              </div>
+            )}
+
             {/* Name */}
             <div className="space-y-2">
               <label className="text-[13px] font-medium text-[#94A3B8] block">Subscription Name</label>
