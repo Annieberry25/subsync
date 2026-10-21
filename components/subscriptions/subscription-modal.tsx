@@ -33,6 +33,16 @@ interface SubscriptionModalProps {
   pendingReceiptFile?: File | null;
   /** Opens the upgrade sheet when a Plus-only feature is attempted. */
   onRequireUpgrade?: () => void;
+  /**
+   * Seeds one empty account row when the form opens on an existing
+   * subscription.
+   *
+   * Reached from the duplicate guard: the user tried to add a subscription they
+   * already track, and the app offers to add another account to it rather than
+   * creating a second row for the same thing. Pre-adding the row leaves only
+   * the account URL to fill in.
+   */
+  startWithNewAccountLink?: boolean;
 }
 
 const categories = ['Streaming', 'Software', 'Utilities', 'Fitness', 'Finance', 'Education', 'Gaming', 'Other'] as const;
@@ -40,6 +50,53 @@ const billingCycles = ['monthly', 'yearly', 'quarterly', 'weekly'] as const;
 const statuses = ['active', 'paused', 'canceled', 'trial'] as const;
 
 const ACCOUNT_TYPES = ['Personal', 'Family', 'Work', 'Main Account', 'Other'] as const;
+
+/**
+ * The fields a subscription cannot exist without.
+ *
+ * Everything else in the form is optional and says so on the label. These three
+ * are validated individually so the error can sit under the box that is empty
+ * instead of in one summary the user has to map back to the form.
+ */
+interface FieldErrors {
+  name?: string;
+  price?: string;
+  date?: string;
+}
+
+function validateName(value: string): string | undefined {
+  return value.trim() ? undefined : 'Subscription name is required.';
+}
+
+function validatePrice(value: string): string | undefined {
+  const parsed = parseFloat(value);
+  if (!value.trim() || isNaN(parsed) || parsed <= 0) {
+    return 'Enter a valid price greater than 0.';
+  }
+  return undefined;
+}
+
+function validateDate(value: string): string | undefined {
+  return value ? undefined : 'Next billing date is required.';
+}
+
+/**
+ * A unique id for a seeded account row.
+ *
+ * Derived from the rows already there rather than from a clock: the seeding
+ * happens while the form renders, and an id built from the time would make the
+ * form's state depend on when it happened to render.
+ */
+function nextAccountLinkId(existing: AccountLink[]): string {
+  const base = `link-seed-${existing.length + 1}`;
+  let id = base;
+  let suffix = 2;
+  while (existing.some((link) => link.id === id)) {
+    id = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return id;
+}
 
 function formatDateInput(date: Date): string {
   const year = date.getFullYear();
@@ -61,6 +118,7 @@ export default function SubscriptionModal({
   initialData,
   pendingReceiptFile,
   onRequireUpgrade,
+  startWithNewAccountLink = false,
 }: SubscriptionModalProps) {
   const { toast } = useToast();
   const { planTier } = usePlan();
@@ -80,14 +138,22 @@ export default function SubscriptionModal({
   const [notes, setNotes] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; price?: string; date?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const [prevInitialData, setPrevInitialData] = useState(initialData);
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevStartWithNewAccountLink, setPrevStartWithNewAccountLink] = useState(
+    startWithNewAccountLink
+  );
 
-  if (isOpen !== prevIsOpen || initialData !== prevInitialData) {
+  if (
+    isOpen !== prevIsOpen ||
+    initialData !== prevInitialData ||
+    startWithNewAccountLink !== prevStartWithNewAccountLink
+  ) {
     setPrevIsOpen(isOpen);
     setPrevInitialData(initialData);
+    setPrevStartWithNewAccountLink(startWithNewAccountLink);
     if (initialData) {
       setName(initialData.name);
       setPrice(initialData.price.toString());
@@ -103,7 +169,32 @@ export default function SubscriptionModal({
       setProviderUrl(actualProviderUrl);
       setIsUserEditedUrl(Boolean(actualProviderUrl));
       
-      setAccountLinks(parseAccountLinks(initialData));
+      const existingLinks = parseAccountLinks(initialData);
+
+      /* The seeded row respects the plan's account-link cap. If this plan is
+         already at its limit the row is not added: the section's Plus note is
+         showing anyway, and the "Add account link" button is the control that
+         explains the limit. Seeding a row the plan forbids would hand the user
+         a value the save path would have to reject. */
+      const canSeedAccountLink =
+        startWithNewAccountLink &&
+        !hasReachedAccountLinkCap({ tier: planTier, linkCount: existingLinks.length });
+
+      setAccountLinks(
+        canSeedAccountLink
+          ? [
+              ...existingLinks,
+              {
+                id: nextAccountLinkId(existingLinks),
+                label: existingLinks.length === 0 ? 'Personal' : `Account ${existingLinks.length + 1}`,
+                // Pre-filled from the provider table, exactly like the button
+                // does, so the user is never asked to paste a URL SubHalt
+                // already knows.
+                url: getKnownProviderAccountUrl(initialData.name) || '',
+              },
+            ]
+          : existingLinks
+      );
       setNotes(cleanNotesUserText(initialData.notes));
     } else {
       setName('');
@@ -190,23 +281,38 @@ export default function SubscriptionModal({
   };
 
   const validateForm = () => {
-    const errors: { name?: string; price?: string; date?: string } = {};
+    const errors: FieldErrors = {};
 
-    if (!name.trim()) {
-      errors.name = 'Subscription name is required.';
-    }
+    const nameError = validateName(name);
+    if (nameError) errors.name = nameError;
 
-    const parsedPrice = parseFloat(price);
-    if (!price || isNaN(parsedPrice) || parsedPrice <= 0) {
-      errors.price = 'Enter a valid price > 0.';
-    }
+    const priceError = validatePrice(price);
+    if (priceError) errors.price = priceError;
 
-    if (!nextBillingDate) {
-      errors.date = 'Next billing date is required.';
-    }
+    const dateError = validateDate(nextBillingDate);
+    if (dateError) errors.date = dateError;
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  /**
+   * Validates one field when the user leaves it.
+   *
+   * Reporting an error the moment a box is left empty is what makes the form
+   * legible: the message sits under the box, not in a summary the user has to
+   * map back to the field. It only ever reports a field the user has actually
+   * touched, so an untouched form is never covered in red.
+   */
+  const validateField = (field: 'name' | 'price' | 'date') => {
+    const message =
+      field === 'name'
+        ? validateName(name)
+        : field === 'price'
+          ? validatePrice(price)
+          : validateDate(nextBillingDate);
+
+    setFieldErrors((prev) => ({ ...prev, [field]: message }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -361,14 +467,16 @@ setLoading(true);
                   placeholder="e.g. Netflix, Spotify, GitHub Pro"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  aria-describedby={fieldErrors.name ? 'sub-error' : undefined}
+                  onBlur={() => validateField('name')}
+                  aria-invalid={fieldErrors.name ? true : undefined}
+                  aria-describedby={fieldErrors.name ? 'sub-name-error' : undefined}
                   className={`flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none transition-colors ${
                     fieldErrors.name ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
                   }`}
                 />
               </div>
               {fieldErrors.name && (
-                <span id="sub-error" className="text-[11px] text-[#D9363E] font-medium flex items-center gap-1">
+                <span id="sub-name-error" className="text-[11px] text-[#D9363E] font-medium flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" />
                   {fieldErrors.name}
                 </span>
@@ -388,12 +496,17 @@ setLoading(true);
                     setPrice(e.target.value);
                     if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: undefined }));
                   }}
+                  onBlur={() => validateField('price')}
+                  aria-invalid={fieldErrors.price ? true : undefined}
+                  aria-describedby={fieldErrors.price ? 'sub-price-error' : undefined}
                   className={`w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none transition-colors ${
                     fieldErrors.price ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
                   }`}
                 />
                 {fieldErrors.price && (
-                  <span className="text-[10px] text-[#D9363E] font-medium">{fieldErrors.price}</span>
+                  <span id="sub-price-error" className="text-[10px] text-[#D9363E] font-medium">
+                    {fieldErrors.price}
+                  </span>
                 )}
               </div>
 
@@ -513,11 +626,21 @@ setLoading(true);
                 value={nextBillingDate}
                 min={MIN_DATE}
                 max={MAX_DATE}
-                onChange={(e) => setNextBillingDate(e.target.value)}
-                className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                onChange={(e) => {
+                  setNextBillingDate(e.target.value);
+                  if (fieldErrors.date) setFieldErrors((prev) => ({ ...prev, date: undefined }));
+                }}
+                onBlur={() => validateField('date')}
+                aria-invalid={fieldErrors.date ? true : undefined}
+                aria-describedby={fieldErrors.date ? 'sub-date-error' : undefined}
+                className={`w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors ${
+                  fieldErrors.date ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
+                }`}
               />
               {fieldErrors.date && (
-                <span className="text-[10px] text-[#D9363E] font-medium">{fieldErrors.date}</span>
+                <span id="sub-date-error" className="text-[10px] text-[#D9363E] font-medium">
+                  {fieldErrors.date}
+                </span>
               )}
             </div>
 
@@ -532,7 +655,12 @@ setLoading(true);
               <div className="flex items-center justify-between gap-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
                   <Link2 className="w-3.5 h-3.5 text-[#94A3B8]" />
-                  <span>Subscription Accounts</span>
+                  <span>
+                    Subscription Accounts
+                    <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">
+                      (Optional)
+                    </span>
+                  </span>
                 </label>
                 <button
                   type="button"

@@ -166,8 +166,39 @@ describe('SubscriptionModal', () => {
     await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     expect(await screen.findByText('Subscription name is required.')).toBeInTheDocument();
-    expect(screen.getByText('Enter a valid price > 0.')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid price greater than 0.')).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The error belongs under the box that is empty, not in one summary the user
+   * has to map back to the form. Leaving a field reports that field alone.
+   */
+  it('reports a missing value under the field the user left, without a submit', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen();
+
+    const nameField = screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro');
+    await user.click(nameField);
+    // Moving to the next field is what leaves the name field.
+    await user.click(screen.getByPlaceholderText('15.99'));
+
+    expect(await screen.findByText('Subscription name is required.')).toBeInTheDocument();
+    expect(nameField).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText('Enter a valid price greater than 0.')).not.toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Everything that is not compulsory says so on its own label, so a user
+   * never has to guess whether the app is waiting for it.
+   */
+  it('marks the optional fields as optional', async () => {
+    await renderOpen();
+
+    expect(screen.getByText(/Subscription Accounts/)).toBeInTheDocument();
+    // Start Date, End Date, Notes and the accounts section are all optional.
+    expect(screen.getAllByText('(Optional)').length).toBeGreaterThanOrEqual(3);
   });
 
   it('calls onSave with the entered values and closes without a duplicate toast', async () => {

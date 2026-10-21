@@ -669,9 +669,48 @@ export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | 
   return { data: cached, error: null };
 }
 
+/**
+ * The values a subscription cannot exist without.
+ *
+ * The form checks these before it calls the write path, but the form is not
+ * the only caller: the receipt-review step, the provider-link flow and the
+ * offline re-create all write through here, and each of them can arrive with a
+ * missing name, an unparseable price or no renewal date. The database is the
+ * last line of defence for some of that — a blank name is accepted by the
+ * `NOT NULL` constraint, because an empty string is not null — so a row with no
+ * name could be written. Enforcing it here means one rule for every path.
+ *
+ * Price is allowed to be zero because the column's own constraint allows it and
+ * a legacy local row may carry one; the form is stricter and asks for a price
+ * above zero.
+ */
+function validateSubscriptionInput(
+  data: Partial<SubscriptionInsert>
+): { field: string; message: string } | null {
+  if (!data.name || !data.name.trim()) {
+    return { field: 'name', message: 'Subscription name is required.' };
+  }
+
+  const price = Number(data.price);
+  if (data.price === null || data.price === undefined || !Number.isFinite(price) || price < 0) {
+    return { field: 'price', message: 'Price must be a number of 0 or more.' };
+  }
+
+  if (!data.next_billing_date) {
+    return { field: 'next_billing_date', message: 'Next billing date is required.' };
+  }
+
+  return null;
+}
+
 export async function createSubscription(
   subscriptionData: Omit<SubscriptionInsert, 'user_id'> & { id?: string }
 ): Promise<SubscriptionWriteResult> {
+  const invalid = validateSubscriptionInput(subscriptionData);
+  if (invalid) {
+    return { data: null, error: new Error(invalid.message), synced: false };
+  }
+
   try {
     const supabase = createClient();
     const {

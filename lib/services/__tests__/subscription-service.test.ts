@@ -441,8 +441,54 @@ describe('createSubscription plan cap', () => {
   });
 });
 
-describe('deleteSubscription', () => {
-  it('surfaces the DB error', async () => {
+/**
+ * The compulsory values are enforced on the write path, not only in the form.
+ *
+ * The form is one of several callers — the receipt-review step, the provider
+ * link flow and the offline re-create all write through here — and a blank
+ * name satisfies the `NOT NULL` constraint, because an empty string is not
+ * null. A nameless row could otherwise be written and then be invisible in
+ * every list that shows a name.
+ */
+describe('createSubscription required values', () => {
+  const valid = {
+    name: 'Disney Plus',
+    price: 9.99,
+    currency: 'USD',
+    billing_cycle: 'monthly',
+    category: 'Streaming',
+    next_billing_date: '2026-11-01',
+  };
+
+  it('refuses a row with no name', async () => {
+    const result = await createSubscription({ ...valid, name: '   ' });
+
+    expect(result.error?.message).toContain('name is required');
+    expect(result.data).toBeNull();
+  });
+
+  it('refuses a row with no renewal date', async () => {
+    const result = await createSubscription({
+      ...valid,
+      next_billing_date: '' as unknown as string,
+    });
+
+    expect(result.error?.message).toContain('billing date is required');
+    expect(result.data).toBeNull();
+  });
+
+  it('refuses a row with an unusable price', async () => {
+    const result = await createSubscription({
+      ...valid,
+      price: Number.NaN,
+    });
+
+    expect(result.error?.message).toContain('Price');
+    expect(result.data).toBeNull();
+  });
+});
+
+describe('deleteSubscription', () => {  it('surfaces the DB error', async () => {
     mocks.setResult({ error: { message: 'nope' } });
 
     const result = await deleteSubscription('sub_1');

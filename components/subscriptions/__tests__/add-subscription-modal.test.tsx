@@ -97,13 +97,12 @@ describe('AddSubscriptionModal Plus gating', () => {
   it('leaves the basic paths unbadged for a free user', () => {
     renderModal();
 
-    // Add Manually, Import Receipt, and Subscribe through Provider are free, so
-    // the two badges above belong to Gmail and Forwarding only.
+    // Add Manually and Import Receipt are free, so the two badges above belong
+    // to Gmail and Forwarding only.
     const manual = screen.getByRole('button', { name: /Add Manually/ });
     const receipt = screen.getByRole('button', { name: /Import Receipt/ });
-    const provider = screen.getByRole('button', { name: /Subscribe through Provider/ });
 
-    for (const option of [manual, receipt, provider]) {
+    for (const option of [manual, receipt]) {
       expect(option.querySelector('[data-testid="plus-badge"]')).toBeNull();
     }
   });
@@ -185,5 +184,48 @@ it('saves a reviewed receipt instead of opening the manual form', async () => {
     await user.click(await screen.findByRole('button', { name: 'Add Subscription' }));
 
     expect(onSelectManual).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * "Subscribe through Provider" is behind a flag until the provider catalogue
+ * is worth sending anyone to. The flag is read from the environment when the
+ * module is first evaluated, so the enabled case re-imports the module with
+ * the variable stubbed.
+ */
+describe('AddSubscriptionModal provider path flag', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    planTier = 'free';
+  });
+
+  it('hides Subscribe through Provider by default', () => {
+    renderModal();
+
+    expect(screen.queryByRole('button', { name: /Subscribe through Provider/ })).toBeNull();
+  });
+
+  it('shows Subscribe through Provider when the flag is on', async () => {
+    vi.resetModules();
+    vi.stubEnv('NEXT_PUBLIC_PROVIDER_SUBSCRIBE_ENABLED', 'true');
+
+    const { default: AddSubscriptionModalEnabled } = await import(
+      '@/components/subscriptions/add-subscription-modal'
+    );
+
+    render(
+      <AddSubscriptionModalEnabled
+        isOpen
+        onClose={vi.fn()}
+        onSelectManual={vi.fn()}
+        onRequireUpgrade={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Subscribe through Provider/ })
+    ).toBeInTheDocument();
+
+    vi.unstubAllEnvs();
   });
 });

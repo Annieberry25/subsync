@@ -5,6 +5,9 @@ import userEvent from '@testing-library/user-event';
 const mockSubscriptions = vi.hoisted(() => ({ value: [] as unknown[] }));
 const mockRouter = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const mockSearchParams = vi.hoisted(() => ({ value: new URLSearchParams() }));
+const mockCreateSubscription = vi.hoisted(() =>
+  vi.fn(async () => ({ data: { id: 'sub-new' }, error: null, synced: true }))
+);
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams.value,
@@ -16,7 +19,9 @@ vi.mock('next/image', () => ({
 }));
 
 vi.mock('@/lib/hooks/use-toast', () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({
+    toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+  }),
 }));
 
 // The manager and the modals it mounts read from several context providers
@@ -128,6 +133,7 @@ vi.mock('@/lib/services/subscription-service', async (orig) => {
     ...actual,
     fetchSubscriptions: vi.fn(async () => ({ data: mockSubscriptions.value, error: null })),
     archiveSubscription: vi.fn(async () => {}),
+    createSubscription: mockCreateSubscription,
   };
 });
 
@@ -270,6 +276,87 @@ describe('SubscriptionManager view toggle', () => {
 
     expect(await screen.findByText('Current Netflix')).toBeInTheDocument();
     expect(screen.queryByText('Overdue Netflix')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Adding the same service twice is the mistake people make most: they add
+ * Netflix, forget they added it, and add it again. A second row for the same
+ * service is not what they meant — a second *account* on the row they already
+ * have is — so the save is intercepted and offered back that way.
+ */
+describe('SubscriptionManager duplicate guard', () => {
+  beforeEach(() => {
+    mockSubscriptions.value = rows;
+    mockSearchParams.value = new URLSearchParams();
+    mockRouter.push.mockReset();
+    mockRouter.replace.mockReset();
+    mockCreateSubscription.mockClear();
+  });
+
+  const openManualForm = async (user: ReturnType<typeof userEvent.setup>) => {
+    render(<SubscriptionManager />);
+    await screen.findByRole('columnheader', { name: 'Provider' });
+
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
+    await user.click(await screen.findByRole('button', { name: /Add Manually/ }));
+  };
+
+  it('offers another account instead of creating a second row for the same service', async () => {
+    const user = userEvent.setup();
+    await openManualForm(user);
+
+    await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'netflix');
+    await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+
+    const submit = screen
+      .getAllByRole('button', { name: 'Add Subscription' })
+      .find((b) => b.getAttribute('form') === 'subscription-modal-form');
+    await user.click(submit!);
+
+    // The dialog names the service that is already tracked.
+    expect(await screen.findByText(/You already track/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add another account' })).toBeInTheDocument();
+
+    // And nothing was written.
+    expect(mockCreateSubscription).not.toHaveBeenCalled();
+  });
+
+  it('opens the existing subscription with an empty account row when another account is chosen', async () => {
+    const user = userEvent.setup();
+    await openManualForm(user);
+
+    await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
+    await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+
+    const submit = screen
+      .getAllByRole('button', { name: 'Add Subscription' })
+      .find((b) => b.getAttribute('form') === 'subscription-modal-form');
+    await user.click(submit!);
+
+    await user.click(await screen.findByRole('button', { name: 'Add another account' }));
+
+    // The form now edits the row that already exists, with an account row
+    // waiting to be filled in.
+    expect(await screen.findByRole('heading', { name: 'Edit Subscription' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Account URL/i)).toBeInTheDocument();
+    expect(mockCreateSubscription).not.toHaveBeenCalled();
+  });
+
+  it('still creates a subscription that is not already tracked', async () => {
+    const user = userEvent.setup();
+    await openManualForm(user);
+
+    await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Disney+');
+    await user.type(screen.getByPlaceholderText('15.99'), '9.99');
+
+    const submit = screen
+      .getAllByRole('button', { name: 'Add Subscription' })
+      .find((b) => b.getAttribute('form') === 'subscription-modal-form');
+    await user.click(submit!);
+
+    await waitFor(() => expect(mockCreateSubscription).toHaveBeenCalledTimes(1));
+    expect(mockCreateSubscription.mock.calls[0][0]).toMatchObject({ name: 'Disney+' });
   });
 });
 

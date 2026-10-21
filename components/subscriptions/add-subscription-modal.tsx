@@ -10,6 +10,7 @@ import LinkSubscriptionModal from './link-subscription-modal';
 import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-modal';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { hasPlanFeature } from '@/lib/constants/plan-limits';
+import { PROVIDER_SUBSCRIBE_ENABLED } from '@/lib/config/feature-flags';
 import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
 
 type AddPath = 'gmail' | 'forwarding' | 'link' | 'receipt';
@@ -133,7 +134,9 @@ export default function AddSubscriptionModal({
         title="Add Subscription"
         description="Choose how you want to add a subscription to SubHalt."
       >
-            {/* Five Options Menu. The Sheet body owns the scroll. */}
+            {/* Options menu. "Subscribe through Provider" is behind a flag and
+                may not be rendered, so this is four or five entries. The Sheet
+                body owns the scroll. */}
             <div className="pt-1 divide-y divide-[#1A1D1D]/50">
               {/* Option 1: Connect Gmail (Plus). A free user sees the "Plus"
                   marker and is sent to upgrade instead of the OAuth flow. */}
@@ -190,25 +193,28 @@ export default function AddSubscriptionModal({
                 </p>
               </button>
 
-              {/* Option 3: Subscribe through Provider */}
-              <button
-                type="button"
-                onClick={() => {
-                  setReceiptProviderName(undefined);
-                  setActiveSubModal('link');
-                }}
-                className="w-full p-3.5 sm:p-4 rounded-xl hover:bg-[#1A1D1D] transition-colors duration-200 text-left group cursor-pointer my-1"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
-                    Subscribe through Provider
-                  </h3>
-                  <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
-                </div>
-                <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
-                  Subscribe through the provider page, then confirm the subscription with the receipt or details.
-                </p>
-              </button>
+              {/* Option 3: Subscribe through Provider. Flagged off while the
+                  provider catalogue is stale — see PROVIDER_SUBSCRIBE_ENABLED. */}
+              {PROVIDER_SUBSCRIBE_ENABLED && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReceiptProviderName(undefined);
+                    setActiveSubModal('link');
+                  }}
+                  className="w-full p-3.5 sm:p-4 rounded-xl hover:bg-[#1A1D1D] transition-colors duration-200 text-left group cursor-pointer my-1"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
+                      Subscribe through Provider
+                    </h3>
+                    <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
+                  </div>
+                  <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">
+                    Subscribe through the provider page, then confirm the subscription with the receipt or details.
+                  </p>
+                </button>
+              )}
 
               {/* Option 4: Import Receipt */}
               <button
