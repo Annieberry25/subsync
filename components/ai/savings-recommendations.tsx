@@ -189,7 +189,7 @@ export const SavingsRecommendationsSection = memo(function SavingsRecommendation
           </div>
         ) : (
           <div className="py-2 text-xs text-[#94A3B8]">
-            No savings to recommend right now — we only flag savings we can see in your data.
+            No savings recommendation right now
           </div>
         )}
       </div>

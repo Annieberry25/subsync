@@ -277,8 +277,6 @@ describe('SavingsRecommendationsSection', () => {
     renderSection([sub({ price: 9.99, next_billing_date: isoDaysFromNow(30) })]);
 
     expect(screen.queryByText(/Save up to/)).not.toBeInTheDocument();
-    expect(
-      screen.getByText('No savings to recommend right now — we only flag savings we can see in your data.')
-    ).toBeInTheDocument();
+    expect(screen.getByText('No savings recommendation right now')).toBeInTheDocument();
   });
 });
