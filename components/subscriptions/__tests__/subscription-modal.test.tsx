@@ -382,9 +382,7 @@ describe('SubscriptionModal already-tracked service', () => {
     expect(
       await screen.findByRole('heading', { name: 'Add Another Account' })
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/is already on your list/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText('Add another Netflix account')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Add Another Account' })
     ).toBeInTheDocument();

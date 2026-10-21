@@ -317,6 +317,7 @@ describe('SubscriptionManager duplicate guard', () => {
     expect(
       await screen.findByRole('heading', { name: 'Add Another Account' })
     ).toBeInTheDocument();
+    expect(screen.getByText('Add another Netflix account')).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByPlaceholderText('15.99')).toHaveValue(15.99)
     );

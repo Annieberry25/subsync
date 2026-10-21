@@ -481,11 +481,6 @@ setLoading(true);
               ? 'Add Another Account'
               : 'Add New Subscription'
         }
-        description={
-          duplicateOf
-            ? `You already track ${duplicateOf.name}. This adds another account to it instead of creating a second subscription.`
-            : undefined
-        }
         /* Reached from the Add Subscription chooser, so it needs its own way
            back to that menu. The header's close button already covers Cancel,
            and Import Receipt lives on the chooser as its own step. */
@@ -549,14 +544,9 @@ setLoading(true);
                 has to know that what they are about to save is not a new
                 subscription. */}
             {duplicateOf && (
-              <div className="px-3.5 py-3 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-start gap-2.5">
-                <Link2 className="w-4 h-4 text-[#14B8A6] shrink-0 mt-0.5" />
-                <p className="text-[11px] leading-relaxed text-[#94A3B8]">
-                  <span className="text-[#F5F7F6] font-semibold">{duplicateOf.name}</span> is already
-                  on your list. This adds another account to it — the price, date and details below
-                  are that subscription&apos;s, and saving will not create a second row.
-                </p>
-              </div>
+              <p className="text-[12px] text-[#94A3B8]">
+                Add another {duplicateOf.name} account
+              </p>
             )}
 
             {/* Name */}
