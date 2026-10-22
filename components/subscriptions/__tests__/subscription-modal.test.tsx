@@ -782,4 +782,22 @@ describe('SubscriptionModal subscription accounts', () => {
 
     expect(screen.getByText('(optional)')).toBeInTheDocument();
   });
+
+  /**
+   * The arrow beside the link box is the provider's page, and a new
+   * subscription needs it as much as an existing one.
+   */
+  it('shows the provider link on a new subscription once the name is recognised', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    await user.type(
+      screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
+      'Netflix'
+    );
+    await user.click(screen.getByRole('button', { name: /Add account link/ }));
+
+    const arrow = screen.getByRole('link', { name: /Open Netflix in a new tab/ });
+    expect(arrow).toHaveAttribute('href', 'https://www.netflix.com');
+  });
 });
