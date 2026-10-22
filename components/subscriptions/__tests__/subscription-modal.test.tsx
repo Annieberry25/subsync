@@ -94,6 +94,20 @@ async function renderOpen(
   return { onClose, onSave, onRequireUpgrade, container: view.container };
 }
 
+/**
+ * Picks the four choices the form now requires.
+ *
+ * The currency, the cycle, the category and the status all start empty and
+ * have to be chosen: a default the user never picked is a value the user
+ * never entered.
+ */
+async function chooseRequired(user: ReturnType<typeof userEvent.setup>) {
+  await user.selectOptions(screen.getByLabelText('Currency'), 'USD');
+  await user.selectOptions(screen.getByLabelText('Cycle'), 'monthly');
+  await user.selectOptions(screen.getByLabelText('Category'), 'Streaming');
+  await user.selectOptions(screen.getByLabelText('Status'), 'active');
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -142,6 +156,7 @@ describe('SubscriptionModal', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+    await chooseRequired(user);
     await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     // Typed name alone produces a known website, and it is still persisted.
@@ -213,6 +228,7 @@ describe('SubscriptionModal', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+    await chooseRequired(user);
     await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     await waitFor(() =>
@@ -255,6 +271,7 @@ describe('SubscriptionModal', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+    await chooseRequired(user);
     await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
@@ -289,6 +306,7 @@ describe('SubscriptionModal', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+    await chooseRequired(user);
     await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
@@ -302,6 +320,27 @@ describe('SubscriptionModal', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
 
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The currency, the cycle, the category and the status are choices the user
+   * has an opinion about. A default the user never picked is a value the user
+   * never entered, and it is how a subscription ends up filed under the wrong
+   * category and billed on the wrong day.
+   */
+  it('requires the currency, the cycle, the category and the status', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen();
+
+    await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
+    await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
+
+    expect(await screen.findByText('Currency is required.')).toBeInTheDocument();
+    expect(screen.getByText('Cycle is required.')).toBeInTheDocument();
+    expect(screen.getByText('Category is required.')).toBeInTheDocument();
+    expect(screen.getByText('Status is required.')).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -469,7 +508,7 @@ describe('SubscriptionModal subscription accounts', () => {
     );
     await user.click(screen.getByRole('button', { name: /Add account link/ }));
 
-    const url = screen.getByLabelText('Account URL') as HTMLInputElement;
+    const url = screen.getByLabelText(/Account URL/) as HTMLInputElement;
     expect(url.value).toBe('https://www.netflix.com/youraccount');
   });
 
@@ -484,12 +523,12 @@ describe('SubscriptionModal subscription accounts', () => {
 
     const addButton = screen.getByRole('button', { name: /Add account link/ });
     await user.click(addButton);
-    expect(screen.getByLabelText('Account URL')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
 
     // Second attempt is refused and routed to the upgrade sheet.
     await user.click(addButton);
     expect(onRequireUpgrade).toHaveBeenCalledTimes(1);
-    expect(screen.getAllByLabelText('Account URL')).toHaveLength(1);
+    expect(screen.getAllByLabelText(/Account URL/)).toHaveLength(1);
   });
 
   it('does not badge the account section; it explains the limit on attempt', async () => {
@@ -529,7 +568,7 @@ describe('SubscriptionModal subscription accounts', () => {
     await user.click(screen.getByRole('button', { name: /Add account link/ }));
     // Clearing the field leaves only the fallback chain, which for a provider we
     // know the site for still resolves to something openable.
-    await user.type(screen.getByLabelText('Account URL'), 'https://example.com/account');
+    await user.type(screen.getByLabelText(/Account URL/), 'https://example.com/account');
 
     const link = screen.getByRole('link', { name: /account in a new tab/ });
     expect(link).toHaveAttribute('href', 'https://example.com/account');
@@ -555,7 +594,7 @@ describe('SubscriptionModal subscription accounts', () => {
     await user.click(addButton);
     await user.click(addButton);
 
-    expect(screen.getAllByLabelText('Account URL')).toHaveLength(3);
+    expect(screen.getAllByLabelText(/Account URL/)).toHaveLength(3);
     expect(onRequireUpgrade).not.toHaveBeenCalled();
     expect(screen.queryByTestId('plus-badge')).not.toBeInTheDocument();
   });
@@ -570,7 +609,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
     await user.click(addButton);
 
-    expect(screen.getAllByLabelText('Account URL')).toHaveLength(1);
+    expect(screen.getAllByLabelText(/Account URL/)).toHaveLength(1);
     expect(onRequireUpgrade).not.toHaveBeenCalled();
   });
 
@@ -583,8 +622,23 @@ describe('SubscriptionModal subscription accounts', () => {
     await user.click(addButton);
     await user.click(addButton);
 
-    // Both rows show "Account Type #N" once there is more than one, which is
-    // what stops two identically-named rows from being indistinguishable.
-    expect(screen.getAllByText(/Account Type #/)).toHaveLength(2);
+    // The rows are numbered from one, so two identically-named rows are never
+    // indistinguishable: the first is "Account Type 1" and the second is
+    // "Account Type 2".
+    expect(screen.getByText('Account Type 1')).toBeInTheDocument();
+    expect(screen.getByText('Account Type 2')).toBeInTheDocument();
+  });
+
+  /**
+   * The add control belongs to the section it adds to, so it sits beside the
+   * heading rather than in a second place further down.
+   */
+  it('puts the add control beside the Subscription Accounts heading', async () => {
+    await renderOpen();
+
+    const heading = screen.getByText('Subscription Accounts');
+    const addButton = screen.getByRole('button', { name: /Add account link/ });
+
+    expect(heading.parentElement).toContainElement(addButton);
   });
 });
