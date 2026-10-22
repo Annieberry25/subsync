@@ -519,17 +519,63 @@ export default function SubscriptionModal({
   };
 
   /**
-   * Puts an account's own type into the main Account Type box.
+   * Puts an account's own details into the main fields.
    *
-   * The type is the one per-account field that lives in the form, so
-   * selecting an account row brings that account's type up. Everything else in
-   * the main fields belongs to the subscription, and everything else in an
-   * account row belongs to that account — so what is typed in one place is
-   * saved in that place, and neither overwrites the other.
+   * The main fields and the account row in view are the same thing, so
+   * selecting an account row brings that account's amount, cycle, category and
+   * date up with it — and what is typed in the main fields is that account's.
+   * An account that carries no details of its own falls back to the
+   * subscription's, because there is nothing else to show for it.
    */
   const loadAccountIntoForm = (link: AccountLink) => {
     setActiveAccountId(link.id);
     setAccountType(link.label || '');
+    setPrice(link.price !== undefined ? String(link.price) : price);
+    setCurrency(link.currency || currency);
+    setBillingCycle((link.billing_cycle as typeof billingCycles[number]) || billingCycle);
+    setCategory((link.category as typeof categories[number]) || category);
+    setStatus((link.status as typeof statuses[number]) || status);
+    setStartDate(link.start_date || startDate);
+    setNextBillingDate(link.next_billing_date || nextBillingDate);
+  };
+
+  /**
+   * A change to the main fields, when they are describing an account.
+   *
+   * The two are one thing, so a change in one is a change in the other. This is
+   * what stops an amount typed in the form and an amount typed in the account
+   * row from going to two different places, and the account being edited from
+   * keeping the other's value.
+   */
+  const applyToActiveAccount = (patch: Partial<AccountLink>) => {
+    if (!activeAccountId) return;
+    setAccountLinks((prev) =>
+      prev.map((link) => (link.id === activeAccountId ? { ...link, ...patch } : link))
+    );
+  };
+
+  /**
+   * A change to one of an account's own fields.
+   *
+   * The account row in view is also described by the main fields, so the two
+   * are kept in step: the row's value goes into the form, and what is typed in
+   * the form goes into the row.
+   */
+  const updateAccountField = (
+    link: AccountLink,
+    field: string,
+    value: string | number | undefined
+  ) => {
+    handleUpdateAccountLink(link.id, field, value);
+    if (link.id !== activeAccountId) return;
+    if (field === 'price') setPrice(value === undefined ? '' : String(value));
+    if (field === 'billing_cycle') {
+      setBillingCycle(value as typeof billingCycles[number] | '');
+    }
+    if (field === 'category') setCategory(value as typeof categories[number] | '');
+    if (field === 'next_billing_date') {
+      setNextBillingDate(value === undefined ? '' : String(value));
+    }
   };
 
   /**
@@ -747,9 +793,45 @@ setLoading(true);
     const accountsWithFormValues = validAccountLinks;
     const firstAccount = accountsWithFormValues[0];
 
-    /* The subscription keeps what the main fields say. */
-    const rowPrice = parsedPrice;
-    const rowNextBillingDate = nextBillingDate;
+    /*
+     * The subscription is what its accounts add up to.
+     *
+     * Two accounts on one service are two charges, so the amount is the sum of
+     * what each of them costs, and the renewal date is the soonest of them —
+     * the next one to warn about. A subscription with no accounts is what the
+     * form says.
+     */
+    const accountAmounts = accountsWithFormValues
+      .map((link) => link.price)
+      .filter((value): value is number => typeof value === 'number' && !isNaN(value));
+    const everyAccountPriced =
+      accountsWithFormValues.length > 0 &&
+      accountAmounts.length === accountsWithFormValues.length;
+    const accountDates = accountsWithFormValues
+      .map((link) => link.next_billing_date)
+      .filter((value): value is string => Boolean(value))
+      .sort();
+    const accountStarts = accountsWithFormValues
+      .map((link) => link.start_date)
+      .filter((value): value is string => Boolean(value))
+      .sort();
+
+    const rowPrice =
+      accountsWithFormValues.length > 0
+        ? /* The sum, once every account says what it costs. Until then the
+             subscription keeps the amount it has: a total built from the
+             accounts that happen to be filled in would quietly take money out
+             of it. */
+          everyAccountPriced
+          ? accountAmounts.reduce((sum, value) => sum + value, 0)
+          : saveTarget
+            ? Number(saveTarget.price) || 0
+            : parsedPrice
+        : parsedPrice;
+    const rowNextBillingDate =
+      accountDates.length > 0 ? accountDates[0] : nextBillingDate;
+    const rowStartDate =
+      accountStarts.length > 0 ? accountStarts[0] : startDate || null;
 
     // Rebuild the notes metadata blocks from the row being edited. The form
     // only holds the user-visible text, so without this an ordinary edit would
@@ -786,7 +868,7 @@ setLoading(true);
           status:
             (firstAccount?.status as typeof statuses[number]) ||
             (status as typeof statuses[number]),
-          start_date: startDate ? startDate : null,
+          start_date: rowStartDate,
           /*
            * The form has no end date any more, so the value on the row is
            * carried through untouched rather than being quietly cleared.
@@ -956,6 +1038,9 @@ setLoading(true);
                   value={price}
                   onChange={(e) => {
                     setPrice(e.target.value);
+                    applyToActiveAccount({
+                      price: e.target.value ? Number(e.target.value) : undefined,
+                    });
                     if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: undefined }));
                   }}
                   onBlur={() => validateField('price')}
@@ -987,6 +1072,7 @@ setLoading(true);
                   value={currency}
                   onChange={(e) => {
                     setCurrency(e.target.value);
+                    applyToActiveAccount({ currency: e.target.value });
                     if (fieldErrors.currency) setFieldErrors((prev) => ({ ...prev, currency: undefined }));
                   }}
                   onBlur={() => validateField('currency')}
@@ -1126,7 +1212,11 @@ setLoading(true);
                   value={startDate}
                   min={MIN_DATE}
                   max={MAX_DATE}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  onChange={(e) => {
+                    const picked = e.target.value;
+                    handleStartDateChange(picked);
+                    applyToActiveAccount({ start_date: picked || undefined });
+                  }}
                   onBlur={() => validateField('startDate')}
                   aria-invalid={fieldErrors.startDate ? true : undefined}
                   aria-describedby={fieldErrors.startDate ? 'sub-start-date-error' : undefined}
@@ -1171,6 +1261,7 @@ setLoading(true);
                 onChange={(e) => {
                   const picked = e.target.value;
                   setNextBillingDate(picked);
+                  applyToActiveAccount({ next_billing_date: picked || undefined });
                   if (fieldErrors.date) setFieldErrors((prev) => ({ ...prev, date: undefined }));
                 }}
                 onBlur={() => validateField('date')}
@@ -1354,8 +1445,8 @@ setLoading(true);
                               value={link.price ?? ''}
                               onChange={(e) => {
                                 const raw = e.target.value;
-                                handleUpdateAccountLink(
-                                  link.id,
+                                updateAccountField(
+                                  link,
                                   'price',
                                   raw === '' ? undefined : Number(raw)
                                 );
@@ -1372,7 +1463,7 @@ setLoading(true);
                               aria-label={`Cycle for account ${idx + 1}`}
                               value={link.billing_cycle || ''}
                               onChange={(e) =>
-                                handleUpdateAccountLink(link.id, 'billing_cycle', e.target.value)
+                                updateAccountField(link, 'billing_cycle', e.target.value)
                               }
                               className="w-full h-9 !pl-3 !pr-8 py-2 text-xs rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                             >
@@ -1395,7 +1486,7 @@ setLoading(true);
                               aria-label={`Category for account ${idx + 1}`}
                               value={link.category || ''}
                               onChange={(e) =>
-                                handleUpdateAccountLink(link.id, 'category', e.target.value)
+                                updateAccountField(link, 'category', e.target.value)
                               }
                               className="w-full h-9 !pl-3 !pr-8 py-2 text-xs rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                             >
@@ -1421,7 +1512,7 @@ setLoading(true);
                               min={MIN_DATE}
                               max={MAX_DATE}
                               onChange={(e) =>
-                                handleUpdateAccountLink(link.id, 'next_billing_date', e.target.value)
+                                updateAccountField(link, 'next_billing_date', e.target.value)
                               }
                               className="w-full h-9 px-3 py-2 text-xs rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                             />
