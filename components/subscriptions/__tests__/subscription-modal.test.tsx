@@ -220,11 +220,12 @@ describe('SubscriptionModal', () => {
   it('marks the optional fields as optional', async () => {
     await renderOpen();
 
-    // The end date and the notes are optional; the start date is not.
-    expect(screen.getByText('End Date')).toBeInTheDocument();
+    // The notes and the account URL are optional. The start date is not, and
+    // there is no end date at all: the renewal date already says when the
+    // next charge is.
     expect(screen.getByText('Notes')).toBeInTheDocument();
     expect(screen.getByText('Start Date')).toBeInTheDocument();
-    expect(screen.queryByText(/^Start Date/)).not.toBeInTheDocument();
+    expect(screen.queryByText('End Date')).not.toBeInTheDocument();
   });
 
   /**
@@ -267,7 +268,7 @@ describe('SubscriptionModal', () => {
           category: 'Streaming',
           status: 'active',
           next_billing_date: expect.any(String),
-          start_date: null,
+          start_date: '2026-01-01',
           end_date: null,
           payment_method: null,
           provider_url: 'https://www.netflix.com',
@@ -483,6 +484,9 @@ describe('SubscriptionModal already-tracked service', () => {
       screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
       'Netflix'
     );
+    // The form now carries an account, so the type of that account is a choice
+    // the user has to make.
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Family');
 
     await user.click(await screen.findByRole('button', { name: 'Add Another Account' }));
 
@@ -649,10 +653,10 @@ describe('SubscriptionModal subscription accounts', () => {
     await user.click(addButton);
 
     // The rows are numbered from one, so two identically-named rows are never
-    // indistinguishable: the first is "Account Type 1" and the second is
-    // "Account Type 2".
-    expect(screen.getByText('Account Type 1')).toBeInTheDocument();
-    expect(screen.getByText('Account Type 2')).toBeInTheDocument();
+    // indistinguishable: the first is "Account 1" and the second is
+    // "Account 2". The type sits beside the number.
+    expect(screen.getByText('Account 1')).toBeInTheDocument();
+    expect(screen.getByText('Account 2')).toBeInTheDocument();
   });
 
   /**
@@ -663,8 +667,8 @@ describe('SubscriptionModal subscription accounts', () => {
     const user = userEvent.setup();
     await renderOpen();
 
-    // No account yet, so no account type and no URL field.
-    expect(screen.queryByText('Account Type 1')).not.toBeInTheDocument();
+    // No account yet, so no account row and no URL field.
+    expect(screen.queryByText('Account 1')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Account URL/)).not.toBeInTheDocument();
 
     // The control that creates one, with the marker that says it is optional.
@@ -673,7 +677,7 @@ describe('SubscriptionModal subscription accounts', () => {
 
     await user.click(addButton);
 
-    expect(screen.getByText('Account Type 1')).toBeInTheDocument();
+    expect(screen.getByText('Account 1')).toBeInTheDocument();
     expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
   });
 });

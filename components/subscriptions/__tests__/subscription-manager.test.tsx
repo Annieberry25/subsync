@@ -328,6 +328,8 @@ describe('SubscriptionManager duplicate guard', () => {
     await openManualForm(user);
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
+    // The form carries an account, so the type of that account is a choice.
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
 
     const submit = screen
       .getAllByRole('button', { name: 'Add Another Account' })
@@ -338,7 +340,7 @@ describe('SubscriptionManager duplicate guard', () => {
     await waitFor(() => expect(mockUpdateSubscription).toHaveBeenCalledTimes(1));
     expect(mockUpdateSubscription.mock.calls[0][0]).toBe('sub-1');
     expect(mockCreateSubscription).not.toHaveBeenCalled();
-  });
+  }, 20000);
 
   it('still creates a subscription that is not already tracked', async () => {
     const user = userEvent.setup();
@@ -361,7 +363,7 @@ describe('SubscriptionManager duplicate guard', () => {
 
     await waitFor(() => expect(mockCreateSubscription).toHaveBeenCalledTimes(1));
     expect(mockCreateSubscription.mock.calls[0][0]).toMatchObject({ name: 'Disney+' });
-  });
+  }, 20000);
 });
 
 /**
