@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth/access';
+import { isFeatureEnabledForUser } from '@/lib/auth/feature-access';
 import { env } from '@/lib/env';
 import {
   exchangeAuthorizationCode,
@@ -48,6 +49,10 @@ export async function GET(request: NextRequest) {
     if (!user || !gmailStateMatches(state, user.id)) {
       // The state is not bound to the authenticated user: either the flow was
       // started by a different account or the state was forged/replayed.
+      return NextResponse.redirect(`${home}?gmailError=1`);
+    }
+
+    if (!(await isFeatureEnabledForUser(supabase, user.id, 'gmailConnect'))) {
       return NextResponse.redirect(`${home}?gmailError=1`);
     }
 

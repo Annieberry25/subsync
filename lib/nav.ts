@@ -15,7 +15,7 @@ import {
   Settings,
   ShieldCheck,
 } from 'lucide-react';
-import { BILL_PAYMENT_ENABLED } from '@/lib/config/feature-flags';
+import { isFeatureAvailable } from '@/lib/config/feature-flags';
 
 export interface NavItem {
   name: string;
@@ -76,7 +76,7 @@ export function isNavItemActive(pathname: string, href: string): boolean {
 }
 
 export function getVisibleNavItems(isAdmin: boolean): NavItem[] {
-  const base = BILL_PAYMENT_ENABLED
+  const base = isFeatureAvailable('billsPayments', isAdmin)
     ? navItems
     : navItems.filter((item) => item.href !== '/bills');
   return isAdmin ? [...base, ...adminNavItems] : base;
@@ -98,6 +98,8 @@ export const FULL_PAGE_ROUTES = [
   '/features',
   '/how-it-works',
   '/about',
+  '/privacy',
+  '/terms',
   // The footer and the marketing pages link here, and a signed-out visitor
   // following that link was getting the signed-in app shell — sidebar, dock and
   // an avatar — wrapped around a help centre they cannot sign into.

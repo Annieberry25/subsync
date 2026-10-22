@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useTheme, type Theme } from '@/lib/hooks/use-theme';
+import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { recoverPlusPurchase, syncPlusPurchaseRecord } from '@/lib/services/plan-service';
@@ -58,7 +59,6 @@ import {
 } from '@/lib/services/subscription-service';
 import { AddPaymentModal } from '@/components/settings/add-payment-modal';
 import { PaymentResultSheet, type PaymentResultState } from '@/components/settings/payment-result-sheet';
-import { LegalModal } from '@/components/settings/legal-modal';
 import { EditBillingModal } from '@/components/settings/edit-billing-modal';
 import { CategoryManager } from '@/components/settings/category-manager';
 import { DeleteAccountModal } from '@/components/settings/delete-account-modal';
@@ -242,6 +242,11 @@ function SettingsContent() {
   } = useUserSettings();
   const { addInboxItem } = useInbox();
 
+  /* Integrations stay hidden until at least one of them is released. */
+  const gmailAvailable = useFeatureFlag('gmailConnect');
+  const forwardingAvailable = useFeatureFlag('emailForwarding');
+  const showIntegrations = gmailAvailable || forwardingAvailable;
+
   const [isEditBillingOpen, setIsEditBillingOpen] = useState(false);
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [isViewSubscriptionOpen, setIsViewSubscriptionOpen] = useState(false);
@@ -378,9 +383,6 @@ function SettingsContent() {
   // Privacy & Data states
   const [telemetryEnabled, setTelemetryEnabled] = useState(true);
   const [accentColor, setAccentColor] = useState('#14B8A6');
-
-  // Legal Modal States
-  const [legalModalType, setLegalModalType] = useState<'privacy' | 'terms' | null>(null);
 
   const supabase = createClient();
 
@@ -597,7 +599,16 @@ function SettingsContent() {
   const sectionsList: { id: SettingsSection; label: string; icon: LucideIcon; description: string }[] = [
     { id: 'account', label: 'Account', icon: User, description: 'Profile info, authentication, and security' },
     { id: 'plan', label: 'Plan & Billing', icon: ArrowUpCircle, description: 'Current plan & billing controls' },
-    { id: 'integrations', label: 'Integrations', icon: Plug, description: 'Gmail & receipt email forwarding' },
+    ...(showIntegrations
+      ? [
+          {
+            id: 'integrations' as const,
+            label: 'Integrations',
+            icon: Plug,
+            description: 'Gmail & receipt email forwarding',
+          },
+        ]
+      : []),
     { id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Currency, theme, notifications & categories' },
     { id: 'privacy', label: 'Privacy & Data', icon: Lock, description: 'Data export, local cache & privacy controls' },
     { id: 'help', label: 'Help & Legal', icon: HelpCircle, description: 'Support resources, terms, and policies' },
@@ -690,7 +701,7 @@ function SettingsContent() {
               {/* Render Active Section Content for Mobile */}
               {mobileSectionView === 'plan' && renderBillingSection()}
               {mobileSectionView === 'account' && renderAccountSection()}
-              {mobileSectionView === 'integrations' && renderIntegrationsSection()}
+              {mobileSectionView === 'integrations' && showIntegrations && renderIntegrationsSection()}
               {mobileSectionView === 'preferences' && renderPreferencesSection()}
               {mobileSectionView === 'privacy' && renderPrivacySection()}
               {mobileSectionView === 'help' && renderHelpSection()}
@@ -733,7 +744,7 @@ function SettingsContent() {
         <div className="flex-1 p-7 overflow-y-auto max-h-[750px] space-y-6 bg-[#0B0D0D]">
           {activeSection === 'plan' && renderBillingSection()}
           {activeSection === 'account' && renderAccountSection()}
-          {activeSection === 'integrations' && renderIntegrationsSection()}
+          {activeSection === 'integrations' && showIntegrations && renderIntegrationsSection()}
           {activeSection === 'preferences' && renderPreferencesSection()}
           {activeSection === 'privacy' && renderPrivacySection()}
           {activeSection === 'help' && renderHelpSection()}
@@ -785,12 +796,6 @@ function SettingsContent() {
           </p>
         </div>
       </Sheet>
-
-      <LegalModal
-        isOpen={!!legalModalType}
-        onClose={() => setLegalModalType(null)}
-        type={legalModalType}
-      />
 
       <EditBillingModal
         isOpen={isEditBillingOpen}
@@ -1383,25 +1388,23 @@ function SettingsContent() {
             Legal
           </h3>
           <SettingsGroup>
-            <button
-              type="button"
-              onClick={() => setLegalModalType('privacy')}
+            <Link
+              href="/settings/privacy"
               className="w-full flex items-center gap-3.5 min-h-[56px] px-4 hover:bg-[#121414] transition-colors cursor-pointer text-left"
             >
               <ShieldCheck className="w-5 h-5 shrink-0 text-[#94A3B8]" aria-hidden="true" />
               <span className="flex-1 text-sm font-medium text-[#F5F7F6]">Privacy Policy</span>
               <ChevronRight className="w-4 h-4 shrink-0 text-[#5A6461]" aria-hidden="true" />
-            </button>
+            </Link>
 
-            <button
-              type="button"
-              onClick={() => setLegalModalType('terms')}
+            <Link
+              href="/settings/terms"
               className="w-full flex items-center gap-3.5 min-h-[56px] px-4 hover:bg-[#121414] transition-colors cursor-pointer text-left"
             >
               <FileText className="w-5 h-5 shrink-0 text-[#94A3B8]" aria-hidden="true" />
               <span className="flex-1 text-sm font-medium text-[#F5F7F6]">Terms of Service</span>
               <ChevronRight className="w-4 h-4 shrink-0 text-[#5A6461]" aria-hidden="true" />
-            </button>
+            </Link>
           </SettingsGroup>
         </div>
       </section>

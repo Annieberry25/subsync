@@ -104,24 +104,24 @@ describe('LandingPage', () => {
   });
 
   /**
-   * The footer stays deliberately thin: company and a way into the help centre.
+   * The footer stays deliberately thin: company, help, and the two legal pages.
    * The support address is not printed here. A visitor who needs to write in has
    * the Contact Us action in the hero, which opens a pre-addressed mail with the
    * subject filled in, and repeating the raw address in the footer put a second
    * route to the same place on the page.
    *
-   * What it must not carry is guarded below: /privacy and /terms have no route
-   * yet, and a marketing page is the worst possible place to ship a dead link.
+   * Privacy and Terms are real public routes now, so the footer must link them;
+   * a marketing page is the worst possible place to ship a dead legal link.
    */
-  it('has a footer that stays thin and links only to routes that exist', () => {
+  it('has a footer that links only to public routes', () => {
     render(<LandingPage />);
 
     const footerEl = screen.getByRole('contentinfo');
     const footer = within(footerEl);
     expect(footerEl).toHaveTextContent(/SUBHALT LTD/i);
     expect(footer.getByRole('link', { name: 'Help' })).toHaveAttribute('href', '/help');
-    expect(footer.queryByRole('link', { name: /privacy/i })).toBeNull();
-    expect(footer.queryByRole('link', { name: /terms/i })).toBeNull();
+    expect(footer.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    expect(footer.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms');
     expect(footer.queryByRole('link', { name: /plans/i })).toBeNull();
     // The hero owns the contact route; the footer does not repeat it.
     expect(footer.queryByRole('link', { name: HOME_CTA_LABEL })).toBeNull();

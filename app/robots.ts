@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.xyz";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.subhalt.xyz";
 
 /**
  * Served at /robots.txt, exactly:
@@ -8,7 +8,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://subhalt.xyz";
  *   User-agent: *
  *   Allow: /
  *
- *   Sitemap: https://subhalt.xyz/sitemap.xml
+ *   Sitemap: https://www.subhalt.xyz/sitemap.xml
  *
  * Deliberately no `Disallow` rules. Every signed-out request to a protected
  * page is redirected to `/login`, so disallowing `/login` made Search Console

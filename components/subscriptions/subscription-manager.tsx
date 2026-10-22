@@ -38,6 +38,7 @@ import PaymentReminderModal from './payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
+import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { AdBanner } from '@/components/dashboard/ad-banner';
 import UpgradeModal from './upgrade-modal';
@@ -68,6 +69,8 @@ export default function SubscriptionManager() {
   const [error, setError] = useState<string | null>(null);
 
   const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
+  /* Gmail Connect is admin-only until released — see FEATURE_FLAGS. */
+  const gmailAvailable = useFeatureFlag('gmailConnect');
 
   // View Mode: 'table' (list) or 'grid' (cards)
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
@@ -343,7 +346,7 @@ export default function SubscriptionManager() {
   const [gmailParamHandled, setGmailParamHandled] = useState(false);
   if (!gmailParamHandled && (paramGmailConnected === '1' || paramGmailError === '1')) {
     setGmailParamHandled(true);
-    if (paramGmailConnected === '1') {
+    if (paramGmailConnected === '1' && gmailAvailable) {
       setGmailAutoScan(true);
       setIsGmailModalOpen(true);
     }
@@ -352,12 +355,12 @@ export default function SubscriptionManager() {
   useEffect(() => {
     if (paramGmailConnected === '1') {
       router.replace(window.location.pathname, { scroll: false });
-      toast.success('Gmail connected successfully.', 'Gmail Connected');
+      if (gmailAvailable) toast.success('Gmail connected successfully.', 'Gmail Connected');
     } else if (paramGmailError === '1') {
       router.replace(window.location.pathname, { scroll: false });
-      toast.error('Gmail connection failed. Please try again.', 'Gmail Error');
+      if (gmailAvailable) toast.error('Gmail connection failed. Please try again.', 'Gmail Error');
     }
-  }, [paramGmailConnected, paramGmailError, router, toast]);
+  }, [paramGmailConnected, paramGmailError, router, toast, gmailAvailable]);
 
   // Scroll into view & highlight effect
   useEffect(() => {
@@ -1137,15 +1140,17 @@ export default function SubscriptionManager() {
       />
 
       {/* Auto-Discovery & Import Modals */}
-      <GmailConnectModal
-        isOpen={isGmailModalOpen}
-        onClose={() => {
-          setIsGmailModalOpen(false);
-          setGmailAutoScan(false);
-        }}
-        onSuccess={loadData}
-        autoScan={gmailAutoScan}
-      />
+      {gmailAvailable && (
+        <GmailConnectModal
+          isOpen={isGmailModalOpen}
+          onClose={() => {
+            setIsGmailModalOpen(false);
+            setGmailAutoScan(false);
+          }}
+          onSuccess={loadData}
+          autoScan={gmailAutoScan}
+        />
+      )}
     </div>
   );
 }

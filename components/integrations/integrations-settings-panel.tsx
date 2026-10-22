@@ -14,6 +14,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
+import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
 import { useUserSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 
@@ -49,6 +50,10 @@ export function IntegrationsSettingsPanel() {
   const { isPlus } = useUserSettings();
   const { toast } = useToast();
   const { addInboxItem } = useInbox();
+
+  /* Both integrations are admin-only until released — see FEATURE_FLAGS. */
+  const gmailAvailable = useFeatureFlag('gmailConnect');
+  const forwardingAvailable = useFeatureFlag('emailForwarding');
 
   const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
   const [gmailLoading, setGmailLoading] = useState(true);
@@ -98,13 +103,16 @@ export function IntegrationsSettingsPanel() {
     // Deferred to a microtask: the loaders set loading state synchronously,
     // which would otherwise cascade a re-render on mount.
     queueMicrotask(() => {
-      void loadGmailStatus();
-      void loadForwardingAddress();
+      if (gmailAvailable) void loadGmailStatus();
+      if (forwardingAvailable) void loadForwardingAddress();
     });
     return () => {
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     };
-  }, [isPlus, loadGmailStatus, loadForwardingAddress]);
+  }, [isPlus, gmailAvailable, forwardingAvailable, loadGmailStatus, loadForwardingAddress]);
+
+  // Nothing to show until at least one integration is released to this account.
+  if (!gmailAvailable && !forwardingAvailable) return null;
 
   if (!isPlus) {
     return (
@@ -271,6 +279,7 @@ export function IntegrationsSettingsPanel() {
       </div>
 
       {/* Gmail Connect */}
+      {gmailAvailable && (
       <div className="rounded-xl bg-[#0F1111] border border-[#1A1D1D] p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
@@ -380,8 +389,10 @@ export function IntegrationsSettingsPanel() {
           </div>
         )}
       </div>
+      )}
 
       {/* Email Forwarding */}
+      {forwardingAvailable && (
       <div className="rounded-xl bg-[#0F1111] border border-[#1A1D1D] p-5 space-y-4">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#1A1D1D] border border-[#27272A] flex items-center justify-center text-[#F5F7F6] shrink-0">
@@ -461,6 +472,7 @@ export function IntegrationsSettingsPanel() {
           </>
         )}
       </div>
+      )}
     </section>
   );
 }

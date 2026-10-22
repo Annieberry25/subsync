@@ -73,11 +73,12 @@ export const SPACE = {
 /**
  * Footer, shared by every marketing page.
  *
- * Deliberately two items: the company name and Help. The tagline, the Sign In
- * link and the contact address were all here and all duplicated something the
- * page already offers above it — the sign-in entry point is in the header on
- * every page, and the contact address is the hero's call to action on the landing
- * page and the closing call to action on the others.
+ * Company, then the three public routes that must never be a dead end: Help,
+ * Privacy, and Terms. The tagline, the Sign In link and the contact address were
+ * all here and all duplicated something the page already offers above it — the
+ * sign-in entry point is in the header on every page, and the contact address is
+ * the hero's call to action on the landing page and the closing call to action
+ * on the others.
  */
 function SiteFooter() {
   return (
@@ -86,9 +87,15 @@ function SiteFooter() {
         className={`${PAGE_SHELL} flex flex-col gap-3 py-8 text-[13px] text-[#6E7A76] sm:flex-row sm:items-center sm:justify-between`}
       >
         <p>© SUBHALT LTD</p>
-        <nav aria-label="Footer">
+        <nav aria-label="Footer" className="flex items-center gap-4">
           <Link href="/help" className="transition-colors hover:text-[#94A3B8]">
             Help
+          </Link>
+          <Link href="/privacy" className="transition-colors hover:text-[#94A3B8]">
+            Privacy
+          </Link>
+          <Link href="/terms" className="transition-colors hover:text-[#94A3B8]">
+            Terms
           </Link>
         </nav>
       </div>
@@ -104,12 +111,15 @@ export function MarketingPage({
   label,
   title,
   lead,
+  back,
   children,
 }: {
   /** Optional. The landing page omits it: its H1 is already the page headline. */
   label?: string;
   title: string;
   lead?: string;
+  /** Optional back control rendered above the page label. */
+  back?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -123,6 +133,7 @@ export function MarketingPage({
         first heading sitting almost against it.
       */}
       <main className={`${PAGE_SHELL} flex-1 pb-16 pt-12 sm:pb-24 sm:pt-16`}>
+        {back && <div className="mb-6">{back}</div>}
         {label && <h2 className={TYPE.label}>{label}</h2>}
         <h1 className={`${TYPE.h1} mt-3`}>{title}</h1>
         {lead && <p className={`${TYPE.lead} mt-4 sm:mt-5`}>{lead}</p>}

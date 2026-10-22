@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth/access';
+import { isFeatureEnabledForUser } from '@/lib/auth/feature-access';
 import {
   createGmailState,
   createGoogleAuthUrl,
@@ -27,6 +28,13 @@ export async function GET() {
     const user = await getAuthUser(supabase);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized user session.' }, { status: 401 });
+    }
+
+    if (!(await isFeatureEnabledForUser(supabase, user.id, 'gmailConnect'))) {
+      return NextResponse.json(
+        { error: 'Gmail Connect is not available yet.' },
+        { status: 403 }
+      );
     }
 
     const state = createGmailState(user.id);

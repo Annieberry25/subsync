@@ -44,12 +44,11 @@ vi.mock('@/lib/hooks/use-toast', () => ({
   useToast: () => ({ toast: { error: mocks.toastError, success: vi.fn(), info: vi.fn() } }),
 }));
 
-// The flag is read at module load, so it has to be mocked before nav.ts
-// evaluates it.
+// nav.ts asks the flag registry whether the signed-in admin may see each
+// gated feature. Bills is the only one exercised here.
 vi.mock('@/lib/config/feature-flags', () => ({
-  get BILL_PAYMENT_ENABLED() {
-    return mocks.billsEnabled;
-  },
+  isFeatureAvailable: (key: string, isAdmin: boolean) =>
+    key === 'billsPayments' ? mocks.billsEnabled && isAdmin : false,
 }));
 
 beforeEach(() => {
@@ -122,6 +121,7 @@ describe('MorePage', () => {
 
   it('hides Bills & Payments while the feature flag is off', () => {
     mocks.billsEnabled = false;
+    mocks.isAdmin = true;
     render(<MorePage />);
 
     expect(
@@ -131,6 +131,7 @@ describe('MorePage', () => {
 
   it('shows Bills & Payments with its submenu while the feature flag is on', async () => {
     mocks.billsEnabled = true;
+    mocks.isAdmin = true;
     render(<MorePage />);
 
     const toggle = screen.getByRole('button', { name: 'Toggle Bills & Payments submenu' });
@@ -140,6 +141,16 @@ describe('MorePage', () => {
     await userEvent.click(toggle);
 
     expect(screen.getByRole('link', { name: 'Pay a Bill' })).toBeInTheDocument();
+  });
+
+  it('hides Bills & Payments from non-admins even while the feature flag is on', () => {
+    mocks.billsEnabled = true;
+    mocks.isAdmin = false;
+    render(<MorePage />);
+
+    expect(
+      screen.queryByRole('button', { name: 'Toggle Bills & Payments submenu' }),
+    ).not.toBeInTheDocument();
   });
 
   it('hides the Admin entry from non-admins', () => {

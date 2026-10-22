@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth/access';
+import { isFeatureEnabledForUser } from '@/lib/auth/feature-access';
 import { getUserForwardingAddress } from '@/lib/services/receipt-ingestion';
 import { processInboundReceiptWithSelfTest } from '@/lib/services/inbound-email';
 
@@ -22,6 +23,13 @@ export async function POST() {
     const user = await getAuthUser(supabase);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized user session.' }, { status: 401 });
+    }
+
+    if (!(await isFeatureEnabledForUser(supabase, user.id, 'emailForwarding'))) {
+      return NextResponse.json(
+        { error: 'Email Forwarding is not available yet.' },
+        { status: 403 }
+      );
     }
 
     const address = await getUserForwardingAddress(user.id);

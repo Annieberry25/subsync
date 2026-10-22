@@ -59,7 +59,15 @@ function isPublicRoute(pathname: string): boolean {
  *
  * Compared exactly, so a route like `/about-us` does not inherit `/about`.
  */
-const PUBLIC_PAGES = ['/', '/features', '/how-it-works', '/about', '/help'] as const;
+const PUBLIC_PAGES = [
+  '/',
+  '/features',
+  '/how-it-works',
+  '/about',
+  '/help',
+  '/privacy',
+  '/terms',
+] as const;
 
 function isPublicPage(pathname: string): boolean {
   return (PUBLIC_PAGES as readonly string[]).includes(pathname);

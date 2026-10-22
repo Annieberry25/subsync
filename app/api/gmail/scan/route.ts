@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthUser } from '@/lib/auth/access';
+import { isFeatureEnabledForUser } from '@/lib/auth/feature-access';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { fetchActiveSubscriptionNames } from '@/lib/services/receipt-ingestion';
 import {
@@ -33,6 +34,13 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized user session.' }, { status: 401 });
     }
     userId = user.id;
+
+    if (!(await isFeatureEnabledForUser(supabase, user.id, 'gmailConnect'))) {
+      return NextResponse.json(
+        { error: 'Gmail Connect is not available yet.' },
+        { status: 403 }
+      );
+    }
 
     // Each scan reads a batch of messages from the Gmail API, so one account
     // is bounded well above normal use but far below what abuse needs.

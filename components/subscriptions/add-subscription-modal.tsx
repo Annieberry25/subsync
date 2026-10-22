@@ -11,6 +11,7 @@ import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { hasPlanFeature } from '@/lib/constants/plan-limits';
 import { PROVIDER_SUBSCRIBE_ENABLED } from '@/lib/config/feature-flags';
+import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
 import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
 
 type AddPath = 'gmail' | 'forwarding' | 'link' | 'receipt';
@@ -56,6 +57,9 @@ export default function AddSubscriptionModal({
   initialPath = null,
 }: AddSubscriptionModalProps) {
   const { planTier } = usePlan();
+  /* Admin-only until each integration is released — see FEATURE_FLAGS. */
+  const gmailAvailable = useFeatureFlag('gmailConnect');
+  const forwardingAvailable = useFeatureFlag('emailForwarding');
   const [activeSubModal, setActiveSubModal] = useState<'none' | AddPath>('none');
   const [receiptProviderName, setReceiptProviderName] = useState<string | undefined>(undefined);
   const [appliedInitialPath, setAppliedInitialPath] = useState<AddPath | null>(null);
@@ -66,7 +70,13 @@ export default function AddSubscriptionModal({
     if (appliedInitialPath !== null) setAppliedInitialPath(null);
   } else if (initialPath && initialPath !== appliedInitialPath) {
     setAppliedInitialPath(initialPath);
-    setActiveSubModal(initialPath);
+    const available =
+      initialPath === 'gmail'
+        ? gmailAvailable
+        : initialPath === 'forwarding'
+          ? forwardingAvailable
+          : true;
+    if (available) setActiveSubModal(initialPath);
   }
 
   if (!isOpen && activeSubModal === 'none') return null;
@@ -134,12 +144,13 @@ export default function AddSubscriptionModal({
         title="Add Subscription"
         description="Choose how you want to add a subscription to SubHalt."
       >
-            {/* Options menu. "Subscribe through Provider" is behind a flag and
-                may not be rendered, so this is four or five entries. The Sheet
-                body owns the scroll. */}
+            {/* Options menu. Each flagged path may not be rendered, so this is
+                two to five entries. The Sheet body owns the scroll. */}
             <div className="pt-1 divide-y divide-[#1A1D1D]/50">
               {/* Option 1: Connect Gmail (Plus). A free user sees the "Plus"
-                  marker and is sent to upgrade instead of the OAuth flow. */}
+                  marker and is sent to upgrade instead of the OAuth flow.
+                  Hidden until Gmail Connect is released to everyone. */}
+              {gmailAvailable && (
               <button
                 type="button"
                 onClick={() => {
@@ -165,8 +176,11 @@ export default function AddSubscriptionModal({
                   Connect your Gmail account to automatically detect recurring subscription and billing emails.
                 </p>
               </button>
+              )}
 
-              {/* Option 2: Email Forwarding (Plus). */}
+              {/* Option 2: Email Forwarding (Plus). Hidden until the feature
+                  is released to everyone. */}
+              {forwardingAvailable && (
               <button
                 type="button"
                 onClick={() => {
@@ -192,6 +206,7 @@ export default function AddSubscriptionModal({
                   View your personal SubHalt auto-import email address to forward billing receipts.
                 </p>
               </button>
+              )}
 
               {/* Option 3: Subscribe through Provider. Flagged off while the
                   provider catalogue is stale — see PROVIDER_SUBSCRIBE_ENABLED. */}
@@ -259,25 +274,29 @@ export default function AddSubscriptionModal({
       </Sheet>
 
       {/* Sub-flow Modals */}
-      <GmailConnectModal
-        isOpen={activeSubModal === 'gmail'}
-        onClose={handleExitAll}
-        onBack={handleBackToMenu}
-        onRequireUpgrade={() => {
-          handleExitAll();
-          onRequireUpgrade?.();
-        }}
-      />
+      {gmailAvailable && (
+        <GmailConnectModal
+          isOpen={activeSubModal === 'gmail'}
+          onClose={handleExitAll}
+          onBack={handleBackToMenu}
+          onRequireUpgrade={() => {
+            handleExitAll();
+            onRequireUpgrade?.();
+          }}
+        />
+      )}
 
-      <EmailForwardingModal
-        isOpen={activeSubModal === 'forwarding'}
-        onClose={handleExitAll}
-        onBack={handleBackToMenu}
-        onRequireUpgrade={() => {
-          handleExitAll();
-          onRequireUpgrade?.();
-        }}
-      />
+      {forwardingAvailable && (
+        <EmailForwardingModal
+          isOpen={activeSubModal === 'forwarding'}
+          onClose={handleExitAll}
+          onBack={handleBackToMenu}
+          onRequireUpgrade={() => {
+            handleExitAll();
+            onRequireUpgrade?.();
+          }}
+        />
+      )}
 
       <LinkSubscriptionModal
         isOpen={activeSubModal === 'link'}

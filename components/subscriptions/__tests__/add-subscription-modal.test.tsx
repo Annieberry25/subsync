@@ -4,10 +4,12 @@ import userEvent from '@testing-library/user-event';
 import AddSubscriptionModal from '@/components/subscriptions/add-subscription-modal';
 
 let planTier = 'free';
+let isAdmin = true;
 
 vi.mock('@/lib/contexts/user-settings-context', () => ({
   usePlan: () => ({ planTier, isPlus: planTier === 'plus' }),
   useSettings: () => ({ settings: {} }),
+  useAuth: () => ({ isAdmin }),
 }));
 
 vi.mock('@/lib/hooks/use-toast', () => ({
@@ -85,6 +87,7 @@ describe('AddSubscriptionModal Plus gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     planTier = 'free';
+    isAdmin = true;
   });
 
   it('marks Gmail Connect and Email Forwarding as Plus for a free user', () => {
@@ -188,6 +191,37 @@ it('saves a reviewed receipt instead of opening the manual form', async () => {
 });
 
 /**
+ * Gmail Connect and Email Forwarding are admin-only until they are released.
+ * Everyone else sees the paths that are already public.
+ */
+describe('AddSubscriptionModal admin-only integrations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    planTier = 'plus';
+    isAdmin = false;
+  });
+
+  it('hides Gmail Connect and Email Forwarding from non-admins', () => {
+    renderModal();
+
+    expect(screen.queryByRole('button', { name: /Connect Gmail/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Email Forwarding/ })).toBeNull();
+
+    // The released paths are untouched.
+    expect(screen.getByRole('button', { name: /Import Receipt/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Add Manually/ })).toBeInTheDocument();
+  });
+
+  it('shows them to an admin', () => {
+    isAdmin = true;
+    renderModal();
+
+    expect(screen.getByRole('button', { name: /Connect Gmail/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Email Forwarding/ })).toBeInTheDocument();
+  });
+});
+
+/**
  * "Subscribe through Provider" is behind a flag until the provider catalogue
  * is worth sending anyone to. The flag is read from the environment when the
  * module is first evaluated, so the enabled case re-imports the module with
@@ -197,6 +231,7 @@ describe('AddSubscriptionModal provider path flag', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     planTier = 'free';
+    isAdmin = true;
   });
 
   it('hides Subscribe through Provider by default', () => {

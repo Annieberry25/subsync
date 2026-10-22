@@ -119,6 +119,21 @@ describe('updateSession public routes', () => {
   });
 
   /**
+   * Legal pages are linked from the public footer and from the auth screens, and
+   * Google's OAuth branding points at them. A signed-out visitor must reach them
+   * without being bounced to /login.
+   */
+  it.each(['/privacy', '/terms'])(
+    'serves the public legal page %s instead of redirecting to /login',
+    async (pathname) => {
+      const response = await updateSession(makeRequest(pathname));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('location') ?? '').not.toContain('/login');
+    }
+  );
+
+  /**
    * The exemption is compared on a segment boundary. A bare `startsWith('/api')`
    * would also match `/api-keys`, letting a real page slip past the auth check.
    */

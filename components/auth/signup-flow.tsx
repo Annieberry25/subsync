@@ -441,11 +441,11 @@ export function SignupFlow() {
             Use a one-time code
           </Button>
 
-          {/* Footer: Terms of Use | Privacy Policy */}
+          {/* Footer: Terms of Service | Privacy Policy */}
           <div className="text-center mt-8 pt-4 border-t border-[#1A1D1D]/50 text-[11px] text-[#94A3B8] flex items-center justify-center gap-3">
-            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</a>
+            <a href="/terms" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Service</a>
             <span className="text-[#1A1D1D]">|</span>
-            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
+            <a href="/privacy" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
           </div>
         </div>
       )}
@@ -553,11 +553,11 @@ export function SignupFlow() {
             Continue with password
           </Button>
 
-          {/* Footer: Terms of Use | Privacy Policy */}
+          {/* Footer: Terms of Service | Privacy Policy */}
           <div className="text-center mt-8 pt-4 border-t border-[#1A1D1D]/50 text-[11px] text-[#94A3B8] flex items-center justify-center gap-3">
-            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Use</a>
+            <a href="/terms" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Terms of Service</a>
             <span className="text-[#1A1D1D]">|</span>
-            <a href="/settings" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
+            <a href="/privacy" className="hover:text-[#F5F7F6] transition-colors cursor-pointer">Privacy Policy</a>
           </div>
         </div>
       )}
