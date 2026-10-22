@@ -87,6 +87,27 @@ describe('editing a subscription with two accounts', () => {
     expect(payload.next_billing_date).toBe('2026-11-16');
   });
 
+  it('saves the renewal date in the renewal date, not in the start date', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen(rowWithTwoAccounts);
+
+    // Regression: the renewal date input once wrote to the start date, so
+    // changing when the subscription renews moved when it started instead and
+    // nothing the user changed about the renewal was kept.
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-12-20' },
+    });
+
+    expect(screen.getByLabelText('Start Date')).toHaveValue('2026-09-13');
+
+    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const payload = onSave.mock.calls[0][0];
+    expect(payload.next_billing_date).toBe('2026-12-20');
+    expect(payload.start_date).toBe('2026-09-13');
+  });
+
   it('keeps each account its own details when the other one is edited', async () => {
     const user = userEvent.setup();
     const { onSave } = await renderOpen(rowWithTwoAccounts);

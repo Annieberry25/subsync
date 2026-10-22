@@ -283,8 +283,21 @@ export default function SubscriptionModal({
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const [prevInitialData, setPrevInitialData] = useState(initialData);
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  /**
+   * Which row the form is on, and which version of it.
+   *
+   * The form resets when the row it is editing changes on the server, not
+   * when the object it was handed happens to be a new one. A list refresh —
+   * which happens whenever a subscription is written anywhere, including in
+   * another tab — used to hand the form a new object and wipe whatever the
+   * user had typed into it.
+   */
+  const initialKey = initialData
+    ? `${initialData.id}:${initialData.updated_at ?? ''}`
+    : null;
+  const [prevInitialKey, setPrevInitialKey] = useState<string | null>(null);
 
   /**
    * The subscription the typed name already belongs to.
@@ -296,9 +309,9 @@ export default function SubscriptionModal({
    */
   const [duplicateOf, setDuplicateOf] = useState<SubscriptionRow | null>(null);
 
-  if (isOpen !== prevIsOpen || initialData !== prevInitialData) {
+  if (isOpen !== prevIsOpen || initialKey !== prevInitialKey) {
     setPrevIsOpen(isOpen);
-    setPrevInitialData(initialData);
+    setPrevInitialKey(initialKey);
     if (initialData) {
       setName(initialData.name);
       setPrice(initialData.price.toString());
@@ -508,10 +521,11 @@ export default function SubscriptionModal({
   /**
    * Puts an account's own type into the main Account Type box.
    *
-   * The type lives in the form, so selecting an account row brings that
-   * account's type up. Nothing else moves: the amount, the date and the rest
-   * belong to the account row they are typed in, and the main fields belong
-   * to the subscription.
+   * The type is the one per-account field that lives in the form, so
+   * selecting an account row brings that account's type up. Everything else in
+   * the main fields belongs to the subscription, and everything else in an
+   * account row belongs to that account — so what is typed in one place is
+   * saved in that place, and neither overwrites the other.
    */
   const loadAccountIntoForm = (link: AccountLink) => {
     setActiveAccountId(link.id);
@@ -723,44 +737,19 @@ setLoading(true);
     );
 
     /*
-     * The accounts keep the details that were typed in their own rows.
+     * The accounts keep the details that were typed in their own rows, and the
+     * subscription keeps the details that were typed in the main fields.
      *
-     * Nothing is written back from the main fields: the main fields are the
-     * subscription's, and copying them onto an account is how the second
-     * account ended up with the first one's details.
+     * Nothing is copied between them. Copying the main fields onto an account
+     * is how one account ended up with another account's amount and date, and
+     * how the second account ended up with the first one's details.
      */
     const accountsWithFormValues = validAccountLinks;
-
-    /*
-     * The row's own values come from its accounts.
-     *
-     * The amount is what all of them cost together — two accounts on one
-     * service are two charges — but only once every account says what it
-     * costs. Until then the row is what the user typed, because a total built
-     * from accounts that have no amount of their own would quietly drop the
-     * money out of the subscription. The renewal date is the soonest of the
-     * accounts, which is the next one to warn about.
-     */
-    const accountAmounts = accountsWithFormValues
-      .map((link) => link.price)
-      .filter((value): value is number => typeof value === 'number' && !isNaN(value));
-    const everyAccountPriced =
-      accountsWithFormValues.length > 0 &&
-      accountAmounts.length === accountsWithFormValues.length;
-    const accountDates = accountsWithFormValues
-      .map((link) => link.next_billing_date)
-      .filter((value): value is string => Boolean(value))
-      .sort();
     const firstAccount = accountsWithFormValues[0];
 
-    const rowPrice =
-      everyAccountPriced && accountAmounts.length > 0
-        ? accountAmounts.reduce((sum, value) => sum + value, 0)
-        : /* Until every account says what it costs, the subscription keeps
-             the amount it has. The main fields describe the account in view,
-             so taking the total from them would quietly change it. */
-          (saveTarget ? Number(saveTarget.price) || parsedPrice : parsedPrice);
-    const rowNextBillingDate = accountDates.length > 0 ? accountDates[0] : nextBillingDate;
+    /* The subscription keeps what the main fields say. */
+    const rowPrice = parsedPrice;
+    const rowNextBillingDate = nextBillingDate;
 
     // Rebuild the notes metadata blocks from the row being edited. The form
     // only holds the user-visible text, so without this an ordinary edit would
@@ -1069,7 +1058,8 @@ setLoading(true);
                   aria-label="Category"
                   value={category}
                   onChange={(e) => {
-                    setCategory(e.target.value as typeof categories[number] | '');
+                    const picked = e.target.value as typeof categories[number] | '';
+                    setCategory(picked);
                     if (fieldErrors.category) setFieldErrors((prev) => ({ ...prev, category: undefined }));
                   }}
                   onBlur={() => validateField('category')}
@@ -1099,7 +1089,8 @@ setLoading(true);
                   aria-label="Status"
                   value={status}
                   onChange={(e) => {
-                    setStatus(e.target.value as typeof statuses[number] | '');
+                    const picked = e.target.value as typeof statuses[number] | '';
+                    setStatus(picked);
                     if (fieldErrors.status) setFieldErrors((prev) => ({ ...prev, status: undefined }));
                   }}
                   onBlur={() => validateField('status')}
@@ -1178,7 +1169,8 @@ setLoading(true);
                 min={MIN_DATE}
                 max={MAX_DATE}
                 onChange={(e) => {
-                  setNextBillingDate(e.target.value);
+                  const picked = e.target.value;
+                  setNextBillingDate(picked);
                   if (fieldErrors.date) setFieldErrors((prev) => ({ ...prev, date: undefined }));
                 }}
                 onBlur={() => validateField('date')}
