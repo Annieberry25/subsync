@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const mockSubscriptions = vi.hoisted(() => ({ value: [] as unknown[] }));
@@ -347,11 +347,12 @@ describe('SubscriptionManager duplicate guard', () => {
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Disney+');
     await user.type(screen.getByPlaceholderText('15.99'), '9.99');
     // The currency, the cycle, the category and the status are choices, so
-    // they have to be made.
+    // they have to be made, and the start date is part of the subscription.
     await user.selectOptions(screen.getByLabelText('Currency'), 'USD');
     await user.selectOptions(screen.getByLabelText('Cycle'), 'monthly');
     await user.selectOptions(screen.getByLabelText('Category'), 'Streaming');
     await user.selectOptions(screen.getByLabelText('Status'), 'active');
+    fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '2026-01-01' } });
 
     const submit = screen
       .getAllByRole('button', { name: 'Add Subscription' })

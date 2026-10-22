@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SubscriptionModal from '@/components/subscriptions/subscription-modal';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
@@ -95,7 +95,7 @@ async function renderOpen(
 }
 
 /**
- * Picks the four choices the form now requires.
+ * Picks the four choices the form now requires, and the start date.
  *
  * The currency, the cycle, the category and the status all start empty and
  * have to be chosen: a default the user never picked is a value the user
@@ -106,6 +106,7 @@ async function chooseRequired(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText('Cycle'), 'monthly');
   await user.selectOptions(screen.getByLabelText('Category'), 'Streaming');
   await user.selectOptions(screen.getByLabelText('Status'), 'active');
+  fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '2026-01-01' } });
 }
 
 beforeEach(() => {
@@ -147,7 +148,9 @@ describe('SubscriptionModal', () => {
 
     // The account URL field it sat next to is still there.
     expect(screen.queryByText('Account URL')).not.toBeInTheDocument();
-    expect(screen.getByText('Subscription Accounts')).toBeInTheDocument();
+    // There is no "Subscription Accounts" heading either: the account type and
+    // the account URL are form fields, not a section of their own.
+    expect(screen.queryByText('Subscription Accounts')).not.toBeInTheDocument();
   });
 
   it('derives and saves the provider website without an input for it', async () => {
@@ -217,9 +220,32 @@ describe('SubscriptionModal', () => {
   it('marks the optional fields as optional', async () => {
     await renderOpen();
 
-    expect(screen.getByText(/Subscription Accounts/)).toBeInTheDocument();
-    // Start Date, End Date, Notes and the accounts section are all optional.
-    expect(screen.getAllByText('(Optional)').length).toBeGreaterThanOrEqual(3);
+    // The end date and the notes are optional; the start date is not.
+    expect(screen.getByText('End Date')).toBeInTheDocument();
+    expect(screen.getByText('Notes')).toBeInTheDocument();
+    expect(screen.getByText('Start Date')).toBeInTheDocument();
+    expect(screen.queryByText(/^Start Date/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * The start date is when the subscription began, and it is part of the
+   * subscription rather than a nicety: without it there is no way to tell a
+   * long-running service from one that started last month.
+   */
+  it('requires the start date', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen();
+
+    await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
+    await user.type(screen.getByPlaceholderText('15.99'), '15.99');
+    await user.selectOptions(screen.getByLabelText('Currency'), 'USD');
+    await user.selectOptions(screen.getByLabelText('Cycle'), 'monthly');
+    await user.selectOptions(screen.getByLabelText('Category'), 'Streaming');
+    await user.selectOptions(screen.getByLabelText('Status'), 'active');
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
+
+    expect(await screen.findByText('Start date is required.')).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('calls onSave with the entered values and closes without a duplicate toast', async () => {
@@ -630,15 +656,24 @@ describe('SubscriptionModal subscription accounts', () => {
   });
 
   /**
-   * The add control belongs to the section it adds to, so it sits beside the
-   * heading rather than in a second place further down.
+   * The add control belongs to the field it fills, and nothing is shown until
+   * there is an account to show.
    */
-  it('puts the add control beside the Subscription Accounts heading', async () => {
+  it('shows only the add control until there is an account to show', async () => {
+    const user = userEvent.setup();
     await renderOpen();
 
-    const heading = screen.getByText('Subscription Accounts');
-    const addButton = screen.getByRole('button', { name: /Add account link/ });
+    // No account yet, so no account type and no URL field.
+    expect(screen.queryByText('Account Type 1')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Account URL/)).not.toBeInTheDocument();
 
-    expect(heading.parentElement).toContainElement(addButton);
+    // The control that creates one, with the marker that says it is optional.
+    const addButton = screen.getByRole('button', { name: /Add account link/ });
+    expect(screen.getByText('(optional)')).toBeInTheDocument();
+
+    await user.click(addButton);
+
+    expect(screen.getByText('Account Type 1')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
   });
 });

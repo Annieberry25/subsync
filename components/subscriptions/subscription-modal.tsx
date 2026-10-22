@@ -22,6 +22,7 @@ import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { hasReachedAccountLinkCap } from '@/lib/constants/plan-limits';
 import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
+import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
 
 interface SubscriptionModalProps {
@@ -64,6 +65,7 @@ interface FieldErrors {
   name?: string;
   price?: string;
   date?: string;
+  startDate?: string;
   currency?: string;
   cycle?: string;
   category?: string;
@@ -350,6 +352,26 @@ export default function SubscriptionModal({
     linkCount: accountLinks.length,
   });
 
+  /**
+   * What the account being added is worth, in the form's own words.
+   *
+   * "This account adds $15.99 a month." The price belongs to the subscription,
+   * so this is what the new account adds to what is already being paid.
+   */
+  const accountValueLabel = (() => {
+    const amount = parseFloat(price);
+    if (!price.trim() || isNaN(amount) || amount <= 0) return null;
+    const period =
+      billingCycle === 'yearly'
+        ? 'a year'
+        : billingCycle === 'weekly'
+          ? 'a week'
+          : billingCycle === 'quarterly'
+            ? 'a quarter'
+            : 'a month';
+    return `${formatCurrency(amount, currency || 'USD')} ${period}`;
+  })();
+
   const setQuickDate = (monthsToAdd: number) => {
     const d = new Date();
     d.setMonth(d.getMonth() + monthsToAdd);
@@ -367,6 +389,9 @@ export default function SubscriptionModal({
 
     const dateError = validateDate(nextBillingDate);
     if (dateError) errors.date = dateError;
+
+    const startDateError = validateDate(startDate);
+    if (startDateError) errors.startDate = 'Start date is required.';
 
     const currencyError = validateChoice(currency, 'Currency');
     if (currencyError) errors.currency = currencyError;
@@ -392,7 +417,9 @@ export default function SubscriptionModal({
    * map back to the field. It only ever reports a field the user has actually
    * touched, so an untouched form is never covered in red.
    */
-  const validateField = (field: 'name' | 'price' | 'date' | 'currency' | 'cycle' | 'category' | 'status') => {
+  const validateField = (
+    field: 'name' | 'price' | 'date' | 'startDate' | 'currency' | 'cycle' | 'category' | 'status'
+  ) => {
     const message =
       field === 'name'
         ? validateName(name)
@@ -400,13 +427,17 @@ export default function SubscriptionModal({
           ? validatePrice(price)
           : field === 'date'
             ? validateDate(nextBillingDate)
-            : field === 'currency'
-              ? validateChoice(currency, 'Currency')
-              : field === 'cycle'
-                ? validateChoice(billingCycle, 'Cycle')
-                : field === 'category'
-                  ? validateChoice(category, 'Category')
-                  : validateChoice(status, 'Status');
+            : field === 'startDate'
+              ? startDate
+                ? undefined
+                : 'Start date is required.'
+              : field === 'currency'
+                ? validateChoice(currency, 'Currency')
+                : field === 'cycle'
+                  ? validateChoice(billingCycle, 'Cycle')
+                  : field === 'category'
+                    ? validateChoice(category, 'Category')
+                    : validateChoice(status, 'Status');
 
     setFieldErrors((prev) => ({ ...prev, [field]: message }));
   };
@@ -657,6 +688,14 @@ setLoading(true);
                     {fieldErrors.price}
                   </span>
                 )}
+                {/*
+                  What the extra account is worth, in the currency the user is
+                  looking at. The price above is the subscription's, and this is
+                  what this account adds to it.
+                */}
+                {duplicateOf && accountValueLabel && (
+                  <span className="text-[10px] text-[#94A3B8]">This account adds {accountValueLabel}</span>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -785,20 +824,32 @@ setLoading(true);
               </div>
             </div>
 
-            {/* Optional Start Date & End Date Grid */}
+            {/* Start Date & End Date Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">
-                  Start Date <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">(Optional)</span>
-                </label>
+                <label className="text-[13px] font-medium text-[#94A3B8] block">Start Date</label>
                 <input
                   type="date"
+                  aria-label="Start Date"
                   value={startDate}
                   min={MIN_DATE}
                   max={MAX_DATE}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    if (fieldErrors.startDate) setFieldErrors((prev) => ({ ...prev, startDate: undefined }));
+                  }}
+                  onBlur={() => validateField('startDate')}
+                  aria-invalid={fieldErrors.startDate ? true : undefined}
+                  aria-describedby={fieldErrors.startDate ? 'sub-start-date-error' : undefined}
+                  className={`w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors ${
+                    fieldErrors.startDate ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
+                  }`}
                 />
+                {fieldErrors.startDate && (
+                  <span id="sub-start-date-error" className="text-[10px] text-[#D9363E] font-medium">
+                    {fieldErrors.startDate}
+                  </span>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -807,6 +858,7 @@ setLoading(true);
                 </label>
                 <input
                   type="date"
+                  aria-label="End Date"
                   value={endDate}
                   min={MIN_DATE}
                   max={MAX_DATE}
@@ -840,6 +892,7 @@ setLoading(true);
               </div>
               <input
                 type="date"
+                aria-label="Next Billing Date"
                 value={nextBillingDate}
                 min={MIN_DATE}
                 max={MAX_DATE}
@@ -867,33 +920,19 @@ setLoading(true);
                 knew. `providerUrl` is still derived and still saved — it just
                 has no field of its own. See handleNameChange. */}
 
-            {/* Subscription Accounts Section */}
+            {/*
+             * Accounts.
+             *
+             * No section heading and no icon: the type and the URL of an
+             * account are form fields, and the control that creates one says
+             * accounts are optional. Nothing is shown until there is an
+             * account to show.
+             */}
             <div className="space-y-4 pt-1">
-              <div className="flex items-center gap-2">
-                <label className="text-[13px] font-medium text-[#94A3B8]">Subscription Accounts</label>
-                {/* The add control sits beside the heading it belongs to, as a
-                    single plus. The "Add account link" wording was a second
-                    way of saying the same thing, further from the section it
-                    adds to. */}
-                <button
-                  type="button"
-                  onClick={handleAddAccountLink}
-                  aria-label="Add account link"
-                  title={
-                    canAddAnotherAccount
-                      ? 'Add another account link'
-                      : 'Multiple accounts per subscription are a Plus feature'
-                  }
-                  className="w-6 h-6 rounded-md text-[#14B8A6] hover:bg-[#14B8A6]/10 flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 text-[#14B8A6]" />
-                </button>
-              </div>
-
-              {/* No "Plus" badge here on purpose. The section itself is a normal
-                  part of adding a subscription; only the attempt to go past one
-                  account is Plus, and that is explained when it happens rather
-                  than advertised up front. */}
+              {/* No "Plus" badge here on purpose. The account itself is a
+                  normal part of adding a subscription; only the attempt to go
+                  past one account is Plus, and that is explained when it
+                  happens rather than advertised up front. */}
               {!canAddAnotherAccount && (
                 <p className="text-[11px] text-[#94A3B8] leading-relaxed">
                   Your plan includes one account per subscription. Upgrade to Plus to add
@@ -901,11 +940,7 @@ setLoading(true);
                 </p>
               )}
 
-              {accountLinks.length === 0 ? (
-                <div className="px-3 py-2.5 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[11px] leading-relaxed text-[#94A3B8]">
-                  No account entries added yet. Use the + above to configure your accounts.
-                </div>
-              ) : (
+              {accountLinks.length > 0 && (
                 <div className="space-y-4">
                   {accountLinks.map((link, idx) => {
                     const customUrl = link.url ? link.url.trim() : '';
@@ -1018,6 +1053,27 @@ setLoading(true);
                   })}
                 </div>
               )}
+
+              {/* The way to add an account, with the marker that says accounts
+                  are optional. It is the only thing shown until there is an
+                  account to show. */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAddAccountLink}
+                  aria-label="Add account link"
+                  title={
+                    canAddAnotherAccount
+                      ? 'Add another account link'
+                      : 'Multiple accounts per subscription are a Plus feature'
+                  }
+                  className="text-xs font-semibold text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5 text-[#14B8A6]" />
+                  <span>Add account link</span>
+                </button>
+                <span className="text-[11px] font-normal text-[#64748B]">(optional)</span>
+              </div>
             </div>
 
             {/* Notes */}
