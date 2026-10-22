@@ -1,16 +1,15 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Calendar, DollarSign, FileText, Clock, Globe, Users, ExternalLink } from 'lucide-react';
+import { Calendar, DollarSign, FileText, Clock, Globe, Users, ChevronLeft } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
-import { 
+import {
   type SubscriptionRow,
   parseAccountLinks,
   parseAttachedReceipts,
   cleanNotesUserText,
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
-import { toAbsoluteUrl } from '@/lib/utils/url-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 
 interface SubscriptionDetailModalProps {
@@ -25,6 +24,14 @@ interface SubscriptionDetailModalProps {
    */
   accountId?: string | null;
   onClose: () => void;
+  /**
+   * Back to the chooser.
+   *
+   * Only offered when the subscription has more than one account: that is the
+   * only case where the sheet was opened from a choice, and the only case
+   * where there is somewhere to go back to.
+   */
+  onBack?: () => void;
   /** The account the user is looking at is passed back, so the form can open on it. */
   onEdit: (subscription: SubscriptionRow, accountId?: string) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
@@ -52,6 +59,7 @@ export default function SubscriptionDetailModal({
   isOpen,
   accountId,
   onClose,
+  onBack,
   onEdit,
   onDeleteRequest,
   onRestoreRequest,
@@ -223,6 +231,19 @@ export default function SubscriptionDetailModal({
       size="lg"
       title={subscription.name}
       description={`${shownCycle} billing`}
+      headerLeading={
+        onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to accounts"
+            data-touch="compact"
+            className="w-9 h-9 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        ) : null
+      }
       footer={actions}
     >
         {/* The account in view was picked in the chooser form, before this
@@ -287,22 +308,20 @@ export default function SubscriptionDetailModal({
               <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Category & Website</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
-              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
-                <span className="text-[#9CA3AF]">Category</span>
+              {/* The values, without labels. The section is called "Category &
+                  Website", so saying "Category" next to the category is
+                  saying it twice. */}
+              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]">
                 <span className="text-[#F5F7F6] font-semibold">{shownCategory}</span>
               </div>
-              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
-                <span className="text-[#9CA3AF]">Official Provider Website</span>
+              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]">
                 {activeProviderUrl ? (
-                  <a
-                    href={activeProviderUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#F5F7F6] hover:underline flex items-center gap-1 font-medium truncate max-w-[180px]"
-                  >
-                    <span className="truncate">{activeProviderUrl.replace(/^https?:\/\//, '')}</span>
-                    <ExternalLink className="w-3 h-3 text-[#9CA3AF] shrink-0" />
-                  </a>
+                  /* Plain text. The detail sheet is for reading, not for
+                     clicking: a link in here takes the user off the page they
+                     opened it to look at. */
+                  <span className="text-[#F5F7F6] font-medium truncate max-w-[180px] block">
+                    {activeProviderUrl.replace(/^https?:\/\//, '')}
+                  </span>
                 ) : (
                   <span className="text-[#6B7280] italic">Not set</span>
                 )}
@@ -320,24 +339,16 @@ export default function SubscriptionDetailModal({
             </div>
 
             {selectedLink ? (
+              /* The type, and nothing to click. The account's own link is on
+                 the account row in the form, and the detail sheet is for
+                 reading. */
               <div
                 data-testid="account-type-value"
-                className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between text-xs"
+                className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] text-xs"
               >
                 <span className="text-[#F5F7F6] font-semibold">
                   {selectedLink.label || 'Personal'}
                 </span>
-                {selectedLink.url && (
-                  <a
-                    href={toAbsoluteUrl(selectedLink.url) || selectedLink.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-[#1F2425] hover:bg-[#2A3032] text-[#F5F7F6] text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0 border border-[#2A3032]"
-                  >
-                    <span>Visit</span>
-                    <ExternalLink className="w-3 h-3 text-[#9CA3AF]" />
-                  </a>
-                )}
               </div>
             ) : (
               <div className="p-3.5 rounded-xl bg-[#0D0F10] border border-[#1F2425] text-xs text-[#9CA3AF] leading-relaxed">

@@ -120,15 +120,31 @@ function nextAccountLinkId(existing: AccountLink[]): string {
 }
 
 /**
- * The account type for a newly added row.
+ * Fills in what an account does not carry from the subscription it belongs to.
  *
- * The first type nobody is using yet, so the rows do not all land on
- * "Personal" by accident. The row number is the label above it
- * ("Account Type 1", "Account Type 2"); this is what the row is for.
+ * An account added before accounts carried their own details has none of
+ * them, and it takes them from the subscription. That matters more than it
+ * looks: without it, adding a second account moved the whole subscription's
+ * start date and renewal date onto the new account, and the first account's
+ * own amount and date were gone — the sheet showed the second account's
+ * details under both of them.
  */
-function nextAccountType(existing: AccountLink[]): string {
-  const used = new Set(existing.map((link) => link.label));
-  return ACCOUNT_TYPES.find((type) => !used.has(type)) ?? 'Other';
+function withRowDefaults(links: AccountLink[], row: SubscriptionRow): AccountLink[] {
+  /* Only a subscription with one account can lend its values to that account:
+     once there are several, the row's amount is their total and the row's date
+     is the soonest of them, so neither belongs to any single one of them. */
+  if (links.length !== 1) return links;
+
+  return links.map((link) => ({
+    ...link,
+    price: link.price ?? (Number(row.price) || undefined),
+    currency: link.currency || row.currency || undefined,
+    billing_cycle: link.billing_cycle || row.billing_cycle || undefined,
+    category: link.category || row.category || undefined,
+    status: link.status || row.status || undefined,
+    start_date: link.start_date || row.start_date || undefined,
+    next_billing_date: link.next_billing_date || row.next_billing_date || undefined,
+  }));
 }
 
 /**
@@ -254,12 +270,6 @@ export default function SubscriptionModal({
    */
   const [existingNotesText, setExistingNotesText] = useState('');
 
-  /**
-   * The account row the form opens on, when the user came from the detail
-   * sheet having picked one.
-   */
-  const [focusedLinkId, setFocusedLinkId] = useState<string | null>(null);
-
   /*
    * The type of the account being added.
    *
@@ -303,11 +313,19 @@ export default function SubscriptionModal({
       setProviderUrl(actualProviderUrl);
       setIsUserEditedUrl(Boolean(actualProviderUrl));
       
-      setAccountLinks(parseAccountLinks(initialData));
-      setAccountType('');
+      const links = withRowDefaults(parseAccountLinks(initialData), initialData);
+      /* The account the form opens on: the one the user came from, or the
+         first one. Its type is what the Account Type box shows, and its
+         amount and date are what the main fields show — the main fields
+         describe the account in view, not the subscription as a whole. */
+      const openingAccount =
+        links.find((link) => link.id === focusAccountId) ?? links[0] ?? null;
+
+      setAccountLinks(links);
+      setActiveAccountId(openingAccount?.id ?? null);
+      setAccountType(openingAccount?.label || '');
       setNotes('');
       setExistingNotesText(cleanNotesUserText(initialData.notes));
-      setFocusedLinkId(focusAccountId);
     } else {
       setName('');
       setPrice('');
@@ -400,12 +418,19 @@ export default function SubscriptionModal({
     // types in stays empty.
     setExistingNotesText(cleanNotesUserText(match.notes));
 
-    const existing = parseAccountLinks(match);
+    const existing = withRowDefaults(parseAccountLinks(match), match);
+    const newLinkId = nextAccountLinkId(existing);
+
     setAccountLinks([
       ...existing,
       {
-        id: nextAccountLinkId(existing),
-        label: nextAccountType(existing),
+        id: newLinkId,
+        /*
+         * No type yet. The type is the user's to choose — a personal plan and
+         * a work plan are different accounts — and the Account Type box is
+         * empty until they do.
+         */
+        label: '',
         /*
          * Empty on purpose: the box is for the user's own account link. The
          * arrow beside it opens the provider's account page.
@@ -413,6 +438,11 @@ export default function SubscriptionModal({
         url: '',
       },
     ]);
+
+    /* The new account is the one the form works on, and its type is the one
+       the Account Type box shows. */
+    setActiveAccountId(newLinkId);
+    setAccountType('');
   };
 
   const handleAddAccountLink = () => {
@@ -429,9 +459,10 @@ export default function SubscriptionModal({
       ...prev,
       {
         id: `link-${Date.now()}`,
-        // The type the user picked in the form, or the first one nobody is
-        // using yet when the form has not been filled in.
-        label: accountType || nextAccountType(prev),
+        /* The type the user picked in the form, if they picked one. The type is
+           the user's to choose — a personal plan and a work plan are different
+           accounts — so the box is empty until they do. */
+        label: accountType || '',
         /*
          * The account starts with the details the form is holding, which is
          * what the user is looking at when they add it.
@@ -475,22 +506,16 @@ export default function SubscriptionModal({
   };
 
   /**
-   * Puts an account's own details into the main fields.
+   * Puts an account's own type into the main Account Type box.
    *
-   * The main fields describe the account in view, so selecting an account row
-   * brings up what that account costs and when it renews — not the
-   * subscription's, which is a different thing once there is more than one.
+   * The type lives in the form, so selecting an account row brings that
+   * account's type up. Nothing else moves: the amount, the date and the rest
+   * belong to the account row they are typed in, and the main fields belong
+   * to the subscription.
    */
   const loadAccountIntoForm = (link: AccountLink) => {
     setActiveAccountId(link.id);
-    setAccountType(link.label || 'Personal');
-    setPrice(link.price !== undefined ? String(link.price) : price);
-    setCurrency(link.currency || currency);
-    setBillingCycle((link.billing_cycle as typeof billingCycles[number]) || billingCycle);
-    setCategory((link.category as typeof categories[number]) || category);
-    setStatus((link.status as typeof statuses[number]) || status);
-    setStartDate(link.start_date || startDate);
-    setNextBillingDate(link.next_billing_date || nextBillingDate);
+    setAccountType(link.label || '');
   };
 
   /**
@@ -698,48 +723,43 @@ setLoading(true);
     );
 
     /*
-     * The account in view takes the details the form is holding.
+     * The accounts keep the details that were typed in their own rows.
      *
-     * The main fields describe one account, and the account rows carry the
-     * rest, so what the user typed belongs to the account they are on.
+     * Nothing is written back from the main fields: the main fields are the
+     * subscription's, and copying them onto an account is how the second
+     * account ended up with the first one's details.
      */
-    const accountsWithFormValues = activeAccountId
-      ? validAccountLinks.map((link) =>
-          link.id === activeAccountId
-            ? {
-                ...link,
-                price: parsedPrice,
-                currency,
-                billing_cycle: billingCycle,
-                category,
-                status,
-                start_date: startDate || undefined,
-                next_billing_date: nextBillingDate || undefined,
-              }
-            : link
-        )
-      : validAccountLinks;
+    const accountsWithFormValues = validAccountLinks;
 
     /*
      * The row's own values come from its accounts.
      *
      * The amount is what all of them cost together — two accounts on one
-     * service are two charges — and the renewal date is the soonest of them,
-     * which is the next one to warn about. Without accounts the row is what
-     * the form says, as before.
+     * service are two charges — but only once every account says what it
+     * costs. Until then the row is what the user typed, because a total built
+     * from accounts that have no amount of their own would quietly drop the
+     * money out of the subscription. The renewal date is the soonest of the
+     * accounts, which is the next one to warn about.
      */
     const accountAmounts = accountsWithFormValues
       .map((link) => link.price)
       .filter((value): value is number => typeof value === 'number' && !isNaN(value));
+    const everyAccountPriced =
+      accountsWithFormValues.length > 0 &&
+      accountAmounts.length === accountsWithFormValues.length;
     const accountDates = accountsWithFormValues
       .map((link) => link.next_billing_date)
       .filter((value): value is string => Boolean(value))
       .sort();
     const firstAccount = accountsWithFormValues[0];
 
-    const rowPrice = accountAmounts.length > 0
-      ? accountAmounts.reduce((sum, value) => sum + value, 0)
-      : parsedPrice;
+    const rowPrice =
+      everyAccountPriced && accountAmounts.length > 0
+        ? accountAmounts.reduce((sum, value) => sum + value, 0)
+        : /* Until every account says what it costs, the subscription keeps
+             the amount it has. The main fields describe the account in view,
+             so taking the total from them would quietly change it. */
+          (saveTarget ? Number(saveTarget.price) || parsedPrice : parsedPrice);
     const rowNextBillingDate = accountDates.length > 0 ? accountDates[0] : nextBillingDate;
 
     // Rebuild the notes metadata blocks from the row being edited. The form
@@ -1290,12 +1310,13 @@ setLoading(true);
                         key={link.id}
                         data-account-id={link.id}
                         onClick={() => loadAccountIntoForm(link)}
-                        className={`space-y-3 pt-2 pb-1 last:border-b-0 cursor-pointer ${
+                        className={`space-y-3 pt-2 pb-1 cursor-pointer ${
                           activeAccountId === link.id
-                            ? 'border-b border-[#14B8A6]/50 rounded-xl bg-[#14B8A6]/[0.04] px-3 pt-3'
-                            : focusedLinkId === link.id
-                              ? 'border-b border-[#14B8A6]/30 rounded-xl px-3 pt-3'
-                              : 'border-b border-[#1A1D1D]/40'
+                            ? /* The account in view, marked across its whole
+                                 row in grey — it is a selection, not a
+                                 warning. */
+                              'rounded-xl bg-[#17191A] border border-[#2A3032] px-3 pt-3 pb-3'
+                            : 'border-b border-[#1A1D1D]/40'
                         }`}
                       >
                         {/* The account's name, with the type it was given in
@@ -1339,7 +1360,6 @@ setLoading(true);
                               aria-label={`Amount for account ${idx + 1}`}
                               placeholder="0.00"
                               value={link.price ?? ''}
-                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
                                 const raw = e.target.value;
                                 handleUpdateAccountLink(
@@ -1359,7 +1379,6 @@ setLoading(true);
                             <select
                               aria-label={`Cycle for account ${idx + 1}`}
                               value={link.billing_cycle || ''}
-                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) =>
                                 handleUpdateAccountLink(link.id, 'billing_cycle', e.target.value)
                               }
@@ -1383,7 +1402,6 @@ setLoading(true);
                             <select
                               aria-label={`Category for account ${idx + 1}`}
                               value={link.category || ''}
-                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) =>
                                 handleUpdateAccountLink(link.id, 'category', e.target.value)
                               }
@@ -1410,7 +1428,6 @@ setLoading(true);
                               value={link.next_billing_date || ''}
                               min={MIN_DATE}
                               max={MAX_DATE}
-                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) =>
                                 handleUpdateAccountLink(link.id, 'next_billing_date', e.target.value)
                               }

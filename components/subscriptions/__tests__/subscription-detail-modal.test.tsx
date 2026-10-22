@@ -68,13 +68,14 @@ describe('the chooser between accounts', () => {
       />
     );
 
-    // Both accounts, each with its own amount and date.
+    // Both accounts, each with its own amount. The row is the account, its
+    // type and what it costs — nothing else.
     expect(screen.getByText('Personal')).toBeInTheDocument();
     expect(screen.getByText('Work')).toBeInTheDocument();
-    expect(screen.getAllByText(/1,600/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/2,400/).length).toBeGreaterThan(0);
-    expect(screen.getByText('2026-11-16')).toBeInTheDocument();
-    expect(screen.getByText('2027-02-01')).toBeInTheDocument();
+    expect(screen.getByText(/1,600/)).toBeInTheDocument();
+    expect(screen.getByText(/2,400/)).toBeInTheDocument();
+    expect(screen.getByText('Account 1')).toBeInTheDocument();
+    expect(screen.getByText('Account 2')).toBeInTheDocument();
 
     await user.click(screen.getByText('Work'));
 

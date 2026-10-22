@@ -1,6 +1,5 @@
 'use client';
 
-import { Calendar, CreditCard, Layers } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import {
   type AccountLink,
@@ -43,18 +42,15 @@ export default function AccountChooserModal({
     <Sheet
       open={isOpen}
       onClose={onClose}
-      size="sm"
+      size="lg"
       title={subscription.name}
-      description="This subscription has more than one account. Pick the one you want to see."
     >
-      <div className="space-y-1">
+      <div className="space-y-1 min-h-[220px]">
         {accounts.map((account, idx) => {
-          /* The account's own values, falling back to the subscription's for
+          /* The account's own amount, falling back to the subscription's for
              the accounts that were added before it carried its own. */
           const price = account.price ?? Number(subscription.price) ?? 0;
           const currency = account.currency || subscription.currency || 'USD';
-          const date = account.next_billing_date || subscription.next_billing_date;
-          const category = account.category || subscription.category;
 
           return (
             <button
@@ -64,36 +60,18 @@ export default function AccountChooserModal({
                 onClose();
                 onChoose(account);
               }}
-              className="w-full text-left py-3 px-1 border-b border-[#1A1D1D] last:border-b-0 hover:bg-[#0F1111] transition-colors cursor-pointer group"
+              className="w-full text-left py-4 px-1 hover:bg-[#0F1111] transition-colors cursor-pointer group"
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors">
-                  {account.label || 'Personal'}
+                  Account {idx + 1}
+                  <span className="ml-2 font-normal text-[#94A3B8]">
+                    {account.label || 'Personal'}
+                  </span>
                 </span>
                 <span className="text-sm font-bold text-[#F5F7F6]">
                   {formatCurrency(price, currency)}
                 </span>
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#94A3B8]">
-                {date && (
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar className="w-3 h-3 shrink-0" />
-                    {date}
-                  </span>
-                )}
-                {category && (
-                  <span className="inline-flex items-center gap-1">
-                    <Layers className="w-3 h-3 shrink-0" />
-                    {category}
-                  </span>
-                )}
-                {account.billing_cycle && (
-                  <span className="inline-flex items-center gap-1">
-                    <CreditCard className="w-3 h-3 shrink-0" />
-                    {account.billing_cycle}
-                  </span>
-                )}
-                <span className="text-[#64748B]">Account {idx + 1}</span>
               </div>
             </button>
           );

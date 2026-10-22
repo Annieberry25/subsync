@@ -1007,6 +1007,17 @@ export default function SubscriptionManager() {
         subscription={selectedDetailSub}
         isOpen={isDetailOpen}
         accountId={detailAccountId}
+        onBack={
+          /* Only a subscription with more than one account was opened from a
+             choice, so only it has somewhere to go back to. */
+          selectedDetailSub && hasMultipleAccounts(selectedDetailSub)
+            ? () => {
+                setIsDetailOpen(false);
+                setDetailAccountId(null);
+                setChooserSubscription(selectedDetailSub);
+              }
+            : undefined
+        }
         onClose={() => {
           setIsDetailOpen(false);
           setSelectedDetailSub(null);
@@ -1041,13 +1052,24 @@ export default function SubscriptionManager() {
           }
         }}
         onBack={
-          !editingSubscription?.id
-            ? () => {
+          editingSubscription?.id
+            ? /* Editing a subscription with more than one account: the form
+                 has a way back, because the place it was opened from is where
+                 the accounts are chosen between. */
+              hasMultipleAccounts(editingSubscription)
+              ? () => {
+                  setIsModalOpen(false);
+                  setEditingSubscription(null);
+                  setFocusAccountId(null);
+                  setChooserSubscription(editingSubscription);
+                }
+              : undefined
+            : () => {
                 setIsModalOpen(false);
                 setEditingSubscription(null);
+                setFocusAccountId(null);
                 setIsAddPathModalOpen(true);
               }
-            : undefined
         }
         onSave={handleSave}
         initialData={editingSubscription}
