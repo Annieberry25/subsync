@@ -720,11 +720,14 @@ describe('SubscriptionModal subscription accounts', () => {
     );
     await user.click(screen.getByRole('button', { name: /Add account link/ }));
 
-    // The box and the provider link sit on one line, and nothing else does.
+    // The box, the provider link, and the account's delete control share one
+    // line — and the delete control is the only button on it.
     const box = screen.getByLabelText(/Account URL/);
     const arrow = screen.getByRole('link', { name: /Open Netflix in a new tab/ });
+    const remove = screen.getByRole('button', { name: /Delete this account/ });
     expect(box.parentElement).toContainElement(arrow);
-    expect(box.parentElement?.querySelectorAll('button')).toHaveLength(0);
+    expect(box.parentElement).toContainElement(remove);
+    expect(box.parentElement?.querySelectorAll('button')).toHaveLength(1);
   });
 
   it('removes the account when the user deletes the link in the box', async () => {

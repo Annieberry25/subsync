@@ -530,8 +530,9 @@ export default function SubscriptionModal({
   /**
    * Removes the account in view.
    *
-   * The delete sits with the account's type, not on the account URL line: that
-   * line is for the link and for the provider's page.
+   * The delete sits on the account URL line, after the provider link — the
+   * account's link and the way to remove it are the same line. The account's
+   * type is not what gets deleted.
    */
   const handleRemoveAccountLink = (id: string) => {
     setAccountLinks((prev) => prev.filter((item) => item.id !== id));
@@ -1321,24 +1322,10 @@ setLoading(true);
                 has no field of its own. See handleNameChange. */}
 
             {/* Account Type. A field of the form, not a control under the
-                account links: it says what the account is for. The delete
-                sits beside it because it belongs to the account, and the
-                account URL line is for the link and the provider's page. */}
+                account links: it says what the account is for. The type is
+                not what gets deleted — the link is. */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-[13px] font-medium text-[#94A3B8]">Account Type</label>
-                {activeAccount && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveAccountLink(activeAccount.id)}
-                    className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                    title="Delete this account"
-                    aria-label="Delete this account"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+              <label className="text-[13px] font-medium text-[#94A3B8] block">Account Type</label>
               <select
                 aria-label="Account Type"
                 value={accountType}
@@ -1459,6 +1446,16 @@ setLoading(true);
                         <ExternalLink className="w-4 h-4" />
                       </button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAccountLink(activeAccount.id)}
+                      className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                      title="Delete this account"
+                      aria-label="Delete this account"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               )}
