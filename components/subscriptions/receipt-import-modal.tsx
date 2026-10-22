@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, ChevronLeft, AlertCircle, FileSearch } from 'lucide-react';
+import { ChevronLeft, AlertCircle, FileSearch } from 'lucide-react';
 import { CustomSelect } from '@/components/ui/custom-select';
 import Sheet from '@/components/ui/sheet';
+import ReceiptSourcePicker from '@/components/receipts/receipt-source-picker';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
-import { ACCEPT_ATTRIBUTE, TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
+import { TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
 
 export interface ExtractedReceiptData {
@@ -97,16 +98,9 @@ export default function ReceiptImportModal({
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
-    e.target.value = '';
-    if (selected.size > 10 * 1024 * 1024) {
-      scan.clearError();
-      return;
-    }
-    setFile(selected);
-    if (receiptText.trim()) setReceiptText('');
+  const handleFileChange = (next: File | null) => {
+    setFile(next);
+    if (next && receiptText.trim()) setReceiptText('');
   };
 
   const handleAnalyze = async () => {
@@ -150,7 +144,8 @@ export default function ReceiptImportModal({
       title="Import Subscription Receipt"
       description={
         <span className="text-xs">
-          Extract provider details from receipt files or text confirmation
+          Snap a photo of the receipt, upload a file, or paste the confirmation
+          text
         </span>
       }
       headerLeading={
@@ -208,29 +203,15 @@ export default function ReceiptImportModal({
         <div className="space-y-4 pt-1">
           {!reviewData ? (
             <>
-              {/* Step 1: Upload or Paste Receipt */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider block">
-                  1. Upload Receipt File (PDF, Text, Image)
-                </label>
-                <div className="relative border-2 border-dashed border-[#1A1D1D] hover:border-[#14B8A6] rounded-2xl p-4 text-center bg-[#0D0F0F]/50 transition-colors">
-                  <input
-                    type="file"
-                    accept={ACCEPT_ATTRIBUTE}
-                    onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <div className="flex flex-col items-center justify-center space-y-1.5 pointer-events-none">
-                    <Upload className="w-6 h-6 text-[#14B8A6]" />
-                    <span className="text-xs font-semibold text-[#F5F7F6]">
-                      {file ? `Selected: ${file.name}` : 'Click or drop subscription receipt here'}
-                    </span>
-                    <span className="text-[11px] text-[#94A3B8]">
-                      PDF invoices, screenshots, photos, or text files (max 10MB)
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {/* Step 1: Add a Receipt */}
+              <ReceiptSourcePicker
+                file={file}
+                onFileChange={handleFileChange}
+                /* A new source invalidates whatever the last scan complained
+                   about. */
+                onError={() => scan.clearError()}
+                label="1. Add a Receipt (Camera, Gallery, or File)"
+              />
 
               {scan.result && (
                 <div className="rounded-xl border border-[#1A1D1D] bg-[#0D0F0F] p-3">
