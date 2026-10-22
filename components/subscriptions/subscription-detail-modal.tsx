@@ -16,6 +16,14 @@ import { useToast } from '@/lib/hooks/use-toast';
 interface SubscriptionDetailModalProps {
   subscription: SubscriptionRow | null;
   isOpen: boolean;
+  /**
+   * The account the sheet is showing.
+   *
+   * A subscription can carry more than one account, and the detail of a
+   * subscription is the detail of one of them. The chooser form picks this
+   * one before the sheet opens.
+   */
+  accountId?: string | null;
   onClose: () => void;
   /** The account the user is looking at is passed back, so the form can open on it. */
   onEdit: (subscription: SubscriptionRow, accountId?: string) => void;
@@ -42,6 +50,7 @@ const _statusBadgeStyles: Record<string, { bg: string; text: string; label: stri
 export default function SubscriptionDetailModal({
   subscription,
   isOpen,
+  accountId,
   onClose,
   onEdit,
   onDeleteRequest,
@@ -55,31 +64,30 @@ export default function SubscriptionDetailModal({
    *
    * A subscription can have more than one account, and they are not the same
    * thing: a family plan and a work plan on the same service, or two
-   * logins on one subscription. The sheet shows them all, and this is the one
-   * the user is currently looking at — the one the Edit action opens.
+   * logins on one subscription. The sheet shows the one the chooser picked,
+   * and it is the one the Edit action opens.
    */
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(accountId ?? null);
 
   const accountLinks = useMemo(
     () => (subscription ? parseAccountLinks(subscription) : []),
     [subscription]
   );
 
-  /* A different subscription, or a different set of accounts, resets the
-     choice: the account that was in view on another row is not in view here. */
-  const accountKey = `${subscription?.id ?? ''}:${accountLinks.map((l) => l.id).join(',')}`;
+  /* A different subscription, a different set of accounts, or a different
+     account being chosen, resets the choice to the one asked for. */
+  const accountKey = `${subscription?.id ?? ''}:${accountId ?? ''}:${accountLinks
+    .map((l) => l.id)
+    .join(',')}`;
   const [prevAccountKey, setPrevAccountKey] = useState(accountKey);
   if (prevAccountKey !== accountKey) {
     setPrevAccountKey(accountKey);
-    if (selectedAccountId !== null) setSelectedAccountId(null);
+    setSelectedAccountId(accountId ?? null);
   }
 
   if (!subscription) return null;
 
   const priceNum = Number(subscription.price) || 0;
-  const formattedPrice = formatCurrency(priceNum, subscription.currency);
-  const annualCost = calculateAnnualCost(priceNum, subscription.billing_cycle);
-  const formattedAnnualCost = formatCurrency(annualCost, subscription.currency);
   const attachedReceipts = parseAttachedReceipts(subscription);
   const cleanNotes = cleanNotesUserText(subscription.notes);
 
@@ -87,6 +95,21 @@ export default function SubscriptionDetailModal({
      on a subscription with accounts always shows one of them. */
   const selectedLink =
     accountLinks.find((link) => link.id === selectedAccountId) ?? accountLinks[0] ?? null;
+
+  /* The account's own values, falling back to the subscription's for the
+     accounts that were added before it carried its own. */
+  const shownPrice = selectedLink?.price ?? priceNum;
+  const shownCurrency = selectedLink?.currency || subscription.currency || 'USD';
+  const shownCycle = selectedLink?.billing_cycle || subscription.billing_cycle;
+  const shownCategory = selectedLink?.category || subscription.category;
+  const shownNextDate = selectedLink?.next_billing_date || subscription.next_billing_date;
+  const shownStartDate = selectedLink?.start_date || subscription.start_date;
+
+  const formattedPrice = formatCurrency(shownPrice, shownCurrency);
+  const formattedAnnualCost = formatCurrency(
+    calculateAnnualCost(shownPrice, shownCycle),
+    shownCurrency
+  );
 
   const rawProviderUrl = subscription.provider_url ? subscription.provider_url.trim() : '';
   const activeProviderUrl = rawProviderUrl
@@ -110,16 +133,16 @@ export default function SubscriptionDetailModal({
     return isNaN(parsed.getTime()) ? null : parsed;
   };
 
-  const rawNextDateObj = parseLocalDate(subscription.next_billing_date);
+  const rawNextDateObj = parseLocalDate(shownNextDate);
   const nextDate = rawNextDateObj || today;
   const diffTime = nextDate.getTime() - today.getTime();
   const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
   const formattedNextDate = rawNextDateObj
     ? rawNextDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : subscription.next_billing_date;
+    : shownNextDate;
 
   // Calculate start/created date
-  const rawStartDateObj = parseLocalDate(subscription.start_date || subscription.created_at);
+  const rawStartDateObj = parseLocalDate(shownStartDate || subscription.created_at);
   const formattedStartDate = rawStartDateObj
     ? rawStartDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
@@ -199,49 +222,12 @@ export default function SubscriptionDetailModal({
       onClose={onClose}
       size="lg"
       title={subscription.name}
-      description={`${subscription.billing_cycle} billing`}
+      description={`${shownCycle} billing`}
       footer={actions}
     >
-        {/* Which account. Only when there is a choice to make: one account is
-            not a choice, and a box offering one option is noise. */}
-        {accountLinks.length > 1 && (
-          <div
-            className="mb-4 p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]"
-            data-testid="account-chooser"
-          >
-            <p className="text-[11px] text-[#9CA3AF] mb-2">
-              This subscription has {accountLinks.length} accounts. Pick the one you want to look at
-              and edit.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {accountLinks.map((link, idx) => {
-                const isSelected = selectedLink?.id === link.id;
-                /* Two accounts can share a type — two family plans, two work
-                   logins — so the number is only added when the type alone
-                   would not tell them apart. */
-                const sameType = accountLinks.filter(
-                  (other) => (other.label || 'Personal') === (link.label || 'Personal')
-                ).length;
-                const typeLabel = link.label || 'Personal';
-                return (
-                  <button
-                    key={link.id}
-                    type="button"
-                    onClick={() => setSelectedAccountId(link.id)}
-                    aria-pressed={isSelected}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer border ${
-                      isSelected
-                        ? 'bg-[#14B8A6]/15 border-[#14B8A6]/40 text-[#F5F7F6]'
-                        : 'bg-[#131617] border-[#1F2425] text-[#9CA3AF] hover:text-[#F5F7F6]'
-                    }`}
-                  >
-                    {sameType > 1 ? `${typeLabel} ${idx + 1}` : typeLabel}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* The account in view was picked in the chooser form, before this
+            sheet opened. There is nothing to choose here: this is the detail
+            of one account. */}
 
         {/* 6 Detailed Sections Grid. The Sheet body owns the scroll. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -253,7 +239,7 @@ export default function SubscriptionDetailModal({
             </div>
             <div>
               <span className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">{formattedPrice}</span>
-              <span className="text-xs text-[#9CA3AF] ml-1.5">/ {subscription.billing_cycle}</span>
+              <span className="text-xs text-[#9CA3AF] ml-1.5">/ {shownCycle}</span>
             </div>
             <div className="pt-2 border-t border-[#1F2425] flex items-center justify-between text-xs text-[#9CA3AF]">
               <span>Estimated Annual Total:</span>
@@ -282,7 +268,7 @@ export default function SubscriptionDetailModal({
             </div>
             {formattedStartDate && (
               <div className="pt-2 border-t border-[#1F2425] flex items-center justify-between text-xs text-[#9CA3AF]">
-                <span>{subscription.start_date ? 'Start Date:' : 'Created Date:'}</span>
+                <span>{shownStartDate ? 'Start Date:' : 'Created Date:'}</span>
                 <strong className="text-[#F5F7F6] font-medium">{formattedStartDate}</strong>
               </div>
             )}
@@ -303,7 +289,7 @@ export default function SubscriptionDetailModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
               <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
                 <span className="text-[#9CA3AF]">Category</span>
-                <span className="text-[#F5F7F6] font-semibold">{subscription.category}</span>
+                <span className="text-[#F5F7F6] font-semibold">{shownCategory}</span>
               </div>
               <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
                 <span className="text-[#9CA3AF]">Official Provider Website</span>
@@ -409,7 +395,7 @@ export default function SubscriptionDetailModal({
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-bold text-[#F5F7F6] block">{formattedPrice}</span>
-                  <span className="text-[11px] text-[#9CA3AF] capitalize">{subscription.billing_cycle}</span>
+                  <span className="text-[11px] text-[#9CA3AF] capitalize">{shownCycle}</span>
                 </div>
               </div>
             </div>

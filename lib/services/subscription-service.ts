@@ -18,6 +18,22 @@ export interface AccountLink {
   label?: string;
   url: string;
   email?: string;
+  /**
+   * What this account costs, when it is not the same as the subscription's.
+   *
+   * A subscription can carry more than one account — a personal plan and a
+   * family plan on the same service — and each of them can be a different
+   * amount on a different day. These are the account's own values; an account
+   * without them follows the subscription's.
+   */
+  price?: number;
+  currency?: string;
+  category?: string;
+  billing_cycle?: string;
+  next_billing_date?: string;
+  start_date?: string;
+  status?: string;
+  notes?: string;
 }
 
 export interface AttachedReceipt {
@@ -321,6 +337,15 @@ export function parseAccountLinks(subscription: SubscriptionRow | null | undefin
         label: link.label || 'Personal',
         url: link.url || '',
         email: link.email || '',
+        /* The account's own values, when it has them. */
+        price: link.price,
+        currency: link.currency,
+        category: link.category,
+        billing_cycle: link.billing_cycle,
+        next_billing_date: link.next_billing_date,
+        start_date: link.start_date,
+        status: link.status,
+        notes: link.notes,
       }));
   };
 

@@ -13,6 +13,7 @@ import {
   filterActiveSubscriptions,
   isOverdueSubscription,
   isSubscriptionDeleted,
+  hasMultipleAccounts,
   type SubscriptionRow,
   type SubscriptionInsert,
   type SubscriptionUpdate
@@ -27,6 +28,7 @@ import { describeLeadMinutes } from '@/lib/reminders/plan';
 import SubscriptionCard from './subscription-card';
 import SubscriptionTable from './subscription-table';
 import SubscriptionDetailModal from './subscription-detail-modal';
+import AccountChooserModal from './account-chooser-modal';
 import SubscriptionModal from './subscription-modal';
 import AddSubscriptionModal from './add-subscription-modal';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
@@ -82,6 +84,12 @@ export default function SubscriptionManager() {
   // Detail View Modal state
   const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  /** The subscription whose accounts are being chosen between. */
+  const [chooserSubscription, setChooserSubscription] = useState<SubscriptionRow | null>(null);
+
+  /** The account the detail sheet is showing. */
+  const [detailAccountId, setDetailAccountId] = useState<string | null>(null);
 
   /**
    * A deep link that resolves to a deleted row.
@@ -666,7 +674,17 @@ export default function SubscriptionManager() {
   );
   const hasMore = filteredSubscriptions.length > visibleCount;
 
+  /**
+   * A subscription with more than one account has no single detail to show:
+   * the detail belongs to one of its accounts. Clicking it opens the chooser,
+   * and the account picked there is the one the detail sheet opens on.
+   */
   const handleSelectSubscription = useCallback((item: SubscriptionRow) => {
+    if (hasMultipleAccounts(item)) {
+      setChooserSubscription(item);
+      return;
+    }
+    setDetailAccountId(null);
     setSelectedDetailSub(item);
     setIsDetailOpen(true);
   }, []);
@@ -969,10 +987,26 @@ export default function SubscriptionManager() {
 
 
 
+      {/* The accounts of a subscription, and the choice between them. */}
+      <AccountChooserModal
+        subscription={chooserSubscription}
+        isOpen={!!chooserSubscription}
+        onClose={() => setChooserSubscription(null)}
+        onChoose={(account) => {
+          const target = chooserSubscription;
+          setChooserSubscription(null);
+          if (!target) return;
+          setDetailAccountId(account.id);
+          setSelectedDetailSub(target);
+          setIsDetailOpen(true);
+        }}
+      />
+
       {/* Subscription Detail View Modal */}
       <SubscriptionDetailModal
         subscription={selectedDetailSub}
         isOpen={isDetailOpen}
+        accountId={detailAccountId}
         onClose={() => {
           setIsDetailOpen(false);
           setSelectedDetailSub(null);

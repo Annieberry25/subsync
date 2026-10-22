@@ -232,6 +232,16 @@ export default function SubscriptionModal({
   const [providerUrl, setProviderUrl] = useState('');
   const [isUserEditedUrl, setIsUserEditedUrl] = useState(false);
   const [accountLinks, setAccountLinks] = useState<AccountLink[]>([]);
+  /**
+   * The account the form is working on.
+   *
+   * Each account carries its own details — its own type, amount, cycle,
+   * category and renewal date — because a personal plan and a work plan on
+   * the same service are not the same subscription. The main fields describe
+   * the account in view, and the account rows carry the rest.
+   */
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
+
   const [notes, setNotes] = useState('');
 
   /*
@@ -423,6 +433,17 @@ export default function SubscriptionModal({
         // using yet when the form has not been filled in.
         label: accountType || nextAccountType(prev),
         /*
+         * The account starts with the details the form is holding, which is
+         * what the user is looking at when they add it.
+         */
+        price: price ? Number(price) : undefined,
+        currency: currency || undefined,
+        billing_cycle: billingCycle || undefined,
+        category: category || undefined,
+        status: status || undefined,
+        start_date: startDate || undefined,
+        next_billing_date: nextBillingDate || undefined,
+        /*
          * Empty on purpose.
          *
          * This box is for the user's own account link. The provider's link is
@@ -432,32 +453,64 @@ export default function SubscriptionModal({
         url: '',
       },
     ]);
+    /* The new account is the one the form works on next. */
+    setActiveAccountId(`link-${Date.now()}`);
   };
 
-  const handleUpdateAccountLink = (id: string, field: string, value: string | boolean) => {
+  const handleUpdateAccountLink = (
+    id: string,
+    field: string,
+    value: string | boolean | number | undefined
+  ) => {
     setAccountLinks((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      prev.map((item) =>
+        item.id === id ? ({ ...item, [field]: value } as AccountLink) : item
+      )
     );
   };
 
   const handleRemoveAccountLink = (id: string) => {
     setAccountLinks((prev) => prev.filter((item) => item.id !== id));
+    setActiveAccountId((current) => (current === id ? null : current));
   };
 
   /**
-   * Changes the type of the account being added.
+   * Puts an account's own details into the main fields.
+   *
+   * The main fields describe the account in view, so selecting an account row
+   * brings up what that account costs and when it renews — not the
+   * subscription's, which is a different thing once there is more than one.
+   */
+  const loadAccountIntoForm = (link: AccountLink) => {
+    setActiveAccountId(link.id);
+    setAccountType(link.label || 'Personal');
+    setPrice(link.price !== undefined ? String(link.price) : price);
+    setCurrency(link.currency || currency);
+    setBillingCycle((link.billing_cycle as typeof billingCycles[number]) || billingCycle);
+    setCategory((link.category as typeof categories[number]) || category);
+    setStatus((link.status as typeof statuses[number]) || status);
+    setStartDate(link.start_date || startDate);
+    setNextBillingDate(link.next_billing_date || nextBillingDate);
+  };
+
+  /**
+   * Changes the type of the account in view.
    *
    * The type belongs to the account, and the form holds one of them, so
-   * changing it renames the account that was added last. That way the choice
-   * is made in the form rather than in a control tucked under the links.
+   * changing it renames the account the form is working on. That way the
+   * choice is made in the form rather than in a control tucked under the
+   * links.
    */
   const handleAccountTypeChange = (value: string) => {
     setAccountType(value);
     if (fieldErrors.accountType) setFieldErrors((prev) => ({ ...prev, accountType: undefined }));
     setAccountLinks((prev) => {
       if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      return prev.map((link) => (link.id === last.id ? { ...link, label: value } : link));
+      /* The account in view, or the one that was added last when the form is
+         not on an account yet. */
+      const target =
+        prev.find((link) => link.id === activeAccountId) ?? prev[prev.length - 1];
+      return prev.map((link) => (link.id === target.id ? { ...link, label: value } : link));
     });
   };
 
@@ -644,6 +697,51 @@ setLoading(true);
       (link) => (link.label && link.label.trim().length > 0) || (link.url && link.url.trim().length > 0)
     );
 
+    /*
+     * The account in view takes the details the form is holding.
+     *
+     * The main fields describe one account, and the account rows carry the
+     * rest, so what the user typed belongs to the account they are on.
+     */
+    const accountsWithFormValues = activeAccountId
+      ? validAccountLinks.map((link) =>
+          link.id === activeAccountId
+            ? {
+                ...link,
+                price: parsedPrice,
+                currency,
+                billing_cycle: billingCycle,
+                category,
+                status,
+                start_date: startDate || undefined,
+                next_billing_date: nextBillingDate || undefined,
+              }
+            : link
+        )
+      : validAccountLinks;
+
+    /*
+     * The row's own values come from its accounts.
+     *
+     * The amount is what all of them cost together — two accounts on one
+     * service are two charges — and the renewal date is the soonest of them,
+     * which is the next one to warn about. Without accounts the row is what
+     * the form says, as before.
+     */
+    const accountAmounts = accountsWithFormValues
+      .map((link) => link.price)
+      .filter((value): value is number => typeof value === 'number' && !isNaN(value));
+    const accountDates = accountsWithFormValues
+      .map((link) => link.next_billing_date)
+      .filter((value): value is string => Boolean(value))
+      .sort();
+    const firstAccount = accountsWithFormValues[0];
+
+    const rowPrice = accountAmounts.length > 0
+      ? accountAmounts.reduce((sum, value) => sum + value, 0)
+      : parsedPrice;
+    const rowNextBillingDate = accountDates.length > 0 ? accountDates[0] : nextBillingDate;
+
     // Rebuild the notes metadata blocks from the row being edited. The form
     // only holds the user-visible text, so without this an ordinary edit would
     // strip [AttachedReceipts: ...] and [HistoryState: ...] — silently erasing
@@ -663,26 +761,32 @@ setLoading(true);
       const savedId = await onSave(
         {
           name: name.trim(),
-          price: parsedPrice,
-          currency,
+          price: rowPrice,
+          currency: firstAccount?.currency || currency,
           /*
            * The four choices are required and validateForm has already refused
            * the save if any of them is empty, so the cast is the compiler being
            * told something it cannot see.
            */
-          billing_cycle: billingCycle as typeof billingCycles[number],
-          category: category as typeof categories[number],
-          status: status as typeof statuses[number],
+          billing_cycle:
+            (firstAccount?.billing_cycle as typeof billingCycles[number]) ||
+            (billingCycle as typeof billingCycles[number]),
+          category:
+            (firstAccount?.category as typeof categories[number]) ||
+            (category as typeof categories[number]),
+          status:
+            (firstAccount?.status as typeof statuses[number]) ||
+            (status as typeof statuses[number]),
           start_date: startDate ? startDate : null,
           /*
            * The form has no end date any more, so the value on the row is
            * carried through untouched rather than being quietly cleared.
            */
           end_date: saveTarget ? saveTarget.end_date ?? null : null,
-          next_billing_date: nextBillingDate,
+          next_billing_date: rowNextBillingDate,
           payment_method: null,
           provider_url: providerUrl.trim() || null,
-          account_links: validAccountLinks,
+          account_links: accountsWithFormValues,
           notes: formattedNotes,
         },
         saveTarget?.id
@@ -1185,10 +1289,13 @@ setLoading(true);
                       <div
                         key={link.id}
                         data-account-id={link.id}
-                        className={`space-y-3 pt-2 pb-1 last:border-b-0 ${
-                          focusedLinkId === link.id
+                        onClick={() => loadAccountIntoForm(link)}
+                        className={`space-y-3 pt-2 pb-1 last:border-b-0 cursor-pointer ${
+                          activeAccountId === link.id
                             ? 'border-b border-[#14B8A6]/50 rounded-xl bg-[#14B8A6]/[0.04] px-3 pt-3'
-                            : 'border-b border-[#1A1D1D]/40'
+                            : focusedLinkId === link.id
+                              ? 'border-b border-[#14B8A6]/30 rounded-xl px-3 pt-3'
+                              : 'border-b border-[#1A1D1D]/40'
                         }`}
                       >
                         {/* The account's name, with the type it was given in
@@ -1205,13 +1312,111 @@ setLoading(true);
 
                           <button
                             type="button"
-                            onClick={() => handleRemoveAccountLink(link.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveAccountLink(link.id);
+                            }}
                             className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                             title="Delete account row"
                             aria-label="Delete account row"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                        </div>
+
+                        {/* The account's own details. Each account is its own
+                            thing: a personal plan and a work plan on the same
+                            service cost different amounts and renew on
+                            different days. */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-[#64748B] block">
+                              Amount
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              aria-label={`Amount for account ${idx + 1}`}
+                              placeholder="0.00"
+                              value={link.price ?? ''}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                handleUpdateAccountLink(
+                                  link.id,
+                                  'price',
+                                  raw === '' ? undefined : Number(raw)
+                                );
+                              }}
+                              className="w-full h-9 px-3 py-2 text-xs rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-[#64748B] block">
+                              Cycle
+                            </label>
+                            <select
+                              aria-label={`Cycle for account ${idx + 1}`}
+                              value={link.billing_cycle || ''}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) =>
+                                handleUpdateAccountLink(link.id, 'billing_cycle', e.target.value)
+                              }
+                              className="w-full h-9 !pl-3 !pr-8 py-2 text-xs rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                            >
+                              <option value="" disabled className="bg-[#0D0F0F] text-[#64748B]">
+                                Cycle
+                              </option>
+                              {billingCycles.map((c) => (
+                                <option key={c} value={c} className="bg-[#0D0F0F] text-[#F5F7F6] capitalize">
+                                  {c}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-[#64748B] block">
+                              Category
+                            </label>
+                            <select
+                              aria-label={`Category for account ${idx + 1}`}
+                              value={link.category || ''}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) =>
+                                handleUpdateAccountLink(link.id, 'category', e.target.value)
+                              }
+                              className="w-full h-9 !pl-3 !pr-8 py-2 text-xs rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                            >
+                              <option value="" disabled className="bg-[#0D0F0F] text-[#64748B]">
+                                Category
+                              </option>
+                              {categories.map((c) => (
+                                <option key={c} value={c} className="bg-[#0D0F0F] text-[#F5F7F6]">
+                                  {c}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-[#64748B] block">
+                              Renews
+                            </label>
+                            <input
+                              type="date"
+                              aria-label={`Renewal date for account ${idx + 1}`}
+                              value={link.next_billing_date || ''}
+                              min={MIN_DATE}
+                              max={MAX_DATE}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) =>
+                                handleUpdateAccountLink(link.id, 'next_billing_date', e.target.value)
+                              }
+                              className="w-full h-9 px-3 py-2 text-xs rounded-lg bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                            />
+                          </div>
                         </div>
 
                         {/* Account URL */}

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
+import AccountChooserModal from '@/components/subscriptions/account-chooser-modal';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 
 vi.mock('@/lib/hooks/use-toast', () => ({
@@ -22,11 +23,31 @@ const twoAccounts: SubscriptionRow = {
   end_date: null,
   next_billing_date: '2026-11-16',
   payment_method: null,
-  provider_url: 'https://spotify.com',
+  provider_url: null,
   notes: null,
   account_links: [
-    { id: 'link-1', label: 'Personal', url: 'https://spotify.com/personal', email: '' },
-    { id: 'link-2', label: 'Family', url: 'https://spotify.com/family', email: '' },
+    {
+      id: 'link-1',
+      label: 'Personal',
+      url: 'https://spotify.com/personal',
+      email: '',
+      price: 1600,
+      currency: 'NGN',
+      category: 'Streaming',
+      billing_cycle: 'monthly',
+      next_billing_date: '2026-11-16',
+    },
+    {
+      id: 'link-2',
+      label: 'Work',
+      url: 'https://spotify.com/work',
+      email: '',
+      price: 2400,
+      currency: 'NGN',
+      category: 'Software',
+      billing_cycle: 'yearly',
+      next_billing_date: '2027-02-01',
+    },
   ],
   receipts: null,
   is_synced: true,
@@ -34,53 +55,90 @@ const twoAccounts: SubscriptionRow = {
   updated_at: '2026-01-01T00:00:00.000Z',
 };
 
-describe('detail modal with two accounts', () => {
-  it('offers both accounts and shows the selected one', async () => {
+describe('the chooser between accounts', () => {
+  it('lists the accounts with their own details and hands the chosen one back', async () => {
     const user = userEvent.setup();
-    const onEdit = vi.fn();
+    const onChoose = vi.fn();
+    render(
+      <AccountChooserModal
+        subscription={twoAccounts}
+        isOpen
+        onClose={vi.fn()}
+        onChoose={onChoose}
+      />
+    );
+
+    // Both accounts, each with its own amount and date.
+    expect(screen.getByText('Personal')).toBeInTheDocument();
+    expect(screen.getByText('Work')).toBeInTheDocument();
+    expect(screen.getAllByText(/1,600/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/2,400/).length).toBeGreaterThan(0);
+    expect(screen.getByText('2026-11-16')).toBeInTheDocument();
+    expect(screen.getByText('2027-02-01')).toBeInTheDocument();
+
+    await user.click(screen.getByText('Work'));
+
+    expect(onChoose).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'link-2', label: 'Work', price: 2400 })
+    );
+  });
+});
+
+describe('the detail sheet of one account', () => {
+  it('shows the details of the account it was opened on', () => {
     render(
       <SubscriptionDetailModal
         subscription={twoAccounts}
         isOpen
-        onClose={vi.fn()}
-        onEdit={onEdit}
-        onDeleteRequest={vi.fn()}
-      />
-    );
-
-    // The small chooser lists every account on the subscription.
-    const chooser = await screen.findByTestId('account-chooser');
-    expect(chooser).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Personal' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Family' })).toBeInTheDocument();
-
-    // The first one is what the sheet opens on.
-    expect(screen.getByText('Account Type')).toBeInTheDocument();
-    expect(screen.getByTestId('account-type-value')).toHaveTextContent('Personal');
-
-    // Choosing the other one shows that one instead.
-    await user.click(screen.getByRole('button', { name: 'Family' }));
-    await waitFor(() =>
-      expect(screen.getByTestId('account-type-value')).toHaveTextContent('Family')
-    );
-
-    // And the edit action opens on the account that was in view.
-    await user.click(screen.getByRole('button', { name: 'Edit Subscription' }));
-    expect(onEdit).toHaveBeenCalledWith(twoAccounts, 'link-2');
-  });
-
-  it('does not offer a chooser when there is only one account', async () => {
-    render(
-      <SubscriptionDetailModal
-        subscription={{ ...twoAccounts, account_links: [twoAccounts.account_links![0]] }}
-        isOpen
+        accountId="link-2"
         onClose={vi.fn()}
         onEdit={vi.fn()}
         onDeleteRequest={vi.fn()}
       />
     );
 
-    expect(screen.queryByTestId('account-chooser')).not.toBeInTheDocument();
-    expect(screen.getByText('Account Type')).toBeInTheDocument();
+    // The work account's own amount, cycle, category and date.
+    expect(screen.getByTestId('account-type-value')).toHaveTextContent('Work');
+    expect(screen.getAllByText(/2,400/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('February 1, 2027').length).toBeGreaterThan(0);
+    expect(screen.getByText('Software')).toBeInTheDocument();
+  });
+
+  it('shows the other account when that is the one it was opened on', () => {
+    render(
+      <SubscriptionDetailModal
+        subscription={twoAccounts}
+        isOpen
+        accountId="link-1"
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onDeleteRequest={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('account-type-value')).toHaveTextContent('Personal');
+    expect(screen.getAllByText(/1,600/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('November 16, 2026').length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the subscription for an account that carries no details of its own', () => {
+    const withoutOwnValues: SubscriptionRow = {
+      ...twoAccounts,
+      account_links: [{ id: 'link-1', label: 'Personal', url: '', email: '' }],
+    };
+
+    render(
+      <SubscriptionDetailModal
+        subscription={withoutOwnValues}
+        isOpen
+        accountId="link-1"
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onDeleteRequest={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('account-type-value')).toHaveTextContent('Personal');
+    expect(screen.getAllByText(/1,600/).length).toBeGreaterThan(0);
   });
 });
