@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Link2, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Trash2, ChevronLeft, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow, 
   type SubscriptionInsert,
   type AccountLink,
   getKnownProviderWebsite,
-  getKnownProviderAccountUrl,
   parseAccountLinks,
   cleanNotesUserText,
   formatNotesWithAccountLinks,
@@ -17,11 +16,12 @@ import {
 } from '@/lib/services/subscription-service';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
-import { CustomSelect } from '@/components/ui/custom-select';
+
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import { hasReachedAccountLinkCap } from '@/lib/constants/plan-limits';
 import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
+import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
 
 interface SubscriptionModalProps {
@@ -45,6 +45,14 @@ interface SubscriptionModalProps {
    * the totals and the reminders wrong.
    */
   existingSubscriptions?: SubscriptionRow[];
+  /**
+   * The account the form should open on.
+   *
+   * Set when the user came from the detail sheet, where they had picked which
+   * account they wanted. The row is ringed and scrolled into view, so the edit
+   * starts where the eye already was.
+   */
+  focusAccountId?: string | null;
 }
 
 const categories = ['Streaming', 'Software', 'Utilities', 'Fitness', 'Finance', 'Education', 'Gaming', 'Other'] as const;
@@ -64,6 +72,12 @@ interface FieldErrors {
   name?: string;
   price?: string;
   date?: string;
+  startDate?: string;
+  currency?: string;
+  cycle?: string;
+  category?: string;
+  status?: string;
+  accountType?: string;
 }
 
 function validateName(value: string): string | undefined {
@@ -82,6 +96,10 @@ function validateDate(value: string): string | undefined {
   return value ? undefined : 'Next billing date is required.';
 }
 
+function validateChoice(value: string, label: string): string | undefined {
+  return value ? undefined : `${label} is required.`;
+}
+
 /**
  * A unique id for a seeded account row.
  *
@@ -98,6 +116,86 @@ function nextAccountLinkId(existing: AccountLink[]): string {
     suffix += 1;
   }
   return id;
+}
+
+/**
+ * Fills in what an account does not carry from the subscription it belongs to.
+ *
+ * Only for a subscription with one account: then the account and the
+ * subscription are the same thing, so the account's boxes show what the
+ * subscription says. Once there are several accounts the row's amount is their
+ * total and the row's date is the soonest of them, so neither belongs to any
+ * single one of them — and an account that was never given a value of its own
+ * shows an empty box rather than a figure nobody entered.
+ */
+function withRowDefaults(links: AccountLink[], row: SubscriptionRow): AccountLink[] {
+  /* Only a subscription with one account can lend its values to that account:
+     once there are several, the row's amount is their total and the row's date
+     is the soonest of them, so neither belongs to any single one of them. */
+  if (links.length !== 1) return links;
+
+  return links.map((link) => ({
+    ...link,
+    price: link.price ?? (Number(row.price) || undefined),
+    currency: link.currency || row.currency || undefined,
+    billing_cycle: link.billing_cycle || row.billing_cycle || undefined,
+    category: link.category || row.category || undefined,
+    status: link.status || row.status || undefined,
+    start_date: link.start_date || row.start_date || undefined,
+    next_billing_date: link.next_billing_date || row.next_billing_date || undefined,
+  }));
+}
+
+/**
+ * The next billing date, one cycle after a date.
+ *
+ * Done in UTC because a renewal date is a date, not a moment: doing it in
+ * local time moved a renewal by a day for anyone east or west of Greenwich,
+ * and a reminder that fires on the wrong day is the whole product failing.
+ *
+ * The day is clamped to the end of the month, so the 31st of January renews
+ * on the 28th or 29th of February rather than rolling into March.
+ */
+function addCycleToDate(isoDate: string, cycle: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  if (!year || !month || !day) return '';
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (cycle === 'yearly') {
+    const lastDay = new Date(
+      Date.UTC(date.getUTCFullYear() + 1, date.getUTCMonth() + 1, 0)
+    ).getUTCDate();
+    date.setUTCDate(1);
+    date.setUTCFullYear(date.getUTCFullYear() + 1);
+    date.setUTCDate(Math.min(day, lastDay));
+    return date.toISOString().split('T')[0];
+  }
+
+  if (cycle === 'quarterly') {
+    const targetMonth = date.getUTCMonth() + 3;
+    const lastDay = new Date(
+      Date.UTC(date.getUTCFullYear(), targetMonth + 1, 0)
+    ).getUTCDate();
+    date.setUTCDate(1);
+    date.setUTCMonth(targetMonth);
+    date.setUTCDate(Math.min(day, lastDay));
+    return date.toISOString().split('T')[0];
+  }
+
+  if (cycle === 'weekly') {
+    date.setUTCDate(date.getUTCDate() + 7);
+    return date.toISOString().split('T')[0];
+  }
+
+  const targetMonth = date.getUTCMonth() + 1;
+  const lastDay = new Date(
+    Date.UTC(date.getUTCFullYear(), targetMonth + 1, 0)
+  ).getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(targetMonth);
+  date.setUTCDate(Math.min(day, lastDay));
+  return date.toISOString().split('T')[0];
 }
 
 function formatDateInput(date: Date): string {
@@ -121,29 +219,84 @@ export default function SubscriptionModal({
   pendingReceiptFile,
   onRequireUpgrade,
   existingSubscriptions = [],
+  focusAccountId = null,
 }: SubscriptionModalProps) {
   const { toast } = useToast();
   const { planTier } = usePlan();
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [currency, setCurrency] = useState('USD');
-  const [billingCycle, setBillingCycle] = useState<typeof billingCycles[number]>('monthly');
-  const [category, setCategory] = useState<typeof categories[number]>('Streaming');
-  const [status, setStatus] = useState<typeof statuses[number]>('active');
+  /*
+   * These four start empty on purpose.
+   *
+   * A default the user never chose is a value the user never entered: the
+   * currency, the cycle, the category and the status are all things they have
+   * an opinion about, and a silently assumed one is how a subscription ends up
+   * filed under the wrong category and billed on the wrong day. They are
+   * required, and the form says which one is missing.
+   *
+   * When the name matches a subscription that is already tracked, they are
+   * filled in from that row instead — see carryOverFrom.
+   */
+  const [currency, setCurrency] = useState('');
+  const [billingCycle, setBillingCycle] = useState<typeof billingCycles[number] | ''>('');
+  const [category, setCategory] = useState<typeof categories[number] | ''>('');
+  const [status, setStatus] = useState<typeof statuses[number] | ''>('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [nextBillingDate, setNextBillingDate] = useState('');
   const [providerUrl, setProviderUrl] = useState('');
   const [isUserEditedUrl, setIsUserEditedUrl] = useState(false);
   const [accountLinks, setAccountLinks] = useState<AccountLink[]>([]);
+  /**
+   * The account the form is working on.
+   *
+   * Each account carries its own details — its own type, amount, cycle,
+   * category and renewal date — because a personal plan and a work plan on
+   * the same service are not the same subscription. The main fields describe
+   * the account in view, and the account rows carry the rest.
+   */
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
+
   const [notes, setNotes] = useState('');
+
+  /*
+   * The note the row already had, kept out of the box.
+   *
+   * The notes box is for the user to write in, so it opens empty in every
+   * form. The text that was already there is still saved when the box is left
+   * empty, so editing a price never quietly deletes a note — and what the
+   * user did write replaces it.
+   */
+  const [existingNotesText, setExistingNotesText] = useState('');
+
+  /*
+   * The type of the account being added.
+   *
+   * It is a field of the form rather than a control buried under the account
+   * links, because it is something the user chooses about the account, not
+   * about a link. It applies to the account that is added next, and changing
+   * it afterwards renames the account that was added last.
+   */
+  const [accountType, setAccountType] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const [prevInitialData, setPrevInitialData] = useState(initialData);
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  /**
+   * Which row the form is on, and which version of it.
+   *
+   * The form resets when the row it is editing changes on the server, not
+   * when the object it was handed happens to be a new one. A list refresh —
+   * which happens whenever a subscription is written anywhere, including in
+   * another tab — used to hand the form a new object and wipe whatever the
+   * user had typed into it.
+   */
+  const initialKey = initialData
+    ? `${initialData.id}:${initialData.updated_at ?? ''}`
+    : null;
+  const [prevInitialKey, setPrevInitialKey] = useState<string | null>(null);
 
   /**
    * The subscription the typed name already belongs to.
@@ -155,9 +308,9 @@ export default function SubscriptionModal({
    */
   const [duplicateOf, setDuplicateOf] = useState<SubscriptionRow | null>(null);
 
-  if (isOpen !== prevIsOpen || initialData !== prevInitialData) {
+  if (isOpen !== prevIsOpen || initialKey !== prevInitialKey) {
     setPrevIsOpen(isOpen);
-    setPrevInitialData(initialData);
+    setPrevInitialKey(initialKey);
     if (initialData) {
       setName(initialData.name);
       setPrice(initialData.price.toString());
@@ -166,31 +319,57 @@ export default function SubscriptionModal({
       setCategory(initialData.category as typeof categories[number]);
       setStatus(initialData.status as typeof statuses[number]);
       setStartDate(initialData.start_date || '');
-      setEndDate(initialData.end_date || '');
       setNextBillingDate(initialData.next_billing_date);
       
       const actualProviderUrl = initialData.provider_url ? initialData.provider_url.trim() : '';
       setProviderUrl(actualProviderUrl);
       setIsUserEditedUrl(Boolean(actualProviderUrl));
       
-      setAccountLinks(parseAccountLinks(initialData));
-      setNotes(cleanNotesUserText(initialData.notes));
+      const links = withRowDefaults(parseAccountLinks(initialData), initialData);
+      /* The account the form opens on: the one the user came from, or the
+         first one. Its type is what the Account Type box shows, and its
+         amount and date are what the main fields show — the main fields
+         describe the account in view, not the subscription as a whole. */
+      const openingAccount =
+        links.find((link) => link.id === focusAccountId) ?? links[0] ?? null;
+
+      setAccountLinks(links);
+      setActiveAccountId(openingAccount?.id ?? null);
+      setAccountType(openingAccount?.label || '');
+      /* The main fields describe the account in view, so they open on that
+         account's own values — the amount it was given, the day it renews.
+         Nothing is filled in on their behalf: an account that was never given
+         an amount shows an empty box, not the subscription's total. */
+      if (openingAccount) {
+        setPrice(openingAccount.price !== undefined ? String(openingAccount.price) : '');
+        setCurrency(openingAccount.currency || '');
+        setBillingCycle(
+          (openingAccount.billing_cycle as typeof billingCycles[number]) || ''
+        );
+        setCategory((openingAccount.category as typeof categories[number]) || '');
+        setStatus((openingAccount.status as typeof statuses[number]) || '');
+        setStartDate(openingAccount.start_date || '');
+        setNextBillingDate(openingAccount.next_billing_date || '');
+      }
+      setNotes('');
+      setExistingNotesText(cleanNotesUserText(initialData.notes));
     } else {
       setName('');
       setPrice('');
-      setCurrency('USD');
-      setBillingCycle('monthly');
-      setCategory('Streaming');
-      setStatus('active');
+      setCurrency('');
+      setBillingCycle('');
+      setCategory('');
+      setStatus('');
       setStartDate('');
-      setEndDate('');
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       setNextBillingDate(nextMonth.toISOString().split('T')[0]);
       setProviderUrl('');
       setIsUserEditedUrl(false);
       setAccountLinks([]);
+      setAccountType('');
       setNotes('');
+      setExistingNotesText('');
     }
     setDuplicateOf(null);
     setFieldErrors({});
@@ -201,14 +380,6 @@ export default function SubscriptionModal({
     if (!isUserEditedUrl) {
       const knownWebsite = getKnownProviderWebsite(val);
       setProviderUrl(knownWebsite || '');
-    }
-    const knownAccountUrl = getKnownProviderAccountUrl(val);
-    if (knownAccountUrl) {
-      setAccountLinks((prev) =>
-        prev.map((link) =>
-          link.url && link.url.trim() ? link : { ...link, url: knownAccountUrl }
-        )
-      );
     }
     if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
 
@@ -247,12 +418,15 @@ export default function SubscriptionModal({
   /**
    * Fills the form with the tracked row's values.
    *
-   * Nothing is left blank. The price, the renewal date, the currency, the
-   * cycle, the category and the status all come from the subscription that is
-   * already there, because another account for the same service is the same
-   * service at the same price — and the user can still change any of them.
-   * The notes carry over as the user typed them, without the history markers
-   * the form does not know about.
+   * The price, the currency, the cycle, the category and the status all come
+   * from the subscription that is already there, because another account for
+   * the same service is the same service at the same price — and the user can
+   * still change any of them.
+   *
+   * The boxes the user has to decide for themselves are left empty: the
+   * account type, the start date and the renewal date. A date the user never
+   * chose is a date the reminders will be wrong about, and the type of the
+   * extra account is theirs to say.
    */
   const carryOverFrom = (match: SubscriptionRow) => {
     setPrice((current) => (current.trim() ? current : match.price.toString()));
@@ -260,21 +434,42 @@ export default function SubscriptionModal({
     setBillingCycle(match.billing_cycle as typeof billingCycles[number]);
     setCategory(match.category as typeof categories[number]);
     setStatus(match.status as typeof statuses[number]);
-    setNextBillingDate(match.next_billing_date);
-    setNotes(cleanNotesUserText(match.notes));
     if (!isUserEditedUrl) setProviderUrl(match.provider_url || '');
 
-    const existing = parseAccountLinks(match);
+    /* The boxes the user has to decide are emptied rather than filled in. */
+    setNextBillingDate('');
+    setStartDate('');
+    setAccountType('');
+
+    // The note the row already has is kept for the save, but the box the user
+    // types in stays empty.
+    setExistingNotesText(cleanNotesUserText(match.notes));
+
+    const existing = withRowDefaults(parseAccountLinks(match), match);
+    const newLinkId = nextAccountLinkId(existing);
+
     setAccountLinks([
       ...existing,
       {
-        id: nextAccountLinkId(existing),
-        label: existing.length === 0 ? 'Personal' : `Account ${existing.length + 1}`,
-        // Pre-filled from the provider table, exactly like the button does, so
-        // the user is never asked to paste a URL SubHalt already knows.
-        url: getKnownProviderAccountUrl(match.name) || '',
+        id: newLinkId,
+        /*
+         * No type yet. The type is the user's to choose — a personal plan and
+         * a work plan are different accounts — and the Account Type box is
+         * empty until they do.
+         */
+        label: '',
+        /*
+         * Empty on purpose: the box is for the user's own account link. The
+         * arrow beside it opens the provider's account page.
+         */
+        url: '',
       },
     ]);
+
+    /* The new account is the one the form works on, and its type is the one
+       the Account Type box shows. */
+    setActiveAccountId(newLinkId);
+    setAccountType('');
   };
 
   const handleAddAccountLink = () => {
@@ -287,27 +482,153 @@ export default function SubscriptionModal({
       return;
     }
 
-    const knownAccountUrl = getKnownProviderAccountUrl(name);
     setAccountLinks((prev) => [
       ...prev,
       {
         id: `link-${Date.now()}`,
-        label: prev.length === 0 ? 'Personal' : `Account ${prev.length + 1}`,
-        // Pre-filled from the provider table so the user never has to paste the
-        // profile URL themselves. Still editable for providers we don't know.
-        url: knownAccountUrl || '',
+        /* The type the user picked in the form, if they picked one. The type is
+           the user's to choose — a personal plan and a work plan are different
+           accounts — so the box is empty until they do. */
+        label: accountType || '',
+        /*
+         * The account starts with the details the form is holding, which is
+         * what the user is looking at when they add it.
+         */
+        price: price ? Number(price) : undefined,
+        currency: currency || undefined,
+        billing_cycle: billingCycle || undefined,
+        category: category || undefined,
+        status: status || undefined,
+        start_date: startDate || undefined,
+        next_billing_date: nextBillingDate || undefined,
+        /*
+         * Empty on purpose.
+         *
+         * This box is for the user's own account link. The provider's link is
+         * what the arrow beside it opens, and putting the provider's link in
+         * here made it impossible to tell which one the box was holding.
+         */
+        url: '',
       },
     ]);
+    /* The new account is the one the form works on next. */
+    setActiveAccountId(`link-${Date.now()}`);
   };
 
-  const handleUpdateAccountLink = (id: string, field: string, value: string | boolean) => {
+  const handleUpdateAccountLink = (
+    id: string,
+    field: string,
+    value: string | boolean | number | undefined
+  ) => {
     setAccountLinks((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      prev.map((item) =>
+        item.id === id ? ({ ...item, [field]: value } as AccountLink) : item
+      )
     );
   };
 
+  /**
+   * Removes the account in view.
+   *
+   * The delete sits on the account URL line, after the provider link — the
+   * account's link and the way to remove it are the same line. The account's
+   * type is not what gets deleted.
+   */
   const handleRemoveAccountLink = (id: string) => {
     setAccountLinks((prev) => prev.filter((item) => item.id !== id));
+    setActiveAccountId((current) => (current === id ? null : current));
+  };
+
+  /**
+   * A change to the main fields, when they are describing an account.
+   *
+   * The two are one thing, so a change in one is a change in the other. This is
+   * what stops an amount typed in the form and an amount typed in the account
+   * row from going to two different places, and the account being edited from
+   * keeping the other's value.
+   */
+  const applyToActiveAccount = (patch: Partial<AccountLink>) => {
+    if (!activeAccountId) return;
+    setAccountLinks((prev) =>
+      prev.map((link) => (link.id === activeAccountId ? { ...link, ...patch } : link))
+    );
+  };
+
+  /** The account in view: the one the form is describing. */
+  const activeAccount =
+    accountLinks.find((link) => link.id === activeAccountId) ?? accountLinks[0] ?? null;
+
+  /**
+   * Where the arrow beside the link box goes.
+   *
+   * The subscription's own provider page — the place the user signs in to
+   * change or cancel the subscription. It is not the account's link: the box
+   * holds the user's link, and the arrow opens the provider.
+   */
+  const providerLink = (() => {
+    const raw = providerUrl ? providerUrl.trim() : '';
+    const candidate = raw || getKnownProviderWebsite(name) || '';
+    if (!candidate) return null;
+    return candidate.startsWith('http://') || candidate.startsWith('https://')
+      ? candidate
+      : `https://${candidate}`;
+  })();
+
+  /**
+   * The account's link, changed in its own box.
+   *
+   * With no account yet, a link typed in the box is the first account. And
+   * clearing the link removes the account: the box is the account's link, so
+   * an account with no link is not an account the user meant to keep.
+   */
+  const handleAccountUrlChange = (value: string) => {
+    if (activeAccount) {
+      if (value.trim() === '' && (activeAccount.url || '').trim() !== '') {
+        setAccountLinks((prev) => prev.filter((link) => link.id !== activeAccount.id));
+        setActiveAccountId(null);
+        return;
+      }
+      handleUpdateAccountLink(activeAccount.id, 'url', value);
+      return;
+    }
+    const id = `link-${Date.now()}`;
+    setAccountLinks([
+      ...accountLinks,
+      {
+        id,
+        label: accountType || 'Personal',
+        url: value,
+        price: price ? Number(price) : undefined,
+        currency: currency || undefined,
+        billing_cycle: billingCycle || undefined,
+        category: category || undefined,
+        status: status || undefined,
+        start_date: startDate || undefined,
+        next_billing_date: nextBillingDate || undefined,
+      },
+    ]);
+    setActiveAccountId(id);
+  };
+
+  /**
+   * Changes the type of the account in view.
+   *
+   * The type belongs to the account, and the form holds one of them, so
+   * changing it renames the account the form is working on. That way the
+   * choice is made in the form rather than in a control tucked under the
+   * links.
+   */
+  const handleAccountTypeChange = (value: string) => {
+    setAccountType(value);
+    if (fieldErrors.accountType) setFieldErrors((prev) => ({ ...prev, accountType: undefined }));
+    setAccountLinks((prev) => {
+      if (prev.length === 0) return prev;
+      /* The account in view, or the one that was added last when the form is
+         not on an account yet. */
+      const target =
+        prev.find((link) => link.id === activeAccountId) ?? prev[prev.length - 1];
+      return prev.map((link) => (link.id === target.id ? { ...link, label: value } : link));
+    });
   };
 
   /* False once the tier's account-link cap is met, which drives both the Plus
@@ -318,10 +639,59 @@ export default function SubscriptionModal({
     linkCount: accountLinks.length,
   });
 
-  const setQuickDate = (monthsToAdd: number) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + monthsToAdd);
-    setNextBillingDate(d.toISOString().split('T')[0]);
+  /**
+   * What the account being added is worth, in the form's own words.
+   *
+   * "This account adds $15.99 a month." The price belongs to the subscription,
+   * so this is what the new account adds to what is already being paid.
+   */
+  const accountValueLabel = (() => {
+    const amount = parseFloat(price);
+    if (!price.trim() || isNaN(amount) || amount <= 0) return null;
+    const period =
+      billingCycle === 'yearly'
+        ? 'a year'
+        : billingCycle === 'weekly'
+          ? 'a week'
+          : billingCycle === 'quarterly'
+            ? 'a quarter'
+            : 'a month';
+    return `${formatCurrency(amount, currency || 'USD')} ${period}`;
+  })();
+
+  /**
+   * The start date decides the renewal date.
+   *
+   * A subscription that started on a day renews a cycle later, so the renewal
+   * date follows the start date instead of being a second thing to work out.
+   * It is still editable — this only fills it in.
+   */
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+    if (fieldErrors.startDate) setFieldErrors((prev) => ({ ...prev, startDate: undefined }));
+    if (!value) return;
+    const next = addCycleToDate(value, billingCycle || 'monthly');
+    if (next) {
+      setNextBillingDate(next);
+      if (fieldErrors.date) setFieldErrors((prev) => ({ ...prev, date: undefined }));
+    }
+  };
+
+  /**
+   * The quick choices set the cycle and the renewal date together.
+   *
+   * The date is measured from the start date the user entered, not from today,
+   * so a subscription that started in the past still renews a cycle after it
+   * started rather than a cycle after today.
+   */
+  const setQuickCycle = (cycle: 'monthly' | 'yearly') => {
+    setBillingCycle(cycle);
+    const base = startDate || new Date().toISOString().split('T')[0];
+    const next = addCycleToDate(base, cycle);
+    if (next) {
+      setNextBillingDate(next);
+      if (fieldErrors.date) setFieldErrors((prev) => ({ ...prev, date: undefined }));
+    }
   };
 
   const validateForm = () => {
@@ -336,6 +706,32 @@ export default function SubscriptionModal({
     const dateError = validateDate(nextBillingDate);
     if (dateError) errors.date = dateError;
 
+    const startDateError = validateDate(startDate);
+    if (startDateError) errors.startDate = 'Start date is required.';
+
+    const currencyError = validateChoice(currency, 'Currency');
+    if (currencyError) errors.currency = currencyError;
+
+    const cycleError = validateChoice(billingCycle, 'Cycle');
+    if (cycleError) errors.cycle = cycleError;
+
+    const categoryError = validateChoice(category, 'Category');
+    if (categoryError) errors.category = categoryError;
+
+    const statusError = validateChoice(status, 'Status');
+    if (statusError) errors.status = statusError;
+
+    /* The account type only matters once there is an account to type. An
+       account with no type is not saved: it would be dropped on the way out
+       and the user would not know. */
+    if (accountLinks.length > 0) {
+      const untyped = accountLinks.some((link) => !link.label || !link.label.trim());
+      const accountTypeError = untyped
+        ? 'Every account needs a type.'
+        : validateChoice(accountType, 'Account type');
+      if (accountTypeError) errors.accountType = accountTypeError;
+    }
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -348,13 +744,38 @@ export default function SubscriptionModal({
    * map back to the field. It only ever reports a field the user has actually
    * touched, so an untouched form is never covered in red.
    */
-  const validateField = (field: 'name' | 'price' | 'date') => {
+  const validateField = (
+    field:
+      | 'name'
+      | 'price'
+      | 'date'
+      | 'startDate'
+      | 'currency'
+      | 'cycle'
+      | 'category'
+      | 'status'
+      | 'accountType'
+  ) => {
     const message =
       field === 'name'
         ? validateName(name)
         : field === 'price'
           ? validatePrice(price)
-          : validateDate(nextBillingDate);
+          : field === 'date'
+            ? validateDate(nextBillingDate)
+            : field === 'startDate'
+              ? startDate
+                ? undefined
+                : 'Start date is required.'
+              : field === 'currency'
+                ? validateChoice(currency, 'Currency')
+                : field === 'cycle'
+                  ? validateChoice(billingCycle, 'Cycle')
+                  : field === 'category'
+                    ? validateChoice(category, 'Category')
+                    : field === 'status'
+                      ? validateChoice(status, 'Status')
+                      : validateChoice(accountType, 'Account type');
 
     setFieldErrors((prev) => ({ ...prev, [field]: message }));
   };
@@ -398,6 +819,57 @@ setLoading(true);
       (link) => (link.label && link.label.trim().length > 0) || (link.url && link.url.trim().length > 0)
     );
 
+    /*
+     * The accounts keep the details that were typed in their own rows, and the
+     * subscription keeps the details that were typed in the main fields.
+     *
+     * Nothing is copied between them. Copying the main fields onto an account
+     * is how one account ended up with another account's amount and date, and
+     * how the second account ended up with the first one's details.
+     */
+    const accountsWithFormValues = validAccountLinks;
+    const firstAccount = accountsWithFormValues[0];
+
+    /*
+     * The subscription is what its accounts add up to.
+     *
+     * Two accounts on one service are two charges, so the amount is the sum of
+     * what each of them costs, and the renewal date is the soonest of them —
+     * the next one to warn about. A subscription with no accounts is what the
+     * form says.
+     */
+    const accountAmounts = accountsWithFormValues
+      .map((link) => link.price)
+      .filter((value): value is number => typeof value === 'number' && !isNaN(value));
+    const everyAccountPriced =
+      accountsWithFormValues.length > 0 &&
+      accountAmounts.length === accountsWithFormValues.length;
+    const accountDates = accountsWithFormValues
+      .map((link) => link.next_billing_date)
+      .filter((value): value is string => Boolean(value))
+      .sort();
+    const accountStarts = accountsWithFormValues
+      .map((link) => link.start_date)
+      .filter((value): value is string => Boolean(value))
+      .sort();
+
+    const rowPrice =
+      accountsWithFormValues.length > 0
+        ? /* The sum, once every account says what it costs. Until then the
+             subscription keeps the amount it has: a total built from the
+             accounts that happen to be filled in would quietly take money out
+             of it. */
+          everyAccountPriced
+          ? accountAmounts.reduce((sum, value) => sum + value, 0)
+          : saveTarget
+            ? Number(saveTarget.price) || 0
+            : parsedPrice
+        : parsedPrice;
+    const rowNextBillingDate =
+      accountDates.length > 0 ? accountDates[0] : nextBillingDate;
+    const rowStartDate =
+      accountStarts.length > 0 ? accountStarts[0] : startDate || null;
+
     // Rebuild the notes metadata blocks from the row being edited. The form
     // only holds the user-visible text, so without this an ordinary edit would
     // strip [AttachedReceipts: ...] and [HistoryState: ...] — silently erasing
@@ -405,7 +877,9 @@ setLoading(true);
     // into the active list. The same applies to the row an extra account is
     // being added to.
     const formattedNotes = formatNotesWithAccountLinks(
-      notes,
+      // What the user typed replaces the note; an empty box keeps the note the
+      // row already had.
+      notes.trim() ? notes : existingNotesText,
       validAccountLinks,
       saveTarget ? getSubscriptionHistoryState(saveTarget).metadata ?? null : null,
       saveTarget ? parseAttachedReceipts(saveTarget) : null
@@ -415,17 +889,32 @@ setLoading(true);
       const savedId = await onSave(
         {
           name: name.trim(),
-          price: parsedPrice,
-          currency,
-          billing_cycle: billingCycle,
-          category,
-          status,
-          start_date: startDate ? startDate : null,
-          end_date: endDate ? endDate : null,
-          next_billing_date: nextBillingDate,
+          price: rowPrice,
+          currency: firstAccount?.currency || currency,
+          /*
+           * The four choices are required and validateForm has already refused
+           * the save if any of them is empty, so the cast is the compiler being
+           * told something it cannot see.
+           */
+          billing_cycle:
+            (firstAccount?.billing_cycle as typeof billingCycles[number]) ||
+            (billingCycle as typeof billingCycles[number]),
+          category:
+            (firstAccount?.category as typeof categories[number]) ||
+            (category as typeof categories[number]),
+          status:
+            (firstAccount?.status as typeof statuses[number]) ||
+            (status as typeof statuses[number]),
+          start_date: rowStartDate,
+          /*
+           * The form has no end date any more, so the value on the row is
+           * carried through untouched rather than being quietly cleared.
+           */
+          end_date: saveTarget ? saveTarget.end_date ?? null : null,
+          next_billing_date: rowNextBillingDate,
           payment_method: null,
           provider_url: providerUrl.trim() || null,
-          account_links: validAccountLinks,
+          account_links: accountsWithFormValues,
           notes: formattedNotes,
         },
         saveTarget?.id
@@ -586,6 +1075,9 @@ setLoading(true);
                   value={price}
                   onChange={(e) => {
                     setPrice(e.target.value);
+                    applyToActiveAccount({
+                      price: e.target.value ? Number(e.target.value) : undefined,
+                    });
                     if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: undefined }));
                   }}
                   onBlur={() => validateField('price')}
@@ -600,34 +1092,84 @@ setLoading(true);
                     {fieldErrors.price}
                   </span>
                 )}
+                {/*
+                  What the extra account is worth, in the currency the user is
+                  looking at. The price above is the subscription's, and this is
+                  what this account adds to it.
+                */}
+                {duplicateOf && accountValueLabel && (
+                  <span className="text-[10px] text-[#94A3B8]">This account adds {accountValueLabel}</span>
+                )}
               </div>
 
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Currency</label>
                 <select
+                  aria-label="Currency"
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                  onChange={(e) => {
+                    setCurrency(e.target.value);
+                    applyToActiveAccount({ currency: e.target.value });
+                    if (fieldErrors.currency) setFieldErrors((prev) => ({ ...prev, currency: undefined }));
+                  }}
+                  onBlur={() => validateField('currency')}
+                  aria-invalid={fieldErrors.currency ? true : undefined}
+                  aria-describedby={fieldErrors.currency ? 'sub-currency-error' : undefined}
+                  className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors ${
+                    fieldErrors.currency ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
+                  }`}
                 >
+                  <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
+                    Select currency
+                  </option>
                   {SUPPORTED_CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code} className="bg-[#0D0F0F] text-[#F5F7F6]">
                       {c.code} ({c.symbol})
                     </option>
                   ))}
                 </select>
+                {fieldErrors.currency && (
+                  <span id="sub-currency-error" className="text-[10px] text-[#D9363E] font-medium">
+                    {fieldErrors.currency}
+                  </span>
+                )}
               </div>
 
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Cycle</label>
                 <select
+                  aria-label="Cycle"
                   value={billingCycle}
-                  onChange={(e) => setBillingCycle(e.target.value as typeof billingCycles[number])}
-                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors capitalize"
+                  onChange={(e) => {
+                    const cycle = e.target.value as typeof billingCycles[number] | '';
+                    setBillingCycle(cycle);
+                    if (fieldErrors.cycle) setFieldErrors((prev) => ({ ...prev, cycle: undefined }));
+                    /* The renewal date is a cycle after the start date, so
+                       changing the cycle moves it. */
+                    if (cycle && startDate) {
+                      const next = addCycleToDate(startDate, cycle);
+                      if (next) setNextBillingDate(next);
+                    }
+                  }}
+                  onBlur={() => validateField('cycle')}
+                  aria-invalid={fieldErrors.cycle ? true : undefined}
+                  aria-describedby={fieldErrors.cycle ? 'sub-cycle-error' : undefined}
+                  className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors capitalize ${
+                    fieldErrors.cycle ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
+                  }`}
                 >
+                  <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
+                    Select cycle
+                  </option>
                   {billingCycles.map((c) => (
                     <option key={c} value={c} className="bg-[#0D0F0F] text-[#F5F7F6] capitalize">{c}</option>
                   ))}
                 </select>
+                {fieldErrors.cycle && (
+                  <span id="sub-cycle-error" className="text-[10px] text-[#D9363E] font-medium">
+                    {fieldErrors.cycle}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -636,60 +1178,94 @@ setLoading(true);
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Category</label>
                 <select
+                  aria-label="Category"
                   value={category}
-                  onChange={(e) => setCategory(e.target.value as typeof categories[number])}
-                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                  onChange={(e) => {
+                    const picked = e.target.value as typeof categories[number] | '';
+                    setCategory(picked);
+                    if (fieldErrors.category) setFieldErrors((prev) => ({ ...prev, category: undefined }));
+                  }}
+                  onBlur={() => validateField('category')}
+                  aria-invalid={fieldErrors.category ? true : undefined}
+                  aria-describedby={fieldErrors.category ? 'sub-category-error' : undefined}
+                  className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors ${
+                    fieldErrors.category ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
+                  }`}
                 >
+                  <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
+                    Select category
+                  </option>
                   {categories.map((cat) => (
                     <option key={cat} value={cat} className="bg-[#0D0F0F] text-[#F5F7F6]">{cat}</option>
                   ))}
                 </select>
+                {fieldErrors.category && (
+                  <span id="sub-category-error" className="text-[10px] text-[#D9363E] font-medium">
+                    {fieldErrors.category}
+                  </span>
+                )}
               </div>
 
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Status</label>
                 <select
+                  aria-label="Status"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as typeof statuses[number])}
-                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors capitalize"
+                  onChange={(e) => {
+                    const picked = e.target.value as typeof statuses[number] | '';
+                    setStatus(picked);
+                    if (fieldErrors.status) setFieldErrors((prev) => ({ ...prev, status: undefined }));
+                  }}
+                  onBlur={() => validateField('status')}
+                  aria-invalid={fieldErrors.status ? true : undefined}
+                  aria-describedby={fieldErrors.status ? 'sub-status-error' : undefined}
+                  className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors capitalize ${
+                    fieldErrors.status ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
+                  }`}
                 >
+                  <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
+                    Select status
+                  </option>
                   {statuses.map((s) => (
                     <option key={s} value={s} className="bg-[#0D0F0F] text-[#F5F7F6] capitalize">{s}</option>
                   ))}
                 </select>
+                {fieldErrors.status && (
+                  <span id="sub-status-error" className="text-[10px] text-[#D9363E] font-medium">
+                    {fieldErrors.status}
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Optional Start Date & End Date Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">
-                  Start Date <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">(Optional)</span>
-                </label>
+            {/* Start Date. The end date is gone: the renewal date already says
+                when the next charge is, and a second date that can also mean
+                "the end" was one more thing to get wrong. */}
+            <div className="space-y-2">
+              <label className="text-[13px] font-medium text-[#94A3B8] block">Start Date</label>
                 <input
                   type="date"
+                  aria-label="Start Date"
                   value={startDate}
                   min={MIN_DATE}
                   max={MAX_DATE}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                  onChange={(e) => {
+                    const picked = e.target.value;
+                    handleStartDateChange(picked);
+                    applyToActiveAccount({ start_date: picked || undefined });
+                  }}
+                  onBlur={() => validateField('startDate')}
+                  aria-invalid={fieldErrors.startDate ? true : undefined}
+                  aria-describedby={fieldErrors.startDate ? 'sub-start-date-error' : undefined}
+                  className={`w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors ${
+                    fieldErrors.startDate ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
+                  }`}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[13px] font-medium text-[#94A3B8] block">
-                  End Date <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">(Optional)</span>
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  min={MIN_DATE}
-                  max={MAX_DATE}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  placeholder="No end date"
-                  className="w-full h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
-                />
-              </div>
+              {fieldErrors.startDate && (
+                <span id="sub-start-date-error" className="text-[10px] text-[#D9363E] font-medium">
+                  {fieldErrors.startDate}
+                </span>
+              )}
             </div>
 
             {/* Next Billing Date & Quick Presets (Contract & Renewal Section) */}
@@ -699,14 +1275,14 @@ setLoading(true);
                 <div className="flex items-center gap-2 text-[11px]">
                   <button
                     type="button"
-                    onClick={() => setQuickDate(1)}
+                    onClick={() => setQuickCycle('monthly')}
                     className="px-3 py-1 min-h-[32px] rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
                   >
                     +1 Month
                   </button>
                   <button
                     type="button"
-                    onClick={() => setQuickDate(12)}
+                    onClick={() => setQuickCycle('yearly')}
                     className="px-3 py-1 min-h-[32px] rounded-lg bg-[#0D0F0F] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer border border-[#1A1D1D]"
                   >
                     +1 Year
@@ -715,11 +1291,14 @@ setLoading(true);
               </div>
               <input
                 type="date"
+                aria-label="Next Billing Date"
                 value={nextBillingDate}
                 min={MIN_DATE}
                 max={MAX_DATE}
                 onChange={(e) => {
-                  setNextBillingDate(e.target.value);
+                  const picked = e.target.value;
+                  setNextBillingDate(picked);
+                  applyToActiveAccount({ next_billing_date: picked || undefined });
                   if (fieldErrors.date) setFieldErrors((prev) => ({ ...prev, date: undefined }));
                 }}
                 onBlur={() => validateField('date')}
@@ -742,21 +1321,57 @@ setLoading(true);
                 knew. `providerUrl` is still derived and still saved — it just
                 has no field of its own. See handleNameChange. */}
 
-            {/* Subscription Accounts Section */}
+            {/* Account Type. A field of the form, not a control under the
+                account links: it says what the account is for. The type is
+                not what gets deleted — the link is. */}
+            <div className="space-y-2">
+              <label className="text-[13px] font-medium text-[#94A3B8] block">Account Type</label>
+              <select
+                aria-label="Account Type"
+                value={accountType}
+                onChange={(e) => handleAccountTypeChange(e.target.value)}
+                onBlur={() => validateField('accountType')}
+                aria-invalid={fieldErrors.accountType ? true : undefined}
+                aria-describedby={fieldErrors.accountType ? 'sub-account-type-error' : undefined}
+                className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border focus:outline-none transition-colors ${
+                  fieldErrors.accountType
+                    ? 'border-[#D9363E] focus:border-[#D9363E] text-[#F5F7F6]'
+                    : accountType
+                      ? 'border-[#1A1D1D] focus:border-[#14B8A6] text-[#F5F7F6]'
+                      : 'border-[#1A1D1D] focus:border-[#14B8A6] text-[#94A3B8]'
+                }`}
+              >
+                <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
+                  Select account type
+                </option>
+                {ACCOUNT_TYPES.map((type) => (
+                  <option key={type} value={type} className="bg-[#0D0F0F] text-[#F5F7F6]">
+                    {type}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.accountType && (
+                <span id="sub-account-type-error" className="text-[10px] text-[#D9363E] font-medium">
+                  {fieldErrors.accountType}
+                </span>
+              )}
+            </div>
+
+            {/*
+             * Accounts.
+             *
+             * No section heading: the control that creates an account is the
+             * heading, and it says accounts are optional. Nothing is shown
+             * until there is an account to show.
+             */}
             <div className="space-y-4 pt-1">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
-                  <Link2 className="w-3.5 h-3.5 text-[#94A3B8]" />
-                  <span>
-                    Subscription Accounts
-                    <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">
-                      (Optional)
-                    </span>
-                  </span>
-                </label>
+              {/* The control that creates an account, in place of a heading,
+                  with the marker that says accounts are optional. */}
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleAddAccountLink}
+                  aria-label="Add account link"
                   title={
                     canAddAnotherAccount
                       ? 'Add another account link'
@@ -767,12 +1382,13 @@ setLoading(true);
                   <Plus className="w-3.5 h-3.5 text-[#14B8A6]" />
                   <span>Add account link</span>
                 </button>
+                <span className="text-[11px] font-normal text-[#64748B]">(optional)</span>
               </div>
 
-              {/* No "Plus" badge here on purpose. The section itself is a normal
-                  part of adding a subscription; only the attempt to go past one
-                  account is Plus, and that is explained when it happens rather
-                  than advertised up front. */}
+              {/* No "Plus" badge here on purpose. The account itself is a
+                  normal part of adding a subscription; only the attempt to go
+                  past one account is Plus, and that is explained when it
+                  happens rather than advertised up front. */}
               {!canAddAnotherAccount && (
                 <p className="text-[11px] text-[#94A3B8] leading-relaxed">
                   Your plan includes one account per subscription. Upgrade to Plus to add
@@ -780,118 +1396,67 @@ setLoading(true);
                 </p>
               )}
 
-              {accountLinks.length === 0 ? (
-                <div className="px-3 py-2.5 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[11px] leading-relaxed text-[#94A3B8]">
-                  No account entries added yet. Click &quot;Add account link&quot; to configure your accounts.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {accountLinks.map((link, idx) => {
-                    const customUrl = link.url ? link.url.trim() : '';
-                    const knownAccountUrl = getKnownProviderAccountUrl(name);
-                    const knownWebsite = getKnownProviderWebsite(name);
+              {/*
+                The account in view.
+               *
+                One link box, for the account being worked on. Its type, amount
+                and renewal are in the form above, and the other accounts keep
+                theirs — they come back when they are the one in view.
+               */}
+              {/*
+                The account's link box.
+               *
+                It is closed until the user opens it with the plus, and the
+                delete beside it takes the account away again. The arrow is the
+                subscription's provider page, not the account's link.
+               */}
+              {activeAccount && (
+                <div className="space-y-2">
+                  <label className="text-[13px] font-medium text-[#94A3B8] block">
+                    Account URL
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      aria-label="Account URL"
+                      placeholder=""
+                      value={activeAccount.url || ''}
+                      onChange={(e) => handleAccountUrlChange(e.target.value)}
+                      className="flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F10] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                    />
+                    {providerLink ? (
+                      <a
+                        href={providerLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F10] border border-[#1A1D1D] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer"
+                        title={`Open ${name || 'the provider'}'s page in a new tab`}
+                        aria-label={`Open ${name || 'provider'} in a new tab`}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="Type a provider name above so we can open its page"
+                        className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F10] border border-[#1A1D1D] text-[#94A3B8] flex items-center justify-center transition-colors opacity-40 cursor-not-allowed"
+                        aria-label="No provider page available yet"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                    )}
 
-                    /* Fallback chain, most specific first. The link icon is only
-                       disabled when we have nothing at all to send the user to,
-                       because a dead icon reads as a broken feature rather than
-                       as "we don't know this provider". The provider's own site
-                       is a usable destination even when the deep account path is
-                       unknown — signing in there is the point, and the account URL
-                       is already pre-filled from the table wherever we know it. */
-                    const effectiveAccountUrl = [
-                      customUrl,
-                      knownAccountUrl,
-                      providerUrl,
-                      knownWebsite,
-                    ]
-                      .filter((value): value is string => Boolean(value && value.trim()))
-                      .map((value) =>
-                        value.startsWith('http://') || value.startsWith('https://')
-                          ? value
-                          : `https://${value}`
-                      )[0] ?? null;
-
-                    const hasAccountUrl = Boolean(effectiveAccountUrl);
-                    const usesKnownAccountPath = !customUrl && Boolean(knownAccountUrl);
-
-                    return (
-                      <div key={link.id} className="space-y-3 pt-2 pb-1 border-b border-[#1A1D1D]/40 last:border-b-0">
-                        {/* Account Type Header with Delete Row Button */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="space-y-2 flex-1 min-w-0">
-                            <label className="text-[13px] font-medium text-[#94A3B8] block">
-                              Account Type {accountLinks.length > 1 ? `#${idx + 1}` : ''}
-                            </label>
-                            <CustomSelect
-                              options={ACCOUNT_TYPES.map((type) => ({ value: type, label: type }))}
-                              value={link.label || 'Personal'}
-                              onChange={(val) => handleUpdateAccountLink(link.id, 'label', val)}
-                              variant="borderless"
-                              ariaLabel="Account Type"
-                            />
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAccountLink(link.id)}
-                            className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0 mt-3"
-                            title="Delete account row"
-                            aria-label="Delete account row"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                        {/* Account URL */}
-                        <div className="space-y-2">
-                          <label
-                            htmlFor={`account-url-${link.id}`}
-                            className="text-[13px] font-medium text-[#94A3B8] block"
-                          >
-                            Account URL
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              id={`account-url-${link.id}`}
-                              type="url"
-                              placeholder=""
-                              value={link.url || ''}
-                              onChange={(e) => handleUpdateAccountLink(link.id, 'url', e.target.value)}
-                              className="flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
-                            />
-                            {hasAccountUrl ? (
-                              <a
-                                href={effectiveAccountUrl!}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] hover:bg-[#1A1D1D] text-[#94A3B8] hover:text-[#F5F7F6] flex items-center justify-center transition-colors cursor-pointer"
-                                title={
-                                  customUrl
-                                    ? 'Open your saved account URL in a new tab'
-                                    : usesKnownAccountPath
-                                      ? `Open your ${name || 'provider'} account page in a new tab to sign in`
-                                      : `Open ${name || 'the provider'}’s website in a new tab to sign in and manage your account`
-                                }
-                                aria-label={`Open ${name || 'provider'} account in a new tab`}
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled
-                                title="Type a provider name above so we can open its account page"
-                                className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#94A3B8] flex items-center justify-center transition-colors opacity-40 cursor-not-allowed"
-                                aria-label="No provider page available yet"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAccountLink(activeAccount.id)}
+                      className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                      title="Delete this account"
+                      aria-label="Delete this account"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -903,10 +1468,9 @@ setLoading(true);
               </label>
               <textarea
                 rows={2}
-                placeholder="Additional renewal notes or plan tier details..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
+                className="w-full px-4 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors resize-none"
               />
             </div>
           </form>

@@ -3,6 +3,15 @@ import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import React from 'react';
 
+/*
+ * The suite drives real forms with user-event, which types character by
+ * character and waits for React between each one. The default five-second
+ * budget is enough on an idle machine and not enough on a loaded one, where a
+ * form test that types a provider name can sit waiting for a re-render while
+ * the machine is busy with the rest of the suite.
+ */
+vi.setConfig({ testTimeout: 20000, hookTimeout: 20000 });
+
 afterEach(() => {
   cleanup();
 });

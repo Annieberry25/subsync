@@ -13,6 +13,7 @@ import {
   filterActiveSubscriptions,
   isOverdueSubscription,
   isSubscriptionDeleted,
+  hasMultipleAccounts,
   type SubscriptionRow,
   type SubscriptionInsert,
   type SubscriptionUpdate
@@ -27,6 +28,7 @@ import { describeLeadMinutes } from '@/lib/reminders/plan';
 import SubscriptionCard from './subscription-card';
 import SubscriptionTable from './subscription-table';
 import SubscriptionDetailModal from './subscription-detail-modal';
+import AccountChooserModal from './account-chooser-modal';
 import SubscriptionModal from './subscription-modal';
 import AddSubscriptionModal from './add-subscription-modal';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
@@ -83,6 +85,12 @@ export default function SubscriptionManager() {
   const [selectedDetailSub, setSelectedDetailSub] = useState<SubscriptionRow | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  /** The subscription whose accounts are being chosen between. */
+  const [chooserSubscription, setChooserSubscription] = useState<SubscriptionRow | null>(null);
+
+  /** The account the detail sheet is showing. */
+  const [detailAccountId, setDetailAccountId] = useState<string | null>(null);
+
   /**
    * A deep link that resolves to a deleted row.
    *
@@ -104,10 +112,15 @@ export default function SubscriptionManager() {
   // Notes Modal state
   const [notesSub, setNotesSub] = useState<SubscriptionRow | null>(null);
 
+  /**
+   * The account the form opens on, when the user came from the detail sheet
+   * having picked one of several.
+   */
+  const [focusAccountId, setFocusAccountId] = useState<string | null>(null);
+
   // Manual Form Modal & Confirm State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
-  const [returnToDetailSub, setReturnToDetailSub] = useState<SubscriptionRow | null>(null);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
   const [deleteReturnToDetailSub, setDeleteReturnToDetailSub] = useState<SubscriptionRow | null>(null);
@@ -660,7 +673,17 @@ export default function SubscriptionManager() {
   );
   const hasMore = filteredSubscriptions.length > visibleCount;
 
+  /**
+   * A subscription with more than one account has no single detail to show:
+   * the detail belongs to one of its accounts. Clicking it opens the chooser,
+   * and the account picked there is the one the detail sheet opens on.
+   */
   const handleSelectSubscription = useCallback((item: SubscriptionRow) => {
+    if (hasMultipleAccounts(item)) {
+      setChooserSubscription(item);
+      return;
+    }
+    setDetailAccountId(null);
     setSelectedDetailSub(item);
     setIsDetailOpen(true);
   }, []);
@@ -963,18 +986,47 @@ export default function SubscriptionManager() {
 
 
 
+      {/* The accounts of a subscription, and the choice between them. */}
+      <AccountChooserModal
+        subscription={chooserSubscription}
+        isOpen={!!chooserSubscription}
+        onClose={() => setChooserSubscription(null)}
+        onChoose={(account) => {
+          const target = chooserSubscription;
+          setChooserSubscription(null);
+          if (!target) return;
+          setDetailAccountId(account.id);
+          setSelectedDetailSub(target);
+          setIsDetailOpen(true);
+        }}
+      />
+
       {/* Subscription Detail View Modal */}
       <SubscriptionDetailModal
         subscription={selectedDetailSub}
         isOpen={isDetailOpen}
+        accountId={detailAccountId}
+        onBack={
+          /* Only a subscription with more than one account was opened from a
+             choice, so only it has somewhere to go back to. */
+          selectedDetailSub && hasMultipleAccounts(selectedDetailSub)
+            ? () => {
+                setIsDetailOpen(false);
+                setDetailAccountId(null);
+                setChooserSubscription(selectedDetailSub);
+              }
+            : undefined
+        }
         onClose={() => {
           setIsDetailOpen(false);
           setSelectedDetailSub(null);
         }}
-        onEdit={(item) => {
-          setReturnToDetailSub(item);
+        onEdit={(item, accountId) => {
           setIsDetailOpen(false);
           setEditingSubscription(item);
+          // The account the user picked in the detail sheet is the one the form
+          // opens on.
+          setFocusAccountId(accountId ?? null);
           setIsModalOpen(true);
         }}
         onDeleteRequest={(item) => {
@@ -987,27 +1039,37 @@ export default function SubscriptionManager() {
       <SubscriptionModal
         isOpen={isModalOpen}
         onClose={() => {
+          /* Closing the form closes it. It does not put the detail sheet back
+             up: the user cancelled, and being returned to another sheet is not
+             what cancelling means. */
           setIsModalOpen(false);
           setEditingSubscription(null);
-          if (returnToDetailSub) {
-            const updated = subscriptions.find((s) => s.id === returnToDetailSub.id) || returnToDetailSub;
-            setSelectedDetailSub(updated);
-            setIsDetailOpen(true);
-            setReturnToDetailSub(null);
-          }
+          setFocusAccountId(null);
         }}
         onBack={
-          !editingSubscription?.id
-            ? () => {
+          editingSubscription?.id
+            ? /* Editing a subscription with more than one account: the form
+                 has a way back, because the place it was opened from is where
+                 the accounts are chosen between. */
+              hasMultipleAccounts(editingSubscription)
+              ? () => {
+                  setIsModalOpen(false);
+                  setEditingSubscription(null);
+                  setFocusAccountId(null);
+                  setChooserSubscription(editingSubscription);
+                }
+              : undefined
+            : () => {
                 setIsModalOpen(false);
                 setEditingSubscription(null);
+                setFocusAccountId(null);
                 setIsAddPathModalOpen(true);
               }
-            : undefined
         }
         onSave={handleSave}
         initialData={editingSubscription}
         existingSubscriptions={activeSubscriptions}
+        focusAccountId={focusAccountId}
         pendingReceiptFile={pendingReceiptFile}
         onRequireUpgrade={() => {
           // Close the form so the upgrade sheet is not stacked behind it.

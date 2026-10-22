@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useSyncExternalStore, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, Settings, Archive, Bell, Link2, Trash2, Loader2 } from 'lucide-react';
-import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, getKnownProviderManagementUrl, parseAccountLinks, archiveSubscription } from '@/lib/services/subscription-service';
+import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, getKnownProviderManagementUrl, parseAccountLinks, archiveSubscription, hasMultipleAccounts } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { toAbsoluteUrl } from '@/lib/utils/url-utils';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -56,6 +56,9 @@ function SubscriptionCard({
   const formattedPrice = formatCurrency(Number(subscription.price), subscription.currency);
   const _statusDotStyle = statusDotColors[subscription.status] || statusDotColors.active;
   const accountLinks = parseAccountLinks(subscription);
+  /* More than one account: the price, the renewal and the category cannot be
+     pinned to one of them, so the card shows a dash for those. */
+  const multipleAccounts = hasMultipleAccounts(subscription);
 
   // Calculate days until next renewal cleanly
   const now = useMemo(() => new Date(), []);
@@ -361,8 +364,14 @@ function SubscriptionCard({
       {/* Prominent Price Line */}
       <div className="flex items-baseline justify-between gap-2">
         <div className="min-w-0">
-          <span className="text-2xl font-bold text-[#F5F7F6] tracking-tight">{formattedPrice}</span>
-          <span className="text-[15px] text-[#94A3B8] ml-1">/ {subscription.billing_cycle}</span>
+          {multipleAccounts ? (
+            <span className="text-2xl font-bold text-[#64748B] tracking-tight">-</span>
+          ) : (
+            <>
+              <span className="text-2xl font-bold text-[#F5F7F6] tracking-tight">{formattedPrice}</span>
+              <span className="text-[15px] text-[#94A3B8] ml-1">/ {subscription.billing_cycle}</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -370,21 +379,29 @@ function SubscriptionCard({
       <div className="flex flex-wrap items-center justify-between text-[15px] text-[#94A3B8] min-w-0 gap-2">
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <Calendar className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-          <span className="text-[#94A3B8]">
-            {diffDays < 0 ? (
-              <strong className="text-[#D9363E] font-semibold">Overdue ({Math.abs(diffDays)}d)</strong>
-            ) : diffDays === 0 ? (
-              <strong className="text-[#D9363E] font-semibold">Due today</strong>
-            ) : (
-              <>
-                Renews <strong className="text-[#F5F7F6] font-medium">{formattedDate}</strong>
-              </>
-            )}
-            <span className="mx-2 text-[#1A1D1D]">•</span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-[#0B0D0D] border border-[#1A1D1D] text-[#94A3B8]">
-              {subscription.category}
+          {multipleAccounts ? (
+            <>
+              <span className="text-[#64748B]">-</span>
+              <span className="mx-2 text-[#1A1D1D]">•</span>
+              <span className="text-[#64748B]">-</span>
+            </>
+          ) : (
+            <span className="text-[#94A3B8]">
+              {diffDays < 0 ? (
+                <strong className="text-[#D9363E] font-semibold">Overdue ({Math.abs(diffDays)}d)</strong>
+              ) : diffDays === 0 ? (
+                <strong className="text-[#D9363E] font-semibold">Due today</strong>
+              ) : (
+                <>
+                  Renews <strong className="text-[#F5F7F6] font-medium">{formattedDate}</strong>
+                </>
+              )}
+              <span className="mx-2 text-[#1A1D1D]">•</span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-[#0B0D0D] border border-[#1A1D1D] text-[#94A3B8]">
+                {subscription.category}
+              </span>
             </span>
-          </span>
+          )}
         </div>
 
         {hasReminder && (

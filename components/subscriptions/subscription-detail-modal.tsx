@@ -1,33 +1,42 @@
 'use client';
 
-import { Calendar, DollarSign, FileText, Clock, Globe, Users, ExternalLink } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Calendar, DollarSign, FileText, Clock, Globe, Users, ChevronLeft } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
-import { 
+import {
   type SubscriptionRow,
   parseAccountLinks,
   parseAttachedReceipts,
   cleanNotesUserText,
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
-import { toAbsoluteUrl } from '@/lib/utils/url-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 
 interface SubscriptionDetailModalProps {
   subscription: SubscriptionRow | null;
   isOpen: boolean;
+  /**
+   * The account the sheet is showing.
+   *
+   * A subscription can carry more than one account, and the detail of a
+   * subscription is the detail of one of them. The chooser form picks this
+   * one before the sheet opens.
+   */
+  accountId?: string | null;
   onClose: () => void;
-  onEdit: (subscription: SubscriptionRow) => void;
+  /**
+   * Back to the chooser.
+   *
+   * Only offered when the subscription has more than one account: that is the
+   * only case where the sheet was opened from a choice, and the only case
+   * where there is somewhere to go back to.
+   */
+  onBack?: () => void;
+  /** The account the user is looking at is passed back, so the form can open on it. */
+  onEdit: (subscription: SubscriptionRow, accountId?: string) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
   onRestoreRequest?: (subscription: SubscriptionRow) => void;
   onCancellationAssistance?: (subscription: SubscriptionRow) => void;
-}
-
-function calculateAnnualCost(price: number, billingCycle: string): number {
-  const cycle = billingCycle.toLowerCase();
-  if (cycle === 'yearly' || cycle === 'annual') return price;
-  if (cycle === 'quarterly') return price * 4;
-  if (cycle === 'weekly') return price * 52;
-  return price * 12; // default monthly
 }
 
 const _statusBadgeStyles: Record<string, { bg: string; text: string; label: string }> = {
@@ -40,7 +49,9 @@ const _statusBadgeStyles: Record<string, { bg: string; text: string; label: stri
 export default function SubscriptionDetailModal({
   subscription,
   isOpen,
+  accountId,
   onClose,
+  onBack,
   onEdit,
   onDeleteRequest,
   onRestoreRequest,
@@ -48,15 +59,58 @@ export default function SubscriptionDetailModal({
 }: SubscriptionDetailModalProps) {
   const { toast: _toast } = useToast();
 
+  /**
+   * The account being looked at.
+   *
+   * A subscription can have more than one account, and they are not the same
+   * thing: a family plan and a work plan on the same service, or two
+   * logins on one subscription. The sheet shows the one the chooser picked,
+   * and it is the one the Edit action opens.
+   */
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(accountId ?? null);
+
+  const accountLinks = useMemo(
+    () => (subscription ? parseAccountLinks(subscription) : []),
+    [subscription]
+  );
+
+  /* A different subscription, a different set of accounts, or a different
+     account being chosen, resets the choice to the one asked for. */
+  const accountKey = `${subscription?.id ?? ''}:${accountId ?? ''}:${accountLinks
+    .map((l) => l.id)
+    .join(',')}`;
+  const [prevAccountKey, setPrevAccountKey] = useState(accountKey);
+  if (prevAccountKey !== accountKey) {
+    setPrevAccountKey(accountKey);
+    setSelectedAccountId(accountId ?? null);
+  }
+
   if (!subscription) return null;
 
-  const priceNum = Number(subscription.price) || 0;
-  const formattedPrice = formatCurrency(priceNum, subscription.currency);
-  const annualCost = calculateAnnualCost(priceNum, subscription.billing_cycle);
-  const formattedAnnualCost = formatCurrency(annualCost, subscription.currency);
-  const accountLinks = parseAccountLinks(subscription);
   const attachedReceipts = parseAttachedReceipts(subscription);
   const cleanNotes = cleanNotesUserText(subscription.notes);
+
+  /* The account in view. It falls back to the first one, so opening the sheet
+     on a subscription with accounts always shows one of them. */
+  const selectedLink =
+    accountLinks.find((link) => link.id === selectedAccountId) ?? accountLinks[0] ?? null;
+
+  /*
+   * The account's own values, and nothing else.
+   *
+   * No falling back to the subscription and no working anything out: a figure
+   * nobody entered is a figure nobody can check, and the account's amount and
+   * renewal date are the ones the user gave it.
+   */
+  const shownPrice = selectedLink?.price;
+  const shownCurrency = selectedLink?.currency || '';
+  const shownCycle = selectedLink?.billing_cycle || '';
+  const shownCategory = selectedLink?.category || '';
+  const shownNextDate = selectedLink?.next_billing_date || '';
+  const shownStartDate = selectedLink?.start_date || '';
+
+  const formattedPrice =
+    shownPrice === undefined ? '' : formatCurrency(shownPrice, shownCurrency || 'USD');
 
   const rawProviderUrl = subscription.provider_url ? subscription.provider_url.trim() : '';
   const activeProviderUrl = rawProviderUrl
@@ -80,16 +134,16 @@ export default function SubscriptionDetailModal({
     return isNaN(parsed.getTime()) ? null : parsed;
   };
 
-  const rawNextDateObj = parseLocalDate(subscription.next_billing_date);
+  const rawNextDateObj = parseLocalDate(shownNextDate);
   const nextDate = rawNextDateObj || today;
   const diffTime = nextDate.getTime() - today.getTime();
   const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
   const formattedNextDate = rawNextDateObj
     ? rawNextDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-    : subscription.next_billing_date;
+    : shownNextDate;
 
   // Calculate start/created date
-  const rawStartDateObj = parseLocalDate(subscription.start_date || subscription.created_at);
+  const rawStartDateObj = parseLocalDate(shownStartDate || subscription.created_at);
   const formattedStartDate = rawStartDateObj
     ? rawStartDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
@@ -126,7 +180,9 @@ export default function SubscriptionDetailModal({
             type="button"
             onClick={() => {
               onClose();
-              onEdit(subscription);
+              // The account the user was looking at is the one the form opens
+              // on, so the edit starts where the eye already was.
+              onEdit(subscription, selectedLink?.id);
             }}
             className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
           >
@@ -167,9 +223,26 @@ export default function SubscriptionDetailModal({
       onClose={onClose}
       size="lg"
       title={subscription.name}
-      description={`${subscription.billing_cycle} billing`}
+      description={`${shownCycle} billing`}
+      headerLeading={
+        onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to accounts"
+            data-touch="compact"
+            className="w-9 h-9 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        ) : null
+      }
       footer={actions}
     >
+        {/* The account in view was picked in the chooser form, before this
+            sheet opened. There is nothing to choose here: this is the detail
+            of one account. */}
+
         {/* 6 Detailed Sections Grid. The Sheet body owns the scroll. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Section 1: Costs & Billing */}
@@ -180,11 +253,9 @@ export default function SubscriptionDetailModal({
             </div>
             <div>
               <span className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">{formattedPrice}</span>
-              <span className="text-xs text-[#9CA3AF] ml-1.5">/ {subscription.billing_cycle}</span>
-            </div>
-            <div className="pt-2 border-t border-[#1F2425] flex items-center justify-between text-xs text-[#9CA3AF]">
-              <span>Estimated Annual Total:</span>
-              <strong className="text-[#F5F7F6] font-semibold">{formattedAnnualCost}</strong>
+              {shownCycle && (
+                <span className="text-xs text-[#9CA3AF] ml-1.5">/ {shownCycle}</span>
+              )}
             </div>
           </div>
 
@@ -209,7 +280,7 @@ export default function SubscriptionDetailModal({
             </div>
             {formattedStartDate && (
               <div className="pt-2 border-t border-[#1F2425] flex items-center justify-between text-xs text-[#9CA3AF]">
-                <span>{subscription.start_date ? 'Start Date:' : 'Created Date:'}</span>
+                <span>{shownStartDate ? 'Start Date:' : 'Created Date:'}</span>
                 <strong className="text-[#F5F7F6] font-medium">{formattedStartDate}</strong>
               </div>
             )}
@@ -228,22 +299,20 @@ export default function SubscriptionDetailModal({
               <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Category & Website</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
-              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
-                <span className="text-[#9CA3AF]">Category</span>
-                <span className="text-[#F5F7F6] font-semibold">{subscription.category}</span>
+              {/* The values, without labels. The section is called "Category &
+                  Website", so saying "Category" next to the category is
+                  saying it twice. */}
+              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]">
+                <span className="text-[#F5F7F6] font-semibold">{shownCategory}</span>
               </div>
-              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
-                <span className="text-[#9CA3AF]">Official Provider Website</span>
+              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]">
                 {activeProviderUrl ? (
-                  <a
-                    href={activeProviderUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#F5F7F6] hover:underline flex items-center gap-1 font-medium truncate max-w-[180px]"
-                  >
-                    <span className="truncate">{activeProviderUrl.replace(/^https?:\/\//, '')}</span>
-                    <ExternalLink className="w-3 h-3 text-[#9CA3AF] shrink-0" />
-                  </a>
+                  /* Plain text. The detail sheet is for reading, not for
+                     clicking: a link in here takes the user off the page they
+                     opened it to look at. */
+                  <span className="text-[#F5F7F6] font-medium truncate max-w-[180px] block">
+                    {activeProviderUrl.replace(/^https?:\/\//, '')}
+                  </span>
                 ) : (
                   <span className="text-[#6B7280] italic">Not set</span>
                 )}
@@ -251,40 +320,30 @@ export default function SubscriptionDetailModal({
             </div>
           </div>
 
-          {/* Section 4: Subscription Accounts */}
+          {/* Section 4: Account Type */}
           <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3 col-span-1 md:col-span-2">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-[#9CA3AF]" />
               <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">
-                Subscription Accounts ({accountLinks.length})
+                Account Type
               </span>
             </div>
 
-            {accountLinks.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
-                {accountLinks.map((link) => (
-                  <div key={link.id} className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
-                    <div className="min-w-0 pr-2">
-                      <span className="text-[#F5F7F6] font-semibold block truncate">{link.label || 'Account Link'}</span>
-                      {link.email && <span className="text-[11px] text-[#9CA3AF] block truncate">{link.email}</span>}
-                    </div>
-                    {link.url && (
-                      <a
-                        href={toAbsoluteUrl(link.url) || link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1 rounded-lg bg-[#1F2425] hover:bg-[#2A3032] text-[#F5F7F6] text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0 border border-[#2A3032]"
-                      >
-                        <span>Visit</span>
-                        <ExternalLink className="w-3 h-3 text-[#9CA3AF]" />
-                      </a>
-                    )}
-                  </div>
-                ))}
+            {selectedLink ? (
+              /* The type, and nothing to click. The account's own link is on
+                 the account row in the form, and the detail sheet is for
+                 reading. */
+              <div
+                data-testid="account-type-value"
+                className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] text-xs"
+              >
+                <span className="text-[#F5F7F6] font-semibold">
+                  {selectedLink.label || 'Personal'}
+                </span>
               </div>
             ) : (
               <div className="p-3.5 rounded-xl bg-[#0D0F10] border border-[#1F2425] text-xs text-[#9CA3AF] leading-relaxed">
-                No account links have been configured. You can add account login emails or portal links by clicking Edit Subscription.
+                No account type has been set. You can add one by clicking Edit Subscription.
               </div>
             )}
           </div>
@@ -338,7 +397,7 @@ export default function SubscriptionDetailModal({
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-bold text-[#F5F7F6] block">{formattedPrice}</span>
-                  <span className="text-[11px] text-[#9CA3AF] capitalize">{subscription.billing_cycle}</span>
+                  <span className="text-[11px] text-[#9CA3AF] capitalize">{shownCycle}</span>
                 </div>
               </div>
             </div>

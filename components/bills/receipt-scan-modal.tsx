@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Upload, CheckCircle2, Sparkles, AlertCircle, Edit3, FileSearch } from 'lucide-react';
+import { X, CheckCircle2, Sparkles, AlertCircle, Edit3, FileSearch } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
+import ReceiptSourcePicker from '@/components/receipts/receipt-source-picker';
 import type { ExtractedBillReceiptData } from '@/lib/types/bills.types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { useCurrency } from '@/lib/contexts/user-settings-context';
-import { ACCEPT_ATTRIBUTE, TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
+import { TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
 import { mapBillingCycleToBillFrequency } from '@/lib/services/receipt-discovery';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
 import ProviderLogo from './provider-logo';
@@ -90,19 +91,9 @@ function ReceiptScanModalBody({
     setStep('confirm');
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
-    // Reset the input so re-picking the same file fires change again.
-    e.target.value = '';
-
-    if (selected.size > 10 * 1024 * 1024) {
-      setErrorMsg('File size exceeds maximum allowed limit of 10MB.');
-      return;
-    }
-
-    setFile(selected);
-    setPastedText('');
+  const handleFileChange = (next: File | null) => {
+    setFile(next);
+    if (next && pastedText.trim()) setPastedText('');
     setErrorMsg('');
   };
 
@@ -153,7 +144,7 @@ function ReceiptScanModalBody({
       }
       description={
         step === 'upload'
-          ? 'Upload an invoice, screenshot, or paste receipt text to automatically extract details.'
+          ? 'Snap a photo of the receipt, upload an invoice or screenshot, or paste receipt text.'
           : 'Inspect and confirm the extracted values before permanently saving.'
       }
       footer={
@@ -211,26 +202,13 @@ function ReceiptScanModalBody({
           {/* STEP 1: Upload or Paste */}
           {step === 'upload' && (
             <div className="space-y-4">
-              {/* File Upload Zone */}
-              <div className="relative border-2 border-dashed border-[#161F1D] hover:border-[#14B8A6] rounded-2xl p-6 text-center transition-all bg-[#050706] group cursor-pointer">
-                <input
-                  type="file"
-                  accept={ACCEPT_ATTRIBUTE}
-                  onChange={handleFileUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <div className="flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-2xl bg-[#14B8A6]/10 border border-[#14B8A6]/30 flex items-center justify-center text-[#14B8A6] mb-3 group-hover:scale-105 transition-transform">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <span className="text-xs font-semibold text-[#F5F7F6]">
-                    {file ? `Selected: ${file.name}` : 'Drop receipt file here or click to browse'}
-                  </span>
-                  <span className="text-[11px] text-[#94A3B8] mt-1">
-                    PDF invoices, screenshots, photos, or text files (max 10MB)
-                  </span>
-                </div>
-              </div>
+              {/* Receipt Source: camera, gallery, or a file */}
+              <ReceiptSourcePicker
+                file={file}
+                onFileChange={handleFileChange}
+                onError={() => setErrorMsg('')}
+                label="Receipt Source"
+              />
 
               {/* What the text we read looks like */}
               {scan.result && (

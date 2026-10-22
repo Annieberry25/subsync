@@ -1,7 +1,7 @@
 'use client';
 
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { cleanNotesUserText } from '@/lib/services/subscription-service';
+import { cleanNotesUserText, hasMultipleAccounts } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 
@@ -79,6 +79,9 @@ export function RenewalsTable({
             const price = Number(sub.price) || 0;
             const cycleSuffix = getCycleSuffix(sub.billing_cycle);
             const planName = getPlanName(sub);
+            /* More than one account: the plan, the renewal and the amount
+               cannot be pinned to one of them, so the row shows a dash. */
+            const multipleAccounts = hasMultipleAccounts(sub);
 
             return (
               <tr key={sub.id} className="group hover:bg-[#0F1111] transition-colors">
@@ -97,21 +100,35 @@ export function RenewalsTable({
                 </td>
 
                 <td className="py-3.5 px-4 max-w-[200px]">
-                  <span
-                    title={planName}
-                    className="block truncate font-medium text-xs sm:text-sm text-[#94A3B8]"
-                  >
-                    {planName}
-                  </span>
+                  {multipleAccounts ? (
+                    <span className="block text-[#64748B]">-</span>
+                  ) : (
+                    <span
+                      title={planName}
+                      className="block truncate font-medium text-xs sm:text-sm text-[#94A3B8]"
+                    >
+                      {planName}
+                    </span>
+                  )}
                 </td>
 
                 <td className="py-3.5 px-4 whitespace-nowrap text-xs sm:text-sm font-medium">
-                  <span style={{ color: status.color }}>{status.text}</span>
+                  {multipleAccounts ? (
+                    <span className="text-[#64748B]">-</span>
+                  ) : (
+                    <span style={{ color: status.color }}>{status.text}</span>
+                  )}
                 </td>
 
                 <td className="py-3.5 px-4 whitespace-nowrap text-right font-bold text-[#F5F7F6] text-sm sm:text-base">
-                  {formatCurrency(price, sub.currency || 'USD')}{' '}
-                  <span className="text-xs font-normal text-[#94A3B8]">{cycleSuffix}</span>
+                  {multipleAccounts ? (
+                    <span className="text-[#64748B] font-normal">-</span>
+                  ) : (
+                    <>
+                      {formatCurrency(price, sub.currency || 'USD')}{' '}
+                      <span className="text-xs font-normal text-[#94A3B8]">{cycleSuffix}</span>
+                    </>
+                  )}
                 </td>
               </tr>
             );
