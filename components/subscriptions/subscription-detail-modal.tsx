@@ -39,14 +39,6 @@ interface SubscriptionDetailModalProps {
   onCancellationAssistance?: (subscription: SubscriptionRow) => void;
 }
 
-function calculateAnnualCost(price: number, billingCycle: string): number {
-  const cycle = billingCycle.toLowerCase();
-  if (cycle === 'yearly' || cycle === 'annual') return price;
-  if (cycle === 'quarterly') return price * 4;
-  if (cycle === 'weekly') return price * 52;
-  return price * 12; // default monthly
-}
-
 const _statusBadgeStyles: Record<string, { bg: string; text: string; label: string }> = {
   active: { bg: 'bg-[#10B981]/15 border-[#10B981]/30', text: 'text-[#10B981]', label: 'Active' },
   trial: { bg: 'bg-[#F59E0B]/15 border-[#F59E0B]/30', text: 'text-[#F59E0B]', label: 'Trial Period' },
@@ -95,7 +87,6 @@ export default function SubscriptionDetailModal({
 
   if (!subscription) return null;
 
-  const priceNum = Number(subscription.price) || 0;
   const attachedReceipts = parseAttachedReceipts(subscription);
   const cleanNotes = cleanNotesUserText(subscription.notes);
 
@@ -104,20 +95,22 @@ export default function SubscriptionDetailModal({
   const selectedLink =
     accountLinks.find((link) => link.id === selectedAccountId) ?? accountLinks[0] ?? null;
 
-  /* The account's own values, falling back to the subscription's for the
-     accounts that were added before it carried its own. */
-  const shownPrice = selectedLink?.price ?? priceNum;
-  const shownCurrency = selectedLink?.currency || subscription.currency || 'USD';
-  const shownCycle = selectedLink?.billing_cycle || subscription.billing_cycle;
-  const shownCategory = selectedLink?.category || subscription.category;
-  const shownNextDate = selectedLink?.next_billing_date || subscription.next_billing_date;
-  const shownStartDate = selectedLink?.start_date || subscription.start_date;
+  /*
+   * The account's own values, and nothing else.
+   *
+   * No falling back to the subscription and no working anything out: a figure
+   * nobody entered is a figure nobody can check, and the account's amount and
+   * renewal date are the ones the user gave it.
+   */
+  const shownPrice = selectedLink?.price;
+  const shownCurrency = selectedLink?.currency || '';
+  const shownCycle = selectedLink?.billing_cycle || '';
+  const shownCategory = selectedLink?.category || '';
+  const shownNextDate = selectedLink?.next_billing_date || '';
+  const shownStartDate = selectedLink?.start_date || '';
 
-  const formattedPrice = formatCurrency(shownPrice, shownCurrency);
-  const formattedAnnualCost = formatCurrency(
-    calculateAnnualCost(shownPrice, shownCycle),
-    shownCurrency
-  );
+  const formattedPrice =
+    shownPrice === undefined ? '' : formatCurrency(shownPrice, shownCurrency || 'USD');
 
   const rawProviderUrl = subscription.provider_url ? subscription.provider_url.trim() : '';
   const activeProviderUrl = rawProviderUrl
@@ -260,11 +253,9 @@ export default function SubscriptionDetailModal({
             </div>
             <div>
               <span className="text-2xl sm:text-3xl font-bold text-[#F5F7F6] tracking-tight">{formattedPrice}</span>
-              <span className="text-xs text-[#9CA3AF] ml-1.5">/ {shownCycle}</span>
-            </div>
-            <div className="pt-2 border-t border-[#1F2425] flex items-center justify-between text-xs text-[#9CA3AF]">
-              <span>Estimated Annual Total:</span>
-              <strong className="text-[#F5F7F6] font-semibold">{formattedAnnualCost}</strong>
+              {shownCycle && (
+                <span className="text-xs text-[#9CA3AF] ml-1.5">/ {shownCycle}</span>
+              )}
             </div>
           </div>
 

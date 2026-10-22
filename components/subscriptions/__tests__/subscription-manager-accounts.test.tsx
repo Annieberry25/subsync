@@ -157,6 +157,8 @@ const rowWithTwoAccounts = {
       currency: 'NGN',
       category: 'Streaming',
       billing_cycle: 'monthly',
+      status: 'active',
+      start_date: '2026-10-16',
       next_billing_date: '2026-11-16',
     },
     {
@@ -168,7 +170,9 @@ const rowWithTwoAccounts = {
       currency: 'NGN',
       category: 'Streaming',
       billing_cycle: 'monthly',
-      next_billing_date: '2026-11-16',
+      status: 'active',
+      start_date: '2026-10-22',
+      next_billing_date: '2026-11-22',
     },
   ],
   receipts: null,
@@ -198,11 +202,12 @@ describe('editing an account through the real path', () => {
     // The detail sheet, then the form.
     await user.click(await screen.findByRole('button', { name: 'Edit Subscription' }));
 
-    // Change the second account's amount and date.
-    const amount = await screen.findByLabelText('Amount for account 2');
+    // The form opens on the account that was chosen in the chooser.
+    const amount = await screen.findByPlaceholderText('15.99');
+    expect(amount).toHaveValue(1600);
     await user.clear(amount);
     await user.type(amount, '2500');
-    fireEvent.change(screen.getByLabelText('Renewal date for account 2'), {
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
       target: { value: '2026-12-01' },
     });
 
@@ -216,12 +221,13 @@ describe('editing an account through the real path', () => {
       next_billing_date?: string;
     }[];
 
-    // The second account has what was typed into it, and the first is untouched.
-    expect(links[1]).toMatchObject({
-      label: 'Work',
+    // The account that was chosen has what was typed into it, and the other
+    // one is untouched.
+    expect(links[0]).toMatchObject({
+      label: 'Personal',
       price: 2500,
       next_billing_date: '2026-12-01',
     });
-    expect(links[0]).toMatchObject({ label: 'Personal', price: 1600 });
+    expect(links[1]).toMatchObject({ label: 'Work', price: 1000 });
   }, 30000);
 });

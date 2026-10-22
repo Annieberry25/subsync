@@ -113,6 +113,25 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+/**
+ * Fills the fields the form insists on.
+ *
+ * The amount, the currency, the cycle, the category, the status and the two
+ * dates are all required, so a form with empty boxes cannot be saved.
+ */
+async function fillRequiredFields(
+  user: ReturnType<typeof userEvent.setup>,
+  price = '9.99',
+  renewal = '2026-12-24'
+) {
+  await user.type(screen.getByPlaceholderText('15.99'), price);
+  await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+  await chooseRequired(user);
+  fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+    target: { value: renewal },
+  });
+}
+
 describe('SubscriptionModal', () => {
   it('rounds the submit action and leaves one exit to the header', async () => {
     await renderOpen();
@@ -622,8 +641,7 @@ describe('SubscriptionModal already-tracked service', () => {
     });
 
     // Both accounts are on the form: the one that was there and the new one.
-    const rows = document.querySelectorAll('[data-account-id]');
-    expect(rows).toHaveLength(2);
+    await fillRequiredFields(user);
 
     await user.click(await screen.findByRole('button', { name: 'Add Another Account' }));
 
@@ -658,14 +676,23 @@ describe('SubscriptionModal subscription accounts', () => {
   });
 
   /**
-   * The account URL box is for the user's own account link.
+   * The link box is closed until the user opens it.
    *
-   * It used to be pre-filled with the provider's account page, which made it
-   * impossible to tell whose link was in the box: the provider's, or the
-   * user's. The provider's link belongs to the arrow beside it, and the box
-   * starts empty.
+   * An account that was never given a link has nothing to show, and an empty
+   * box sitting there reads as a field that was missed.
    */
-  it('leaves the account URL box empty and keeps the provider link on the arrow', async () => {
+  it('keeps the link box closed until the account is opened', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    expect(screen.queryByLabelText(/Account URL/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Add account link/ }));
+
+    expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
+  });
+
+  it('leaves the account URL box empty and puts the provider link on the arrow', async () => {
     const user = userEvent.setup();
     await renderOpen();
 
@@ -678,9 +705,21 @@ describe('SubscriptionModal subscription accounts', () => {
     const url = screen.getByLabelText(/Account URL/) as HTMLInputElement;
     expect(url.value).toBe('');
 
-    // The arrow still knows where the provider's account page is.
-    const arrow = screen.getByRole('link', { name: /Open Netflix account in a new tab/ });
-    expect(arrow).toHaveAttribute('href', 'https://www.netflix.com/youraccount');
+    // The arrow opens the provider's own page, not the account's link.
+    const arrow = screen.getByRole('link', { name: /Open Netflix in a new tab/ });
+    expect(arrow).toHaveAttribute('href', 'https://www.netflix.com');
+  });
+
+  it('closes the box again when the account is deleted', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    await user.click(screen.getByRole('button', { name: /Add account link/ }));
+    expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Delete this account' }));
+
+    expect(screen.queryByLabelText(/Account URL/)).not.toBeInTheDocument();
   });
 
   it('sends a free user to upgrade when adding a second account', async () => {
@@ -696,10 +735,9 @@ describe('SubscriptionModal subscription accounts', () => {
     await user.click(addButton);
     expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
 
-    // Second attempt is refused and routed to the upgrade sheet.
+    // The second attempt is refused and routed to the upgrade sheet.
     await user.click(addButton);
     expect(onRequireUpgrade).toHaveBeenCalledTimes(1);
-    expect(screen.getAllByLabelText(/Account URL/)).toHaveLength(1);
   });
 
   it('does not badge the account section; it explains the limit on attempt', async () => {
@@ -716,109 +754,32 @@ describe('SubscriptionModal subscription accounts', () => {
     expect(screen.getByText(/one account per subscription/i)).toBeInTheDocument();
   });
 
-  it('keeps the account link icon active for a known provider', async () => {
+  it('lets a Plus user add an account without an upgrade prompt', async () => {
+    mocks.planTier = 'plus';
     const user = userEvent.setup();
-    await renderOpen();
+    const { onSave, onRequireUpgrade } = await renderOpen();
 
     await user.type(
       screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
       'Netflix'
     );
-    await user.click(screen.getByRole('button', { name: /Add account link/ }));
-
-    // Prefilled from the provider table, so the icon opens a real destination.
-    const link = screen.getByRole('link', { name: /Open Netflix account in a new tab/ });
-    expect(link).toHaveAttribute('href', 'https://www.netflix.com/youraccount');
-    expect(link).toHaveAttribute('target', '_blank');
-  });
-
-  it('falls back to the provider website when the deep account path is unknown', async () => {
-    const user = userEvent.setup();
-    await renderOpen();
-
-    await user.click(screen.getByRole('button', { name: /Add account link/ }));
-    // Clearing the field leaves only the fallback chain, which for a provider we
-    // know the site for still resolves to something openable.
-    await user.type(screen.getByLabelText(/Account URL/), 'https://example.com/account');
-
-    const link = screen.getByRole('link', { name: /account in a new tab/ });
-    expect(link).toHaveAttribute('href', 'https://example.com/account');
-  });
-
-  it('keeps the link icon disabled only when nothing is known at all', async () => {
-    const user = userEvent.setup();
-    await renderOpen();
-
-    // No provider name and no stored URL: there is genuinely nowhere to send them.
-    await user.click(screen.getByRole('button', { name: /Add account link/ }));
-
-    expect(screen.getByRole('button', { name: 'No provider page available yet' })).toBeDisabled();
-  });
-
-  it('lets a Plus user add several accounts without an upgrade prompt', async () => {
-    mocks.planTier = 'plus';
-    const user = userEvent.setup();
-    const { onRequireUpgrade } = await renderOpen();
-
     const addButton = screen.getByRole('button', { name: /Add account link/ });
     await user.click(addButton);
-    await user.click(addButton);
-    await user.click(addButton);
 
-    expect(screen.getAllByLabelText(/Account URL/)).toHaveLength(3);
     expect(onRequireUpgrade).not.toHaveBeenCalled();
     expect(screen.queryByTestId('plus-badge')).not.toBeInTheDocument();
+
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('button', { name: 'Add Subscription' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const links = onSave.mock.calls[0][0].account_links as { label: string }[];
+    expect(links).toHaveLength(1);
+    expect(links[0].label).toBe('Personal');
   });
 
-  it('re-enables adding once a row is removed', async () => {
-    const user = userEvent.setup();
-    const { onRequireUpgrade } = await renderOpen();
-
-    const addButton = screen.getByRole('button', { name: /Add account link/ });
-    await user.click(addButton);
-    await user.click(screen.getByRole('button', { name: 'Delete account row' }));
-
-    await user.click(addButton);
-
-    expect(screen.getAllByLabelText(/Account URL/)).toHaveLength(1);
-    expect(onRequireUpgrade).not.toHaveBeenCalled();
-  });
-
-  it('labels the second and later account rows distinctly', async () => {
-    mocks.planTier = 'plus';
-    const user = userEvent.setup();
+  it('keeps the marker that accounts are optional beside the add control', async () => {
     await renderOpen();
 
-    const addButton = screen.getByRole('button', { name: /Add account link/ });
-    await user.click(addButton);
-    await user.click(addButton);
-
-    // The rows are numbered from one, so two identically-named rows are never
-    // indistinguishable: the first is "Account 1" and the second is
-    // "Account 2". The type sits beside the number.
-    expect(screen.getByText('Account 1')).toBeInTheDocument();
-    expect(screen.getByText('Account 2')).toBeInTheDocument();
-  });
-
-  /**
-   * The add control belongs to the field it fills, and nothing is shown until
-   * there is an account to show.
-   */
-  it('shows only the add control until there is an account to show', async () => {
-    const user = userEvent.setup();
-    await renderOpen();
-
-    // No account yet, so no account row and no URL field.
-    expect(screen.queryByText('Account 1')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Account URL/)).not.toBeInTheDocument();
-
-    // The control that creates one, with the marker that says it is optional.
-    const addButton = screen.getByRole('button', { name: /Add account link/ });
     expect(screen.getByText('(optional)')).toBeInTheDocument();
-
-    await user.click(addButton);
-
-    expect(screen.getByText('Account 1')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
   });
 });

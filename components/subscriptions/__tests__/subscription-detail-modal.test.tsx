@@ -122,7 +122,7 @@ describe('the detail sheet of one account', () => {
     expect(screen.getAllByText('November 16, 2026').length).toBeGreaterThan(0);
   });
 
-  it('falls back to the subscription for an account that carries no details of its own', () => {
+  it('shows nothing for an account that was never given details of its own', () => {
     const withoutOwnValues: SubscriptionRow = {
       ...twoAccounts,
       account_links: [{ id: 'link-1', label: 'Personal', url: '', email: '' }],
@@ -139,7 +139,11 @@ describe('the detail sheet of one account', () => {
       />
     );
 
+    // The type is the account's own; the amount and the date are not worked
+    // out from the subscription, because a figure nobody entered is a figure
+    // nobody can check.
     expect(screen.getByTestId('account-type-value')).toHaveTextContent('Personal');
-    expect(screen.getAllByText(/1,600/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/1,600/)).not.toBeInTheDocument();
+    expect(screen.queryByText('November 16, 2026')).not.toBeInTheDocument();
   });
 });

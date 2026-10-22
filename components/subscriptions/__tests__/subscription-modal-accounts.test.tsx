@@ -21,7 +21,7 @@ const rowWithTwoAccounts: SubscriptionRow = {
   billing_cycle: 'monthly',
   category: 'Streaming',
   status: 'active',
-  start_date: '2026-09-13',
+  start_date: '2026-10-16',
   end_date: null,
   next_billing_date: '2026-11-16',
   payment_method: null,
@@ -35,17 +35,24 @@ const rowWithTwoAccounts: SubscriptionRow = {
       email: '',
       price: 1600,
       currency: 'NGN',
-      billing_cycle: 'monthly',
       category: 'Streaming',
-      status: 'active',
-      start_date: '2026-09-13',
+      billing_cycle: 'monthly',
       next_billing_date: '2026-11-16',
+      start_date: '2026-10-16',
+      status: 'active',
     },
     {
       id: 'link-2',
       label: 'Work',
-      url: '',
+      url: 'https://spotify.com/work',
       email: '',
+      price: 2600,
+      currency: 'NGN',
+      category: 'Streaming',
+      billing_cycle: 'monthly',
+      next_billing_date: '2026-11-22',
+      start_date: '2026-10-22',
+      status: 'active',
     },
   ],
   receipts: null,
@@ -54,119 +61,16 @@ const rowWithTwoAccounts: SubscriptionRow = {
   updated_at: '2026-01-01T00:00:00.000Z',
 };
 
-describe('editing a subscription with two accounts', () => {
-  it('shows each account its own amount and date, and leaves the unknown one empty', async () => {
-    await renderOpen(rowWithTwoAccounts);
-    console.log('account1 amount:', (screen.getByLabelText('Amount for account 1') as HTMLInputElement).value);
-    console.log('account2 amount:', (screen.getByLabelText('Amount for account 2') as HTMLInputElement).value);
-    console.log('account2 date:', (screen.getByLabelText('Renewal date for account 2') as HTMLInputElement).value);
-
-    // The personal account carries its own details.
-    expect(screen.getByLabelText('Amount for account 1')).toHaveValue(1600);
-    expect(screen.getByLabelText('Renewal date for account 1')).toHaveValue('2026-11-16');
-
-    // The work account has none yet, so its boxes are empty rather than
-    // showing the other account's details. A number input with nothing in it
-    // reports its value as null.
-    expect(screen.getByLabelText('Amount for account 2')).toHaveValue(null);
-    expect(screen.getByLabelText('Renewal date for account 2')).toHaveValue('');
-  });
-
-  it('keeps the subscription total and the renewal date when the work account is still empty', async () => {
-    const user = userEvent.setup();
-    const { onSave } = await renderOpen(rowWithTwoAccounts);
-
-    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
-
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const payload = onSave.mock.calls[0][0];
-    // The total the user typed is kept: an account with no amount of its own
-    // must not quietly take money out of the subscription.
-    expect(payload.price).toBe(2600);
-    // The renewal date is the soonest of the accounts that have one.
-    expect(payload.next_billing_date).toBe('2026-11-16');
-  });
-
-  it('saves the renewal date in the renewal date, not in the start date', async () => {
-    const user = userEvent.setup();
-    const { onSave } = await renderOpen(rowWithTwoAccounts);
-
-    // Regression: the renewal date input once wrote to the start date, so
-    // changing when the subscription renews moved when it started instead and
-    // nothing the user changed about the renewal was kept.
-    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
-      target: { value: '2026-12-20' },
-    });
-
-    expect(screen.getByLabelText('Start Date')).toHaveValue('2026-09-13');
-
-    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
-
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const payload = onSave.mock.calls[0][0];
-    expect(payload.next_billing_date).toBe('2026-12-20');
-    expect(payload.start_date).toBe('2026-09-13');
-  });
-
-  it('keeps each account its own details when the other one is edited', async () => {
-    const user = userEvent.setup();
-    const { onSave } = await renderOpen(rowWithTwoAccounts);
-
-    // Edit the work account.
-    await user.type(screen.getByLabelText('Amount for account 2'), '1000');
-    fireEvent.change(screen.getByLabelText('Renewal date for account 2'), {
-      target: { value: '2026-11-22' },
-    });
-
-    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
-
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const links = onSave.mock.calls[0][0].account_links as {
-      label: string;
-      price?: number;
-      next_billing_date?: string;
-    }[];
-
-    // The personal account is untouched, and the work account has what was
-    // typed into it. The main fields are the subscription's, and they are not
-    // copied onto either account.
-    expect(links[0]).toMatchObject({
-      label: 'Personal',
-      price: 1600,
-      next_billing_date: '2026-11-16',
-    });
-    expect(links[1]).toMatchObject({
-      label: 'Work',
-      price: 1000,
-      next_billing_date: '2026-11-22',
-    });
-  });
-
-  it('adds up the accounts once each of them says what it costs', async () => {
-    const user = userEvent.setup();
-    const { onSave } = await renderOpen(rowWithTwoAccounts);
-
-    const workAmount = screen.getByLabelText('Amount for account 2');
-    await user.type(workAmount, '1000');
-    fireEvent.change(screen.getByLabelText('Renewal date for account 2'), {
-      target: { value: '2026-11-22' },
-    });
-
-    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
-
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const payload = onSave.mock.calls[0][0];
-    expect(payload.price).toBe(2600);
-    expect(payload.next_billing_date).toBe('2026-11-16');
-    const links = payload.account_links as { label: string; price?: number }[];
-    expect(links[1]).toMatchObject({ label: 'Work', price: 1000 });
-  });
-});
-
-async function renderOpen(initialData: SubscriptionRow) {
+async function renderOpen(initialData: SubscriptionRow, focusAccountId?: string) {
   const onSave = vi.fn(async () => 'sub_1');
   const view = render(
-    <SubscriptionModal isOpen={false} onClose={vi.fn()} onSave={onSave} initialData={null} />
+    <SubscriptionModal
+      isOpen={false}
+      onClose={vi.fn()}
+      onSave={onSave}
+      initialData={null}
+      focusAccountId={focusAccountId}
+    />
   );
   view.rerender(
     <SubscriptionModal
@@ -175,8 +79,127 @@ async function renderOpen(initialData: SubscriptionRow) {
       onSave={onSave}
       initialData={initialData}
       existingSubscriptions={[initialData]}
+      focusAccountId={focusAccountId}
     />
   );
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   return { onSave };
 }
+
+describe('a subscription with two accounts', () => {
+  it('opens on the account in view, with that account own details in the form', async () => {
+    await renderOpen(rowWithTwoAccounts, 'link-2');
+
+    // The work account: its type, its amount and its date.
+    expect(screen.getByLabelText('Account Type')).toHaveValue('Work');
+    expect(screen.getByPlaceholderText('15.99')).toHaveValue(2600);
+    expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-11-22');
+    expect(screen.getByLabelText('Start Date')).toHaveValue('2026-10-22');
+
+    // And the link box is that account's link.
+    expect(screen.getByLabelText('Account URL')).toHaveValue('https://spotify.com/work');
+  });
+
+  it('opens on the first account when no account was chosen', async () => {
+    await renderOpen(rowWithTwoAccounts);
+
+    expect(screen.getByLabelText('Account Type')).toHaveValue('Personal');
+    expect(screen.getByPlaceholderText('15.99')).toHaveValue(1600);
+    expect(screen.getByLabelText('Account URL')).toHaveValue('https://spotify.com/personal');
+  });
+
+  it('saves the account in view without touching the other one', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen(rowWithTwoAccounts, 'link-2');
+
+    await user.clear(screen.getByPlaceholderText('15.99'));
+    await user.type(screen.getByPlaceholderText('15.99'), '3000');
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-12-01' },
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const payload = onSave.mock.calls[0][0];
+    const links = payload.account_links as {
+      label: string;
+      price?: number;
+      next_billing_date?: string;
+    }[];
+
+    // The work account has what was typed into it, and the personal one is
+    // untouched.
+    expect(links[1]).toMatchObject({
+      label: 'Work',
+      price: 3000,
+      next_billing_date: '2026-12-01',
+    });
+    expect(links[0]).toMatchObject({ label: 'Personal', price: 1600 });
+  });
+
+  it('adds the accounts up for the subscription', async () => {
+    const { onSave } = await renderOpen(rowWithTwoAccounts, 'link-2');
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Update Subscription' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 3000 }).catch(() => {
+      const errors = [...document.querySelectorAll('[id$="-error"]')].map((n) => n.textContent);
+      console.log('ERRORS:', JSON.stringify(errors));
+      console.log('price:', (screen.getByPlaceholderText('15.99') as HTMLInputElement).value);
+      console.log('type:', (screen.getByLabelText('Account Type') as HTMLSelectElement).value);
+      console.log('start:', (screen.getByLabelText('Start Date') as HTMLInputElement).value);
+      console.log('renew:', (screen.getByLabelText('Next Billing Date') as HTMLInputElement).value);
+      console.log('currency:', (screen.getByLabelText('Currency') as HTMLSelectElement).value);
+      console.log('cycle:', (screen.getByLabelText('Cycle') as HTMLSelectElement).value);
+      console.log('category:', (screen.getByLabelText('Category') as HTMLSelectElement).value);
+      console.log('status:', (screen.getByLabelText('Status') as HTMLSelectElement).value);
+      console.log('name:', (screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro') as HTMLInputElement).value);
+    });
+    const payload = onSave.mock.calls[0][0];
+    // 1,600 personal and 2,600 work.
+    expect(payload.price).toBe(4200);
+    // The soonest of them is the 16th.
+    expect(payload.next_billing_date).toBe('2026-11-16');
+  });
+
+  it('keeps the account that is already there when another is added', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen(rowWithTwoAccounts, 'link-2');
+
+    await user.click(screen.getByRole('button', { name: 'Add account link' }));
+    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const links = onSave.mock.calls[0][0].account_links as { id: string }[];
+    expect(links).toHaveLength(3);
+    expect(links[0].id).toBe('link-1');
+    expect(links[1].id).toBe('link-2');
+  });
+
+  it('saves the renewal date in the renewal date, not in the start date', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen(rowWithTwoAccounts, 'link-2');
+
+    // Regression: the renewal date input once wrote to the start date, so
+    // changing when the subscription renews moved when it started instead and
+    // nothing the user changed about the renewal was kept.
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-12-20' },
+    });
+
+    expect(screen.getByLabelText('Start Date')).toHaveValue('2026-10-22');
+
+    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const payload = onSave.mock.calls[0][0];
+    const links = payload.account_links as { label: string; next_billing_date?: string }[];
+
+    // The account in view has the date that was typed into it.
+    expect(links[1]).toMatchObject({ label: 'Work', next_billing_date: '2026-12-20' });
+    // And the subscription renews on the soonest of its accounts.
+    expect(payload.next_billing_date).toBe('2026-11-16');
+    expect(payload.start_date).toBe('2026-10-16');
+  });
+});

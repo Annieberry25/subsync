@@ -121,7 +121,6 @@ export default function SubscriptionManager() {
   // Manual Form Modal & Confirm State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
-  const [returnToDetailSub, setReturnToDetailSub] = useState<SubscriptionRow | null>(null);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
   const [deleteReturnToDetailSub, setDeleteReturnToDetailSub] = useState<SubscriptionRow | null>(null);
@@ -1023,7 +1022,6 @@ export default function SubscriptionManager() {
           setSelectedDetailSub(null);
         }}
         onEdit={(item, accountId) => {
-          setReturnToDetailSub(item);
           setIsDetailOpen(false);
           setEditingSubscription(item);
           // The account the user picked in the detail sheet is the one the form
@@ -1041,15 +1039,12 @@ export default function SubscriptionManager() {
       <SubscriptionModal
         isOpen={isModalOpen}
         onClose={() => {
+          /* Closing the form closes it. It does not put the detail sheet back
+             up: the user cancelled, and being returned to another sheet is not
+             what cancelling means. */
           setIsModalOpen(false);
           setEditingSubscription(null);
           setFocusAccountId(null);
-          if (returnToDetailSub) {
-            const updated = subscriptions.find((s) => s.id === returnToDetailSub.id) || returnToDetailSub;
-            setSelectedDetailSub(updated);
-            setIsDetailOpen(true);
-            setReturnToDetailSub(null);
-          }
         }}
         onBack={
           editingSubscription?.id
