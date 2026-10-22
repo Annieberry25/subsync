@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, AlertCircle, Plus, Trash2, ChevronLeft, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Trash2, ChevronLeft, Link2, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow, 
@@ -64,10 +64,6 @@ interface FieldErrors {
   name?: string;
   price?: string;
   date?: string;
-  currency?: string;
-  cycle?: string;
-  category?: string;
-  status?: string;
 }
 
 function validateName(value: string): string | undefined {
@@ -86,10 +82,6 @@ function validateDate(value: string): string | undefined {
   return value ? undefined : 'Next billing date is required.';
 }
 
-function validateChoice(value: string, label: string): string | undefined {
-  return value ? undefined : `${label} is required.`;
-}
-
 /**
  * A unique id for a seeded account row.
  *
@@ -106,18 +98,6 @@ function nextAccountLinkId(existing: AccountLink[]): string {
     suffix += 1;
   }
   return id;
-}
-
-/**
- * The account type for a newly added row.
- *
- * The first type nobody is using yet, so the rows do not all land on
- * "Personal" by accident. The row number is the label above it
- * ("Account Type 1", "Account Type 2"); this is what the row is for.
- */
-function nextAccountType(existing: AccountLink[]): string {
-  const used = new Set(existing.map((link) => link.label));
-  return ACCOUNT_TYPES.find((type) => !used.has(type)) ?? 'Other';
 }
 
 function formatDateInput(date: Date): string {
@@ -147,22 +127,10 @@ export default function SubscriptionModal({
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  /*
-   * These four start empty on purpose.
-   *
-   * A default the user never chose is a value the user never entered: the
-   * currency, the cycle, the category and the status are all things they have
-   * an opinion about, and a silently assumed one is how a subscription ends up
-   * filed under the wrong category and billed on the wrong day. They are
-   * required, and the form says which one is missing.
-   *
-   * When the name matches a subscription that is already tracked, they are
-   * filled in from that row instead — see carryOverFrom.
-   */
-  const [currency, setCurrency] = useState('');
-  const [billingCycle, setBillingCycle] = useState<typeof billingCycles[number] | ''>('');
-  const [category, setCategory] = useState<typeof categories[number] | ''>('');
-  const [status, setStatus] = useState<typeof statuses[number] | ''>('');
+  const [currency, setCurrency] = useState('USD');
+  const [billingCycle, setBillingCycle] = useState<typeof billingCycles[number]>('monthly');
+  const [category, setCategory] = useState<typeof categories[number]>('Streaming');
+  const [status, setStatus] = useState<typeof statuses[number]>('active');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [nextBillingDate, setNextBillingDate] = useState('');
@@ -210,10 +178,10 @@ export default function SubscriptionModal({
     } else {
       setName('');
       setPrice('');
-      setCurrency('');
-      setBillingCycle('');
-      setCategory('');
-      setStatus('');
+      setCurrency('USD');
+      setBillingCycle('monthly');
+      setCategory('Streaming');
+      setStatus('active');
       setStartDate('');
       setEndDate('');
       const nextMonth = new Date();
@@ -301,7 +269,7 @@ export default function SubscriptionModal({
       ...existing,
       {
         id: nextAccountLinkId(existing),
-        label: nextAccountType(existing),
+        label: existing.length === 0 ? 'Personal' : `Account ${existing.length + 1}`,
         // Pre-filled from the provider table, exactly like the button does, so
         // the user is never asked to paste a URL SubHalt already knows.
         url: getKnownProviderAccountUrl(match.name) || '',
@@ -324,7 +292,7 @@ export default function SubscriptionModal({
       ...prev,
       {
         id: `link-${Date.now()}`,
-        label: nextAccountType(prev),
+        label: prev.length === 0 ? 'Personal' : `Account ${prev.length + 1}`,
         // Pre-filled from the provider table so the user never has to paste the
         // profile URL themselves. Still editable for providers we don't know.
         url: knownAccountUrl || '',
@@ -368,18 +336,6 @@ export default function SubscriptionModal({
     const dateError = validateDate(nextBillingDate);
     if (dateError) errors.date = dateError;
 
-    const currencyError = validateChoice(currency, 'Currency');
-    if (currencyError) errors.currency = currencyError;
-
-    const cycleError = validateChoice(billingCycle, 'Cycle');
-    if (cycleError) errors.cycle = cycleError;
-
-    const categoryError = validateChoice(category, 'Category');
-    if (categoryError) errors.category = categoryError;
-
-    const statusError = validateChoice(status, 'Status');
-    if (statusError) errors.status = statusError;
-
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -392,21 +348,13 @@ export default function SubscriptionModal({
    * map back to the field. It only ever reports a field the user has actually
    * touched, so an untouched form is never covered in red.
    */
-  const validateField = (field: 'name' | 'price' | 'date' | 'currency' | 'cycle' | 'category' | 'status') => {
+  const validateField = (field: 'name' | 'price' | 'date') => {
     const message =
       field === 'name'
         ? validateName(name)
         : field === 'price'
           ? validatePrice(price)
-          : field === 'date'
-            ? validateDate(nextBillingDate)
-            : field === 'currency'
-              ? validateChoice(currency, 'Currency')
-              : field === 'cycle'
-                ? validateChoice(billingCycle, 'Cycle')
-                : field === 'category'
-                  ? validateChoice(category, 'Category')
-                  : validateChoice(status, 'Status');
+          : validateDate(nextBillingDate);
 
     setFieldErrors((prev) => ({ ...prev, [field]: message }));
   };
@@ -469,14 +417,9 @@ setLoading(true);
           name: name.trim(),
           price: parsedPrice,
           currency,
-          /*
-           * The four choices are required and validateForm has already refused
-           * the save if any of them is empty, so the cast is the compiler being
-           * told something it cannot see.
-           */
-          billing_cycle: billingCycle as typeof billingCycles[number],
-          category: category as typeof categories[number],
-          status: status as typeof statuses[number],
+          billing_cycle: billingCycle,
+          category,
+          status,
           start_date: startDate ? startDate : null,
           end_date: endDate ? endDate : null,
           next_billing_date: nextBillingDate,
@@ -662,63 +605,29 @@ setLoading(true);
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Currency</label>
                 <select
-                  aria-label="Currency"
                   value={currency}
-                  onChange={(e) => {
-                    setCurrency(e.target.value);
-                    if (fieldErrors.currency) setFieldErrors((prev) => ({ ...prev, currency: undefined }));
-                  }}
-                  onBlur={() => validateField('currency')}
-                  aria-invalid={fieldErrors.currency ? true : undefined}
-                  aria-describedby={fieldErrors.currency ? 'sub-currency-error' : undefined}
-                  className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors ${
-                    fieldErrors.currency ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
-                  }`}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 >
-                  <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
-                    Select currency
-                  </option>
                   {SUPPORTED_CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code} className="bg-[#0D0F0F] text-[#F5F7F6]">
                       {c.code} ({c.symbol})
                     </option>
                   ))}
                 </select>
-                {fieldErrors.currency && (
-                  <span id="sub-currency-error" className="text-[10px] text-[#D9363E] font-medium">
-                    {fieldErrors.currency}
-                  </span>
-                )}
               </div>
 
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Cycle</label>
                 <select
-                  aria-label="Cycle"
                   value={billingCycle}
-                  onChange={(e) => {
-                    setBillingCycle(e.target.value as typeof billingCycles[number] | '');
-                    if (fieldErrors.cycle) setFieldErrors((prev) => ({ ...prev, cycle: undefined }));
-                  }}
-                  onBlur={() => validateField('cycle')}
-                  aria-invalid={fieldErrors.cycle ? true : undefined}
-                  aria-describedby={fieldErrors.cycle ? 'sub-cycle-error' : undefined}
-                  className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors capitalize ${
-                    fieldErrors.cycle ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
-                  }`}
+                  onChange={(e) => setBillingCycle(e.target.value as typeof billingCycles[number])}
+                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors capitalize"
                 >
-                  <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
-                    Select cycle
-                  </option>
                   {billingCycles.map((c) => (
                     <option key={c} value={c} className="bg-[#0D0F0F] text-[#F5F7F6] capitalize">{c}</option>
                   ))}
                 </select>
-                {fieldErrors.cycle && (
-                  <span id="sub-cycle-error" className="text-[10px] text-[#D9363E] font-medium">
-                    {fieldErrors.cycle}
-                  </span>
-                )}
               </div>
             </div>
 
@@ -727,61 +636,27 @@ setLoading(true);
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Category</label>
                 <select
-                  aria-label="Category"
                   value={category}
-                  onChange={(e) => {
-                    setCategory(e.target.value as typeof categories[number] | '');
-                    if (fieldErrors.category) setFieldErrors((prev) => ({ ...prev, category: undefined }));
-                  }}
-                  onBlur={() => validateField('category')}
-                  aria-invalid={fieldErrors.category ? true : undefined}
-                  aria-describedby={fieldErrors.category ? 'sub-category-error' : undefined}
-                  className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors ${
-                    fieldErrors.category ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
-                  }`}
+                  onChange={(e) => setCategory(e.target.value as typeof categories[number])}
+                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors"
                 >
-                  <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
-                    Select category
-                  </option>
                   {categories.map((cat) => (
                     <option key={cat} value={cat} className="bg-[#0D0F0F] text-[#F5F7F6]">{cat}</option>
                   ))}
                 </select>
-                {fieldErrors.category && (
-                  <span id="sub-category-error" className="text-[10px] text-[#D9363E] font-medium">
-                    {fieldErrors.category}
-                  </span>
-                )}
               </div>
 
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-[#94A3B8] block">Status</label>
                 <select
-                  aria-label="Status"
                   value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value as typeof statuses[number] | '');
-                    if (fieldErrors.status) setFieldErrors((prev) => ({ ...prev, status: undefined }));
-                  }}
-                  onBlur={() => validateField('status')}
-                  aria-invalid={fieldErrors.status ? true : undefined}
-                  aria-describedby={fieldErrors.status ? 'sub-status-error' : undefined}
-                  className={`w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border text-[#F5F7F6] focus:outline-none transition-colors capitalize ${
-                    fieldErrors.status ? 'border-[#D9363E] focus:border-[#D9363E]' : 'border-[#1A1D1D] focus:border-[#14B8A6]'
-                  }`}
+                  onChange={(e) => setStatus(e.target.value as typeof statuses[number])}
+                  className="w-full h-11 !pl-4 !pr-14 py-2.5 text-xs rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] focus:outline-none focus:border-[#14B8A6] transition-colors capitalize"
                 >
-                  <option value="" disabled className="bg-[#0D0F0F] text-[#94A3B8]">
-                    Select status
-                  </option>
                   {statuses.map((s) => (
                     <option key={s} value={s} className="bg-[#0D0F0F] text-[#F5F7F6] capitalize">{s}</option>
                   ))}
                 </select>
-                {fieldErrors.status && (
-                  <span id="sub-status-error" className="text-[10px] text-[#D9363E] font-medium">
-                    {fieldErrors.status}
-                  </span>
-                )}
               </div>
             </div>
 
@@ -869,24 +744,28 @@ setLoading(true);
 
             {/* Subscription Accounts Section */}
             <div className="space-y-4 pt-1">
-              <div className="flex items-center gap-2">
-                <label className="text-[13px] font-medium text-[#94A3B8]">Subscription Accounts</label>
-                {/* The add control sits beside the heading it belongs to, as a
-                    single plus. The "Add account link" wording was a second
-                    way of saying the same thing, further from the section it
-                    adds to. */}
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[13px] font-medium text-[#94A3B8] flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-[#94A3B8]" />
+                  <span>
+                    Subscription Accounts
+                    <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">
+                      (Optional)
+                    </span>
+                  </span>
+                </label>
                 <button
                   type="button"
                   onClick={handleAddAccountLink}
-                  aria-label="Add account link"
                   title={
                     canAddAnotherAccount
                       ? 'Add another account link'
                       : 'Multiple accounts per subscription are a Plus feature'
                   }
-                  className="w-6 h-6 rounded-md text-[#14B8A6] hover:bg-[#14B8A6]/10 flex items-center justify-center transition-colors cursor-pointer"
+                  className="text-xs font-semibold text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
                 >
-                  <Plus className="w-4 h-4 text-[#14B8A6]" />
+                  <Plus className="w-3.5 h-3.5 text-[#14B8A6]" />
+                  <span>Add account link</span>
                 </button>
               </div>
 
@@ -903,7 +782,7 @@ setLoading(true);
 
               {accountLinks.length === 0 ? (
                 <div className="px-3 py-2.5 text-center rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[11px] leading-relaxed text-[#94A3B8]">
-                  No account entries added yet. Use the + above to configure your accounts.
+                  No account entries added yet. Click &quot;Add account link&quot; to configure your accounts.
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -941,7 +820,7 @@ setLoading(true);
                         <div className="flex items-center justify-between gap-2">
                           <div className="space-y-2 flex-1 min-w-0">
                             <label className="text-[13px] font-medium text-[#94A3B8] block">
-                              Account Type {idx + 1}
+                              Account Type {accountLinks.length > 1 ? `#${idx + 1}` : ''}
                             </label>
                             <CustomSelect
                               options={ACCOUNT_TYPES.map((type) => ({ value: type, label: type }))}
@@ -970,9 +849,6 @@ setLoading(true);
                             className="text-[13px] font-medium text-[#94A3B8] block"
                           >
                             Account URL
-                            <span className="text-[11px] font-normal text-[#64748B] ml-1.5 select-none">
-                              (Optional)
-                            </span>
                           </label>
                           <div className="flex items-center gap-2">
                             <input
