@@ -382,12 +382,24 @@ export function getSubscriptionHistoryState(subscription: SubscriptionRow | null
   return { state: 'active' };
 }
 
+/**
+ * The user's own text from a row's notes.
+ *
+ * The notes column carries the user's text and the row's metadata blocks, and
+ * it also carries the line that records where the row came from — "Gmail
+ * Discovery: auto-linked from your inbox", "Gmail Monitoring: …", "Email
+ * Forwarding: …". Those are the app's breadcrumbs, not something the user
+ * wrote, and they were showing up in the notes box of the form as if the
+ * user had typed them.
+ */
 export function cleanNotesUserText(notesText: string | null | undefined): string {
   if (!notesText) return '';
   return notesText
     .replace(/\[AccountLinks:\s*\[.*?\]\]/g, '')
     .replace(/\[AttachedReceipts:\s*\[.*?\]\]/g, '')
     .replace(/\[HistoryState:\s*\{.*?\}\]/g, '')
+    /* The discovery breadcrumbs, and the source line a receipt import leaves. */
+    .replace(/^\[(Gmail Discovery|Gmail Monitoring|Email Forwarding|Receipt Import)[^\]]*\]\s*$/gm, '')
     .trim();
 }
 
@@ -435,6 +447,19 @@ function rebuildNotesPreservingReceipts(
 
 export function filterActiveSubscriptions(subscriptions: SubscriptionRow[]): SubscriptionRow[] {
   return subscriptions.filter((sub) => getSubscriptionHistoryState(sub).state === 'active');
+}
+
+/**
+ * Whether a row stands for more than one account.
+ *
+ * A subscription with two accounts is not one plan, at one price, on one date:
+ * it is two accounts, and a single row cannot say which of them the Plan, the
+ * Category, the Amount and the renewal date refer to. The list shows a dash
+ * for those columns and the detail sheet asks which account is being looked
+ * at.
+ */
+export function hasMultipleAccounts(subscription: SubscriptionRow | null | undefined): boolean {
+  return parseAccountLinks(subscription).length > 1;
 }
 
 export function filterArchivedSubscriptions(subscriptions: SubscriptionRow[]): SubscriptionRow[] {

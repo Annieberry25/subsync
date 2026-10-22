@@ -104,6 +104,12 @@ export default function SubscriptionManager() {
   // Notes Modal state
   const [notesSub, setNotesSub] = useState<SubscriptionRow | null>(null);
 
+  /**
+   * The account the form opens on, when the user came from the detail sheet
+   * having picked one of several.
+   */
+  const [focusAccountId, setFocusAccountId] = useState<string | null>(null);
+
   // Manual Form Modal & Confirm State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
@@ -971,10 +977,13 @@ export default function SubscriptionManager() {
           setIsDetailOpen(false);
           setSelectedDetailSub(null);
         }}
-        onEdit={(item) => {
+        onEdit={(item, accountId) => {
           setReturnToDetailSub(item);
           setIsDetailOpen(false);
           setEditingSubscription(item);
+          // The account the user picked in the detail sheet is the one the form
+          // opens on.
+          setFocusAccountId(accountId ?? null);
           setIsModalOpen(true);
         }}
         onDeleteRequest={(item) => {
@@ -989,6 +998,7 @@ export default function SubscriptionManager() {
         onClose={() => {
           setIsModalOpen(false);
           setEditingSubscription(null);
+          setFocusAccountId(null);
           if (returnToDetailSub) {
             const updated = subscriptions.find((s) => s.id === returnToDetailSub.id) || returnToDetailSub;
             setSelectedDetailSub(updated);
@@ -1008,6 +1018,7 @@ export default function SubscriptionManager() {
         onSave={handleSave}
         initialData={editingSubscription}
         existingSubscriptions={activeSubscriptions}
+        focusAccountId={focusAccountId}
         pendingReceiptFile={pendingReceiptFile}
         onRequireUpgrade={() => {
           // Close the form so the upgrade sheet is not stacked behind it.

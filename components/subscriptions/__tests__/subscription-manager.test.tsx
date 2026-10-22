@@ -328,8 +328,15 @@ describe('SubscriptionManager duplicate guard', () => {
     await openManualForm(user);
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
-    // The form carries an account, so the type of that account is a choice.
+    // The form carries an account, so the type of that account is a choice,
+    // and so are the two dates.
     await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '2026-01-01' },
+    });
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-11-19' },
+    });
 
     const submit = screen
       .getAllByRole('button', { name: 'Add Another Account' })

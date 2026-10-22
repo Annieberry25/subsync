@@ -341,6 +341,85 @@ describe('SubscriptionModal', () => {
     expect(mocks.toast.success).not.toHaveBeenCalled();
   });
 
+  /**
+   * The start date decides the renewal date: a subscription that started on a
+   * day renews a cycle later. The date is still editable, this only fills it
+   * in.
+   */
+  it('moves the renewal date a month on from the start date', async () => {
+    await renderOpen();
+
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '2026-03-15' },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-04-15')
+    );
+  });
+
+  it('moves the renewal date a year on when the year shortcut is used', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '2026-03-15' },
+    });
+    await user.click(screen.getByRole('button', { name: '+1 Year' }));
+
+    // The shortcut sets the cycle as well as the date.
+    expect(screen.getByLabelText('Cycle')).toHaveValue('yearly');
+    await waitFor(() =>
+      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2027-03-15')
+    );
+  });
+
+  it('measures the shortcut from the start date, not from today', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '2026-03-15' },
+    });
+    await user.click(screen.getByRole('button', { name: '+1 Month' }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-04-15')
+    );
+  });
+
+  it('clamps a renewal to the end of a shorter month', async () => {
+    await renderOpen();
+
+    // The 31st of January renews on the 28th of February, not in March.
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '2027-01-31' },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2027-02-28')
+    );
+  });
+
+  /**
+   * A row that was added before the form had a start date has none. Editing
+   * it has to be blocked until the date is filled in — the same rule as
+   * adding, because an edit that writes a row with a missing date is the same
+   * broken row.
+   */
+  it('refuses to save an edit while the start date is empty', async () => {
+    const user = userEvent.setup();
+    const { onSave } = await renderOpen(makeSubscription({ start_date: null }));
+
+    // The row has no start date, so the box is empty.
+    expect(screen.getByLabelText('Start Date')).toHaveValue('');
+
+    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
+
+    expect(await screen.findByText('Start date is required.')).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('does not call onSave when required fields are empty', async () => {
     const user = userEvent.setup();
     const { onSave } = await renderOpen();
@@ -454,7 +533,7 @@ describe('SubscriptionModal already-tracked service', () => {
     ).toBeInTheDocument();
   });
 
-  it('fills every compulsory field from the subscription already tracked', async () => {
+  it('fills what the user does not have to decide, and leaves the rest empty', async () => {
     const user = userEvent.setup();
     await renderOpen(null, 'sub_new', [tracked]);
 
@@ -463,17 +542,23 @@ describe('SubscriptionModal already-tracked service', () => {
       'Netflix'
     );
 
-    // Price, currency, cycle, category, status and the renewal date all come
-    // from the row that is already there. None of them is left blank.
+    // The price, the currency, the cycle, the category and the status come
+    // from the row that is already there: another account for the same service
+    // is the same service at the same price.
     await waitFor(() =>
       expect(screen.getByPlaceholderText('15.99')).toHaveValue(15.99)
     );
-    expect(screen.getByPlaceholderText('15.99')).toHaveValue(15.99);
     expect(screen.getByDisplayValue('NGN (₦)')).toBeInTheDocument();
     expect(screen.getByDisplayValue('yearly')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Software')).toBeInTheDocument();
     expect(screen.getByDisplayValue('trial')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2026-12-24')).toBeInTheDocument();
+
+    // The boxes the user has to decide are empty: the account type, the start
+    // date and the renewal date. A date the user never chose is a date the
+    // reminders would be wrong about.
+    expect(screen.getByLabelText('Account Type')).toHaveValue('');
+    expect(screen.getByLabelText('Start Date')).toHaveValue('');
+    expect(screen.getByLabelText('Next Billing Date')).toHaveValue('');
   });
 
   it('saves onto the subscription already tracked instead of creating a new one', async () => {
@@ -485,8 +570,14 @@ describe('SubscriptionModal already-tracked service', () => {
       'Netflix'
     );
     // The form now carries an account, so the type of that account is a choice
-    // the user has to make.
+    // the user has to make, and so are the two dates.
     await user.selectOptions(screen.getByLabelText('Account Type'), 'Family');
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '2026-02-01' },
+    });
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-12-24' },
+    });
 
     await user.click(await screen.findByRole('button', { name: 'Add Another Account' }));
 
@@ -501,7 +592,45 @@ describe('SubscriptionModal already-tracked service', () => {
       category: 'Software',
       status: 'trial',
       next_billing_date: '2026-12-24',
+      start_date: '2026-02-01',
     });
+  });
+
+  it('keeps the account that is already there and adds the new one beside it', async () => {
+    const user = userEvent.setup();
+    const withAccount = {
+      ...tracked,
+      account_links: [
+        { id: 'link-1', label: 'Personal', url: 'https://spotify.com/personal', email: '' },
+      ],
+      notes:
+        'Plan: Individual\n[AccountLinks: [{"id":"link-1","label":"Personal","url":"https://spotify.com/personal","email":""}]]',
+    };
+
+    const { onSave } = await renderOpen(null, 'sub_new', [withAccount]);
+
+    await user.type(
+      screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
+      'Netflix'
+    );
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Family');
+    fireEvent.change(screen.getByLabelText('Start Date'), {
+      target: { value: '2026-02-01' },
+    });
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-12-24' },
+    });
+
+    // Both accounts are on the form: the one that was there and the new one.
+    const rows = document.querySelectorAll('[data-account-id]');
+    expect(rows).toHaveLength(2);
+
+    await user.click(await screen.findByRole('button', { name: 'Add Another Account' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const links = onSave.mock.calls[0][0].account_links as { id: string }[];
+    expect(links).toHaveLength(2);
+    expect(links[0].id).toBe('link-1');
   });
 
   it('does not treat a cancelled subscription as the same service', async () => {
@@ -528,7 +657,15 @@ describe('SubscriptionModal subscription accounts', () => {
     mocks.planTier = 'free';
   });
 
-  it('auto-fills the account URL from the provider instead of asking the user to paste it', async () => {
+  /**
+   * The account URL box is for the user's own account link.
+   *
+   * It used to be pre-filled with the provider's account page, which made it
+   * impossible to tell whose link was in the box: the provider's, or the
+   * user's. The provider's link belongs to the arrow beside it, and the box
+   * starts empty.
+   */
+  it('leaves the account URL box empty and keeps the provider link on the arrow', async () => {
     const user = userEvent.setup();
     await renderOpen();
 
@@ -539,7 +676,11 @@ describe('SubscriptionModal subscription accounts', () => {
     await user.click(screen.getByRole('button', { name: /Add account link/ }));
 
     const url = screen.getByLabelText(/Account URL/) as HTMLInputElement;
-    expect(url.value).toBe('https://www.netflix.com/youraccount');
+    expect(url.value).toBe('');
+
+    // The arrow still knows where the provider's account page is.
+    const arrow = screen.getByRole('link', { name: /Open Netflix account in a new tab/ });
+    expect(arrow).toHaveAttribute('href', 'https://www.netflix.com/youraccount');
   });
 
   it('sends a free user to upgrade when adding a second account', async () => {

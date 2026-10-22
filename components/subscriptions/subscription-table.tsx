@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useSyncExternalStore, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Edit2, MoreVertical, Clock, Settings, Archive, Bell, ChevronRight, Trash2 } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription, cleanNotesUserText } from '@/lib/services/subscription-service';
+import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription, cleanNotesUserText, hasMultipleAccounts } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
@@ -272,6 +272,11 @@ function SubscriptionTable({
             {subscriptions.map((sub) => {
               const formattedPrice = formatCurrency(Number(sub.price), sub.currency);
               const planName = getPlanName(sub);
+              /* More than one account: the plan, the category, the amount and
+                 the renewal date cannot be pinned to one of them, so the row
+                 shows a dash for those and the detail sheet asks which account
+                 is being looked at. */
+              const multipleAccounts = hasMultipleAccounts(sub);
 
               const parseLocalDate = (dateStr: string | null | undefined): Date | null => {
                 if (!dateStr) return null;
@@ -331,27 +336,40 @@ function SubscriptionTable({
 
                   {/* Plan */}
                   <td className="py-4 px-4 max-w-[240px]">
-                    <span
-                      title={planName}
-                      className="block truncate font-medium text-xs sm:text-sm text-[#94A3B8]"
-                    >
-                      {planName}
-                    </span>
+                    {multipleAccounts ? (
+                      <span className="block text-[#64748B]">-</span>
+                    ) : (
+                      <span
+                        title={planName}
+                        className="block truncate font-medium text-xs sm:text-sm text-[#94A3B8]"
+                      >
+                        {planName}
+                      </span>
+                    )}
                   </td>
 
                   {/* Category */}
                   <td className="py-4 px-4 whitespace-nowrap text-xs text-[#94A3B8] font-normal">
-                    {sub.category}
+                    {multipleAccounts ? <span className="text-[#64748B]">-</span> : sub.category}
                   </td>
 
                   {/* Amount */}
                   <td className="py-4 px-4 whitespace-nowrap font-bold text-[#F5F7F6] text-sm sm:text-base">
-                    {formattedPrice} <span className="text-xs font-normal text-[#94A3B8]">/ {sub.billing_cycle}</span>
+                    {multipleAccounts ? (
+                      <span className="text-[#64748B] font-normal">-</span>
+                    ) : (
+                      <>
+                        {formattedPrice}{' '}
+                        <span className="text-xs font-normal text-[#94A3B8]">/ {sub.billing_cycle}</span>
+                      </>
+                    )}
                   </td>
 
                   {/* Next Billing */}
                   <td className="py-4 px-4 whitespace-nowrap text-xs sm:text-sm text-[#94A3B8]">
-                    {diffDays < 0 ? (
+                    {multipleAccounts ? (
+                      <span className="text-[#64748B]">-</span>
+                    ) : diffDays < 0 ? (
                       <span className="text-[#D9363E] font-bold">Overdue ({Math.abs(diffDays)}d)</span>
                     ) : diffDays === 0 ? (
                       <span className="text-[#D9363E] font-bold">Due today</span>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Calendar, DollarSign, FileText, Clock, Globe, Users, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
@@ -16,7 +17,8 @@ interface SubscriptionDetailModalProps {
   subscription: SubscriptionRow | null;
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (subscription: SubscriptionRow) => void;
+  /** The account the user is looking at is passed back, so the form can open on it. */
+  onEdit: (subscription: SubscriptionRow, accountId?: string) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
   onRestoreRequest?: (subscription: SubscriptionRow) => void;
   onCancellationAssistance?: (subscription: SubscriptionRow) => void;
@@ -48,15 +50,43 @@ export default function SubscriptionDetailModal({
 }: SubscriptionDetailModalProps) {
   const { toast: _toast } = useToast();
 
+  /**
+   * The account being looked at.
+   *
+   * A subscription can have more than one account, and they are not the same
+   * thing: a family plan and a work plan on the same service, or two
+   * logins on one subscription. The sheet shows them all, and this is the one
+   * the user is currently looking at — the one the Edit action opens.
+   */
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+
+  const accountLinks = useMemo(
+    () => (subscription ? parseAccountLinks(subscription) : []),
+    [subscription]
+  );
+
+  /* A different subscription, or a different set of accounts, resets the
+     choice: the account that was in view on another row is not in view here. */
+  const accountKey = `${subscription?.id ?? ''}:${accountLinks.map((l) => l.id).join(',')}`;
+  const [prevAccountKey, setPrevAccountKey] = useState(accountKey);
+  if (prevAccountKey !== accountKey) {
+    setPrevAccountKey(accountKey);
+    if (selectedAccountId !== null) setSelectedAccountId(null);
+  }
+
   if (!subscription) return null;
 
   const priceNum = Number(subscription.price) || 0;
   const formattedPrice = formatCurrency(priceNum, subscription.currency);
   const annualCost = calculateAnnualCost(priceNum, subscription.billing_cycle);
   const formattedAnnualCost = formatCurrency(annualCost, subscription.currency);
-  const accountLinks = parseAccountLinks(subscription);
   const attachedReceipts = parseAttachedReceipts(subscription);
   const cleanNotes = cleanNotesUserText(subscription.notes);
+
+  /* The account in view. It falls back to the first one, so opening the sheet
+     on a subscription with accounts always shows one of them. */
+  const selectedLink =
+    accountLinks.find((link) => link.id === selectedAccountId) ?? accountLinks[0] ?? null;
 
   const rawProviderUrl = subscription.provider_url ? subscription.provider_url.trim() : '';
   const activeProviderUrl = rawProviderUrl
@@ -126,7 +156,9 @@ export default function SubscriptionDetailModal({
             type="button"
             onClick={() => {
               onClose();
-              onEdit(subscription);
+              // The account the user was looking at is the one the form opens
+              // on, so the edit starts where the eye already was.
+              onEdit(subscription, selectedLink?.id);
             }}
             className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
           >
@@ -170,6 +202,47 @@ export default function SubscriptionDetailModal({
       description={`${subscription.billing_cycle} billing`}
       footer={actions}
     >
+        {/* Which account. Only when there is a choice to make: one account is
+            not a choice, and a box offering one option is noise. */}
+        {accountLinks.length > 1 && (
+          <div
+            className="mb-4 p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]"
+            data-testid="account-chooser"
+          >
+            <p className="text-[11px] text-[#9CA3AF] mb-2">
+              This subscription has {accountLinks.length} accounts. Pick the one you want to look at
+              and edit.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {accountLinks.map((link, idx) => {
+                const isSelected = selectedLink?.id === link.id;
+                /* Two accounts can share a type — two family plans, two work
+                   logins — so the number is only added when the type alone
+                   would not tell them apart. */
+                const sameType = accountLinks.filter(
+                  (other) => (other.label || 'Personal') === (link.label || 'Personal')
+                ).length;
+                const typeLabel = link.label || 'Personal';
+                return (
+                  <button
+                    key={link.id}
+                    type="button"
+                    onClick={() => setSelectedAccountId(link.id)}
+                    aria-pressed={isSelected}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer border ${
+                      isSelected
+                        ? 'bg-[#14B8A6]/15 border-[#14B8A6]/40 text-[#F5F7F6]'
+                        : 'bg-[#131617] border-[#1F2425] text-[#9CA3AF] hover:text-[#F5F7F6]'
+                    }`}
+                  >
+                    {sameType > 1 ? `${typeLabel} ${idx + 1}` : typeLabel}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 6 Detailed Sections Grid. The Sheet body owns the scroll. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Section 1: Costs & Billing */}
@@ -251,40 +324,38 @@ export default function SubscriptionDetailModal({
             </div>
           </div>
 
-          {/* Section 4: Subscription Accounts */}
+          {/* Section 4: Account Type */}
           <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3 col-span-1 md:col-span-2">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-[#9CA3AF]" />
               <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">
-                Subscription Accounts ({accountLinks.length})
+                Account Type
               </span>
             </div>
 
-            {accountLinks.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
-                {accountLinks.map((link) => (
-                  <div key={link.id} className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
-                    <div className="min-w-0 pr-2">
-                      <span className="text-[#F5F7F6] font-semibold block truncate">{link.label || 'Account Link'}</span>
-                      {link.email && <span className="text-[11px] text-[#9CA3AF] block truncate">{link.email}</span>}
-                    </div>
-                    {link.url && (
-                      <a
-                        href={toAbsoluteUrl(link.url) || link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1 rounded-lg bg-[#1F2425] hover:bg-[#2A3032] text-[#F5F7F6] text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0 border border-[#2A3032]"
-                      >
-                        <span>Visit</span>
-                        <ExternalLink className="w-3 h-3 text-[#9CA3AF]" />
-                      </a>
-                    )}
-                  </div>
-                ))}
+            {selectedLink ? (
+              <div
+                data-testid="account-type-value"
+                className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between text-xs"
+              >
+                <span className="text-[#F5F7F6] font-semibold">
+                  {selectedLink.label || 'Personal'}
+                </span>
+                {selectedLink.url && (
+                  <a
+                    href={toAbsoluteUrl(selectedLink.url) || selectedLink.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1 rounded-lg bg-[#1F2425] hover:bg-[#2A3032] text-[#F5F7F6] text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer shrink-0 border border-[#2A3032]"
+                  >
+                    <span>Visit</span>
+                    <ExternalLink className="w-3 h-3 text-[#9CA3AF]" />
+                  </a>
+                )}
               </div>
             ) : (
               <div className="p-3.5 rounded-xl bg-[#0D0F10] border border-[#1F2425] text-xs text-[#9CA3AF] leading-relaxed">
-                No account links have been configured. You can add account login emails or portal links by clicking Edit Subscription.
+                No account type has been set. You can add one by clicking Edit Subscription.
               </div>
             )}
           </div>
