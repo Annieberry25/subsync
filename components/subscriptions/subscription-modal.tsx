@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, AlertCircle, Plus, ChevronLeft, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Trash2, ChevronLeft, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow, 
@@ -525,6 +525,17 @@ export default function SubscriptionModal({
         item.id === id ? ({ ...item, [field]: value } as AccountLink) : item
       )
     );
+  };
+
+  /**
+   * Removes the account in view.
+   *
+   * The delete sits with the account's type, not on the account URL line: that
+   * line is for the link and for the provider's page.
+   */
+  const handleRemoveAccountLink = (id: string) => {
+    setAccountLinks((prev) => prev.filter((item) => item.id !== id));
+    setActiveAccountId((current) => (current === id ? null : current));
   };
 
   /**
@@ -1310,9 +1321,24 @@ setLoading(true);
                 has no field of its own. See handleNameChange. */}
 
             {/* Account Type. A field of the form, not a control under the
-                account links: it says what the account is for. */}
+                account links: it says what the account is for. The delete
+                sits beside it because it belongs to the account, and the
+                account URL line is for the link and the provider's page. */}
             <div className="space-y-2">
-              <label className="text-[13px] font-medium text-[#94A3B8] block">Account Type</label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[13px] font-medium text-[#94A3B8]">Account Type</label>
+                {activeAccount && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAccountLink(activeAccount.id)}
+                    className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                    title="Delete this account"
+                    aria-label="Delete this account"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               <select
                 aria-label="Account Type"
                 value={accountType}
@@ -1411,7 +1437,7 @@ setLoading(true);
                       onChange={(e) => handleAccountUrlChange(e.target.value)}
                       className="flex-1 h-11 px-4 py-2.5 text-xs rounded-xl bg-[#0D0F10] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6] transition-colors"
                     />
-                    {providerLink && (
+                    {providerLink ? (
                       <a
                         href={providerLink}
                         target="_blank"
@@ -1422,6 +1448,16 @@ setLoading(true);
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="Type a provider name above so we can open its page"
+                        className="h-11 w-11 shrink-0 rounded-xl bg-[#0D0F10] border border-[#1A1D1D] text-[#94A3B8] flex items-center justify-center transition-colors opacity-40 cursor-not-allowed"
+                        aria-label="No provider page available yet"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
                 </div>
