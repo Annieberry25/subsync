@@ -710,16 +710,41 @@ describe('SubscriptionModal subscription accounts', () => {
     expect(arrow).toHaveAttribute('href', 'https://www.netflix.com');
   });
 
-  it('closes the box again when the account is deleted', async () => {
+  it('puts the provider link on the same line as the account URL box', async () => {
     const user = userEvent.setup();
     await renderOpen();
 
+    await user.type(
+      screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
+      'Netflix'
+    );
     await user.click(screen.getByRole('button', { name: /Add account link/ }));
-    expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Delete this account' }));
+    // The box and the provider link sit on one line, and nothing else does.
+    const box = screen.getByLabelText(/Account URL/);
+    const arrow = screen.getByRole('link', { name: /Open Netflix in a new tab/ });
+    expect(box.parentElement).toContainElement(arrow);
+    expect(box.parentElement?.querySelectorAll('button')).toHaveLength(0);
+  });
 
-    expect(screen.queryByLabelText(/Account URL/)).not.toBeInTheDocument();
+  it('removes the account when the user deletes the link in the box', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    await user.type(
+      screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
+      'Netflix'
+    );
+    await user.click(screen.getByRole('button', { name: /Add account link/ }));
+
+    const box = screen.getByLabelText(/Account URL/) as HTMLInputElement;
+    await user.type(box, 'https://spotify.com/account');
+    await user.clear(box);
+
+    // The box closes with the account it belonged to.
+    await waitFor(() =>
+      expect(screen.queryByLabelText(/Account URL/)).not.toBeInTheDocument()
+    );
   });
 
   it('sends a free user to upgrade when adding a second account', async () => {

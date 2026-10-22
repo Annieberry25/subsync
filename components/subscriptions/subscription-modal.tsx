@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, AlertCircle, Plus, Trash2, ChevronLeft, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, ChevronLeft, ExternalLink } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { 
   type SubscriptionRow, 
@@ -527,11 +527,6 @@ export default function SubscriptionModal({
     );
   };
 
-  const handleRemoveAccountLink = (id: string) => {
-    setAccountLinks((prev) => prev.filter((item) => item.id !== id));
-    setActiveAccountId((current) => (current === id ? null : current));
-  };
-
   /**
    * A change to the main fields, when they are describing an account.
    *
@@ -570,10 +565,17 @@ export default function SubscriptionModal({
   /**
    * The account's link, changed in its own box.
    *
-   * With no account yet, a link typed in the box is the first account.
+   * With no account yet, a link typed in the box is the first account. And
+   * clearing the link removes the account: the box is the account's link, so
+   * an account with no link is not an account the user meant to keep.
    */
   const handleAccountUrlChange = (value: string) => {
     if (activeAccount) {
+      if (value.trim() === '' && (activeAccount.url || '').trim() !== '') {
+        setAccountLinks((prev) => prev.filter((link) => link.id !== activeAccount.id));
+        setActiveAccountId(null);
+        return;
+      }
       handleUpdateAccountLink(activeAccount.id, 'url', value);
       return;
     }
@@ -1421,16 +1423,6 @@ setLoading(true);
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     )}
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAccountLink(activeAccount.id)}
-                      className="w-8 h-8 rounded-lg text-[#94A3B8] hover:text-[#D9363E] hover:bg-[#D9363E]/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                      title="Delete this account"
-                      aria-label="Delete this account"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               )}
