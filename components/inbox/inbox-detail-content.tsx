@@ -3,7 +3,7 @@
 import { use, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Inbox, Bell, Calendar, CreditCard, DollarSign, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Inbox, Bell, Calendar, CreditCard, DollarSign, Eye } from 'lucide-react';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { fetchSubscriptions } from '@/lib/services/subscription-service';
@@ -139,10 +139,11 @@ export default function InboxDetailContent({ params }: InboxDetailContentProps) 
                 <button
                   type="button"
                   onClick={handleViewSubscription}
-                  className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-[#14B8A6] hover:opacity-90 text-[#091512] transition-colors cursor-pointer flex items-center gap-1 min-h-[44px] whitespace-nowrap"
+                  aria-label="View subscription"
+                  data-touch="compact"
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-[#14B8A6] hover:text-[#2DD4BF] hover:bg-[#1A1D1D]/60 transition-colors cursor-pointer"
                 >
-                  <span>View subscription</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-80" />
+                  <Eye className="w-4 h-4" />
                 </button>
               </div>
             </div>

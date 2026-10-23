@@ -4,16 +4,17 @@ import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, AlertCircle, LayoutGrid, List, Trash2 } from 'lucide-react';
 import { hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
-import { 
-  fetchSubscriptions, 
-  createSubscription, 
-  updateSubscription, 
+import {
+  fetchSubscriptions,
+  createSubscription,
+  updateSubscription,
   softDeleteSubscription,
   archiveSubscription,
   filterActiveSubscriptions,
   isOverdueSubscription,
   isSubscriptionDeleted,
   hasMultipleAccounts,
+  parseAccountLinks,
   type SubscriptionRow,
   type SubscriptionInsert,
   type SubscriptionUpdate
@@ -34,6 +35,7 @@ import AddSubscriptionModal from './add-subscription-modal';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
 import SubscriptionNotesModal from './subscription-notes-modal';
 import SubscriptionFilters from './subscription-filters';
+import { useMediaQuery } from '@/lib/hooks/use-media-query';
 import PaymentReminderModal from './payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
@@ -46,6 +48,7 @@ import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
+import { addCycleToDate } from '@/lib/utils/billing-dates';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
@@ -124,6 +127,8 @@ export default function SubscriptionManager() {
   // Manual Form Modal & Confirm State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
+  const [renewingSubscriptionId, setRenewingSubscriptionId] = useState<string | null>(null);
+  const [editSourceDetailId, setEditSourceDetailId] = useState<string | null>(null);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
   const [deleteReturnToDetailSub, setDeleteReturnToDetailSub] = useState<SubscriptionRow | null>(null);
@@ -692,13 +697,141 @@ export default function SubscriptionManager() {
   }, []);
 
   const handleEditSubscription = useCallback((item: SubscriptionRow) => {
+    setEditSourceDetailId(null);
     setEditingSubscription(item);
     setIsModalOpen(true);
   }, []);
 
+  const handleRenewSubscription = useCallback(
+    async (sub: SubscriptionRow, accountId?: string | null) => {
+      /*
+       * The renew button is what turns auto-renewal on, so it works in two
+       * states. With the flag already on there is nothing to renew again —
+       * a repeat click would just keep pushing the date forward — so it
+       * confirms the state instead of renewing.
+       */
+      if (sub.auto_renew === true) {
+        toast.info(
+          `Auto renewal is already on for ${sub.name}.`,
+          'Auto Renewal'
+        );
+        return;
+      }
+
+      if (renewingSubscriptionId) return;
+      setRenewingSubscriptionId(sub.id);
+
+      try {
+        const links = parseAccountLinks(sub);
+        const account = accountId
+          ? links.find((link) => link.id === accountId) ?? null
+          : null;
+
+        const currentDate =
+          account?.next_billing_date || sub.next_billing_date || new Date().toISOString().split('T')[0];
+        const cycle = account?.billing_cycle || sub.billing_cycle || 'monthly';
+        const renewedDate = addCycleToDate(currentDate, cycle);
+
+        if (!renewedDate) {
+          throw new Error('Add the next billing date first so the renewal date can be worked out.');
+        }
+
+        const cycleStep = cycle.trim().toLowerCase();
+        const cycleLabel =
+          cycleStep === 'yearly' || cycleStep === 'year' || cycleStep === 'annual'
+            ? 'Yearly'
+            : cycleStep === 'quarterly' || cycleStep === 'quarter'
+              ? 'Quarterly'
+              : cycleStep === 'weekly' || cycleStep === 'week'
+                ? 'Weekly'
+                : 'Monthly';
+
+        const updatedLinks = account
+          ? links.map((link) =>
+              link.id === account.id ? { ...link, next_billing_date: renewedDate } : link
+            )
+          : links;
+
+        const linkDates = updatedLinks
+          .map((link) => link.next_billing_date)
+          .filter((date): date is string => Boolean(date))
+          .sort();
+        const rowDate =
+          account && linkDates.length > 0 ? linkDates[0] : renewedDate;
+
+        const payload: SubscriptionUpdate =
+          account && updatedLinks.length > 0
+            ? { next_billing_date: rowDate, account_links: updatedLinks, auto_renew: true }
+            : { next_billing_date: renewedDate, auto_renew: true };
+
+        const { data: updatedRow, error } = await updateSubscription(sub.id, payload);
+        if (error) throw error;
+
+        if (updatedRow && selectedDetailSub?.id === sub.id) {
+          setSelectedDetailSub(updatedRow);
+        }
+
+        toast.success(
+          `${sub.name} renewed: next date ${renewedDate} (${cycleLabel}). Auto renewal is on.`,
+          'Auto Renewal On'
+        );
+        await loadData();
+      } catch (err: unknown) {
+        toast.error(
+          err instanceof Error ? err.message : `Could not renew ${sub.name}.`,
+          'Renew Failed'
+        );
+      } finally {
+        setRenewingSubscriptionId(null);
+      }
+    },
+    [renewingSubscriptionId, selectedDetailSub, toast, loadData]
+  );
+
   const handleDeleteRequest = useCallback((item: SubscriptionRow) => {
     setDeletingSubscription(item);
   }, []);
+
+  const isBelowLg = useMediaQuery('(max-width: 1023.98px)');
+
+  const viewToggle = (
+    <div
+      className="flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 gap-1 shrink-0"
+      role="group"
+      aria-label="View mode"
+    >
+      <button
+        type="button"
+        onClick={() => setViewMode('table')}
+        title="List View"
+        aria-label="Table view"
+        aria-pressed={viewMode === 'table'}
+        data-touch="compact"
+        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+          viewMode === 'table'
+            ? 'bg-[#14B8A6] text-[#091512] font-semibold'
+            : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
+        }`}
+      >
+        <List className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setViewMode('grid')}
+        title="Cards View"
+        aria-label="Grid view"
+        aria-pressed={viewMode === 'grid'}
+        data-touch="compact"
+        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+          viewMode === 'grid'
+            ? 'bg-[#14B8A6] text-[#091512] font-semibold'
+            : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
+        }`}
+      >
+        <LayoutGrid className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+      </button>
+    </div>
+  );
 
   return (
     <div className="space-y-6 sm:space-y-8 bg-ambient-grid min-h-[85dvh] pb-12 sm:pb-16">
@@ -723,53 +856,21 @@ export default function SubscriptionManager() {
             gone: every one of those paths is already a first-class option
             inside the Add Subscription menu, so the row duplicated it. The
             Gmail modal is still mounted below because the OAuth callback opens
-            it. */}
-        <div className="flex items-center gap-2.5 shrink-0 flex-wrap lg:flex-nowrap">
-          {/* Layout View Toggle. Shown at every width — the list view works on
-              a phone via horizontal scroll with the provider column pinned. */}
-          <div
-            className="flex items-center bg-[#0D0F0F] border border-[#1A1D1D] rounded-xl p-1 gap-1 shrink-0"
-            role="group"
-            aria-label="View mode"
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              title="List View"
-              aria-label="Table view"
-              aria-pressed={viewMode === 'table'}
-              data-touch="compact"
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                viewMode === 'table'
-                  ? 'bg-[#14B8A6] text-[#091512] font-semibold'
-                  : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              title="Cards View"
-              aria-label="Grid view"
-              aria-pressed={viewMode === 'grid'}
-              data-touch="compact"
-              className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-[#14B8A6] text-[#091512] font-semibold'
-                  : 'text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
-          </div>
+            it. Below `lg` the view toggle rides on the search row inside
+            SubscriptionFilters instead of giving the header a row of its own. */}
+        <div className="hidden lg:flex items-center gap-2.5 shrink-0">
+          {!isBelowLg && (
+            <div className="shrink-0">
+              {viewToggle}
+            </div>
+          )}
 
           {/* Desktop only. Below `lg` the contextual FAB in the dock is the add
               affordance, so a second copy here competed with it. */}
           <button
             type="button"
             onClick={() => setIsAddPathModalOpen(true)}
-            className="hidden lg:inline-flex px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-sm font-semibold items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
+            className="px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-sm font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0 shadow-sm min-h-[44px]"
           >
             <Plus className="w-4 h-4 text-[#091512]" />
             <span>Add Subscription</span>
@@ -844,6 +945,7 @@ export default function SubscriptionManager() {
         totalCount={activeSubscriptions.length}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearFilters}
+        viewToggle={isBelowLg ? viewToggle : undefined}
       />
 
       {/* 3. SUBSCRIPTIONS TABLE / GRID / SKELETONS / EMPTY STATES */}
@@ -1027,11 +1129,12 @@ export default function SubscriptionManager() {
         onEdit={(item, accountId) => {
           setIsDetailOpen(false);
           setEditingSubscription(item);
-          // The account the user picked in the detail sheet is the one the form
-          // opens on.
           setFocusAccountId(accountId ?? null);
+          setDetailAccountId(accountId ?? null);
+          setEditSourceDetailId(item.id);
           setIsModalOpen(true);
         }}
+        onRenew={handleRenewSubscription}
         onDeleteRequest={(item) => {
           setDeleteReturnToDetailSub(item);
           setDeletingSubscription(item);
@@ -1048,24 +1151,32 @@ export default function SubscriptionManager() {
           setIsModalOpen(false);
           setEditingSubscription(null);
           setFocusAccountId(null);
+          setEditSourceDetailId(null);
         }}
         onBack={
           editingSubscription?.id
-            ? /* Editing a subscription with more than one account: the form
-                 has a way back, because the place it was opened from is where
-                 the accounts are chosen between. */
-              hasMultipleAccounts(editingSubscription)
+            ? editSourceDetailId === editingSubscription.id
               ? () => {
                   setIsModalOpen(false);
                   setEditingSubscription(null);
                   setFocusAccountId(null);
-                  setChooserSubscription(editingSubscription);
+                  setEditSourceDetailId(null);
+                  setIsDetailOpen(true);
                 }
-              : undefined
+              : hasMultipleAccounts(editingSubscription)
+                ? () => {
+                    setIsModalOpen(false);
+                    setEditingSubscription(null);
+                    setFocusAccountId(null);
+                    setEditSourceDetailId(null);
+                    setChooserSubscription(editingSubscription);
+                  }
+                : undefined
             : () => {
                 setIsModalOpen(false);
                 setEditingSubscription(null);
                 setFocusAccountId(null);
+                setEditSourceDetailId(null);
                 setIsAddPathModalOpen(true);
               }
         }

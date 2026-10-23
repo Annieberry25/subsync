@@ -358,7 +358,7 @@ export default function RenewalsPageContent() {
               with what is coming up. */}
           {overdueList.length > 0 && (
             <div
-              className={`bg-[#0B0D0D] border border-[#D9363E]/30 rounded-[20px] overflow-hidden shadow-sm ${fromAlert ? 'order-1' : 'order-2'}`}
+              className={`overflow-hidden md:rounded-[20px] md:bg-[#0B0D0D] md:border md:border-[#D9363E]/30 ${fromAlert ? 'order-1' : 'order-2'}`}
             >
               <div className="flex items-center gap-2 border-b border-[#D9363E]/20 py-3.5 px-4 sm:px-5">
                 <AlertCircle className="w-5 h-5 text-[#D9363E]" />
@@ -382,7 +382,7 @@ export default function RenewalsPageContent() {
 
           {/* Upcoming Renewals Section */}
           <div
-            className={`bg-[#0B0D0D] border border-[#1A1D1D] rounded-[20px] overflow-hidden ${fromAlert ? 'order-2' : 'order-1'}`}
+            className={`overflow-hidden md:rounded-[20px] md:bg-[#0B0D0D] md:border md:border-[#1A1D1D] ${fromAlert ? 'order-2' : 'order-1'}`}
           >
             <h2 className="text-base sm:text-lg font-bold text-[#F5F7F6] tracking-tight border-b border-[#1A1D1D] py-3.5 px-4 sm:px-5">
               Upcoming Renewals (Next 30 Days)

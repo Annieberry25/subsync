@@ -31,7 +31,7 @@ export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight
   const showViewAll = upcomingList.length > 0;
 
   return (
-    <div className="h-full flex flex-col gap-4 p-4 sm:p-6 rounded-[20px] bg-[#0B0D0D] border border-[#1A1D1D]">
+    <div className="w-full h-full flex flex-col gap-4 p-4 sm:p-6 md:rounded-[20px] md:bg-[#0B0D0D] md:border md:border-[#1A1D1D]">
       {/* Header Row */}
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-base sm:text-lg font-semibold text-[#F5F7F6] tracking-tight">

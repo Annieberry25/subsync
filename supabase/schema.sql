@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
   account_links JSONB,
   receipts JSONB,
   is_synced BOOLEAN,
+  auto_renew BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );

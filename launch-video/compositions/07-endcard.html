@@ -1,0 +1,49 @@
+<template id="endcard-template">
+  <div data-hf-id="hf-z8bd"
+    data-composition-id="endcard"
+    data-width="1080"
+    data-height="1920"
+    style="position: absolute; inset: 0; overflow: hidden; background: #0b0d0d"
+  >
+    <!-- Synced from public/logo_wordmark_dark_email.png by scripts/sync-brand.mjs -->
+    <div data-hf-id="hf-54xs" style="position: absolute; left: 88px; top: 786px; width: 520px">
+      <img data-hf-id="hf-s3ze"
+        id="ec-mark"
+        src="assets/wordmark.png"
+        alt="SubHalt"
+        width="520"
+        height="143"
+        style="display: block"
+      />
+    </div>
+
+    <div data-hf-id="hf-ct01"
+      id="ec-line"
+      style="position: absolute; left: 88px; top: 985px; width: 904px; font-size: 46px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.2; color: #f5f7f6; opacity: 0"
+    >
+      Never get surprise-charged <span data-hf-id="hf-ct02" style="color: #14b8a6; font-weight: 500">again.</span>
+    </div>
+
+    <div data-hf-id="hf-wwu5" style="position: absolute; left: 88px; top: 1160px; width: 420px; height: 1px; background: #1f2425"></div>
+
+    <div data-hf-id="hf-bwl1"
+      id="ec-url"
+      style="position: absolute; left: 88px; top: 1212px; font-size: 46px; font-weight: 400; letter-spacing: 0.01em; color: #94a3b8; opacity: 0"
+    >
+      subhalt.xyz
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#ec-mark", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.out" }, 0);
+      tl.fromTo("#ec-line", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0.7);
+      tl.fromTo("#ec-url", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 1.3);
+
+      tl.set("#ec-url", { opacity: 1 }, 5);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["endcard"] = tl;
+    </script>
+  </div>
+</template>

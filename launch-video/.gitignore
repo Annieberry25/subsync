@@ -1,0 +1,7 @@
+renders/
+review/
+.hyperframes/
+node_modules/
+assets/_tmp/
+assets/capture/
+assets/music.wav

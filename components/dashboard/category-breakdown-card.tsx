@@ -135,22 +135,24 @@ export const CategoryBreakdownCard = memo(function CategoryBreakdownCard({ subsc
               return (
                 <div
                   key={item.category}
-                  className={isEmbedded ? "py-2.5 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4" : "py-3 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4"}
+                  className="py-2.5 sm:py-3 px-1 flex items-center justify-between gap-3"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span
                       className={`w-2.5 h-2.5 rounded-full ${categoryStyle.dot} shrink-0`}
                     />
-                    <div className="min-w-0 flex-1">
-                      <span className="text-sm font-semibold text-[#F5F7F6] block">{item.category}</span>
-                      <span className="text-xs text-[#94A3B8] block">
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold text-[#F5F7F6] block truncate">
+                        {item.category}
+                      </span>
+                      <span className="text-xs text-[#94A3B8] block truncate">
                         {item.count} {item.count === 1 ? 'plan' : 'plans'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="sm:text-right shrink-0 flex items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-[#1A1D1D]/60">
-                    <div>
+                  <div className="shrink-0 flex items-center gap-3 sm:gap-4">
+                    <div className="sm:text-right">
                       <span className="text-sm font-semibold text-[#F5F7F6] block">
                         {formatCurrency(item.monthlySpend, defaultCurrency)}
                       </span>

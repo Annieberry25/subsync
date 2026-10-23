@@ -1,0 +1,11 @@
+┌  hyperframes preview
+
+  Project   launch-video
+  Studio    http://localhost:3002/#project/launch-video
+  Server    http://localhost:3002
+
+  Running in the background. Log: C:\Users\USER\.local\state\hyperframes\previews\03c8983cabbed3b4.log
+  Changes reload automatically in the studio.
+
+  Stop with: hyperframes preview "C:\\Users\\USER\\Projects\\subsync\\launch-video" --stop
+

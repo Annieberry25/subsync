@@ -411,7 +411,7 @@ const handleSave = async (
         </div>
       )}
 
-      {/* 2. KPI METRICS (2x2 Grid on Mobile for compact ergonomics) */}
+      {/* 2. KPI METRICS (one-line swipe row on mobile, 3/4 columns from md up) */}
       {loading && subscriptions.length === 0 ? (
         <StatGrid>
           <MetricCardSkeleton />

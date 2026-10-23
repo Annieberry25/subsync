@@ -28,6 +28,7 @@ interface CustomSelectProps {
    */
   iconOnly?: boolean;
   icon?: ReactNode;
+  compactIcon?: boolean;
 }
 
 const emptySubscribe = () => () => {};
@@ -44,6 +45,7 @@ export function CustomSelect({
   showCheckmark = true,
   iconOnly = false,
   icon,
+  compactIcon = false,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -197,7 +199,8 @@ export function CustomSelect({
           onKeyDown={handleKeyDown}
           aria-label={`${ariaLabel}: ${triggerLabel}`}
           aria-expanded={isOpen}
-          className={`w-11 h-11 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer group outline-none focus:outline-none hover:bg-[#1A1D1D] ${className}`}
+          data-touch="compact"
+          className={`${compactIcon ? 'w-9 h-9' : 'w-11 h-11'} rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center transition-colors cursor-pointer group outline-none focus:outline-none hover:bg-[#1A1D1D] ${className}`}
         >
           <span
             className={`flex items-center justify-center transition-colors ${

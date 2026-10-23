@@ -1,7 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Calendar, DollarSign, FileText, Clock, Globe, Users, ChevronLeft } from 'lucide-react';
+import {
+  DollarSign,
+  FileText,
+  ChevronLeft,
+  PencilLine,
+  RefreshCw,
+} from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import {
   type SubscriptionRow,
@@ -34,6 +40,7 @@ interface SubscriptionDetailModalProps {
   onBack?: () => void;
   /** The account the user is looking at is passed back, so the form can open on it. */
   onEdit: (subscription: SubscriptionRow, accountId?: string) => void;
+  onRenew?: (subscription: SubscriptionRow, accountId?: string) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
   onRestoreRequest?: (subscription: SubscriptionRow) => void;
   onCancellationAssistance?: (subscription: SubscriptionRow) => void;
@@ -53,6 +60,7 @@ export default function SubscriptionDetailModal({
   onClose,
   onBack,
   onEdit,
+  onRenew,
   onDeleteRequest,
   onRestoreRequest,
   onCancellationAssistance,
@@ -176,18 +184,39 @@ export default function SubscriptionDetailModal({
         </button>
       ) : (
         <>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              // The account the user was looking at is the one the form opens
-              // on, so the edit starts where the eye already was.
-              onEdit(subscription, selectedLink?.id);
-            }}
-            className="min-h-[44px] text-[#D1D5DB] hover:text-white font-normal transition-colors cursor-pointer bg-transparent border-0 p-0"
-          >
-            Edit Subscription
-          </button>
+          <div className="flex items-center gap-2">
+            {onRenew && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onRenew(subscription, selectedLink?.id);
+                }}
+                aria-label="Renew Subscription"
+                title="Renew Subscription"
+                data-touch="compact"
+                className="w-9 h-9 -ml-1 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#14B8A6] transition-colors cursor-pointer"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                // The account the user was looking at is the one the form opens
+                // on, so the edit starts where the eye already was.
+                onEdit(subscription, selectedLink?.id);
+              }}
+              aria-label="Edit Subscription"
+              title="Edit Subscription"
+              data-touch="compact"
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+            >
+              <PencilLine className="w-5 h-5" />
+            </button>
+          </div>
 
           {onCancellationAssistance && (
             <button
@@ -243,10 +272,10 @@ export default function SubscriptionDetailModal({
             sheet opened. There is nothing to choose here: this is the detail
             of one account. */}
 
-        {/* 6 Detailed Sections Grid. The Sheet body owns the scroll. */}
+        {/* Detail Sections. The Sheet body owns the scroll. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Section 1: Costs & Billing */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3">
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3 col-span-1 md:col-span-2">
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-[#9CA3AF]" />
               <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Costs & Billing</span>
@@ -259,147 +288,108 @@ export default function SubscriptionDetailModal({
             </div>
           </div>
 
-          {/* Section 2: Contract & Renewal */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-[#9CA3AF]" />
-              <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Contract & Renewal</span>
-            </div>
-            <div>
-              <span className="text-xl sm:text-2xl font-bold text-[#F5F7F6] tracking-tight">{formattedNextDate}</span>
-            </div>
-            <div className="pt-2 border-t border-[#1F2425] flex items-center justify-between text-xs">
-              <span className="text-[#9CA3AF]">Renewal Status:</span>
-              {diffDays < 0 ? (
-                <span className="text-[#EF4444] font-bold">Overdue by {Math.abs(diffDays)} {Math.abs(diffDays) === 1 ? 'day' : 'days'}</span>
-              ) : diffDays === 0 ? (
-                <span className="text-[#EF4444] font-bold">Renews Today</span>
-              ) : (
-                <span className="text-[#10B981] font-semibold">Renews in {diffDays} {diffDays === 1 ? 'day' : 'days'}</span>
-              )}
-            </div>
-            {formattedStartDate && (
-              <div className="pt-2 border-t border-[#1F2425] flex items-center justify-between text-xs text-[#9CA3AF]">
-                <span>{shownStartDate ? 'Start Date:' : 'Created Date:'}</span>
-                <strong className="text-[#F5F7F6] font-medium">{formattedStartDate}</strong>
+          {/* Section 2: Category, Website, Billing renewal, Start Date, Notes,
+              Account Type and Attached Receipts in one container. Every row
+              is a hairline line: the label on the left, the value on the
+              right. */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] col-span-1 md:col-span-2">
+            <div className="divide-y divide-[#1F2425]">
+              <div className="py-3 flex items-center justify-between gap-4">
+                <span className="text-xs text-[#9CA3AF] shrink-0">Category</span>
+                {shownCategory ? (
+                  <span className="text-sm font-semibold text-[#F5F7F6] text-right">{shownCategory}</span>
+                ) : (
+                  <span className="text-sm text-[#6B7280] italic text-right">Not set</span>
+                )}
               </div>
-            )}
-            {cleanNotes && (
-              <div className="pt-2 border-t border-[#1F2425] text-xs">
-                <span className="text-[#9CA3AF] font-medium block mb-1">Notes & Plan Details:</span>
-                <p className="text-[#F5F7F6] leading-relaxed whitespace-pre-wrap">{cleanNotes}</p>
-              </div>
-            )}
-          </div>
 
-          {/* Section 3: Category & Website */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3 col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-[#9CA3AF]" />
-              <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Category & Website</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
-              {/* The values, without labels. The section is called "Category &
-                  Website", so saying "Category" next to the category is
-                  saying it twice. */}
-              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]">
-                <span className="text-[#F5F7F6] font-semibold">{shownCategory}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]">
+              <div className="py-3 flex items-center justify-between gap-4">
+                <span className="text-xs text-[#9CA3AF] shrink-0">Website</span>
                 {activeProviderUrl ? (
-                  /* Plain text. The detail sheet is for reading, not for
-                     clicking: a link in here takes the user off the page they
-                     opened it to look at. */
-                  <span className="text-[#F5F7F6] font-medium truncate max-w-[180px] block">
+                  <span className="text-sm font-semibold text-[#F5F7F6] text-right truncate max-w-[260px]">
                     {activeProviderUrl.replace(/^https?:\/\//, '')}
                   </span>
                 ) : (
-                  <span className="text-[#6B7280] italic">Not set</span>
+                  <span className="text-sm text-[#6B7280] italic text-right">Not set</span>
                 )}
               </div>
-            </div>
-          </div>
 
-          {/* Section 4: Account Type */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3 col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-[#9CA3AF]" />
-              <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">
-                Account Type
-              </span>
-            </div>
+              <div className="py-3 flex items-center justify-between gap-4">
+                <span className="text-xs text-[#9CA3AF] shrink-0">Billing renewal</span>
+                <div className="flex flex-col items-end gap-0.5 text-right min-w-0">
+                  <span className="text-sm font-semibold text-[#F5F7F6]">{formattedNextDate}</span>
+                  {diffDays < 0 ? (
+                    <span className="text-[11px] font-bold text-[#EF4444]">Overdue by {Math.abs(diffDays)} {Math.abs(diffDays) === 1 ? 'day' : 'days'}</span>
+                  ) : diffDays === 0 ? (
+                    <span className="text-[11px] font-bold text-[#EF4444]">Renews Today</span>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-[#10B981]">Renews in {diffDays} {diffDays === 1 ? 'day' : 'days'}</span>
+                  )}
+                </div>
+              </div>
 
-            {selectedLink ? (
-              /* The type, and nothing to click. The account's own link is on
-                 the account row in the form, and the detail sheet is for
-                 reading. */
-              <div
-                data-testid="account-type-value"
-                className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] text-xs"
-              >
-                <span className="text-[#F5F7F6] font-semibold">
-                  {selectedLink.label || 'Personal'}
+              {formattedStartDate && (
+                <div className="py-3 flex items-center justify-between gap-4">
+                  <span className="text-xs text-[#9CA3AF] shrink-0">{shownStartDate ? 'Start Date' : 'Created Date'}</span>
+                  <span className="text-sm font-semibold text-[#F5F7F6] text-right">{formattedStartDate}</span>
+                </div>
+              )}
+
+              {cleanNotes && (
+                <div className="py-3">
+                  <span className="text-xs text-[#9CA3AF] block">Notes</span>
+                  <p className="text-sm text-[#F5F7F6] leading-relaxed whitespace-pre-wrap mt-1">{cleanNotes}</p>
+                </div>
+              )}
+
+              <div className="py-3 flex items-center justify-between gap-4">
+                <span className="text-xs text-[#9CA3AF] shrink-0">Account Type:</span>
+                {selectedLink ? (
+                  <span data-testid="account-type-value" className="text-sm font-medium text-[#F5F7F6] text-right">
+                    {selectedLink.label || 'Personal'}
+                  </span>
+                ) : (
+                  <span data-testid="account-type-value" className="text-sm text-[#6B7280] italic text-right">
+                    Not set
+                  </span>
+                )}
+              </div>
+
+              <div className="py-3 flex items-center justify-between gap-4">
+                <span className="text-xs text-[#9CA3AF] shrink-0">Auto renewal</span>
+                <span className="text-sm font-semibold text-[#F5F7F6] text-right">
+                  {subscription.auto_renew === false ? 'Off' : 'On'}
                 </span>
               </div>
-            ) : (
-              <div className="p-3.5 rounded-xl bg-[#0D0F10] border border-[#1F2425] text-xs text-[#9CA3AF] leading-relaxed">
-                No account type has been set. You can add one by clicking Edit Subscription.
-              </div>
-            )}
-          </div>
-
-          {/* Section 5: Attached Receipts */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3 col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-[#9CA3AF]" />
-              <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">
-                Attached Receipts ({attachedReceipts.length})
-              </span>
             </div>
 
-            {attachedReceipts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
-                {attachedReceipts.map((receipt) => (
-                  <div key={receipt.id} className="p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425] flex items-center justify-between">
-                    <div className="flex items-center gap-2.5 min-w-0">
+            {/* Attached Receipts. The rows are plain lines of the card, not
+                boxes inside it. */}
+            <div className="mt-4 pt-4 border-t border-[#1F2425]">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[#9CA3AF]" />
+                <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">
+                  Attached Receipts ({attachedReceipts.length})
+                </span>
+              </div>
+
+              {attachedReceipts.length > 0 ? (
+                <div className="divide-y divide-[#1A1D1D]/60 pt-1">
+                  {attachedReceipts.map((receipt) => (
+                    <div key={receipt.id} className="py-2.5 flex items-center gap-2.5 min-w-0">
                       <FileText className="w-4 h-4 text-[#9CA3AF] shrink-0" />
                       <div className="min-w-0">
                         <span className="text-[#F5F7F6] text-xs font-medium block truncate">{receipt.fileName}</span>
                         <span className="text-[11px] text-[#9CA3AF] block">{receipt.uploadDate}</span>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-3.5 rounded-xl bg-[#0D0F10] border border-[#1F2425] text-xs text-[#9CA3AF] leading-relaxed">
-                No receipts attached yet. Use &quot;Import Receipt&quot; to attach payment confirmation files or screenshots.
-              </div>
-            )}
-          </div>
-
-          {/* Section 6: Billing & Renewal Schedule */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] space-y-3 col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider">Billing & Renewal Schedule</span>
-            </div>
-
-            <div className="pt-1">
-              <div className="flex items-center justify-between text-xs p-3 rounded-xl bg-[#0D0F10] border border-[#1F2425]">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-[#9CA3AF] shrink-0" />
-                  <div>
-                    <span className="text-[#F5F7F6] font-semibold block">{formattedNextDate}</span>
-                    <span className="text-[11px] text-[#9CA3AF]">
-                      {diffDays < 0 ? 'Overdue' : diffDays === 0 ? 'Due Today' : 'Upcoming Renewal'}
-                    </span>
-                  </div>
+                  ))}
                 </div>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-[#F5F7F6] block">{formattedPrice}</span>
-                  <span className="text-[11px] text-[#9CA3AF] capitalize">{shownCycle}</span>
-                </div>
-              </div>
+              ) : (
+                <p className="pt-2 text-xs text-[#9CA3AF] leading-relaxed">
+                  No receipts attached yet. Use &quot;Import Receipt&quot; to attach payment confirmation files or screenshots.
+                </p>
+              )}
             </div>
           </div>
         </div>

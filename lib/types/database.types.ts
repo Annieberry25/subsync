@@ -119,6 +119,7 @@ export interface Database {
           account_links?: { id?: string; label?: string; url: string; email?: string; price?: number; currency?: string; category?: string; billing_cycle?: string; next_billing_date?: string; start_date?: string; status?: string; notes?: string }[] | null
           receipts?: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
           is_synced?: boolean | null
+          auto_renew: boolean
           created_at: string
           updated_at: string
         }
@@ -142,6 +143,7 @@ export interface Database {
           account_links?: { id?: string; label?: string; url: string; email?: string; price?: number; currency?: string; category?: string; billing_cycle?: string; next_billing_date?: string; start_date?: string; status?: string; notes?: string }[] | null
           receipts?: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
           is_synced?: boolean | null
+          auto_renew?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -165,6 +167,7 @@ export interface Database {
           account_links?: { id?: string; label?: string; url: string; email?: string; price?: number; currency?: string; category?: string; billing_cycle?: string; next_billing_date?: string; start_date?: string; status?: string; notes?: string }[] | null
           receipts?: { id: string; fileName: string; uploadDate: string; price?: number | null; currency?: string | null; provider?: string | null; rawText?: string | null; fileUrl?: string | null }[] | null
           is_synced?: boolean | null
+          auto_renew?: boolean
           created_at?: string
           updated_at?: string
         }

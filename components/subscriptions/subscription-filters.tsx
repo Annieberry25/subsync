@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Search, Filter, ArrowUpDown, X, ChevronDown } from 'lucide-react';
 import { CustomSelect, type SelectOption } from '@/components/ui/custom-select';
 
@@ -17,6 +17,7 @@ interface SubscriptionFiltersProps {
   totalCount?: number;
   hasActiveFilters?: boolean;
   onClearFilters?: () => void;
+  viewToggle?: ReactNode;
 }
 
 const categories = ['All', 'Streaming', 'Software', 'Utilities', 'Fitness', 'Finance', 'Education', 'Gaming', 'Other'];
@@ -49,15 +50,17 @@ export default function SubscriptionFilters({
   totalCount,
   hasActiveFilters,
   onClearFilters,
+  viewToggle,
 }: SubscriptionFiltersProps) {
-  const [categoriesOpen, setCategoriesOpen] = useState(true);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   return (
     <div className="space-y-3.5 sm:space-y-4">
       {/* Top Search & Filter Controls */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5 sm:gap-4">
-        {/* Search Input */}
-        <div className="relative flex-1 min-w-0">
+      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+        {/* Search Input, always expanded at lg+ */}
+        <div className="relative flex-1 min-w-0 hidden lg:block">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
             <Search className="w-4 h-4 text-[#94A3B8]" />
           </div>
@@ -70,67 +73,106 @@ export default function SubscriptionFilters({
           />
         </div>
 
-        {/* Filter Groups. Status and Sort share one horizontal row: on mobile
-            each collapses to a single icon button that expands its own menu,
-            which keeps two labelled selects from wrapping onto three lines
-            beside the search box. From `sm` up the labels come back, where
-            there is room for them. */}
-        <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto shrink-0">
-          {/* Status Select */}
-          <div className="flex items-center gap-2 sm:flex-initial">
-            <div className="hidden sm:flex items-center gap-1.5 text-[13px] font-medium text-[#94A3B8] shrink-0">
-              <Filter className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
-              <span>Status:</span>
-            </div>
-
-            <div className="sm:hidden">
+        {/* Below lg: the icon row (view toggle, status, sort) with the search
+            button at the end; opening search replaces the row with the field. */}
+        <div className="lg:hidden flex-1 min-w-0 flex items-center justify-start gap-2">
+          {isSearchOpen ? (
+            <>
+              <div className="relative flex-1 min-w-0">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center">
+                  <Search className="w-4 h-4 text-[#94A3B8]" />
+                </div>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search subscriptions by name, plan tier, or notes..."
+                  value={searchQuery}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  className="input-compact w-full h-10 pl-12 pr-3.5 text-xs sm:text-sm rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange('');
+                  setIsSearchOpen(false);
+                }}
+                aria-label="Close search"
+                data-touch="compact"
+                className="w-9 h-9 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <>
+              {viewToggle}
               <CustomSelect
                 options={statusOptions}
                 value={selectedStatus}
                 onChange={onStatusChange}
                 ariaLabel="Filter subscriptions by status"
                 iconOnly
-                icon={<Filter className="w-4 h-4" />}
+                compactIcon
+                icon={<Filter className="w-3.5 h-3.5" />}
               />
+              <CustomSelect
+                options={sortOptions}
+                value={sortBy}
+                onChange={onSortChange}
+                ariaLabel="Sort subscriptions"
+                iconOnly
+                compactIcon
+                icon={<ArrowUpDown className="w-3.5 h-3.5" />}
+                alignRight={true}
+              />
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                aria-label="Search subscriptions"
+                data-touch="compact"
+                className="w-9 h-9 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer shrink-0"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Filter Groups (labelled selects at lg+) */}
+        <div className="hidden lg:flex items-center gap-3 shrink-0">
+          {/* Status Select */}
+          <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-1.5 text-[13px] font-medium text-[#94A3B8] shrink-0">
+              <Filter className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
+              <span>Status:</span>
             </div>
 
-            <div className="hidden sm:block sm:min-w-[125px]">
+            <div className="hidden md:block md:min-w-[125px]">
               <CustomSelect
                 options={statusOptions}
                 value={selectedStatus}
                 onChange={onStatusChange}
                 ariaLabel="Filter subscriptions by status"
-                minWidth="sm:min-w-[125px]"
+                minWidth="md:min-w-[125px]"
               />
             </div>
           </div>
 
           {/* Sort Select */}
-          <div className="flex items-center gap-2 sm:flex-initial">
-            <div className="hidden sm:flex items-center gap-1.5 text-[13px] font-medium text-[#94A3B8] shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-1.5 text-[13px] font-medium text-[#94A3B8] shrink-0">
               <ArrowUpDown className="w-3.5 h-3.5 text-[#94A3B8] shrink-0" />
               <span>Sort:</span>
             </div>
 
-            <div className="sm:hidden">
+            <div className="hidden md:block md:min-w-[200px]">
               <CustomSelect
                 options={sortOptions}
                 value={sortBy}
                 onChange={onSortChange}
                 ariaLabel="Sort subscriptions"
-                iconOnly
-                icon={<ArrowUpDown className="w-4 h-4" />}
-                alignRight={true}
-              />
-            </div>
-
-            <div className="hidden sm:block sm:min-w-[200px]">
-              <CustomSelect
-                options={sortOptions}
-                value={sortBy}
-                onChange={onSortChange}
-                ariaLabel="Sort subscriptions"
-                minWidth="sm:min-w-[200px]"
+                minWidth="md:min-w-[200px]"
                 alignRight={true}
               />
             </div>
@@ -189,13 +231,13 @@ export default function SubscriptionFilters({
 
         {/* Result Feedback + Clear */}
         <div className="flex items-center gap-2 shrink-0">
-          {resultCount !== undefined && (
-            <span className="text-xs text-[#94A3B8] whitespace-nowrap" aria-live="polite">
-              {hasActiveFilters && totalCount !== undefined
-                ? `${resultCount} of ${totalCount} shown`
-                : `${resultCount} ${resultCount === 1 ? 'subscription' : 'subscriptions'}`}
-            </span>
-          )}
+          {resultCount !== undefined &&
+            hasActiveFilters &&
+            totalCount !== undefined && (
+              <span className="text-xs text-[#94A3B8] whitespace-nowrap" aria-live="polite">
+                {`${resultCount} of ${totalCount} shown`}
+              </span>
+            )}
 
           {hasActiveFilters && onClearFilters && (
             <button

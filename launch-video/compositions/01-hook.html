@@ -1,0 +1,73 @@
+<template id="hook-template">
+  <div data-hf-id="hf-7cvv"
+    data-composition-id="hook"
+    data-width="1080"
+    data-height="1920"
+    style="position: absolute; inset: 0; overflow: hidden; background: #0b0d0d"
+  >
+    <div data-hf-id="hf-aagl"
+      data-layout-allow-overflow="true"
+      id="hk-glow"
+      style="position: absolute; left: -420px; top: 560px; width: 1900px; height: 1300px; background: radial-gradient(ellipse at 50% 50%, rgba(217, 54, 62, 0.34) 0%, rgba(217, 54, 62, 0.12) 38%, rgba(217, 54, 62, 0) 66%); opacity: 0"
+    ></div>
+
+    <div data-hf-id="hf-yiah" id="hk-stack" style="position: absolute; left: 88px; top: 664px; width: 904px">
+      <div data-hf-id="hf-08xv"
+        id="hk-label"
+        style="font-size: 30px; font-weight: 500; letter-spacing: 0.2em; color: #94a3b8; opacity: 0"
+      >
+        STILL PAYING FOR
+      </div>
+
+      <div data-hf-id="hf-pq7n" style="overflow: hidden; margin-top: 34px">
+        <div data-hf-id="hf-j0t7"
+          id="hk-l1"
+          style="font-size: 106px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; color: #f5f7f6"
+        >
+          subscriptions
+        </div>
+      </div>
+
+      <div data-hf-id="hf-bcwt" style="overflow: hidden">
+        <div data-hf-id="hf-2nde"
+          id="hk-l2"
+          style="font-size: 106px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; color: #f5f7f6"
+        >
+          you forgot
+        </div>
+      </div>
+
+      <div data-hf-id="hf-dh69" style="overflow: hidden">
+        <div data-hf-id="hf-r46i"
+          id="hk-l3"
+          style="font-size: 106px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; color: #d9363e"
+        >
+          existed?
+        </div>
+      </div>
+
+      <div data-hf-id="hf-4one"
+        id="hk-rule"
+        style="height: 8px; width: 0; border-radius: 4px; background: #d9363e; margin-top: 40px"
+      ></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#hk-glow", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.out" }, 0);
+      tl.fromTo("#hk-stack", { y: 30 }, { y: 0, duration: 1.1, ease: "power3.out" }, 0);
+
+      tl.fromTo("#hk-label", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0);
+      tl.fromTo("#hk-l1", { y: 108 }, { y: 0, duration: 0.5, ease: "power3.out" }, 0.1);
+      tl.fromTo("#hk-l2", { y: 108 }, { y: 0, duration: 0.5, ease: "power3.out" }, 0.48);
+      tl.fromTo("#hk-l3", { y: 108 }, { y: 0, duration: 0.5, ease: "power3.out" }, 0.86);
+      tl.fromTo("#hk-rule", { width: 0 }, { width: 240, duration: 0.42, ease: "power2.out" }, 1.22);
+
+      tl.set("#hk-rule", { opacity: 1 }, 3);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["hook"] = tl;
+    </script>
+  </div>
+</template>

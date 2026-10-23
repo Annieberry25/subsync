@@ -1,0 +1,29 @@
+<template id="overlay-template">
+  <div data-hf-id="hf-hda3"
+    data-composition-id="overlay"
+    data-width="1080"
+    data-height="1920"
+style="position: absolute; inset: 0; overflow: hidden; background: transparent; pointer-events: none"
+    >
+    <div data-hf-id="hf-8yw7"
+      id="ov-vignette"
+      style="position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 44%, rgba(11, 13, 13, 0) 44%, rgba(11, 13, 13, 0.55) 100%); opacity: 0.9"
+    ></div>
+
+    <div data-hf-id="hf-3pa6"
+      id="ov-grain"
+      style="position: absolute; inset: 0; opacity: 0.055; background-image: url(&quot;data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'&gt;&lt;filter id='n'&gt;&lt;feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/&gt;&lt;/filter&gt;&lt;rect width='220' height='220' filter='url(%23n)'/&gt;&lt;/svg&gt;&quot;); background-repeat: repeat"
+    ></div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#ov-vignette", { opacity: 0 }, { opacity: 0.9, duration: 0.8, ease: "power2.out" }, 0);
+      tl.to("#ov-grain", { opacity: 0.085, duration: 0.08, repeat: 249, yoyo: true, ease: "none" }, 0);
+      tl.set("#ov-vignette", { opacity: 0.9 }, 20);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["overlay"] = tl;
+    </script>
+  </div>
+</template>

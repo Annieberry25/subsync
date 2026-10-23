@@ -1,0 +1,53 @@
+<template id="tps-endcard-template">
+  <div data-hf-id="hf-luhz"
+    data-composition-id="tps-endcard"
+    data-width="1080"
+    data-height="1920"
+    style="position: absolute; inset: 0; overflow: hidden; background: #000000"
+  >
+    <div data-hf-id="hf-r041" id="tp5-wordmark" style="position: absolute; left: 88px; top: 720px; width: 520px">
+      <img data-hf-id="hf-m8u2" src="assets/wordmark.png" alt="SubHalt" width="520" height="143" style="display: block" />
+    </div>
+
+    <div data-hf-id="hf-zq0v" id="tp5-claim" style="position: absolute; left: 88px; top: 958px; width: 904px">
+      <div data-hf-id="hf-hnxv" id="tp5-claim-payoff" style="font-size: 46px; font-weight: 700; color: #f5f7f6">
+        SubHalt stops the surprise charge.
+      </div>
+    </div>
+
+    <div data-hf-id="hf-6y6p" id="tp5-cta" style="position: absolute; left: 88px; top: 1210px">
+      <span data-hf-id="hf-pwxf" style="font-size: 44px; font-weight: 400; color: #c9d1d0">Free to start </span>
+      <span data-hf-id="hf-0d7t" style="font-size: 44px; font-weight: 600; color: #14b8a6">subhalt.xyz</span>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo(
+        "#tp5-wordmark",
+        { opacity: 0, scale: 0.97 },
+        { opacity: 1, scale: 1, duration: 0.85, ease: "power3.out" },
+        0,
+      );
+
+      tl.fromTo(
+        "#tp5-claim-payoff",
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" },
+        1.05,
+      );
+
+      tl.fromTo(
+        "#tp5-cta",
+        { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" },
+        3.05,
+      );
+
+      tl.set("#tp5-cta", { opacity: 1 }, 7);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["tps-endcard"] = tl;
+    </script>
+  </div>
+</template>

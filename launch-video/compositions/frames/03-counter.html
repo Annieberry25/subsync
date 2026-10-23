@@ -1,0 +1,147 @@
+<template id="tps-counter-template">
+  <div data-hf-id="hf-1guw"
+    data-composition-id="tps-counter"
+    data-width="1080"
+    data-height="1920"
+    style="position: absolute; inset: 0; overflow: hidden; background: #000000"
+  >
+    <style>
+      .tp3-num {
+        display: inline-block;
+        transform-origin: 50% 50%;
+        font-variant-numeric: tabular-nums;
+      }
+      #tp3-ticks .tp-tick {
+        transform-origin: 50% 100%;
+      }
+    </style>
+
+    <div data-hf-id="hf-0tyj" id="tp3-stack" style="position: absolute; inset: 0">
+      <div data-hf-id="hf-vuvh" id="tp3-month-row" style="position: absolute; left: 88px; right: 88px; top: 500px; text-align: center">
+        <div data-hf-id="hf-idr1" style="display: flex; align-items: baseline; justify-content: center; gap: 22px">
+          <span data-hf-id="hf-3yrw"
+            id="tp3-month-num"
+            class="tp3-num"
+            style="font-size: 168px; font-weight: 700; letter-spacing: -0.045em; line-height: 1; color: #f5f7f6"
+            >$0.00</span
+          >
+          <span data-hf-id="hf-m34d" id="tp3-month-label" style="font-size: 56px; font-weight: 400; color: #94a3b8">a month.</span>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-lov3" id="tp3-ticks" style="position: absolute; left: 88px; top: 780px; width: 904px; display: flex; gap: 8px">
+        <div data-hf-id="hf-1iey" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-74ta" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-7j4b" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-7xfc" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-55a5" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-5jl6" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-5xw7" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-6c78" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-9wyh" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-ab9i" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-m1d6" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+        <div data-hf-id="hf-ln25" class="tp-tick" style="flex: 0 0 auto; width: 68px; height: 112px; border-radius: 10px; background: #d9363e"></div>
+      </div>
+
+      <div data-hf-id="hf-64vf" id="tp3-year-row" style="position: absolute; left: 88px; right: 88px; top: 1010px; text-align: center">
+        <div data-hf-id="hf-un8x" style="display: flex; align-items: baseline; justify-content: center; gap: 22px">
+          <span data-hf-id="hf-vfnz"
+            id="tp3-year-num"
+            class="tp3-num"
+            style="font-size: 168px; font-weight: 700; letter-spacing: -0.045em; line-height: 1; color: #d9363e"
+            >$0</span
+          >
+          <span data-hf-id="hf-9g6h" id="tp3-year-label" style="font-size: 56px; font-weight: 400; color: #94a3b8">a year.</span>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-tg7b" id="tp3-quiet" style="position: absolute; left: 88px; right: 88px; top: 1306px; text-align: center">
+        <span data-hf-id="hf-n199" style="font-size: 48px; font-weight: 300; letter-spacing: 0.02em; color: #94a3b8"
+          >Leaving quietly.</span
+        >
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var tl = gsap.timeline({ paused: true });
+
+        var monthState = { v: 0 };
+        var yearState = { v: 0 };
+        var MONTH_TARGET = 26.79;
+        var YEAR_TARGET = 321;
+        var COUNT_EASE = "power3.out";
+        var START_SCALE = 1.12;
+
+        // Scene 1 (0.0-2.4s) - "$26.79" counts up from 0 while its scale settles from 1.12
+        tl.to(
+          monthState,
+          {
+            v: MONTH_TARGET,
+            duration: 1.6,
+            ease: COUNT_EASE,
+            onUpdate: function () {
+              document.getElementById("tp3-month-num").textContent = "$" + monthState.v.toFixed(2);
+            },
+          },
+          0
+        );
+        tl.fromTo("#tp3-month-num", { scale: START_SCALE }, { scale: 1, duration: 1.6, ease: COUNT_EASE }, 0);
+        tl.fromTo(
+          "#tp3-month-label",
+          { opacity: 0, y: 24 },
+          { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" },
+          1.55
+        );
+
+        // Scene 2 (2.4-5.0s) - the twelve monthly ticks fill in, one left-to-right staggered pass
+        tl.fromTo(
+          "#tp3-ticks .tp-tick",
+          { scaleY: 0 },
+          { scaleY: 1, duration: 0.6, ease: "power3.out", stagger: 0.1 },
+          2.4
+        );
+
+        // Scene 3 (5.0-7.2s) - the annual total lands; "$26.79" above dims one step
+        tl.fromTo(
+          "#tp3-year-row",
+          { opacity: 0, y: 26 },
+          { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" },
+          5.0
+        );
+        tl.to(
+          yearState,
+          {
+            v: YEAR_TARGET,
+            duration: 1.4,
+            ease: COUNT_EASE,
+            onUpdate: function () {
+              document.getElementById("tp3-year-num").textContent = "$" + Math.round(yearState.v);
+            },
+          },
+          5.0
+        );
+        tl.fromTo("#tp3-year-num", { scale: START_SCALE }, { scale: 1, duration: 1.4, ease: COUNT_EASE }, 5.0);
+        tl.to("#tp3-month-num", { color: "#c9d1d0", duration: 0.5, ease: "power2.out" }, 5.1);
+        tl.fromTo(
+          "#tp3-year-label",
+          { opacity: 0, y: 24 },
+          { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" },
+          6.25
+        );
+
+        // Scene 4 (7.2-8.0s) - "Leaving quietly." fades up last; the stack resolves and holds to the cut
+        tl.fromTo(
+          "#tp3-quiet",
+          { opacity: 0, y: 18 },
+          { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" },
+          7.2
+        );
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["tps-counter"] = tl;
+      })();
+    </script>
+  </div>
+</template>

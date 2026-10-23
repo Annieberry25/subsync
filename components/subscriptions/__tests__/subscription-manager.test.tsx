@@ -212,8 +212,8 @@ describe('SubscriptionManager view toggle', () => {
   it('sizes the toggle buttons compactly across breakpoints', () => {
     render(<SubscriptionManager />);
     const btn = screen.getByRole('button', { name: 'Table view' });
-    expect(btn.className).toContain('w-9');
-    expect(btn.className).toContain('h-9');
+    expect(btn.className).toContain('w-7');
+    expect(btn.className).toContain('h-7');
     expect(btn.className).toContain('sm:w-8');
   });
 

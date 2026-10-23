@@ -1,0 +1,117 @@
+<template id="alert-template">
+  <div data-hf-id="hf-asz0"
+    data-composition-id="alert"
+    data-width="1080"
+    data-height="1920"
+    style="position: absolute; inset: 0; overflow: hidden; background: #0b0d0d"
+  >
+    <video data-hf-id="hf-e2e4"
+      class="clip"
+      id="al-bg"
+      data-start="0"
+      data-duration="7"
+      data-track-index="0"
+      data-media-start="4"
+      muted
+      playsinline
+      style="position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; filter: blur(26px) brightness(0.26) saturate(0.7)"
+      src="assets/product-dashboard.mp4"
+    ></video>
+
+    <div data-hf-id="hf-h4ut" style="position: absolute; inset: 0; background: rgba(11, 13, 13, 0.55)"></div>
+
+    <!-- Push notification. Copy is verbatim from lib/reminders/run-reminders.ts. -->
+    <div data-hf-id="hf-x8ug"
+      id="al-push"
+      style="position: absolute; left: 64px; top: 214px; width: 952px; padding: 24px 30px; border-radius: 34px; background: rgba(15, 17, 17, 0.94); border: 1px solid #1f2425"
+    >
+      <div data-hf-id="hf-5gyl" style="display: flex; align-items: center; gap: 13px">
+        <img data-hf-id="hf-9f6p" src="assets/brandmark.png" alt="" width="30" height="30" style="display: block" />
+        <span data-hf-id="hf-e312" style="font-size: 21px; font-weight: 500; letter-spacing: 0.14em; color: #94a3b8">SUBHALT &middot; NOW</span>
+      </div>
+      <div data-hf-id="hf-8emr" style="font-size: 38px; font-weight: 500; letter-spacing: -0.02em; color: #f5f7f6; margin-top: 14px">
+        Netflix renews in 3 days
+      </div>
+      <div data-hf-id="hf-9ds5" style="font-size: 27px; font-weight: 400; color: #94a3b8; margin-top: 7px">
+        A heads-up so the next charge is not a surprise.
+      </div>
+    </div>
+
+    <!-- Renewal reminder email. Copy is verbatim from lib/email/templates.ts. -->
+    <div data-hf-id="hf-ot8e"
+      id="al-mail"
+      style="position: absolute; left: 64px; top: 452px; width: 952px; padding: 34px 38px; border-radius: 34px; background: rgba(15, 17, 17, 0.94); border: 1px solid #1f2425"
+    >
+      <div data-hf-id="hf-nhs2" style="display: flex; align-items: center; justify-content: space-between">
+        <span data-hf-id="hf-2hnm" style="font-size: 21px; font-weight: 500; letter-spacing: 0.14em; color: #94a3b8">INBOX</span>
+        <span data-hf-id="hf-twdk" style="font-size: 21px; font-weight: 400; color: #94a3b8">to me</span>
+      </div>
+      <div data-hf-id="hf-gpfq" style="font-size: 22px; font-weight: 400; color: #94a3b8; margin-top: 20px">
+        <span data-hf-id="hf-smhn" style="color: #e7ecea; font-weight: 500">SubHalt</span>
+        &lt;no-reply@subhalt.xyz&gt;
+      </div>
+      <div data-hf-id="hf-bd6w" style="font-size: 44px; font-weight: 500; letter-spacing: -0.025em; line-height: 1.18; color: #f5f7f6; margin-top: 16px">
+        Netflix renews in 3 days
+      </div>
+      <div data-hf-id="hf-ledl" style="font-size: 29px; font-weight: 400; line-height: 1.38; color: #94a3b8; margin-top: 13px">
+        A reminder so the next charge does not catch you by surprise.
+      </div>
+      <div data-hf-id="hf-714p" style="margin-top: 24px; border-top: 1px solid #1f2425">
+        <div data-hf-id="hf-65zd" style="display: flex; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid #1f2425">
+          <span data-hf-id="hf-srd8" style="font-size: 27px; font-weight: 400; color: #94a3b8">Next charge</span>
+          <span data-hf-id="hf-74tj" style="font-size: 27px; font-weight: 400; color: #e7ecea">Oct 21, 2026</span>
+        </div>
+        <div data-hf-id="hf-cbn7" style="display: flex; justify-content: space-between; padding: 16px 0">
+          <span data-hf-id="hf-7vrl" style="font-size: 27px; font-weight: 400; color: #94a3b8">Amount</span>
+          <span data-hf-id="hf-ikee" style="font-size: 27px; font-weight: 400; color: #e7ecea">$15.49 / month</span>
+        </div>
+      </div>
+      <div data-hf-id="hf-j9jp" style="display: flex; align-items: center; gap: 18px; margin-top: 26px">
+        <div data-hf-id="hf-1m7u" style="padding: 16px 36px; border-radius: 14px; background: #14b8a6; color: #091512; font-size: 28px; font-weight: 500">
+          Sign In
+        </div>
+        <div data-hf-id="hf-dyip" style="padding: 16px 32px; border-radius: 14px; border: 1px solid #1f2425; color: #94a3b8; font-size: 28px; font-weight: 400">
+          Cancel plan
+        </div>
+      </div>
+    </div>
+
+    <div data-hf-id="hf-py5l" id="al-copy" style="position: absolute; left: 88px; right: 88px; top: 1236px; opacity: 0">
+      <div data-hf-id="hf-cr49" style="font-size: 84px; font-weight: 500; letter-spacing: -0.035em; line-height: 1.06; color: #f5f7f6">
+        Told <span data-hf-id="hf-9vxl" style="color: #14b8a6">before</span> it renews.
+      </div>
+      <div data-hf-id="hf-q26p" id="al-copy2" style="font-size: 40px; font-weight: 400; color: #94a3b8; margin-top: 22px; opacity: 0">
+        Email and push. Not 14 days after.
+      </div>
+      <div data-hf-id="hf-ce9a"
+        id="al-rule"
+        style="height: 6px; width: 0; border-radius: 3px; background: #14b8a6; margin-top: 30px"
+      ></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#al-bg", { scale: 1.05 }, { scale: 1.1, duration: 7, ease: "none" }, 0);
+
+      tl.fromTo("#al-push", { y: -320, opacity: 0 }, { y: 0, opacity: 1, duration: 0.66, ease: "power3.out" }, 0.35);
+
+      tl.fromTo("#al-mail", { y: 320, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 1.75);
+
+      tl.fromTo("#al-copy", { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 3.9);
+      tl.fromTo("#al-copy2", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 4.5);
+      tl.fromTo("#al-rule", { width: 0 }, { width: 220, duration: 0.5, ease: "power2.out" }, 4.8);
+
+      tl.to("#al-push", { y: -300, opacity: 0, duration: 0.38, ease: "power2.in" }, 6.5);
+      tl.to("#al-mail", { y: 300, opacity: 0, duration: 0.38, ease: "power2.in" }, 6.5);
+      tl.to("#al-copy", { opacity: 0, y: -24, duration: 0.34 }, 6.5);
+      tl.to("#al-copy2", { opacity: 0, duration: 0.3 }, 6.5);
+      tl.to("#al-rule", { opacity: 0, duration: 0.3 }, 6.5);
+
+      tl.set("#al-mail", { opacity: 0 }, 7);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["alert"] = tl;
+    </script>
+  </div>
+</template>

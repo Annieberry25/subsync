@@ -1,0 +1,99 @@
+<template id="tps-renewals-template">
+  <div data-hf-id="hf-98cn"
+    data-composition-id="tps-renewals"
+    data-width="1080"
+    data-height="1920"
+    style="position: absolute; inset: 0; overflow: hidden; background: #000000"
+  >
+    <div data-hf-id="hf-fkf2"
+      id="tp4-brand"
+      style="position: absolute; left: 88px; top: 128px; display: flex; align-items: center; gap: 16px"
+    >
+      <img data-hf-id="hf-98p9" src="assets/brandmark.png" alt="" width="52" height="52" style="display: block" />
+      <div data-hf-id="hf-pjb8" style="font-size: 34px; font-weight: 500; letter-spacing: -0.01em; color: #f5f7f6">SubHalt</div>
+    </div>
+
+    <div data-hf-id="hf-mr4l"
+      id="tp4-frame"
+      style="position: absolute; left: 130px; top: 256px; width: 820px; height: 1420px; border-radius: 64px; overflow: hidden; border: 1px solid #1f2425; background: #000"
+    >
+      <video data-hf-id="hf-zabn"
+        class="clip"
+        id="tp4-video"
+        data-start="0"
+        data-duration="10"
+        data-track-index="0"
+        muted
+        playsinline
+        style="width: 100%; height: 100%; object-fit: cover"
+        src="assets/product-dashboard.mp4"
+      ></video>
+
+      <div data-hf-id="hf-d34x"
+        style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.34) 0%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0) 56%, rgba(0, 0, 0, 0.8) 100%)"
+      ></div>
+
+      <div data-hf-id="hf-cawr"
+        style="position: absolute; left: 50%; top: 16px; width: 280px; height: 10px; margin-left: -140px; border-radius: 5px; background: rgba(255, 255, 255, 0.14)"
+      ></div>
+
+      <div data-hf-id="hf-6e6a" style="position: absolute; left: 28px; top: 1236px; width: 764px; display: flex; align-items: flex-start; gap: 18px">
+        <span data-hf-id="hf-9ogm"
+          id="tp4-dot"
+          style="width: 10px; height: 10px; margin-top: 20px; border-radius: 50%; background: #14b8a6; flex: 0 0 auto"
+        ></span>
+        <span data-hf-id="hf-34kz" id="tp4-claim" style="font-size: 40px; font-weight: 400; line-height: 1.3; color: #e7ecea"><span data-hf-id="hf-2m90" class="tp4-word" style="display: inline-block">SubHalt</span> <span data-hf-id="hf-yowh" class="tp4-word" style="display: inline-block">names</span> <span data-hf-id="hf-oq9p" class="tp4-word" style="display: inline-block">them.</span> <span data-hf-id="hf-1vs8" class="tp4-word" style="display: inline-block">Then</span> <span data-hf-id="hf-7xwu" class="tp4-word" style="display: inline-block">it</span> <span data-hf-id="hf-pftc" class="tp4-word" style="display: inline-block">warns</span> <span data-hf-id="hf-ti2q" class="tp4-word" style="display: inline-block">you</span> <span data-hf-id="hf-f3nw" class="tp4-word" style="display: inline-block">before</span> <span data-hf-id="hf-d6vx" class="tp4-word" style="display: inline-block">they</span> <span data-hf-id="hf-ac9v" class="tp4-word" style="display: inline-block">charge</span> <span data-hf-id="hf-deg5" class="tp4-word" style="display: inline-block">again.</span></span>
+      </div>
+    </div>
+
+    <div data-hf-id="hf-7xxo"
+      id="tp4-chip"
+      style="position: absolute; left: 0; right: 0; top: 1742px; text-align: center; font-size: 24px; font-weight: 400; letter-spacing: 0.06em; color: #94a3b8; opacity: 0.7"
+    >
+      MOCK CAPTURE — awaiting the real renewals recording
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo(
+        "#tp4-brand",
+        { opacity: 0, y: -14 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" },
+        0,
+      );
+      tl.fromTo(
+        "#tp4-frame",
+        { opacity: 0, y: 36 },
+        { opacity: 1, y: 0, duration: 0.9, ease: "power3.out" },
+        0.12,
+      );
+
+      tl.fromTo(
+        "#tp4-dot",
+        { opacity: 0, scale: 0 },
+        { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" },
+        1.6,
+      );
+
+      const WORD_BASE = 0.18;
+      const SEC_PER_CHAR = 0.035;
+      const WORD_REVEAL = 0.3;
+      let wordAt = 2.0;
+      document.querySelectorAll("#tp4-claim .tp4-word").forEach((word) => {
+        tl.fromTo(
+          word,
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: WORD_REVEAL, ease: "power2.out" },
+          wordAt,
+        );
+        wordAt += WORD_BASE + word.textContent.length * SEC_PER_CHAR;
+      });
+
+      tl.set("#tp4-frame", { opacity: 1 }, 10);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["tps-renewals"] = tl;
+    </script>
+  </div>
+</template>

@@ -1,0 +1,121 @@
+<template id="dashboard-template">
+  <div data-hf-id="hf-ykfq"
+    data-composition-id="dashboard"
+    data-width="1080"
+    data-height="1920"
+    style="position: absolute; inset: 0; overflow: hidden; background: #0b0d0d"
+  >
+    <div data-hf-id="hf-mb7u" style="position: absolute; left: 88px; top: 128px; display: flex; align-items: center; gap: 16px">
+      <img data-hf-id="hf-noof"
+        id="db-mark"
+        src="assets/brandmark.png"
+        alt=""
+        width="52"
+        height="52"
+        style="display: block"
+      />
+      <div data-hf-id="hf-f752"
+        id="db-brand"
+        style="font-size: 34px; font-weight: 500; letter-spacing: -0.01em; color: #f5f7f6; opacity: 0"
+      >
+        SubHalt
+      </div>
+    </div>
+
+    <div data-hf-id="hf-v8ft"
+      id="db-frame"
+      style="position: absolute; left: 130px; top: 256px; width: 820px; height: 1420px; border-radius: 64px; overflow: hidden; border: 1px solid #1f2425; background: #000"
+    >
+      <div data-hf-id="hf-zm04" id="db-zoom" data-layout-allow-overflow="true" style="position: absolute; inset: 0; will-change: transform">
+        <video data-hf-id="hf-lgcz"
+          class="clip"
+          id="db-video"
+          data-start="0"
+          data-duration="7"
+          data-track-index="0"
+          muted
+          playsinline
+          style="width: 100%; height: 100%; object-fit: cover; display: block"
+          src="assets/product-dashboard.mp4"
+        ></video>
+
+        <!-- Patches painted over the recording: hide the two amber
+             "Renews in 3 days" pills, then rewrite the Smart Insights card.
+             The recording's page content scrolls up at 24 video px/s, so the
+             group tracks it at 24 * 818/1080 = 18.178 wrapper px per second. -->
+        <div data-hf-id="hf-pt01" id="db-patches" data-layout-allow-overflow="true" style="position: absolute; inset: 0">
+          <div data-hf-id="hf-r4p1" style="position: absolute; left: 606.6px; top: 364.5px; width: 158px; height: 39.5px; background: #0a0c0c"></div>
+          <div data-hf-id="hf-e9q2" style="position: absolute; left: 606.6px; top: 443.5px; width: 158px; height: 39.5px; background: #0a0c0c"></div>
+
+          <div data-hf-id="hf-si7k"
+            id="db-insight"
+            style="position: absolute; left: 32px; top: 964px; width: 755px; height: 219px; box-sizing: border-box; border-radius: 19px; border: 1.5px solid #4a9d94; background: #0a0c0c; display: flex; align-items: center; padding: 0 27px"
+          >
+            <div data-hf-id="hf-si8m" data-layout-allow-occlusion="true" style="font-size: 30.4px; font-weight: 400; line-height: 1.45; color: #e7ecea">
+              Your Notion Plus subscription is<br />
+              <span data-hf-id="hf-si9n" data-layout-allow-occlusion="true" style="color: #14b8a6; font-weight: 500">41 days overdue</span>. Remember to unsubscribe<br />
+              if it's not in use.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-d34x"
+        style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.34) 0%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0) 56%, rgba(0, 0, 0, 0.8) 100%)"
+      ></div>
+
+      <div data-hf-id="hf-cawr"
+        style="position: absolute; left: 50%; top: 16px; width: 280px; height: 10px; margin-left: -140px; border-radius: 5px; background: rgba(255, 255, 255, 0.14)"
+      ></div>
+
+      <div data-hf-id="hf-gvcb" style="position: absolute; left: 28px; top: 1250px; width: 764px; height: 140px">
+        <div data-hf-id="hf-k3am"
+          id="db-c1"
+          style="position: absolute; inset: 0; display: flex; align-items: center; gap: 18px; opacity: 0"
+        >
+          <span data-hf-id="hf-yir5" style="width: 10px; height: 10px; border-radius: 50%; background: #14b8a6; flex: 0 0 auto"></span>
+          <span data-hf-id="hf-qjj5" style="font-size: 40px; font-weight: 400; color: #e7ecea">Every subscription, one board</span>
+        </div>
+        <div data-hf-id="hf-obbt"
+          id="db-c2"
+          style="position: absolute; inset: 0; display: flex; align-items: center; gap: 18px; opacity: 0"
+        >
+          <span data-hf-id="hf-4fvp" style="width: 10px; height: 10px; border-radius: 50%; background: #14b8a6; flex: 0 0 auto"></span>
+          <span data-hf-id="hf-ry56" style="font-size: 40px; font-weight: 400; color: #e7ecea">Monthly and annualised cost</span>
+        </div>
+        <div data-hf-id="hf-5dkg"
+          id="db-c3"
+          style="position: absolute; inset: 0; display: flex; align-items: center; gap: 18px; opacity: 0"
+        >
+          <span data-hf-id="hf-5mss" style="width: 10px; height: 10px; border-radius: 50%; background: #14b8a6; flex: 0 0 auto"></span>
+          <span data-hf-id="hf-vizi" style="font-size: 40px; font-weight: 400; line-height: 1.2; color: #e7ecea">SubHalt names them. Then it warns you before they charge again.</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#db-mark", { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "power2.out" }, 0.05);
+      tl.fromTo("#db-brand", { opacity: 0, x: -14 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 0.15);
+      tl.fromTo("#db-frame", { scale: 0.97, y: 26 }, { scale: 1, y: 0, duration: 0.9, ease: "power3.out" }, 0);
+
+      tl.fromTo("#db-zoom", { scale: 1 }, { scale: 1.06, duration: 7, ease: "none" }, 0);
+      tl.fromTo("#db-patches", { y: 36.356 }, { y: -90.889, duration: 7, ease: "none" }, 0);
+
+      tl.fromTo("#db-c1", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 1);
+      tl.to("#db-c1", { opacity: 0, duration: 0.3 }, 2.4);
+      tl.fromTo("#db-c2", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 2.6);
+      tl.to("#db-c2", { opacity: 0, duration: 0.3 }, 4);
+      tl.fromTo("#db-c3", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 4.2);
+
+      tl.fromTo("#db-frame", { scale: 1 }, { scale: 1.025, duration: 0.8, ease: "power2.in", immediateRender: false }, 6.2);
+      tl.to("#db-c3", { opacity: 0, duration: 0.3 }, 6.2);
+
+      tl.set("#db-c3", { opacity: 0 }, 7);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["dashboard"] = tl;
+    </script>
+  </div>
+</template>

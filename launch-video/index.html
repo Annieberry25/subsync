@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/vendor/gsap.min.js"></script>
+    <style>
+      /* Space Grotesk variable — the same face the SubHalt app ships
+         (app/layout.tsx uses next/font/google Space_Grotesk, latin subset).
+         Axis range is 300-700; nothing in this composition asks for more. */
+      @font-face {
+        font-family: 'Space Grotesk';
+        src: url('assets/fonts/space-grotesk-var.woff2') format('woff2');
+        font-weight: 300 700;
+        font-display: block;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #000000;
+        font-family: 'Space Grotesk', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- "Two Point Six" — Video 1 of the SubHalt marketing set (BRIEF.md / STORYBOARD.md).
+         The 30s launch film lives in launch-film.html and renders with
+         `render -c launch-film.html`. -->
+    <div data-hf-id="hf-1k1j"
+      id="root"
+      data-composition-id="two-point-six"
+      data-start="0"
+      data-duration="35"
+      data-width="1080"
+      data-height="1920"
+      data-fps="30"
+    >
+      <!-- Frame 1 — the pile 0-3 -->
+      <div data-hf-id="hf-zxey"
+        class="clip"
+        id="s-pile"
+        data-composition-id="tps-pile"
+        data-composition-src="compositions/frames/01-pile.html"
+        data-start="0"
+        data-duration="3"
+        data-track-index="1"
+        data-track-kind="graphics"
+        style="position: absolute; inset: 0; z-index: 2"
+      ></div>
+
+      <!-- Frame 2 — the pile dims 3-10 -->
+      <div data-hf-id="hf-7t8t"
+        class="clip"
+        id="s-pile-dim"
+        data-composition-id="tps-pile-dim"
+        data-composition-src="compositions/frames/02-pile-dim.html"
+        data-start="3"
+        data-duration="7"
+        data-track-index="1"
+        data-track-kind="graphics"
+        style="position: absolute; inset: 0; z-index: 2"
+      ></div>
+
+      <!-- Frame 3 — the number 10-18 -->
+      <div data-hf-id="hf-u180"
+        class="clip"
+        id="s-counter"
+        data-composition-id="tps-counter"
+        data-composition-src="compositions/frames/03-counter.html"
+        data-start="10"
+        data-duration="8"
+        data-track-index="1"
+        data-track-kind="graphics"
+        style="position: absolute; inset: 0; z-index: 2"
+      ></div>
+
+      <!-- Frame 4 — the warning 18-28 -->
+      <div data-hf-id="hf-xagn"
+        class="clip"
+        id="s-renewals"
+        data-composition-id="tps-renewals"
+        data-composition-src="compositions/frames/04-renewals.html"
+        data-start="18"
+        data-duration="10"
+        data-track-index="1"
+        data-track-kind="graphics"
+        style="position: absolute; inset: 0; z-index: 2"
+      ></div>
+
+      <!-- Frame 5 — end card 28-35 -->
+      <div data-hf-id="hf-ou91"
+        class="clip"
+        id="s-endcard-tps"
+        data-composition-id="tps-endcard"
+        data-composition-src="compositions/frames/05-endcard.html"
+        data-start="28"
+        data-duration="7"
+        data-track-index="1"
+        data-track-kind="graphics"
+        style="position: absolute; inset: 0; z-index: 4"
+      ></div>
+
+      <div data-hf-id="hf-6opy"
+        class="clip"
+        id="s-overlay-tps"
+        data-composition-id="overlay"
+        data-composition-src="compositions/06-overlay.html"
+        data-start="0"
+        data-duration="35"
+        data-track-index="2"
+        data-track-kind="graphics"
+        style="position: absolute; inset: 0; z-index: 20; pointer-events: none"
+      ></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines = window.__timelines || {};
+      window.__timelines["two-point-six"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

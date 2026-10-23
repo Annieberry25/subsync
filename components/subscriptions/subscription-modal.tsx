@@ -23,6 +23,7 @@ import { hasReachedAccountLinkCap } from '@/lib/constants/plan-limits';
 import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
+import { addCycleToDate } from '@/lib/utils/billing-dates';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -146,58 +147,6 @@ function withRowDefaults(links: AccountLink[], row: SubscriptionRow): AccountLin
   }));
 }
 
-/**
- * The next billing date, one cycle after a date.
- *
- * Done in UTC because a renewal date is a date, not a moment: doing it in
- * local time moved a renewal by a day for anyone east or west of Greenwich,
- * and a reminder that fires on the wrong day is the whole product failing.
- *
- * The day is clamped to the end of the month, so the 31st of January renews
- * on the 28th or 29th of February rather than rolling into March.
- */
-function addCycleToDate(isoDate: string, cycle: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  if (!year || !month || !day) return '';
-
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  if (cycle === 'yearly') {
-    const lastDay = new Date(
-      Date.UTC(date.getUTCFullYear() + 1, date.getUTCMonth() + 1, 0)
-    ).getUTCDate();
-    date.setUTCDate(1);
-    date.setUTCFullYear(date.getUTCFullYear() + 1);
-    date.setUTCDate(Math.min(day, lastDay));
-    return date.toISOString().split('T')[0];
-  }
-
-  if (cycle === 'quarterly') {
-    const targetMonth = date.getUTCMonth() + 3;
-    const lastDay = new Date(
-      Date.UTC(date.getUTCFullYear(), targetMonth + 1, 0)
-    ).getUTCDate();
-    date.setUTCDate(1);
-    date.setUTCMonth(targetMonth);
-    date.setUTCDate(Math.min(day, lastDay));
-    return date.toISOString().split('T')[0];
-  }
-
-  if (cycle === 'weekly') {
-    date.setUTCDate(date.getUTCDate() + 7);
-    return date.toISOString().split('T')[0];
-  }
-
-  const targetMonth = date.getUTCMonth() + 1;
-  const lastDay = new Date(
-    Date.UTC(date.getUTCFullYear(), targetMonth + 1, 0)
-  ).getUTCDate();
-  date.setUTCDate(1);
-  date.setUTCMonth(targetMonth);
-  date.setUTCDate(Math.min(day, lastDay));
-  return date.toISOString().split('T')[0];
-}
-
 function formatDateInput(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -244,6 +193,7 @@ export default function SubscriptionModal({
   const [status, setStatus] = useState<typeof statuses[number] | ''>('');
   const [startDate, setStartDate] = useState('');
   const [nextBillingDate, setNextBillingDate] = useState('');
+  const [autoRenew, setAutoRenew] = useState(true);
   const [providerUrl, setProviderUrl] = useState('');
   const [isUserEditedUrl, setIsUserEditedUrl] = useState(false);
   const [accountLinks, setAccountLinks] = useState<AccountLink[]>([]);
@@ -320,6 +270,7 @@ export default function SubscriptionModal({
       setStatus(initialData.status as typeof statuses[number]);
       setStartDate(initialData.start_date || '');
       setNextBillingDate(initialData.next_billing_date);
+      setAutoRenew(initialData.auto_renew !== false);
       
       const actualProviderUrl = initialData.provider_url ? initialData.provider_url.trim() : '';
       setProviderUrl(actualProviderUrl);
@@ -364,6 +315,7 @@ export default function SubscriptionModal({
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       setNextBillingDate(nextMonth.toISOString().split('T')[0]);
+      setAutoRenew(true);
       setProviderUrl('');
       setIsUserEditedUrl(false);
       setAccountLinks([]);
@@ -913,6 +865,7 @@ setLoading(true);
           end_date: saveTarget ? saveTarget.end_date ?? null : null,
           next_billing_date: rowNextBillingDate,
           payment_method: null,
+          auto_renew: autoRenew,
           provider_url: providerUrl.trim() || null,
           account_links: accountsWithFormValues,
           notes: formattedNotes,
@@ -1171,6 +1124,27 @@ setLoading(true);
                   </span>
                 )}
               </div>
+            </div>
+
+            {/* Auto Renewal */}
+            <div className="space-y-2">
+              <label className="text-[13px] font-medium text-[#94A3B8] block">Auto renewal</label>
+              <button
+                type="button"
+                onClick={() => setAutoRenew((prev) => !prev)}
+                aria-pressed={autoRenew}
+                aria-label="Auto renewal"
+                className={`w-full h-11 px-4 rounded-xl text-xs font-medium flex items-center justify-between gap-2 border transition-colors cursor-pointer ${
+                  autoRenew
+                    ? 'bg-[#1F2425] text-[#F5F7F6] font-semibold border-[#2A3032]'
+                    : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
+                }`}
+              >
+                <span>The subscription renews itself automatically</span>
+                <span className={`text-xs font-semibold ${autoRenew ? 'text-[#14B8A6]' : ''}`}>
+                  {autoRenew ? 'On' : 'Off'}
+                </span>
+              </button>
             </div>
 
             {/* Category & Status */}

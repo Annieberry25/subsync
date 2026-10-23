@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  CheckCheck, 
+import {
+  CheckCheck,
   ChevronRight,
+  Eye,
+  EyeOff,
   MoreVertical,
   Archive,
   Trash2,
@@ -33,7 +35,6 @@ export default function InboxPageContent() {
     archivedItems,
     unreadCount,
     markAsRead,
-    markAllAsRead,
     deleteItem, 
     archiveItem, 
     unarchiveItem,
@@ -44,18 +45,6 @@ export default function InboxPageContent() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
 
-  /*
-   * Arriving at the Inbox is the read receipt.
-   *
-   * The bell hides while the Inbox route is active, but nothing changed any
-   * item's read state on the way in, so unreadCount stayed put and the bell came
-   * straight back on the next page. Clearing it here is what makes the bell mean
-   * "there is something you have not looked at yet".
-   */
-  useEffect(() => {
-    markAllAsRead();
-  }, [markAllAsRead]);
-  
   // WhatsApp-style Action Menu State
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -178,6 +167,9 @@ export default function InboxPageContent() {
       longPressTimerRef.current = null;
     }
   };
+
+  const isViewSubscriptionAction = (label?: string) =>
+    label?.trim().toLowerCase().startsWith('view subscription') ?? false;
 
   const formatDate = (isoStr: string) => {
     const d = new Date(isoStr);
@@ -365,9 +357,11 @@ export default function InboxPageContent() {
         </div>
       </div>
 
-      {/* INBOX CONTENT LIST */}
+      {/* INBOX CONTENT LIST — WhatsApp on phones: one flat surface, no box
+          lines, the messages separated by single hairline dividers. From md
+          up it keeps the rounded card it always had. */}
       {hasItemsToShow ? (
-        <div className="space-y-2.5 relative">
+        <div className="relative border-y border-[#1A1D1D] bg-[#0B0D0D] md:rounded-2xl divide-y divide-[#1A1D1D]">
           {displayedItems.map((item) => {
             const isMenuOpen = activeMenuId === item.id;
             const isArchivedTab = activeTab === 'archived';
@@ -384,10 +378,10 @@ export default function InboxPageContent() {
                 onTouchStart={() => handleTouchStart(item)}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchMove}
-                className={`group relative rounded-2xl p-4 sm:p-5 border bg-[#0B0D0D] transition-all duration-150 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer min-h-[64px] ${
+                className={`group relative p-4 sm:p-5 flex items-center justify-between gap-3 sm:gap-4 cursor-pointer min-h-[64px] transition-colors duration-150 ${
                   !item.isRead
-                    ? 'border-[#1A1D1D] hover:border-[#14B8A6]/50 shadow-sm'
-                    : 'border-[#1A1D1D] hover:border-[#262929]'
+                    ? 'hover:bg-[#132020]'
+                    : 'hover:bg-[#111414]'
                 }`}
               >
                 {/* 1. Left Flexible Content Area (Status Dot + Title & Description) */}
@@ -410,7 +404,7 @@ export default function InboxPageContent() {
                       )}
                     </div>
                     <p
-                      className={`text-xs leading-relaxed truncate ${
+                      className={`text-xs leading-relaxed line-clamp-2 sm:line-clamp-1 ${
                         !item.isRead ? 'text-[#94A3B8]' : 'text-[#94A3B8]/80'
                       }`}
                     >
@@ -420,7 +414,7 @@ export default function InboxPageContent() {
                 </div>
 
                 {/* 2. Fixed Right-Aligned Date Column (Lines up vertically across ALL cards) */}
-                <div className="w-16 sm:w-20 text-right shrink-0">
+                <div className="hidden sm:block w-16 sm:w-20 text-right shrink-0">
                   <span className="text-[11px] text-[#94A3B8] font-normal whitespace-nowrap block">
                     {formatDate(item.date)}
                   </span>
@@ -428,8 +422,32 @@ export default function InboxPageContent() {
 
                 {/* 3. Actions Column at the Far Right (CTA button, Read checkmark, 3-dots trigger) */}
                 <div className="flex items-center gap-1.5 sm:gap-2 justify-end shrink-0">
+                  {/* View-subscription CTAs are eye icons: the closed eye in
+                      the primary color for an unread message, the open eye in
+                      grey once the message has been read. Other CTAs keep
+                      their labelled pill. */}
+                  {item.actionLabel && isViewSubscriptionAction(item.actionLabel) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAction(item);
+                      }}
+                      aria-label={item.actionLabel}
+                      title="View subscription"
+                      data-touch="compact"
+                      className={
+                        item.isRead
+                          ? 'w-9 h-9 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D]/60 transition-colors cursor-pointer'
+                          : 'w-9 h-9 rounded-lg flex items-center justify-center text-[#14B8A6] hover:text-[#2DD4BF] hover:bg-[#1A1D1D]/60 transition-colors cursor-pointer'
+                      }
+                    >
+                      {item.isRead ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                  )}
+
                   {/* CTA Action Button (if actionable) */}
-                  {item.actionLabel && (
+                  {item.actionLabel && !isViewSubscriptionAction(item.actionLabel) && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -450,18 +468,24 @@ export default function InboxPageContent() {
                     </div>
                   )}
 
-                  {/* Secondary 3-dots Menu Trigger Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMenuId(isMenuOpen ? null : item.id);
-                    }}
-                    aria-label="Message action menu"
-                    className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+                  {/* Secondary 3-dots Menu Trigger Button. On phones the
+                      timestamp sits in small type right above it. */}
+                  <div className="flex flex-col items-center justify-center gap-0.5 shrink-0">
+                    <span className="text-[10px] text-[#94A3B8] font-normal leading-none whitespace-nowrap sm:hidden">
+                      {formatDate(item.date)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMenuId(isMenuOpen ? null : item.id);
+                      }}
+                      aria-label="Message action menu"
+                      className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#F5F7F6] hover:bg-[#1A1D1D] transition-colors cursor-pointer"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* WhatsApp-Style Floating Action Menu Popover (Message Actions ONLY) */}

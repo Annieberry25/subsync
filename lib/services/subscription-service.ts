@@ -9,7 +9,10 @@ import {
 } from '@/lib/constants/plan-limits';
 
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
-export type SubscriptionRow = Database['public']['Tables']['subscriptions']['Row'];
+export type SubscriptionRow =
+  Omit<Database['public']['Tables']['subscriptions']['Row'], 'auto_renew'> & {
+  auto_renew?: boolean | null;
+};
 export type SubscriptionInsert = Database['public']['Tables']['subscriptions']['Insert'];
 export type SubscriptionUpdate = Database['public']['Tables']['subscriptions']['Update'];
 
