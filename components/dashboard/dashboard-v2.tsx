@@ -157,6 +157,21 @@ export default function DashboardV2() {
     setLoading(false);
   }, [toast]);
 
+  const handleToggleAutoRenew = useCallback(
+    async (item: SubscriptionRow, enabled: boolean, _accountId?: string | null) => {
+      const { error } = await updateSubscription(item.id, { auto_renew: enabled });
+      if (error) {
+        toast.error(error.message, 'Auto Renewal');
+        return;
+      }
+      setSelectedDetailSub((current) =>
+        current?.id === item.id ? { ...current, auto_renew: enabled } : current
+      );
+      void loadData();
+    },
+    [setSelectedDetailSub, loadData, toast]
+  );
+
   useEffect(() => {
     let active = true;
     // Deferred to a microtask rather than set synchronously here.
@@ -546,6 +561,7 @@ const handleSave = async (
           setSelectedDetailSub(null);
           setDeletingSubscription(sub);
         }}
+        onToggleAutoRenew={handleToggleAutoRenew}
         onCancellationAssistance={(sub: SubscriptionRow) => {
           setSelectedDetailSub(null);
           setCancellationSub(sub);

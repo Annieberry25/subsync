@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useInbox, type InboxItem } from '@/lib/contexts/inbox-context';
 import { usePlan } from '@/lib/contexts/user-settings-context';
-import { fetchSubscriptions, type SubscriptionRow } from '@/lib/services/subscription-service';
+import { fetchSubscriptions, updateSubscription, type SubscriptionRow } from '@/lib/services/subscription-service';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 
 import ConfirmDialog from '@/components/ui/confirm-dialog';
@@ -54,6 +54,20 @@ export default function InboxPageContent() {
   // Modals for Actions
   const [selectedSub, setSelectedSub] = useState<SubscriptionRow | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const handleToggleAutoRenew = useCallback(
+    async (item: SubscriptionRow, enabled: boolean, _accountId?: string | null) => {
+      const { error } = await updateSubscription(item.id, { auto_renew: enabled });
+      if (error) {
+        toast.error(error.message, 'Auto Renewal');
+        return;
+      }
+      setSelectedSub((current) =>
+        current?.id === item.id ? { ...current, auto_renew: enabled } : current
+      );
+    },
+    [setSelectedSub, toast]
+  );
   
 
   // Long press timer ref for mobile interactions
@@ -621,6 +635,7 @@ export default function InboxPageContent() {
         }}
         onEdit={() => {}}
         onDeleteRequest={() => {}}
+        onToggleAutoRenew={handleToggleAutoRenew}
       />
     </div>
   );

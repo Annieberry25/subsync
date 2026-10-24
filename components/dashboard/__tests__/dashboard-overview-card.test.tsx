@@ -71,26 +71,18 @@ describe('DashboardOverviewCard', () => {
   });
 
   it('gives upcoming renewals its own full-width surface above the second row', () => {
-    // Renewals is a standalone surface spanning the full grid, not a quadrant
-    // of a 2x2 — it needs the whole width for its name/status/price columns.
-    // Its look follows the flat WhatsApp-style list treatment: no side
-    // rounding, just top and bottom hairlines.
+    // Renewals is a standalone card spanning the full grid, not a quadrant of a
+    // 2x2 — it needs the whole width for its name/status/price columns.
     const { container } = render(<DashboardOverviewCard {...props([sub()])} />);
 
-    const flatSurfaces = Array.from(
-      container.querySelectorAll<HTMLElement>('[class*="border-y"]')
-    );
-    const renewals = flatSurfaces.find((el) => el.textContent?.includes('Upcoming Renewals'));
-    expect(renewals, 'no flat surface contains "Upcoming Renewals"').toBeTruthy();
+    expect(surfaces(container)).toHaveLength(3);
 
-    expect(surfaces(container)).toHaveLength(2);
-
-    const surface = renewals as HTMLElement;
+    const renewals = surfaceContaining(container, 'Upcoming Renewals');
     for (const title of ['Most Expensive Plan', 'Savings Recommendations', 'Spending by Category']) {
-      expect(surface.textContent).not.toContain(title);
+      expect(renewals.textContent).not.toContain(title);
     }
 
-    const parent = surface.parentElement as HTMLElement;
+    const parent = renewals.parentElement as HTMLElement;
     expect(parent).toBe(container.firstElementChild);
     expect(parent.className).toContain('space-y');
     // Not a grid: renewals is its own row, with the two-up row as a sibling.

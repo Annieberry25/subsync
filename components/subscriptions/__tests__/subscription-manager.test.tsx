@@ -355,12 +355,14 @@ describe('SubscriptionManager duplicate guard', () => {
 
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Disney+');
     await user.type(screen.getByPlaceholderText('15.99'), '9.99');
-    // The currency, the cycle, the category and the status are choices, so
-    // they have to be made, and the start date is part of the subscription.
+    // The currency, the cycle, the category, the status and the account type
+    // are choices, so they have to be made, and the start date is part of the
+    // subscription.
     await user.selectOptions(screen.getByLabelText('Currency'), 'USD');
     await user.selectOptions(screen.getByLabelText('Cycle'), 'monthly');
     await user.selectOptions(screen.getByLabelText('Category'), 'Streaming');
     await user.selectOptions(screen.getByLabelText('Status'), 'active');
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
     fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '2026-01-01' } });
 
     const submit = screen

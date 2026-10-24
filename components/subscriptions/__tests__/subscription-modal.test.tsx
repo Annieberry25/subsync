@@ -95,17 +95,18 @@ async function renderOpen(
 }
 
 /**
- * Picks the four choices the form now requires, and the start date.
+ * Picks the choices the form now requires, and the start date.
  *
- * The currency, the cycle, the category and the status all start empty and
- * have to be chosen: a default the user never picked is a value the user
- * never entered.
+ * The currency, the cycle, the category, the status, the account type and
+ * the start date all start empty and have to be chosen: a default the user
+ * never picked is a value the user never entered.
  */
 async function chooseRequired(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText('Currency'), 'USD');
   await user.selectOptions(screen.getByLabelText('Cycle'), 'monthly');
   await user.selectOptions(screen.getByLabelText('Category'), 'Streaming');
   await user.selectOptions(screen.getByLabelText('Status'), 'active');
+  await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
   fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '2026-01-01' } });
 }
 
@@ -291,7 +292,17 @@ describe('SubscriptionModal', () => {
           end_date: null,
           payment_method: null,
           provider_url: 'https://www.netflix.com',
-          account_links: [],
+          account_links: [expect.objectContaining({
+            label: 'Personal',
+            url: '',
+            price: 15.99,
+            currency: 'USD',
+            billing_cycle: 'monthly',
+            category: 'Streaming',
+            status: 'active',
+            start_date: '2026-01-01',
+            next_billing_date: '2026-11-24',
+          })],
         }),
         undefined
       )
@@ -335,6 +346,9 @@ describe('SubscriptionModal', () => {
     };
     const { onSave } = await renderOpen(existing);
 
+    // The account type is now mandatory.
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
@@ -365,7 +379,7 @@ describe('SubscriptionModal', () => {
    * day renews a cycle later. The date is still editable, this only fills it
    * in.
    */
-  it('moves the renewal date a month on from the start date', async () => {
+  it('keeps the renewal date when the start date changes', async () => {
     await renderOpen();
 
     fireEvent.change(screen.getByLabelText('Start Date'), {
@@ -373,7 +387,7 @@ describe('SubscriptionModal', () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-04-15')
+      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-11-24')
     );
   });
 
@@ -407,16 +421,16 @@ describe('SubscriptionModal', () => {
     );
   });
 
-  it('clamps a renewal to the end of a shorter month', async () => {
+  it('keeps the renewal date when the start date is month-end', async () => {
     await renderOpen();
 
-    // The 31st of January renews on the 28th of February, not in March.
+    // Changing the start date no longer rewrites the renewal date.
     fireEvent.change(screen.getByLabelText('Start Date'), {
       target: { value: '2027-01-31' },
     });
 
     await waitFor(() =>
-      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2027-02-28')
+      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-11-24')
     );
   });
 
@@ -479,6 +493,9 @@ describe('SubscriptionModal', () => {
     });
     const { onSave } = await renderOpen(initialData);
 
+    // The account type is now mandatory.
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
@@ -500,6 +517,9 @@ describe('SubscriptionModal', () => {
     expect(screen.getByRole('heading', { name: 'Edit Subscription' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Netflix')).toBeInTheDocument();
     expect(screen.getByDisplayValue('15.99')).toBeInTheDocument();
+
+    // The account type is now mandatory.
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
 
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 

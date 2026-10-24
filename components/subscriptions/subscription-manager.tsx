@@ -788,6 +788,22 @@ export default function SubscriptionManager() {
     [renewingSubscriptionId, selectedDetailSub, toast, loadData]
   );
 
+  const handleToggleAutoRenew = useCallback(
+    async (item: SubscriptionRow, enabled: boolean, _accountId?: string | null) => {
+      const { error } = await updateSubscription(item.id, { auto_renew: enabled });
+      if (error) {
+        toast.error(error.message, 'Auto Renewal');
+        return;
+      }
+      if (selectedDetailSub?.id === item.id) {
+        setSelectedDetailSub((current) =>
+          current ? { ...current, auto_renew: enabled } : current
+        );
+      }
+    },
+    [selectedDetailSub, setSelectedDetailSub, toast]
+  );
+
   const handleDeleteRequest = useCallback((item: SubscriptionRow) => {
     setDeletingSubscription(item);
   }, []);
@@ -1135,6 +1151,7 @@ export default function SubscriptionManager() {
           setIsModalOpen(true);
         }}
         onRenew={handleRenewSubscription}
+        onToggleAutoRenew={handleToggleAutoRenew}
         onDeleteRequest={(item) => {
           setDeleteReturnToDetailSub(item);
           setDeletingSubscription(item);

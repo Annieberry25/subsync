@@ -55,6 +55,7 @@ import { SUPPORT_MAILTO } from '@/lib/constants/contact';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import {
   fetchSubscriptions,
+  updateSubscription,
   type SubscriptionRow,
 } from '@/lib/services/subscription-service';
 import { AddPaymentModal } from '@/components/settings/add-payment-modal';
@@ -391,6 +392,18 @@ function SettingsContent() {
     if (data) setSubscriptions(data);
     setSubscriptionsLoaded(true);
   }, []);
+
+  const handleToggleAutoRenew = useCallback(
+    async (item: SubscriptionRow, enabled: boolean, _accountId?: string | null) => {
+      const { error } = await updateSubscription(item.id, { auto_renew: enabled });
+      if (error) {
+        toast.error(error.message, 'Auto Renewal');
+        return;
+      }
+      void loadSubData();
+    },
+    [loadSubData, toast]
+  );
 
   useEffect(() => {
     Promise.resolve().then(() => loadSubData());
@@ -813,6 +826,7 @@ function SettingsContent() {
         onClose={() => setIsViewSubscriptionOpen(false)}
         onEdit={() => {}}
         onDeleteRequest={() => {}}
+        onToggleAutoRenew={handleToggleAutoRenew}
       />
 
       <PaymentResultSheet

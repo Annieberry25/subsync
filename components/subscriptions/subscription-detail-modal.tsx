@@ -41,6 +41,8 @@ interface SubscriptionDetailModalProps {
   /** The account the user is looking at is passed back, so the form can open on it. */
   onEdit: (subscription: SubscriptionRow, accountId?: string) => void;
   onRenew?: (subscription: SubscriptionRow, accountId?: string) => void;
+  /** Flip the subscription's auto-renewal flag on or off from the detail sheet. */
+  onToggleAutoRenew?: (subscription: SubscriptionRow, enabled: boolean, accountId?: string | null) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
   onRestoreRequest?: (subscription: SubscriptionRow) => void;
   onCancellationAssistance?: (subscription: SubscriptionRow) => void;
@@ -61,6 +63,7 @@ export default function SubscriptionDetailModal({
   onBack,
   onEdit,
   onRenew,
+  onToggleAutoRenew,
   onDeleteRequest,
   onRestoreRequest,
   onCancellationAssistance,
@@ -112,8 +115,8 @@ export default function SubscriptionDetailModal({
    */
   const shownPrice = selectedLink?.price;
   const shownCurrency = selectedLink?.currency || '';
-  const shownCycle = selectedLink?.billing_cycle || '';
-  const shownCategory = selectedLink?.category || '';
+  const shownCycle = selectedLink?.billing_cycle || subscription.billing_cycle || '';
+  const shownCategory = selectedLink?.category || subscription.category || '';
   const shownNextDate = selectedLink?.next_billing_date || '';
   const shownStartDate = selectedLink?.start_date || '';
 
@@ -190,12 +193,14 @@ export default function SubscriptionDetailModal({
                 type="button"
                 onClick={() => {
                   onClose();
-                  onRenew(subscription, selectedLink?.id);
+                  onToggleAutoRenew?.(subscription, !(subscription.auto_renew === true), selectedLink?.id);
                 }}
                 aria-label="Renew Subscription"
                 title="Renew Subscription"
                 data-touch="compact"
-                className="w-9 h-9 -ml-1 rounded-lg flex items-center justify-center text-[#94A3B8] hover:text-[#14B8A6] transition-colors cursor-pointer"
+                className={`w-9 h-9 -ml-1 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                  subscription.auto_renew === true ? 'text-[#10B981]' : 'text-[#94A3B8]'
+                }`}
               >
                 <RefreshCw className="w-5 h-5" />
               </button>
@@ -353,13 +358,6 @@ export default function SubscriptionDetailModal({
                     Not set
                   </span>
                 )}
-              </div>
-
-              <div className="py-3 flex items-center justify-between gap-4">
-                <span className="text-xs text-[#9CA3AF] shrink-0">Auto renewal</span>
-                <span className="text-sm font-semibold text-[#F5F7F6] text-right">
-                  {subscription.auto_renew === false ? 'Off' : 'On'}
-                </span>
               </div>
             </div>
 

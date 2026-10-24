@@ -270,7 +270,7 @@ export default function SubscriptionModal({
       setStatus(initialData.status as typeof statuses[number]);
       setStartDate(initialData.start_date || '');
       setNextBillingDate(initialData.next_billing_date);
-      setAutoRenew(initialData.auto_renew !== false);
+      setAutoRenew(initialData.auto_renew === true);
       
       const actualProviderUrl = initialData.provider_url ? initialData.provider_url.trim() : '';
       setProviderUrl(actualProviderUrl);
@@ -315,7 +315,7 @@ export default function SubscriptionModal({
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       setNextBillingDate(nextMonth.toISOString().split('T')[0]);
-      setAutoRenew(true);
+      setAutoRenew(false);
       setProviderUrl('');
       setIsUserEditedUrl(false);
       setAccountLinks([]);
@@ -612,21 +612,20 @@ export default function SubscriptionModal({
   })();
 
   /**
-   * The start date decides the renewal date.
-   *
-   * A subscription that started on a day renews a cycle later, so the renewal
-   * date follows the start date instead of being a second thing to work out.
-   * It is still editable — this only fills it in.
+   * The start date is just when the subscription began. It no longer rewrites
+   * the next billing date: the renewal date is the actual next billing date the
+   * user entered (or the account's own), not a date worked out from the start.
    */
+  const formatDMY = (iso: string | undefined | null) => {
+    if (!iso) return '';
+    const parts = iso.split('-');
+    if (parts.length !== 3) return iso;
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  };
+
   const handleStartDateChange = (value: string) => {
     setStartDate(value);
     if (fieldErrors.startDate) setFieldErrors((prev) => ({ ...prev, startDate: undefined }));
-    if (!value) return;
-    const next = addCycleToDate(value, billingCycle || 'monthly');
-    if (next) {
-      setNextBillingDate(next);
-      if (fieldErrors.date) setFieldErrors((prev) => ({ ...prev, date: undefined }));
-    }
   };
 
   /**
@@ -673,15 +672,15 @@ export default function SubscriptionModal({
     const statusError = validateChoice(status, 'Status');
     if (statusError) errors.status = statusError;
 
-    /* The account type only matters once there is an account to type. An
-       account with no type is not saved: it would be dropped on the way out
-       and the user would not know. */
+    /* The account type is mandatory for every subscription: without it the
+       row's account has no label, and an untyped account would be dropped
+       silently. */
+    const accountTypeError = validateChoice(accountType, 'Account type');
+    if (accountTypeError) errors.accountType = accountTypeError;
+
     if (accountLinks.length > 0) {
       const untyped = accountLinks.some((link) => !link.label || !link.label.trim());
-      const accountTypeError = untyped
-        ? 'Every account needs a type.'
-        : validateChoice(accountType, 'Account type');
-      if (accountTypeError) errors.accountType = accountTypeError;
+      if (untyped) errors.accountType = 'Every account needs a type.';
     }
 
     setFieldErrors(errors);
@@ -780,6 +779,33 @@ setLoading(true);
      * how the second account ended up with the first one's details.
      */
     const accountsWithFormValues = validAccountLinks;
+
+    /*
+     * Every subscription keeps at least one account link so its account type,
+     * category, cycle and dates have a place to live. If the user gave the
+     * account a type (or any account detail) but never typed an account URL,
+     * synthesize that one link from the form fields instead of dropping them
+     * on save — otherwise the detail sheet would show "Not set" for category
+     * and account type, and the renew button would fall back to the row's
+     * stored cycle instead of the one the user picked.
+     */
+    if (
+      accountsWithFormValues.length === 0 &&
+      (accountType.trim() || category.trim() || billingCycle.trim() || nextBillingDate.trim())
+    ) {
+      accountsWithFormValues.push({
+        id: `link-${Date.now()}`,
+        label: accountType.trim() || 'Personal',
+        url: '',
+        price: parsedPrice ? Number(parsedPrice) : undefined,
+        currency: currency || undefined,
+        billing_cycle: billingCycle || undefined,
+        category: category || undefined,
+        status: status || undefined,
+        start_date: startDate || undefined,
+        next_billing_date: nextBillingDate || undefined,
+      });
+    }
     const firstAccount = accountsWithFormValues[0];
 
     /*
@@ -1126,27 +1152,6 @@ setLoading(true);
               </div>
             </div>
 
-            {/* Auto Renewal */}
-            <div className="space-y-2">
-              <label className="text-[13px] font-medium text-[#94A3B8] block">Auto renewal</label>
-              <button
-                type="button"
-                onClick={() => setAutoRenew((prev) => !prev)}
-                aria-pressed={autoRenew}
-                aria-label="Auto renewal"
-                className={`w-full h-11 px-4 rounded-xl text-xs font-medium flex items-center justify-between gap-2 border transition-colors cursor-pointer ${
-                  autoRenew
-                    ? 'bg-[#1F2425] text-[#F5F7F6] font-semibold border-[#2A3032]'
-                    : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
-                }`}
-              >
-                <span>The subscription renews itself automatically</span>
-                <span className={`text-xs font-semibold ${autoRenew ? 'text-[#14B8A6]' : ''}`}>
-                  {autoRenew ? 'On' : 'Off'}
-                </span>
-              </button>
-            </div>
-
             {/* Category & Status */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1285,6 +1290,11 @@ setLoading(true);
               {fieldErrors.date && (
                 <span id="sub-date-error" className="text-[10px] text-[#D9363E] font-medium">
                   {fieldErrors.date}
+                </span>
+              )}
+              {autoRenew && nextBillingDate && (
+                <span className="text-[11px] text-[#94A3B8] block mt-1">
+                  {`${formatDMY(nextBillingDate)}-${formatDMY(addCycleToDate(nextBillingDate, billingCycle || 'monthly'))}`}
                 </span>
               )}
             </div>
@@ -1433,6 +1443,27 @@ setLoading(true);
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Auto Renewal */}
+            <div className="space-y-2">
+              <label className="text-[13px] font-medium text-[#94A3B8] block">Auto renewal</label>
+              <button
+                type="button"
+                onClick={() => setAutoRenew((prev) => !prev)}
+                aria-pressed={autoRenew}
+                aria-label="Auto renewal"
+                className={`w-full h-11 px-4 rounded-xl text-xs font-medium flex items-center justify-between gap-2 border transition-colors cursor-pointer ${
+                  autoRenew
+                    ? 'bg-[#1F2425] text-[#F5F7F6] font-semibold border-[#2A3032]'
+                    : 'bg-[#0D0F0F] text-[#94A3B8] border-[#1A1D1D] hover:bg-[#1A1D1D] hover:text-[#F5F7F6]'
+                }`}
+              >
+                <span>The subscription renews itself automatically</span>
+                <span className={`text-xs font-semibold ${autoRenew ? 'text-[#14B8A6]' : ''}`}>
+                  {autoRenew ? 'On' : 'Off'}
+                </span>
+              </button>
             </div>
 
             {/* Notes */}

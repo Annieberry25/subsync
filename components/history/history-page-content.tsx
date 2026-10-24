@@ -14,11 +14,12 @@ import {
 } from 'lucide-react';
 import { 
   fetchSubscriptions, 
+  updateSubscription,
   filterArchivedSubscriptions, 
   filterDeletedSubscriptions, 
   restoreSubscription, 
   permanentlyDeleteSubscription, 
-  getRestoredHistory,
+  getRestoredHistory, 
   isOverdueSubscription,
   type SubscriptionRow,
   type RestoredHistoryRecord
@@ -386,6 +387,21 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
     setActivities(await fetchActivityLog());
     setLoading(false);
   }, []);
+
+  const handleToggleAutoRenew = useCallback(
+    async (item: SubscriptionRow, enabled: boolean, _accountId?: string | null) => {
+      const { error } = await updateSubscription(item.id, { auto_renew: enabled });
+      if (error) {
+        toast.error(error.message, 'Auto Renewal');
+        return;
+      }
+      setSelectedSub((current) =>
+        current?.id === item.id ? { ...current, auto_renew: enabled } : current
+      );
+      void loadData();
+    },
+    [setSelectedSub, loadData, toast]
+  );
 
   useEffect(() => {
     Promise.resolve().then(() => loadData());
@@ -932,6 +948,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
         }}
         onEdit={() => {}}
         onDeleteRequest={() => {}}
+        onToggleAutoRenew={handleToggleAutoRenew}
         onRestoreRequest={async (sub) => {
           setIsDetailOpen(false);
           setSelectedSub(null);
