@@ -207,6 +207,15 @@ export default function SubscriptionModal({
    */
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
 
+  /**
+   * Whether the account's URL box is open.
+   *
+   * It is closed until the user opens it with the plus on "Add account
+   * link" — a box the user did not ask for, sitting between them and the
+   * form, is a box that shows up uninvited.
+   */
+  const [accountUrlOpen, setAccountUrlOpen] = useState(false);
+
   const [notes, setNotes] = useState('');
 
   /*
@@ -269,7 +278,23 @@ export default function SubscriptionModal({
       setCategory(initialData.category as typeof categories[number]);
       setStatus(initialData.status as typeof statuses[number]);
       setStartDate(initialData.start_date || '');
-      setNextBillingDate(initialData.next_billing_date);
+      /* The renewal date the box holds is the automatic one: a cycle after
+         the start date, unless a yearly (or other) cycle was chosen. Reading
+         the stored value here would answer with whatever the row has been
+         through in the past — a subscription made on 15/10/2026 must open
+         with 15/11/2026 in its monthly box, never with a day the date has
+         since been shifted to. The start date and the cycle are what the
+         renewal is decided by, so the box answers from them; a row whose
+         store and rule disagreed is set right the moment it is opened and
+         saved again. A row with no start date of its own keeps its stored
+         day, because there is nothing automatic to work it out from. */
+      const rowStartDate = initialData.start_date || '';
+      const rowCycle = initialData.billing_cycle || '';
+      setNextBillingDate(
+        rowStartDate && rowCycle
+          ? addCycleToDate(rowStartDate, rowCycle) || initialData.next_billing_date || ''
+          : initialData.next_billing_date || ''
+      );
       setAutoRenew(initialData.auto_renew === true);
       
       const actualProviderUrl = initialData.provider_url ? initialData.provider_url.trim() : '';
@@ -300,7 +325,16 @@ export default function SubscriptionModal({
         setCategory((openingAccount.category as typeof categories[number]) || '');
         setStatus((openingAccount.status as typeof statuses[number]) || '');
         setStartDate(openingAccount.start_date || '');
-        setNextBillingDate(openingAccount.next_billing_date || '');
+        /* Same rule for the account in view: the automatic renewal date,
+           a cycle after the start, not the day the account's record has
+           been carrying around. */
+        const accountStartDate = openingAccount.start_date || initialData.start_date || '';
+        const accountCycle = openingAccount.billing_cycle || initialData.billing_cycle || '';
+        setNextBillingDate(
+          accountStartDate && accountCycle
+            ? addCycleToDate(accountStartDate, accountCycle) || openingAccount.next_billing_date || ''
+            : openingAccount.next_billing_date || ''
+        );
       }
       setNotes('');
       setExistingNotesText(cleanNotesUserText(initialData.notes));
@@ -325,6 +359,7 @@ export default function SubscriptionModal({
     }
     setDuplicateOf(null);
     setFieldErrors({});
+    setAccountUrlOpen(false);
   }
 
   const handleNameChange = (val: string) => {
@@ -424,7 +459,61 @@ export default function SubscriptionModal({
     setAccountType('');
   };
 
+  /**
+   * The plus on "Add account link".
+   *
+   * The first job of the click is to open the account's URL box: the box is
+   * what is closed, and this is what the user opens it with. While the box
+   * was closed the click never adds an account — an account the form already
+   * has is shown in the box instead, and adding a second one on top of it is
+   * not what "open the box" means.
+   *
+   * A click that meets the box open is the one that adds another account,
+   * behind the tier's account-link cap.
+   */
   const handleAddAccountLink = () => {
+    if (!accountUrlOpen) {
+      /* No account yet — a fresh form, or one whose link was deleted. The
+         click that opens the box also creates the account to show in it,
+         with the details the user is looking at. */
+      if (accountLinks.length === 0) {
+        const id = `link-${Date.now()}`;
+        setAccountLinks((prev) => [
+          ...prev,
+          {
+            id,
+            /* The type the user picked in the form, if they picked one. The
+               type is the user's to choose — a personal plan and a work plan
+               are different accounts — so the box is empty until they do. */
+            label: accountType || '',
+            /*
+             * The account starts with the details the form is holding, which
+             * is what the user is looking at when they add it.
+             */
+            price: price ? Number(price) : undefined,
+            currency: currency || undefined,
+            billing_cycle: billingCycle || undefined,
+            category: category || undefined,
+            status: status || undefined,
+            start_date: startDate || undefined,
+            next_billing_date: nextBillingDate || undefined,
+            /*
+             * Empty on purpose.
+             *
+             * This box is for the user's own account link. The provider's
+             * link is what the arrow beside it opens, and putting the
+             * provider's link in here made it impossible to tell which one
+             * the box was holding.
+             */
+            url: '',
+          },
+        ]);
+        setActiveAccountId(id);
+      }
+      setAccountUrlOpen(true);
+      return;
+    }
+
     /* Free allows a single account per subscription. The check happens on the
        click rather than at save so the user is told while looking at the
        control, and so an existing single row on a free account is not silently
@@ -434,10 +523,11 @@ export default function SubscriptionModal({
       return;
     }
 
+    const newId = `link-${Date.now()}`;
     setAccountLinks((prev) => [
       ...prev,
       {
-        id: `link-${Date.now()}`,
+        id: newId,
         /* The type the user picked in the form, if they picked one. The type is
            the user's to choose — a personal plan and a work plan are different
            accounts — so the box is empty until they do. */
@@ -464,7 +554,8 @@ export default function SubscriptionModal({
       },
     ]);
     /* The new account is the one the form works on next. */
-    setActiveAccountId(`link-${Date.now()}`);
+    setActiveAccountId(newId);
+    setAccountUrlOpen(true);
   };
 
   const handleUpdateAccountLink = (
@@ -489,6 +580,10 @@ export default function SubscriptionModal({
   const handleRemoveAccountLink = (id: string) => {
     setAccountLinks((prev) => prev.filter((item) => item.id !== id));
     setActiveAccountId((current) => (current === id ? null : current));
+    /* The box belongs to the account it was showing. With the account gone
+       the box closes too: it never turns itself into the next account's link
+       without being opened again. */
+    setAccountUrlOpen(false);
   };
 
   /**
@@ -538,6 +633,7 @@ export default function SubscriptionModal({
       if (value.trim() === '' && (activeAccount.url || '').trim() !== '') {
         setAccountLinks((prev) => prev.filter((link) => link.id !== activeAccount.id));
         setActiveAccountId(null);
+        setAccountUrlOpen(false);
         return;
       }
       handleUpdateAccountLink(activeAccount.id, 'url', value);
@@ -623,9 +719,23 @@ export default function SubscriptionModal({
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   };
 
+  /**
+   * The start date a subscription is made on decides the renewal date:
+   * started on 15/10/2026, it renews a cycle later (15/11/2026 for monthly,
+   * 15/10/2027 for a yearly). The box follows the start the moment it is
+   * picked, and the cycle picked for it — monthly when nothing was picked
+   * yet.
+   */
   const handleStartDateChange = (value: string) => {
     setStartDate(value);
     if (fieldErrors.startDate) setFieldErrors((prev) => ({ ...prev, startDate: undefined }));
+    if (value) {
+      const next = addCycleToDate(value, billingCycle || 'monthly');
+      if (next) {
+        setNextBillingDate(next);
+        if (fieldErrors.date) setFieldErrors((prev) => ({ ...prev, date: undefined }));
+      }
+    }
   };
 
   /**
@@ -1292,8 +1402,16 @@ setLoading(true);
                   {fieldErrors.date}
                 </span>
               )}
+              {/*
+                The auto-renewal information belongs to the flag, and to the
+                box above it: the period the row is in, as the renewal date in
+                the box and the one after it. It is worked out from the box, so
+                the box keeps the date the user entered and the line only says
+                what the flag promises. With the flag off the line is not
+                there — and the date in the box is untouched by it either way.
+              */}
               {autoRenew && nextBillingDate && (
-                <span className="text-[11px] text-[#94A3B8] block mt-1">
+                <span data-testid="auto-renew-period" className="text-[11px] text-[#94A3B8] block mt-1">
                   {`${formatDMY(nextBillingDate)}-${formatDMY(addCycleToDate(nextBillingDate, billingCycle || 'monthly'))}`}
                 </span>
               )}
@@ -1357,9 +1475,11 @@ setLoading(true);
                   onClick={handleAddAccountLink}
                   aria-label="Add account link"
                   title={
-                    canAddAnotherAccount
-                      ? 'Add another account link'
-                      : 'Multiple accounts per subscription are a Plus feature'
+                    !accountUrlOpen
+                      ? 'Show the account link box'
+                      : canAddAnotherAccount
+                        ? 'Add another account link'
+                        : 'Multiple accounts per subscription are a Plus feature'
                   }
                   className="text-xs font-semibold text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
                 >
@@ -1394,7 +1514,7 @@ setLoading(true);
                 delete beside it takes the account away again. The arrow is the
                 subscription's provider page, not the account's link.
                */}
-              {activeAccount && (
+              {accountUrlOpen && activeAccount && (
                 <div className="space-y-2">
                   <label className="text-[13px] font-medium text-[#94A3B8] block">
                     Account URL

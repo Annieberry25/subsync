@@ -16,6 +16,7 @@ import {
   cleanNotesUserText,
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
+import { addCycleToDate } from '@/lib/utils/billing-dates';
 import { useToast } from '@/lib/hooks/use-toast';
 
 interface SubscriptionDetailModalProps {
@@ -40,7 +41,6 @@ interface SubscriptionDetailModalProps {
   onBack?: () => void;
   /** The account the user is looking at is passed back, so the form can open on it. */
   onEdit: (subscription: SubscriptionRow, accountId?: string) => void;
-  onRenew?: (subscription: SubscriptionRow, accountId?: string) => void;
   /** Flip the subscription's auto-renewal flag on or off from the detail sheet. */
   onToggleAutoRenew?: (subscription: SubscriptionRow, enabled: boolean, accountId?: string | null) => void;
   onDeleteRequest: (subscription: SubscriptionRow) => void;
@@ -62,7 +62,6 @@ export default function SubscriptionDetailModal({
   onClose,
   onBack,
   onEdit,
-  onRenew,
   onToggleAutoRenew,
   onDeleteRequest,
   onRestoreRequest,
@@ -107,18 +106,33 @@ export default function SubscriptionDetailModal({
     accountLinks.find((link) => link.id === selectedAccountId) ?? accountLinks[0] ?? null;
 
   /*
-   * The account's own values, and nothing else.
-   *
-   * No falling back to the subscription and no working anything out: a figure
-   * nobody entered is a figure nobody can check, and the account's amount and
-   * renewal date are the ones the user gave it.
+   * The account's own values where the user gave them: the amount, the
+   * currency, the cycle, the category and the start date come from the
+   * account in view, with the row's own values carrying an account that was
+   * never given values of its own.
    */
   const shownPrice = selectedLink?.price;
   const shownCurrency = selectedLink?.currency || '';
   const shownCycle = selectedLink?.billing_cycle || subscription.billing_cycle || '';
   const shownCategory = selectedLink?.category || subscription.category || '';
-  const shownNextDate = selectedLink?.next_billing_date || '';
   const shownStartDate = selectedLink?.start_date || '';
+
+  /* The repayment date the sheet shows, in step with the edit form's box:
+     the automatic date — one cycle after the start the row was made on, in
+     the cycle it is billed in — instead of whatever day the stored record
+     has been carrying. A subscription made on 23/10/2026 shows November 23
+     as its repayment date and December 23 as the date auto-renewal carries
+     it to, whether or not the stored day has been moved since. A row never
+     given a start date has nothing automatic to answer from and keeps its
+     stored day. */
+  const repaymentStart = selectedLink?.start_date || subscription.start_date || '';
+  const repaymentNext =
+    repaymentStart && shownCycle ? addCycleToDate(repaymentStart, shownCycle) : null;
+  const shownNextDate =
+    repaymentNext ||
+    selectedLink?.next_billing_date ||
+    subscription.next_billing_date ||
+    '';
 
   const formattedPrice =
     shownPrice === undefined ? '' : formatCurrency(shownPrice, shownCurrency || 'USD');
@@ -152,6 +166,22 @@ export default function SubscriptionDetailModal({
   const formattedNextDate = rawNextDateObj
     ? rawNextDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : shownNextDate;
+
+  /* The auto-renewal date the sheet shows while the flag is on: the day
+     auto-renewal will carry the repayment to — the repayment date plus one
+     of the cycle the row is billed in, so a repayment on November 23 has its
+     auto renewal land on December 23. The repayment date itself is never
+     moved by this: it stays the automatic date the user was given on the
+     row above. */
+  const autoRenewNextIso = shownNextDate
+    ? addCycleToDate(shownNextDate, shownCycle || 'monthly')
+    : null;
+  const autoRenewDateObj = autoRenewNextIso
+    ? parseLocalDate(autoRenewNextIso)
+    : null;
+  const autoRenewDateText = autoRenewDateObj
+    ? autoRenewDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
 
   // Calculate start/created date
   const rawStartDateObj = parseLocalDate(shownStartDate || subscription.created_at);
@@ -188,18 +218,27 @@ export default function SubscriptionDetailModal({
       ) : (
         <>
           <div className="flex items-center gap-2">
-            {onRenew && (
+            {onToggleAutoRenew && (
               <button
                 type="button"
                 onClick={() => {
-                  onClose();
+                  /* The sheet stays open, on purpose: the icon shows the new
+                     state the moment the write lands, and the auto-renewal
+                     line under the renewal date is taken away or put back
+                     with it. */
                   onToggleAutoRenew?.(subscription, !(subscription.auto_renew === true), selectedLink?.id);
                 }}
-                aria-label="Renew Subscription"
-                title="Renew Subscription"
+                aria-label={
+                  subscription.auto_renew === true ? 'Turn auto renewal off' : 'Turn auto renewal on'
+                }
+                title={
+                  subscription.auto_renew === true ? 'Turn auto renewal off' : 'Turn auto renewal on'
+                }
                 data-touch="compact"
                 className={`w-9 h-9 -ml-1 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
-                  subscription.auto_renew === true ? 'text-[#10B981]' : 'text-[#94A3B8]'
+                  subscription.auto_renew === true
+                    ? 'text-[#14B8A6] hover:text-[#2DD4BF]'
+                    : 'text-[#94A3B8] hover:text-[#F5F7F6]'
                 }`}
               >
                 <RefreshCw className="w-5 h-5" />
@@ -294,9 +333,9 @@ export default function SubscriptionDetailModal({
           </div>
 
           {/* Section 2: Category, Website, Billing renewal, Start Date, Notes,
-              Account Type and Attached Receipts in one container. Every row
-              is a hairline line: the label on the left, the value on the
-              right. */}
+              Account Type, Auto renewal and Attached Receipts in one
+              container. Every row is a hairline line: the label on the left,
+              the value on the right. */}
           <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] col-span-1 md:col-span-2">
             <div className="divide-y divide-[#1F2425]">
               <div className="py-3 flex items-center justify-between gap-4">
@@ -359,6 +398,29 @@ export default function SubscriptionDetailModal({
                   </span>
                 )}
               </div>
+
+              {/* The auto-renewal information, directly below the account
+                  type, as two rows in the sheet's plain shape: "Auto renewal
+                  On", and under it "Auto renewal date" with the day the flag
+                  renews the row next. This is not the billing renewal above
+                  it, which stays the actual repayment date the user was
+                  given; and the whole pair exists while auto-renewal is on
+                  and is gone the moment it is switched off, so an extinct
+                  flag leaves no dates behind on the sheet. */}
+              {subscription.auto_renew === true && (
+                <>
+                  <div className="py-3 flex items-center justify-between gap-4">
+                    <span className="text-xs text-[#9CA3AF] shrink-0">Auto renewal</span>
+                    <span data-testid="auto-renew-state" className="text-sm font-semibold text-[#14B8A6]">On</span>
+                  </div>
+                  <div className="py-3 flex items-center justify-between gap-4">
+                    <span className="text-xs text-[#9CA3AF] shrink-0">Auto renewal date</span>
+                    <span data-testid="auto-renew-date" className="text-sm font-semibold text-[#F5F7F6] text-right">
+                      {autoRenewDateText || 'Not set'}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Attached Receipts. The rows are plain lines of the card, not

@@ -435,3 +435,39 @@ describe('SubscriptionManager deleted deep link', () => {
     expect(screen.queryByText(/is in Deleted/)).toBeNull();
   });
 });
+
+/**
+ * Turning auto-renewal on is a flag write, never a renewal.
+ *
+ * The next billing date the row holds is the one the user entered, and the
+ * renewal that follows it lives under the row's renewal line on the sheet —
+ * so the flag write must carry only the flag.
+ */
+describe('SubscriptionManager auto renewal flag', () => {
+  beforeEach(() => {
+    mockSubscriptions.value = rows;
+    mockSearchParams.value = new URLSearchParams('highlight=sub-1&detail=true');
+    mockRouter.push.mockReset();
+    mockRouter.replace.mockReset();
+    mockUpdateSubscription.mockClear();
+  });
+
+  it('writes only the flag from the detail sheet, and the sheet flips in place', async () => {
+    const user = userEvent.setup();
+    render(<SubscriptionManager />);
+
+    await user.click(await screen.findByRole('button', { name: 'Turn auto renewal on' }));
+
+    // The date is not in the write: the billing date the row holds is never
+    // rewritten with a renewal behind it.
+    await waitFor(() =>
+      expect(mockUpdateSubscription).toHaveBeenCalledWith('sub-1', { auto_renew: true })
+    );
+    expect(mockUpdateSubscription).toHaveBeenCalledTimes(1);
+
+    // The icon turns over on the sheet the user is still looking at.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Turn auto renewal off' })).toBeInTheDocument()
+    );
+  });
+});

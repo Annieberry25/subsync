@@ -12,6 +12,17 @@ import React from 'react';
  */
 vi.setConfig({ testTimeout: 20000, hookTimeout: 20000 });
 
+/*
+ * jsdom does not implement scrolling. The subscriptions page highlights a row
+ * and scrolls it into view from inside a timer that fires after its test has
+ * finished, so without a stub the call lands as an unhandled error — and on a
+ * page whose deep links all carry the highlight param, that is every second
+ * suite touching it.
+ */
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn();
+}
+
 afterEach(() => {
   cleanup();
 });

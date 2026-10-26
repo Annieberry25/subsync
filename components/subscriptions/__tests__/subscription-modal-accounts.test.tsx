@@ -96,6 +96,10 @@ describe('a subscription with two accounts', () => {
     expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-11-22');
     expect(screen.getByLabelText('Start Date')).toHaveValue('2026-10-22');
 
+    // The link box is closed until the user opens it with the plus.
+    expect(screen.queryByLabelText('Account URL')).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Add account link' }));
+
     // And the link box is that account's link.
     expect(screen.getByLabelText('Account URL')).toHaveValue('https://spotify.com/work');
   });
@@ -105,6 +109,8 @@ describe('a subscription with two accounts', () => {
 
     expect(screen.getByLabelText('Account Type')).toHaveValue('Personal');
     expect(screen.getByPlaceholderText('15.99')).toHaveValue(1600);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Add account link' }));
     expect(screen.getByLabelText('Account URL')).toHaveValue('https://spotify.com/personal');
   });
 
@@ -163,15 +169,29 @@ describe('a subscription with two accounts', () => {
     expect(payload.next_billing_date).toBe('2026-11-16');
   });
 
-  it('keeps the account that is already there when another is added', async () => {
+  it('opens the link box on the account in view, and adds only on the next plus', async () => {
     const user = userEvent.setup();
     const { onSave } = await renderOpen(rowWithTwoAccounts, 'link-2');
 
+    // The first plus opens the box on the account in view — it does not
+    // add a copy of the account the form already has.
     await user.click(screen.getByRole('button', { name: 'Add account link' }));
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const links = onSave.mock.calls[0][0].account_links as { id: string }[];
+    let links = onSave.mock.calls[0][0].account_links as { id: string }[];
+    expect(links).toHaveLength(2);
+    expect(links[0].id).toBe('link-1');
+    expect(links[1].id).toBe('link-2');
+
+    onSave.mockClear();
+
+    // With the box open, the plus is what adds another account.
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Add account link' }));
+    await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    links = onSave.mock.calls[0][0].account_links as { id: string }[];
     expect(links).toHaveLength(3);
     expect(links[0].id).toBe('link-1');
     expect(links[1].id).toBe('link-2');

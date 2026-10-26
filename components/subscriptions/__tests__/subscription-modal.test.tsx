@@ -301,7 +301,10 @@ describe('SubscriptionModal', () => {
             category: 'Streaming',
             status: 'active',
             start_date: '2026-01-01',
-            next_billing_date: '2026-11-24',
+            /* The renewal date is the automatic one: a cycle after the start
+               the user typed, not whatever day the empty row was opened with
+               (today a cycle on). */
+            next_billing_date: '2026-02-01',
           })],
         }),
         undefined
@@ -375,11 +378,11 @@ describe('SubscriptionModal', () => {
   });
 
   /**
-   * The start date decides the renewal date: a subscription that started on a
-   * day renews a cycle later. The date is still editable, this only fills it
-   * in.
+   * The renewal date is automatic: a subscription made on a day renews a
+   * cycle later, so the box follows the start the moment it is picked —
+   * 15/03/2026 started means 15/04/2026 renewed.
    */
-  it('keeps the renewal date when the start date changes', async () => {
+  it('fills the renewal date a cycle after the start date it follows', async () => {
     await renderOpen();
 
     fireEvent.change(screen.getByLabelText('Start Date'), {
@@ -387,7 +390,7 @@ describe('SubscriptionModal', () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-11-24')
+      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-04-15')
     );
   });
 
@@ -421,16 +424,17 @@ describe('SubscriptionModal', () => {
     );
   });
 
-  it('keeps the renewal date when the start date is month-end', async () => {
+  it('renews a month-end start at the month-end that exists', async () => {
     await renderOpen();
 
-    // Changing the start date no longer rewrites the renewal date.
+    // Started on the 31st of January, the February renewal cannot fall on a
+    // 31st: the automatic date clamps to the month-end that exists (the 28th).
     fireEvent.change(screen.getByLabelText('Start Date'), {
       target: { value: '2027-01-31' },
     });
 
     await waitFor(() =>
-      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-11-24')
+      expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2027-02-28')
     );
   });
 
@@ -530,6 +534,59 @@ describe('SubscriptionModal', () => {
       )
     );
     expect(mocks.toast.success).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The auto-renewal information under the next billing date.
+ *
+ * The date in the box is the billing date the user entered, and it is never
+ * rewritten with a renewal behind it: the period the auto-renewal flag
+ * describes lives only under the box, worked out from the date inside it, and
+ * turning auto-renewal off removes the line while leaving the date alone.
+ */
+describe('SubscriptionModal auto renewal period', () => {
+  it('puts the period under the next billing date, worked out from the date in the box', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-11-15' },
+    });
+    await user.click(screen.getByLabelText('Auto renewal'));
+
+    expect(screen.getByTestId('auto-renew-period')).toHaveTextContent('15/11/2026-15/12/2026');
+  });
+
+  it('measures the period a cycle after the box when the cycle is yearly', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    await user.selectOptions(screen.getByLabelText('Cycle'), 'yearly');
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-10-15' },
+    });
+    await user.click(screen.getByLabelText('Auto renewal'));
+
+    expect(screen.getByTestId('auto-renew-period')).toHaveTextContent('15/10/2026-15/10/2027');
+  });
+
+  it('removes the period when auto renewal is turned off, keeping the date in the box', async () => {
+    const user = userEvent.setup();
+    await renderOpen();
+
+    fireEvent.change(screen.getByLabelText('Next Billing Date'), {
+      target: { value: '2026-11-15' },
+    });
+    await user.click(screen.getByLabelText('Auto renewal'));
+    expect(screen.getByTestId('auto-renew-period')).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('Auto renewal'));
+
+    // Only the auto-renewal information is removed: the billing date the user
+    // entered stays exactly as it was.
+    expect(screen.queryByTestId('auto-renew-period')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Next Billing Date')).toHaveValue('2026-11-15');
   });
 });
 

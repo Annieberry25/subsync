@@ -14,7 +14,6 @@ import {
   isOverdueSubscription,
   isSubscriptionDeleted,
   hasMultipleAccounts,
-  parseAccountLinks,
   type SubscriptionRow,
   type SubscriptionInsert,
   type SubscriptionUpdate
@@ -48,7 +47,6 @@ import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
-import { addCycleToDate } from '@/lib/utils/billing-dates';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
@@ -127,7 +125,6 @@ export default function SubscriptionManager() {
   // Manual Form Modal & Confirm State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
-  const [renewingSubscriptionId, setRenewingSubscriptionId] = useState<string | null>(null);
   const [editSourceDetailId, setEditSourceDetailId] = useState<string | null>(null);
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
@@ -702,106 +699,39 @@ export default function SubscriptionManager() {
     setIsModalOpen(true);
   }, []);
 
-  const handleRenewSubscription = useCallback(
-    async (sub: SubscriptionRow, accountId?: string | null) => {
-      /*
-       * The renew button is what turns auto-renewal on, so it works in two
-       * states. With the flag already on there is nothing to renew again —
-       * a repeat click would just keep pushing the date forward — so it
-       * confirms the state instead of renewing.
-       */
-      if (sub.auto_renew === true) {
-        toast.info(
-          `Auto renewal is already on for ${sub.name}.`,
-          'Auto Renewal'
-        );
-        return;
-      }
-
-      if (renewingSubscriptionId) return;
-      setRenewingSubscriptionId(sub.id);
-
-      try {
-        const links = parseAccountLinks(sub);
-        const account = accountId
-          ? links.find((link) => link.id === accountId) ?? null
-          : null;
-
-        const currentDate =
-          account?.next_billing_date || sub.next_billing_date || new Date().toISOString().split('T')[0];
-        const cycle = account?.billing_cycle || sub.billing_cycle || 'monthly';
-        const renewedDate = addCycleToDate(currentDate, cycle);
-
-        if (!renewedDate) {
-          throw new Error('Add the next billing date first so the renewal date can be worked out.');
-        }
-
-        const cycleStep = cycle.trim().toLowerCase();
-        const cycleLabel =
-          cycleStep === 'yearly' || cycleStep === 'year' || cycleStep === 'annual'
-            ? 'Yearly'
-            : cycleStep === 'quarterly' || cycleStep === 'quarter'
-              ? 'Quarterly'
-              : cycleStep === 'weekly' || cycleStep === 'week'
-                ? 'Weekly'
-                : 'Monthly';
-
-        const updatedLinks = account
-          ? links.map((link) =>
-              link.id === account.id ? { ...link, next_billing_date: renewedDate } : link
-            )
-          : links;
-
-        const linkDates = updatedLinks
-          .map((link) => link.next_billing_date)
-          .filter((date): date is string => Boolean(date))
-          .sort();
-        const rowDate =
-          account && linkDates.length > 0 ? linkDates[0] : renewedDate;
-
-        const payload: SubscriptionUpdate =
-          account && updatedLinks.length > 0
-            ? { next_billing_date: rowDate, account_links: updatedLinks, auto_renew: true }
-            : { next_billing_date: renewedDate, auto_renew: true };
-
-        const { data: updatedRow, error } = await updateSubscription(sub.id, payload);
-        if (error) throw error;
-
-        if (updatedRow && selectedDetailSub?.id === sub.id) {
-          setSelectedDetailSub(updatedRow);
-        }
-
-        toast.success(
-          `${sub.name} renewed: next date ${renewedDate} (${cycleLabel}). Auto renewal is on.`,
-          'Auto Renewal On'
-        );
-        await loadData();
-      } catch (err: unknown) {
-        toast.error(
-          err instanceof Error ? err.message : `Could not renew ${sub.name}.`,
-          'Renew Failed'
-        );
-      } finally {
-        setRenewingSubscriptionId(null);
-      }
-    },
-    [renewingSubscriptionId, selectedDetailSub, toast, loadData]
-  );
-
   const handleToggleAutoRenew = useCallback(
     async (item: SubscriptionRow, enabled: boolean, _accountId?: string | null) => {
+      /*
+       * Auto-renewal is a flag, not a renewal: turning it on only writes the
+       * flag. The row's next billing date is never pushed forward with it —
+       * the date the charge is expected on keeps the value the user entered,
+       * and the renewal that follows it lives only under the row's renewal
+       * line, where the detail sheet and the edit form show it.
+       */
       const { error } = await updateSubscription(item.id, { auto_renew: enabled });
       if (error) {
         toast.error(error.message, 'Auto Renewal');
         return;
       }
+
+      /* The flag has changed, so the row the list holds and the row the open
+         detail sheet shows are updated in place: the sheet's icon and its
+         auto-renewal line move with the click while the sheet stays open. */
+      setSubscriptions((prev) =>
+        prev.map((row) => (row.id === item.id ? { ...row, auto_renew: enabled } : row))
+      );
       if (selectedDetailSub?.id === item.id) {
         setSelectedDetailSub((current) =>
           current ? { ...current, auto_renew: enabled } : current
         );
       }
+
+      toast.success(
+        enabled ? `Auto renewal is on for ${item.name}.` : `Auto renewal is off for ${item.name}.`,
+        'Auto Renewal'
+      );
     },
-    [selectedDetailSub, setSelectedDetailSub, toast]
+    [selectedDetailSub, toast]
   );
 
   const handleDeleteRequest = useCallback((item: SubscriptionRow) => {
@@ -1150,7 +1080,6 @@ export default function SubscriptionManager() {
           setEditSourceDetailId(item.id);
           setIsModalOpen(true);
         }}
-        onRenew={handleRenewSubscription}
         onToggleAutoRenew={handleToggleAutoRenew}
         onDeleteRequest={(item) => {
           setDeleteReturnToDetailSub(item);
