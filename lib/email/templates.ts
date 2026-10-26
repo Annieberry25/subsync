@@ -97,9 +97,14 @@ export function renderRenewalReminderEmail(
   const days = sub.daysUntilRenewal ?? 0;
   const cadence = formatCadence(sub.billingCycle, sub.price, sub.currency);
 
+  /* The repayment day and the overdue lapse speak in their own words: the day
+     itself says renews today, and a date already passed says how long ago it
+     went by rather than posing as a future reminder. */
   const heading =
     days <= 0
-      ? `${sub.name} is due for payment`
+      ? days === 0
+        ? `${sub.name} renews today`
+        : `${sub.name} is overdue by ${-days} ${-days === 1 ? 'day' : 'days'}`
       : days === 1
         ? `${sub.name} renews tomorrow`
         : `${sub.name} renews in ${days} days`;
@@ -107,7 +112,9 @@ export function renderRenewalReminderEmail(
   return {
     subject:
       days <= 0
-        ? `${sub.name} payment due`
+        ? days === 0
+          ? `${sub.name} renews today`
+          : `${sub.name} is overdue`
         : days === 1
           ? `${sub.name} renews tomorrow`
           : `${sub.name} renews in ${days} days`,
@@ -116,9 +123,11 @@ export function renderRenewalReminderEmail(
       heading,
       bodyHtml: [
         emailParagraph(
-          days <= 0
-            ? 'This charge has already passed its billing date.'
-            : 'A reminder so the next charge does not catch you by surprise.'
+          days === 0
+            ? 'It renews today — one last look before the charge goes out.'
+            : days < 0
+              ? 'This charge has passed its billing date. Mark it renewed in SubHalt, or cancel it at the provider if you no longer want it.'
+              : 'A reminder so the next charge does not catch you by surprise.'
         ),
         emailDetailRow('Next charge', sub.nextBillingDate),
         emailDetailRow('Amount', cadence),

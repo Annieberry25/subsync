@@ -71,6 +71,67 @@ export const UPCOMING_LEAD_MINUTES = 10 * 24 * 60;
  */
 export const SECOND_CALL_LEAD_MINUTES = 12 * 60;
 
+/**
+ * The repayment-day stages: the day the charge actually goes out.
+ *
+ * The user asked for the day itself to speak for itself: push when the day
+ * starts, a second push twelve hours later, and one email that day. The pair of
+ * pushes and the email are three ordinary candidates — they key at offsets 0
+ * (the morning push and the one email) and -720 (the evening push), and the
+ * minute windows alone decide which run delivers them:
+ *
+ *   * The 0 lead's window is `minutes <= 0`, which opens at the renewal's
+ *     midnight — the 09:00 run is the first cron inside it, the evening run is a
+ *     catch-up if the morning one was missed.
+ *   * The -720 lead's window is `minutes <= -720`, which is twelve hours past
+ *     midnight — only the 21:00 run of the day itself can deliver it, which is
+ *     precisely twelve hours after the morning push.
+ *
+ * Because they are ordinary numeric candidates, the own merge also keeps a
+ * missed pre-charge catch-up from stacking on top of them: any earlier stage that
+ * is somehow still owed on the day itself is superseded by the day-of stage as
+ * the closer one, and the day speaks with one voice.
+ */
+export const RENEWAL_DAY_AM_LEAD = 0;
+export const RENEWAL_DAY_PM_LEAD = -12 * 60;
+
+/**
+ * The overdue stages: a renewal the calendar has already passed.
+ *
+ * While - like seconds - the request, is for a daily push with a single
+ * email. A daily push needs a key per day, which the existing ledger gets from a
+ * distinct offset per overdue day; a single email needs one stable key for the
+ * whole lapse. Both are expressed as offsets measured from the 09:00 cron:
+ *
+ *   * The push for the `d`-th overdue day keys at
+ *     `-(d * 1440 + FIRST_CRON_OFFSET_MINUTES)` — the window of that key opens
+ *     exactly at the 09:00 run of that day and not before, and stays open for
+ *     the same day's evening run only (by then the morning key is claimed, and
+ *     one overdue push per day is the contract).
+ *   * The email keys once at `-1980`, the first overdue day's own push offset,
+ *     on the email channel. It is due from the first overdue day and its key
+ *     never changes, so every later day finds it already delivered — one email
+ *     per lapse, no matter how long it runs.
+ *
+ * Renewals further past than `OVERDUE_HORIZON_DAYS` get nothing: a forgotten row
+ * from years ago must not grind out a daily notification forever, and the window
+ * matches the domain the delivery check below leaves representable.
+ */
+export const OVERDUE_HORIZON_DAYS = 30;
+/** The first cron of a day (09:00 UTC in vercel.json), in minutes past midnight. */
+export const FIRST_CRON_OFFSET_MINUTES = 9 * 60;
+
+/** The delivery key of the overdue-day push for the `daysOverdue`-th day past. */
+export function overduePushLead(daysOverdue: number): number {
+  return -(daysOverdue * 1440 + FIRST_CRON_OFFSET_MINUTES);
+}
+
+/** The one-time email key of an overdue lapse. */
+export const OVERDUE_EMAIL_LEAD = overduePushLead(1);
+
+/** Which stage of the plan a reminder belongs to. */
+export type ReminderStage = 'precharge' | 'renewal-day' | 'overdue';
+
 /** The automatic offsets that apply to a subscription's billing cycle. */
 export function autoLeadMinutesFor(billingCycle: string | null | undefined): number[] {
   const cycle = (billingCycle ?? '').trim().toLowerCase();
@@ -128,6 +189,8 @@ export interface PlannedReminder {
   triggerDate: IsoDate;
   /** Idempotency key: subscription + renewal cycle + offset + channel. */
   key: string;
+  /** The stage group the reminder came from; absent means a pre-charge stage. */
+  stage?: ReminderStage;
 }
 
 export type SkipReason =
@@ -147,6 +210,8 @@ export interface SkippedReminder {
   leadMinutes: number;
   renewalDate: IsoDate;
   reason: SkipReason;
+  /** The stage group the skipped candidate came from; absent means pre-charge. */
+  stage?: ReminderStage;
 }
 
 /**
@@ -192,7 +257,8 @@ function decide(
   minutes: number,
   days: number,
   alreadyDelivered: Set<string>,
-  plan: Plan
+  plan: Plan,
+  stage?: ReminderStage
 ): void {
   const renewal = sub.renewalDate;
   const key = deliveryKey(sub.id, renewal, leadMinutes, channel);
@@ -204,13 +270,16 @@ function decide(
       leadMinutes,
       renewalDate: renewal,
       reason: 'already_delivered',
+      stage,
     });
     return;
   }
 
   // `minutes <= leadMinutes` is the catch-up window: a run missed at the exact
   // trigger minute still fires on the next run, as long as the renewal has not
-  // passed.
+  // passed. The negative day-of and overdue offsets read the same way — their
+  // windows OPEN after the renewal, so this comparison delivers them only from
+  // the moment they are due and never before.
   if (minutes > leadMinutes) {
     plan.skipped.push({
       subscriptionId: sub.id,
@@ -218,6 +287,7 @@ function decide(
       leadMinutes,
       renewalDate: renewal,
       reason: 'not_due',
+      stage,
     });
     return;
   }
@@ -236,6 +306,7 @@ function decide(
     leadMinutes,
     triggerDate: triggerDateFromMinutes(renewal, leadMinutes),
     key,
+    stage,
   });
 }
 
@@ -247,14 +318,28 @@ export function planReminders(input: PlanInput): Plan {
     const minutes = minutesUntilRenewal(sub.renewalDate, input.now);
     const days = daysBetween(utcToday(input.now), sub.renewalDate);
 
-    if (Number.isNaN(minutes)) {
+    if (Number.isNaN(minutes) || Number.isNaN(days)) {
       // Unparseable renewal date; nothing sensible to key or schedule against.
       continue;
     }
 
-    if (minutes < 0) {
-      // The renewal already happened. The query excludes these, but a row can
-      // cross the boundary between the query and now.
+    /*
+     * ---- The passed regime ----
+     *
+     * A renewal behind the calendar is an overdue subscription, not a dead one.
+     * For a bounded window it is pushed once a day — a fresh key every day, so
+     * the delivery ledger can never send the same day twice but every new day
+     * speaks again — and emailed exactly once for the whole lapse, a stable key
+     * the ledger holds after the first send. Past the window the row is left
+     * alone entirely: daily pings for a forgotten line item are not hearing
+     * from the app, they are harassment.
+     *
+     * The pre-charge skips below are kept so a run's trace still explains that
+     * the pre-charge story is over for this renewal.
+     */
+    if (days < 0) {
+      const overdueDays = -days;
+
       for (const channel of ['push', 'email'] as ReminderChannel[]) {
         plan.skipped.push({
           subscriptionId: sub.id,
@@ -264,12 +349,49 @@ export function planReminders(input: PlanInput): Plan {
           reason: 'renewal_passed',
         });
       }
+
+      if (overdueDays <= OVERDUE_HORIZON_DAYS) {
+        decide(
+          sub,
+          'push',
+          overduePushLead(overdueDays),
+          minutes,
+          days,
+          input.alreadyDelivered,
+          plan,
+          'overdue'
+        );
+        decide(
+          sub,
+          'email',
+          OVERDUE_EMAIL_LEAD,
+          minutes,
+          days,
+          input.alreadyDelivered,
+          plan,
+          'overdue'
+        );
+      }
       continue;
     }
 
     // ---- Candidates ----
     // Everything that is currently inside its lead window, per channel.
-    const candidates: { channel: ReminderChannel; leadMinutes: number }[] = [];
+    const candidates: { channel: ReminderChannel; leadMinutes: number; stage?: ReminderStage }[] = [];
+
+    /*
+     * Pre-charge candidates only exist while the charge's day has not begun.
+     * The engine treats any run inside a window as due, so on and after the
+     * renewal day every pre-charge window reads as open forever — without this
+     * gate, a "ten days before" push could still fire on the charge's own
+     * evening once the closer stages are already delivered, because it would
+     * be the least-delivered candidate left in the merge. On the day itself
+     * the day-of stages are the closer message for the same charge, so the
+     * pre-charge stages dissolve into them at window build, not in the merge
+     * (the merge still explains the dissolution on the first run of the day,
+     * where both day-of and owed pre-charge stages are undelivered).
+     */
+    const prechargeOpen = minutes > 0;
 
     // Automatic: staged by billing cycle, ignores preferences.
     //
@@ -279,26 +401,45 @@ export function planReminders(input: PlanInput): Plan {
     // message at two days out and another at the last call, which reads as a
     // duplicate and burns the sending quota for no extra warning.
     const autoLeads = autoLeadMinutesFor(sub.billingCycle);
-    for (const lead of autoLeads) {
-      candidates.push({ channel: 'push', leadMinutes: lead });
-    }
-
     // The earliest stage, so the single automatic email lands as far ahead of the
     // charge as the plan allows rather than as late as possible.
     const autoEmailLead = autoLeads[0];
-    candidates.push({ channel: 'email', leadMinutes: autoEmailLead });
 
-    // The 10-day "coming up" nudge: push only, always on.
-    candidates.push({ channel: 'push', leadMinutes: UPCOMING_LEAD_MINUTES });
+    if (prechargeOpen) {
+      for (const lead of autoLeads) {
+        candidates.push({ channel: 'push', leadMinutes: lead });
+      }
 
-    // The second call on the day before: push only, actionable.
-    // The second call on the day before: push only, actionable.
-    candidates.push({ channel: 'push', leadMinutes: SECOND_CALL_LEAD_MINUTES });
+      candidates.push({ channel: 'email', leadMinutes: autoEmailLead });
 
-    // The user's own opt-in reminder, independent of the above.
+      // The 10-day "coming up" nudge: push only, always on.
+      candidates.push({ channel: 'push', leadMinutes: UPCOMING_LEAD_MINUTES });
+
+      // The second call on the day before: push only, actionable.
+      candidates.push({ channel: 'push', leadMinutes: SECOND_CALL_LEAD_MINUTES });
+    }
+
+    /*
+     * The repayment-day stages, on the day the charge goes out: the morning
+     * push and the single email keyed at 0, the twelve-hours-later push keyed
+     * at -720. The pre-charge stages above are no longer built once the day
+     * begins (the gate below), so these are the only stages from here on and
+     * speak once per channel — a leadup the runs missed is not sent late; the
+     * day itself takes over. Their windows make them unreachable on any
+     * earlier day: minute offsets 0 and -720 are only inside their windows at
+     * or after the renewal's midnight.
+     */
+    if (days === 0) {
+      candidates.push({ channel: 'push', leadMinutes: RENEWAL_DAY_AM_LEAD, stage: 'renewal-day' });
+      candidates.push({ channel: 'push', leadMinutes: RENEWAL_DAY_PM_LEAD, stage: 'renewal-day' });
+      candidates.push({ channel: 'email', leadMinutes: RENEWAL_DAY_AM_LEAD, stage: 'renewal-day' });
+    }
+
+    // The user's own opt-in reminder, independent of the above. It binds to the
+    // same gate: the charge day is owned by the day-of stages.
     const pref = input.preferences.get(sub.id);
 
-    if (pref?.pushEnabled) {
+    if (pref?.pushEnabled && prechargeOpen) {
       const lead = pref.pushLeadMinutes > 0 ? pref.pushLeadMinutes : DEFAULT_USER_LEAD_MINUTES;
       // A custom offset that coincides with an automatic stage collapses into it
       // (same delivery key), so it is only a candidate when it is genuinely
@@ -308,7 +449,7 @@ export function planReminders(input: PlanInput): Plan {
       }
     }
 
-    if (pref?.emailEnabled) {
+    if (pref?.emailEnabled && prechargeOpen) {
       const lead = pref.emailLeadMinutes > 0 ? pref.emailLeadMinutes : DEFAULT_USER_LEAD_MINUTES;
       /*
        * Collapses only into the one automatic email stage, and not into every
@@ -336,10 +477,10 @@ export function planReminders(input: PlanInput): Plan {
      * has fallen behind produces one clear message instead of a pile.
      */
     for (const channel of ['push', 'email'] as ReminderChannel[]) {
-      const leads = candidates
-        .filter((c) => c.channel === channel)
-        .map((c) => c.leadMinutes);
-      if (leads.length === 0) continue;
+      /* The candidates keep their stage, so the merge can report which group a
+         superseded or delivered candidate belonged to. */
+      const channelCandidates = candidates.filter((c) => c.channel === channel);
+      if (channelCandidates.length === 0) continue;
 
       /*
        * Ask `decide` about every candidate, because it is what reports not_due and
@@ -349,9 +490,18 @@ export function planReminders(input: PlanInput): Plan {
        * run still explains itself instead of quietly sending five messages.
        */
       const staged: PlannedReminder[] = [];
-      for (const lead of leads) {
+      for (const candidate of channelCandidates) {
         const before = plan.planned.length;
-        decide(sub, channel, lead, minutes, days, alreadyDelivered, plan);
+        decide(
+          sub,
+          channel,
+          candidate.leadMinutes,
+          minutes,
+          days,
+          alreadyDelivered,
+          plan,
+          candidate.stage
+        );
         if (plan.planned.length > before) staged.push(...plan.planned.splice(before));
       }
 
@@ -369,6 +519,7 @@ export function planReminders(input: PlanInput): Plan {
           leadMinutes: item.leadMinutes,
           renewalDate: sub.renewalDate,
           reason: 'superseded_by_closer_stage',
+          stage: item.stage,
         });
       }
     }

@@ -12,6 +12,8 @@ import {
   planReminders,
   SECOND_CALL_LEAD_MINUTES,
   MAX_LEAD_MINUTES,
+  OVERDUE_HORIZON_DAYS,
+  RENEWAL_DAY_PM_LEAD,
   type PlannedReminder,
   type PlannerPreference,
   type PlannerSubscription,
@@ -21,10 +23,13 @@ import {
 /**
  * The renewal-reminder engine.
  *
- * Reads every non-canceled subscription renewing inside the widest configured
- * lead window, decides what is due (see `planReminders`), and sends it to the
- * right channels for each user, recording one row per (subscription, renewal,
- * offset, channel) so nothing is ever sent twice for the same renewal.
+ * Reads every non-canceled subscription inside the plan's windows — renewals
+ * ahead of today up to the widest lead, the renewal day itself (one push when
+ * the day starts, a second twelve hours later, one email), and the bounded
+ * overdue window behind today (a daily push plus a single email) — decides what
+ * is due (see `planReminders`), and sends it to the right channels for each
+ * user, recording one row per (subscription, renewal, offset, channel) so
+ * nothing is ever sent twice for the same renewal.
  *
  * Kept out of the route so both the Vercel cron and the manual admin trigger run
  * exactly the same code and it can be exercised with a real `dryRun` that
@@ -120,12 +125,17 @@ export async function runRenewalReminders({
     items: [],
   };
 
-  // ---- Load candidate subscriptions renewing between today and the horizon ----
+  // ---- Load candidate subscriptions inside the plan's windows ----
+  // Forward: every lead stage the planner can schedule. Backward: the bounded
+  // overdue window, whose daily push and one-time email are part of the plan.
+  // Rows past that floor are deliberately not fetched: a forgotten line item
+  // from years ago must not enter the run again and again.
+  const windowFloor = addDays(today, -OVERDUE_HORIZON_DAYS);
   let subsQuery = supabase
     .from('subscriptions')
     .select('id, user_id, name, price, currency, next_billing_date, billing_cycle, status')
     .neq('status', 'canceled')
-    .gte('next_billing_date', today)
+    .gte('next_billing_date', windowFloor)
     .lte('next_billing_date', horizon)
     .limit(MAX_SUBSCRIPTIONS_PER_RUN);
 
@@ -300,8 +310,27 @@ export async function runRenewalReminders({
 
     const claimedId = claim.id;
 
+    /*
+     * The repayment-day and overdue stages only speak for a subscription that
+     * will actually charge. A paused row that happens to renew today ("renews
+     * today") or a paused row sitting past its date (daily overdue pushes) is
+     * not a charge warning anyone needs — the pre-charge stages have always
+     * treated those rows like any other, but the day-of copy asserts the charge
+     * is happening, and it should be true when it is read. The claim is
+     * released rather than burned, so a row later set active again is notified
+     * again on the next run.
+     */
+    if (
+      (item.stage === 'renewal-day' || item.stage === 'overdue') &&
+      statusBySubscription.get(item.subscriptionId) !== 'active'
+    ) {
+      await releaseClaim(supabase, claimedId);
+      report.skipped++;
+      report.items.push({ ...base, action: 'skipped', reason: 'subscription_not_active' });
+      continue;
+    }
+
     if (item.channel === 'push') {
-      const renewsOn = humanizeRenewal(item.minutesUntilRenewal);
       const isSecondCall = item.leadMinutes === SECOND_CALL_LEAD_MINUTES;
 
       /*
@@ -329,22 +358,48 @@ export async function runRenewalReminders({
       }
 
       /*
-       * The second call is worded as an action rather than a second notice, and
-       * deep-links to the subscription itself rather than the list, so cancelling
-       * is one tap from the notification. `highlight` + `detail` is the existing
-       * deep-link contract the app already uses to open a single subscription.
+       * Copy per stage, in the app's voice.
+       *
+       * The repayment-day morning push states that the charge is today; the
+       * evening one is the same fact as a last call, deep-linked to the
+       * subscription itself rather than the list, so cancelling is one tap from
+       * the notification. The overdue push states the lapsed date for what it is
+       * and deep-links the same way — the action there is either marking it
+       * renewed or cancelling it, and both live on the subscription's page.
+       * `highlight` + `detail` is the existing deep-link contract the app
+       * already uses to open a single subscription.
        */
-      const payload = isSecondCall
-        ? {
-            title: `${item.name} ${renewsOn}`,
-            body: 'Cancel it now if you do not want to be charged again.',
-            url: `/subscriptions?highlight=${encodeURIComponent(item.subscriptionId)}&detail=true`,
-          }
-        : {
-            title: `${item.name} ${renewsOn}`,
-            body: 'A heads-up so the next charge is not a surprise.',
-            url: '/subscriptions',
-          };
+      const deepLinkUrl = `/subscriptions?highlight=${encodeURIComponent(item.subscriptionId)}&detail=true`;
+      const payload =
+        item.stage === 'renewal-day' && item.leadMinutes === RENEWAL_DAY_PM_LEAD
+          ? {
+              title: `${item.name} renews today`,
+              body: 'Last call today — cancel now if the plan is no longer worth it.',
+              url: deepLinkUrl,
+            }
+          : item.stage === 'renewal-day'
+            ? {
+                title: `${item.name} renews today`,
+                body: 'The charge is today, so it is worth one last look.',
+                url: '/subscriptions',
+              }
+            : item.stage === 'overdue'
+              ? {
+                  title: `${item.name} is overdue`,
+                  body: `It was due on ${item.renewalDate}. Mark it renewed or cancel it.`,
+                  url: deepLinkUrl,
+                }
+              : isSecondCall
+                ? {
+                    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal)}`,
+                    body: 'Cancel it now if you do not want to be charged again.',
+                    url: deepLinkUrl,
+                  }
+                : {
+                    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal)}`,
+                    body: 'A heads-up so the next charge is not a surprise.',
+                    url: '/subscriptions',
+                  };
 
       const result = await sendPushToUser(item.userId, {
         ...payload,
@@ -501,6 +556,7 @@ async function addInboxReminder(
     renewalDate: string;
     minutesUntilRenewal: number;
     leadMinutes: number;
+    daysUntilRenewal: number;
   }
 ): Promise<void> {
 // One notice per (subscription, renewal, lead stage). A later run can send the
@@ -518,11 +574,20 @@ async function addInboxReminder(
 
   if (!lookupError && existing && existing.length > 0) return;
 
+  /* The repayment day says it renews today; a lapsed row says it is overdue,
+     in the calendar words the run's own trace uses. The two read nothing
+     alike, so an inbox scan tells day-of and overdue stages apart at a
+     glance. */
+  const overdue = item.daysUntilRenewal < 0;
   const { error } = await supabase.from('inbox_items').insert({
     user_id: item.userId,
     type: 'renewal',
-    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal)}`,
-    description: `Your ${item.name} subscription renews on ${item.renewalDate}.`,
+    title: overdue
+      ? `${item.name} is overdue`
+      : `${item.name} ${humanizeRenewal(item.minutesUntilRenewal)}`,
+    description: overdue
+      ? `Your ${item.name} subscription was due on ${item.renewalDate}. Mark it renewed here, or cancel it.`
+      : `Your ${item.name} subscription renews on ${item.renewalDate}.`,
     date: new Date().toISOString(),
     is_read: false,
     action_type: 'view',

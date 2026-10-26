@@ -345,3 +345,117 @@ describe('runRenewalReminders — user scoping', () => {
     expect(report.considered).toBe(2);
   });
 });
+
+/*
+ * The repayment day itself: the charge's own date speaks — one push to wake
+ * the day, the day's single email, one more push twelve hours later — and a
+ * paused row is not warned about its own charge.
+ */
+describe('runRenewalReminders — the repayment day', () => {
+  it('sends one push and the email at the morning run, one more push twelve hours later', async () => {
+    const state = baseState();
+    state.subs = [{ ...state.subs[0], next_billing_date: '2026-10-12' }];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const morning = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: new Date('2026-10-12T09:00:00Z'),
+    });
+
+    expect(morning.pushSent).toBe(1);
+    expect(morning.emailsSent).toBe(1);
+    expect((mocks.sendPush.mock.calls[0]?.[1] as { title?: string }).title).toBe(
+      'Netflix renews today'
+    );
+
+    // The morning's claims persist for the evening run, as they would in the
+    // ledger.
+    state.deliveries = inserted.deliveries.map((d) => ({ ...d }));
+
+    const evening = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: new Date('2026-10-12T21:00:00Z'),
+    });
+
+    expect(evening.pushSent).toBe(1);
+    expect(evening.emailsSent).toBe(0);
+    expect((mocks.sendPush.mock.calls[1]?.[1] as { url?: string }).url).toContain(
+      'highlight='
+    );
+  });
+
+  it('says nothing on the day of the charge for a subscription that cannot charge', async () => {
+    const state = baseState();
+    state.subs = [{ ...state.subs[0], next_billing_date: '2026-10-12', status: 'paused' }];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: new Date('2026-10-12T09:00:00Z'),
+    });
+
+    expect(report.pushSent).toBe(0);
+    expect(report.emailsSent).toBe(0);
+    expect(report.items.some((i) => i.reason === 'subscription_not_active')).toBe(true);
+  });
+});
+
+/*
+ * The overdue stages: a lapsed renewal is pushed once a day — one row per day
+ * in the ledger — and emailed once for the lapse. Past the horizon the engine
+ * does not even fetch the row.
+ */
+describe('runRenewalReminders — overdue', () => {
+  it('pushes every overdue day and emails once for the lapse', async () => {
+    const state = baseState();
+    // 11 days overdue at the first run: echoes of an old Apex bill.
+    state.subs = [{ ...state.subs[0], next_billing_date: '2026-10-01' }];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const firstDay = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: new Date('2026-10-12T09:00:00Z'),
+    });
+
+    expect(firstDay.pushSent).toBe(1);
+    expect(firstDay.emailsSent).toBe(1);
+    expect((mocks.sendPush.mock.calls[0]?.[1] as { title?: string }).title).toBe(
+      'Netflix is overdue'
+    );
+
+    state.deliveries = inserted.deliveries.map((d) => ({ ...d }));
+
+    const nextDay = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: new Date('2026-10-13T09:00:00Z'),
+    });
+
+    expect(nextDay.pushSent).toBe(1);
+    expect(nextDay.emailsSent).toBe(0);
+  });
+
+  it('does not wake a lapse that runs past the horizon', async () => {
+    const state = baseState();
+    // 2026-09-12 is 31 days before the run below: beyond the planner's thirty-
+    // day overdue horizon (the query floor keeps most of those rows out too,
+    // but the planner is the hard gate).
+    state.subs = [{ ...state.subs[0], next_billing_date: '2026-09-12' }];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: new Date('2026-10-13T09:00:00Z'),
+    });
+
+    expect(report.pushSent).toBe(0);
+    expect(report.emailsSent).toBe(0);
+    // The run's own trace only explains itself (renewal_passed); nothing was
+    // scheduled to send.
+    expect(report.items.some((i) => i.action === 'sent' || i.action === 'would_send')).toBe(false);
+    expect(inserted.inbox).toHaveLength(0);
+  });
+});

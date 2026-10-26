@@ -8,6 +8,10 @@ import {
 UPCOMING_LEAD_MINUTES,
   SECOND_CALL_LEAD_MINUTES,
   DEFAULT_USER_LEAD_MINUTES,
+  RENEWAL_DAY_AM_LEAD,
+  RENEWAL_DAY_PM_LEAD,
+  OVERDUE_EMAIL_LEAD,
+  overduePushLead,
   type PlannerSubscription,
   type PlannerPreference,
 } from '@/lib/reminders/plan';
@@ -219,19 +223,176 @@ describe('planReminders (automatic stages)', () => {
     expect(planned.some((p) => p.leadMinutes === SECOND_CALL_LEAD_MINUTES)).toBe(false);
   });
 
-  it('catches a missed run up, but not after the renewal has passed', () => {
+  /**
+   * A run missed on the evening before a charge still sends on the later run:
+   * stages aim at the renewal, not at the clock.
+   */
+  it('catches a missed run up before the day of the charge', () => {
     const late = run([sub('s1', '2026-03-02')], [], [], new Date('2026-03-01T23:00:00Z'));
     expect(late.planned.length).toBeGreaterThan(0);
-
-    const past = run([sub('s1', '2026-02-28')], []);
-    expect(past.planned).toHaveLength(0);
-    expect(past.skipped.every((s) => s.reason === 'renewal_passed')).toBe(true);
   });
 
   it('keys reminders on the renewal so the next cycle fires again', () => {
     const a = deliveryKey('s1', '2026-03-02', 1 * DAY, 'push');
     const b = deliveryKey('s1', '2026-04-02', 1 * DAY, 'push');
     expect(a).not.toBe(b);
+  });
+});
+
+/**
+ * The repayment-day stages: the charge's own day speaks for itself. The
+ * morning run delivers the day's push and the day's single email at the 0-lead
+ * key; the evening run delivers the second push twelve hours later at the
+ * -12h key; and a pre-charge stage still owed on the day itself is dissolved
+ * into the day-of stage, which is the closer message — so a fully-missed
+ * leadup still produces one push and one email on the day, never a burst.
+ */
+describe('planReminders (repayment-day stages)', () => {
+  const RENEWAL = '2026-03-05';
+  const DELIVERED_PRECHARGE = [
+    deliveryKey('s1', RENEWAL, 2 * DAY, 'push'),
+    deliveryKey('s1', RENEWAL, 2 * DAY, 'email'),
+    deliveryKey('s1', RENEWAL, 1 * DAY, 'push'),
+    deliveryKey('s1', RENEWAL, SECOND_CALL_LEAD_MINUTES, 'push'),
+  ];
+
+  it('sends the day-of push and the day-of email at the morning run', () => {
+    const morning = run(
+      [sub('s1', RENEWAL)],
+      [],
+      DELIVERED_PRECHARGE,
+      new Date(`${RENEWAL}T09:00:00Z`)
+    );
+
+    expect(morning.planned.map((p) => [p.leadMinutes, p.channel]).sort()).toEqual([
+      [RENEWAL_DAY_AM_LEAD, 'email'],
+      [RENEWAL_DAY_AM_LEAD, 'push'],
+    ]);
+    expect(morning.planned.every((p) => p.stage === 'renewal-day')).toBe(true);
+  });
+
+  it('sends the second push twelve hours later and one push alone if the morning was missed', () => {
+    const delivered = [
+      ...DELIVERED_PRECHARGE,
+      deliveryKey('s1', RENEWAL, RENEWAL_DAY_AM_LEAD, 'push'),
+      deliveryKey('s1', RENEWAL, RENEWAL_DAY_AM_LEAD, 'email'),
+    ];
+
+    // With the morning pair delivered, the evening run owes only the second
+    // push — exactly twelve hours after the first.
+    const evening = run([sub('s1', RENEWAL)], [], delivered, new Date(`${RENEWAL}T21:00:00Z`));
+    expect(evening.planned.map((p) => [p.leadMinutes, p.channel])).toEqual([
+      [RENEWAL_DAY_PM_LEAD, 'push'],
+    ]);
+
+    // With the whole morning missed, the evening run delivers the second push
+    // and the email owed to the day — one push that day, not two in the same
+    // instant, and the day's single email still only sent once.
+    const missedMorning = run([sub('s1', RENEWAL)], [], DELIVERED_PRECHARGE, new Date(`${RENEWAL}T21:00:00Z`));
+    expect(missedMorning.planned.map((p) => [p.leadMinutes, p.channel]).sort()).toEqual([
+      [RENEWAL_DAY_PM_LEAD, 'push'],
+      [RENEWAL_DAY_AM_LEAD, 'email'],
+    ]);
+  });
+
+  it('never delivers the second push before it is twelve hours into the day', () => {
+    const morning = run(
+      [sub('s1', RENEWAL)],
+      [],
+      DELIVERED_PRECHARGE,
+      new Date(`${RENEWAL}T09:00:00Z`)
+    );
+
+    expect(
+      morning.skipped.some(
+        (s) => s.leadMinutes === RENEWAL_DAY_PM_LEAD && s.reason === 'not_due'
+      )
+    ).toBe(true);
+  });
+
+  it('takes over from a wholly missed pre-charge leadup', () => {
+    // Nothing was delivered in the run-up: the charge's day still produces
+    // exactly the day-of pair — the pre-charge stages are retired at the
+    // window build rather than sent late, so a missed leadup never turns into
+    // a burst of stale notices.
+    const missed = run([sub('s1', RENEWAL)], [], [], new Date(`${RENEWAL}T09:00:00Z`));
+
+    expect(missed.planned.map((p) => [p.leadMinutes, p.channel]).sort()).toEqual([
+      [RENEWAL_DAY_AM_LEAD, 'email'],
+      [RENEWAL_DAY_AM_LEAD, 'push'],
+    ]);
+
+    // No numeric lead stages sneak in: the staged set contains only the
+    // two day-of sends.
+    expect(missed.skipped.filter((s) => s.reason === 'superseded_by_closer_stage')).toHaveLength(0);
+  });
+
+  it('repeats nothing once the day has been delivered', () => {
+    const delivered = [
+      ...DELIVERED_PRECHARGE,
+      deliveryKey('s1', RENEWAL, RENEWAL_DAY_AM_LEAD, 'push'),
+      deliveryKey('s1', RENEWAL, RENEWAL_DAY_AM_LEAD, 'email'),
+      deliveryKey('s1', RENEWAL, RENEWAL_DAY_PM_LEAD, 'push'),
+    ];
+
+    const evening = run([sub('s1', RENEWAL)], [], delivered, new Date(`${RENEWAL}T21:00:00Z`));
+    expect(evening.planned).toHaveLength(0);
+  });
+});
+
+/**
+ * The overdue stages: a lapsed renewal is pushed once a day — a fresh delivery
+ * key each day, so the ledger can hold each day's push exactly once — and
+ * emailed exactly once for the whole lapse on a stable key. Past the horizon
+ * the planner says nothing at all.
+ */
+describe('planReminders (overdue stages)', () => {
+  const RENEWAL = '2026-03-05';
+
+  it('pushes and emails on the first overdue day', () => {
+    const firstDay = run([sub('s1', RENEWAL)], [], [], new Date('2026-03-06T09:00:00Z'));
+
+    expect(firstDay.planned.map((p) => [p.leadMinutes, p.channel]).sort()).toEqual([
+      [OVERDUE_EMAIL_LEAD, 'email'],
+      [overduePushLead(1), 'push'],
+    ]);
+    expect(firstDay.planned.every((p) => p.stage === 'overdue')).toBe(true);
+  });
+
+  it('pushes again the next day on a fresh key, and does not email again', () => {
+    const delivered = [
+      deliveryKey('s1', RENEWAL, overduePushLead(1), 'push'),
+      deliveryKey('s1', RENEWAL, OVERDUE_EMAIL_LEAD, 'email'),
+    ];
+
+    const secondDay = run([sub('s1', RENEWAL)], [], delivered, new Date('2026-03-07T09:00:00Z'));
+
+    expect(secondDay.planned).toEqual([
+      expect.objectContaining({
+        channel: 'push',
+        stage: 'overdue',
+        leadMinutes: overduePushLead(2),
+      }),
+    ]);
+  });
+
+  it('says nothing more on a day whose morning already delivered', () => {
+    const delivered = [
+      deliveryKey('s1', RENEWAL, overduePushLead(2), 'push'),
+      deliveryKey('s1', RENEWAL, OVERDUE_EMAIL_LEAD, 'email'),
+    ];
+
+    const evening = run([sub('s1', RENEWAL)], [], delivered, new Date('2026-03-07T21:00:00Z'));
+
+    expect(evening.planned).toHaveLength(0);
+  });
+
+  it('says nothing once the lapse runs past the horizon', () => {
+    // Renewal 2026-03-05, run 31 days later: outside the 30-day window.
+    const pastHorizon = run([sub('s1', RENEWAL)], [], [], new Date('2026-04-05T09:00:00Z'));
+
+    expect(pastHorizon.planned).toHaveLength(0);
+    expect(pastHorizon.skipped.every((s) => s.reason === 'renewal_passed')).toBe(true);
   });
 });
 

@@ -134,11 +134,17 @@ describe('renewal reminder wording', () => {
   it.each([
     [5, 'renews in 5 days'],
     [1, 'renews tomorrow'],
-    [0, 'is due for payment'],
-    [-3, 'is due for payment'],
+    [0, 'renews today'],
+    [-3, 'is overdue by 3 days'],
+    [-1, 'is overdue by 1 day'],
   ])('%i days out reads as "%s"', (days, expected) => {
     const { html } = renderRenewalReminderEmail({ ...sub, daysUntilRenewal: days });
     expect(html).toContain(expected);
+  });
+
+  it('says what to do about an overdue charge', () => {
+    const { html } = renderRenewalReminderEmail({ ...sub, daysUntilRenewal: -3 });
+    expect(html).toContain('Mark it renewed in SubHalt, or cancel it at the provider');
   });
 });
 
