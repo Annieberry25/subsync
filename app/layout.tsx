@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
-import { ADSENSE_CLIENT, ADSENSE_ENABLED, ADSENSE_LOADER_SRC } from "@/lib/config/adsense";
 import { HOME_TITLE, HOME_OG_DESCRIPTION } from "@/lib/seo/home-copy";
 
 const spaceGrotesk = Space_Grotesk({
@@ -83,20 +82,6 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
-  /**
-   * AdSense's own alternative verification method: a meta tag naming the
-   * publisher account. Google accepts either this or the loader script, so
-   * having both means site verification does not hang on a single mechanism.
-   *
-   * The script tag is the one you asked for, but it depends on how Next chooses
-   * to serialise a third-party script in the App Router, and getting that wrong
-   * is invisible locally -- the URL still appears in the HTML, just not as a
-   * script element, which is all the checker matches on. This tag is emitted
-   * natively by Next's metadata pipeline, so it cannot be reshaped that way.
-   */
-  other: {
-    'google-adsense-account': ADSENSE_CLIENT,
-  },
 };
 
 export default function RootLayout({
@@ -113,39 +98,6 @@ export default function RootLayout({
         data-build={process.env.NEXT_PUBLIC_BUILD_SHA}
         className="min-h-full bg-[#101215] text-white font-sans overscroll-y-none"
       >
-        {/*
-          The AdSense loader, site-wide, for account verification.
-
-          This is a literal <script> element on purpose. It was previously
-          rendered with next/script and strategy="beforeInteractive", which looks
-          equivalent but is not: that emits a <link rel="preload"> in the head
-          plus an inline bootstrap that calls window.next_s.push([...]), and the
-          actual <script src> is only created at runtime by client-side JS. The
-          served HTML therefore contained the adsbygoogle.js URL but no script
-          element referencing it at all.
-
-          AdSense verification fetches the page and pattern-matches the HTML. It
-          does not run JavaScript, so it saw no loader script and rejected the
-          site with "We couldn't verify your site" even though the URL was
-          present. React hoists a plain <script async src> into <head> during SSR,
-          which produces exactly the markup Google's snippet asks for.
-
-          The loader only renders once an ad slot id exists (ADSENSE_ENABLED).
-          Until then no third-party script is loaded at all, and next.config.ts
-          keeps pagead2.googlesyndication.com out of the CSP script-src so the
-          whitelist matches what the page actually executes.
-
-          Combined with the google-adsense-account meta tag in `metadata.other`,
-          which is the officially supported alternative verification method and is
-          emitted natively, so verification no longer depends on either mechanism
-          alone.
-
-          This does not enable auto ads. That is a dashboard-side setting, and the
-          loader places nothing until something pushes to window.adsbygoogle —
-          which nothing does until an ad slot is configured. So no ad and no
-          placeholder render in the meantime.
-        */}
-        {ADSENSE_ENABLED && <script async src={ADSENSE_LOADER_SRC} crossOrigin="anonymous" />}
         <AppShell>{children}</AppShell>
       </body>
     </html>

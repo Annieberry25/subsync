@@ -29,7 +29,6 @@ import BillModal from './bill-modal';
 import ReceiptScanModal from './receipt-scan-modal';
 import BillDetailModal from './bill-detail-modal';
 import PayABillFlow from './pay-a-bill-flow';
-import { AdBanner } from '@/components/dashboard/ad-banner';
 
 interface BillsManagerProps {
   initialTab?: 'pay' | 'history';
@@ -49,7 +48,7 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
 
   // Data states
   const [bills, setBills] = useState<BillPayment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [visibleCountBills, setVisibleCountBills] = useState(20);
 
@@ -280,9 +279,6 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
               setVisibleCountBills(bills.length);
             }}
           />
-
-          {/* 4. SPONSOR ADVERTISEMENT (Bottom of payment history, never on the pay tab) */}
-          {!loading && bills.length > 0 && <AdBanner planTier={planTier} />}
         </div>
       )}
 

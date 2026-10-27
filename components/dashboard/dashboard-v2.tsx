@@ -36,7 +36,6 @@ import { useCurrency, usePlan } from '@/lib/contexts/user-settings-context';
 import { PersonalizedHeader } from './personalized-header';
 import { DashboardOverviewCard } from './dashboard-overview-card';
 import { SmartInsightCard } from './smart-insight-card';
-import { AdBanner } from './ad-banner';
 
 import SubscriptionModal from '@/components/subscriptions/subscription-modal';
 import PaymentReminderModal from '@/components/subscriptions/payment-reminder-modal';
@@ -97,13 +96,13 @@ export default function DashboardV2() {
   const { toast } = useToast();
   const router = useRouter();
   const { defaultCurrency, exchangeRates } = useCurrency();
-  const { isPlus, planTier } = usePlan();
+  const { isPlus } = usePlan();
 
   /* The localStorage cache must not seed this state. On the server
      getCachedSubscriptions() returns null (no window), but on the client it
      returns the cached rows — so seeding here would render the skeleton on the
      server and the real cards on the client. That mismatch is not confined to
-     the metric icons: every `!loading` gate below (AdBanner, overdue banner,
+      the metric icons: every `!loading` gate below (overdue banner,
      overview, insight) disagrees too. Both sides start identical and the cache
      is adopted after mount instead. */
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
@@ -379,9 +378,6 @@ const handleSave = async (
 
   return (
     <div className="animate-page-transition space-y-5 sm:space-y-6 bg-ambient-grid min-h-[85dvh] pb-8 sm:pb-12 overflow-x-clip">
-      {/* 0. SPONSOR ADVERTISEMENT (Restrained Top Strip) */}
-      {!loading && <AdBanner planTier={planTier} />}
-
       {/* 1. HEADER SECTION (Greeting) */}
       <div>
         <PersonalizedHeader
@@ -473,9 +469,6 @@ const handleSave = async (
           </MetricCard>
         </StatGrid>
       )}
-
-      {/* 4. SPONSOR ADVERTISEMENT (Mid-feed, after the KPIs are absorbed) */}
-      {!loading && <AdBanner planTier={planTier} />}
 
       {/* 3. OVERVIEW: UPCOMING RENEWALS | MOST EXPENSIVE PLAN | SAVINGS RECOMMENDATIONS | SPENDING BY CATEGORY */}
       {!loading && (

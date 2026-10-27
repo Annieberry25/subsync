@@ -41,7 +41,6 @@ import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
 import { usePlan } from '@/lib/contexts/user-settings-context';
-import { AdBanner } from '@/components/dashboard/ad-banner';
 import UpgradeModal from './upgrade-modal';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
 
@@ -983,11 +982,6 @@ export default function SubscriptionManager() {
             were the only way to start.
           */}
         </div>
-      )}
-
-      {/* 4. SPONSOR ADVERTISEMENT (After the list scan) */}
-      {!loading && filteredSubscriptions.length > 0 && (
-        <AdBanner planTier={planTier} />
       )}
 
       {/* Add Subscription Entry Choice Modal (Three Path Flow) */}

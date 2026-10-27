@@ -34,7 +34,6 @@ import { useInbox } from '@/lib/contexts/inbox-context';
 import { usePlan } from '@/lib/contexts/user-settings-context';
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
-import { AdBanner } from '@/components/dashboard/ad-banner';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { ActionMenu } from '@/components/ui/action-menu';
 
@@ -337,7 +336,7 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
   const router = useRouter();
   const { toast } = useToast();
   const { archivedItems: archivedInboxItems, unarchiveItem: unarchiveInboxItem } = useInbox();
-  const { planTier } = usePlan();
+  usePlan();
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [restoredHistory, setRestoredHistory] = useState<RestoredHistoryRecord[]>([]);
@@ -934,9 +933,6 @@ export default function HistoryPageContent({ section = 'all' }: HistoryPageConte
           )}
         </>
       )}
-
-      {/* SPONSOR ADVERTISEMENT (After browsing activity) */}
-      {!loading && <AdBanner planTier={planTier} />}
 
       {/* Subscription Detail Modal for Viewing Details */}
       <SubscriptionDetailModal

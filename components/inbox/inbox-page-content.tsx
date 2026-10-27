@@ -21,7 +21,6 @@ import { fetchSubscriptions, updateSubscription, type SubscriptionRow } from '@/
 import SubscriptionDetailModal from '@/components/subscriptions/subscription-detail-modal';
 
 import ConfirmDialog from '@/components/ui/confirm-dialog';
-import { AdBanner } from '@/components/dashboard/ad-banner';
 import { useToast } from '@/lib/hooks/use-toast';
 
 type FilterTab = 'all' | 'unread' | 'action_required' | 'marked_as_read' | 'favourited' | 'archived';
@@ -29,7 +28,7 @@ type FilterTab = 'all' | 'unread' | 'action_required' | 'marked_as_read' | 'favo
 export default function InboxPageContent() {
   const router = useRouter();
   const { toast } = useToast();
-  const { planTier } = usePlan();
+  usePlan();
   const { 
     items,
     archivedItems,
@@ -603,9 +602,6 @@ export default function InboxPageContent() {
           </p>
         </div>
       )}
-
-      {/* SPONSOR ADVERTISEMENT (After scanning the attention queue) */}
-      {hasItemsToShow && <AdBanner planTier={planTier} />}
 
       {/* Explicit Delete Confirmation Dialog */}
       <ConfirmDialog
