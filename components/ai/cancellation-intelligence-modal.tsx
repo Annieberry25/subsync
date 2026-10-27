@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckCircle, Eye, Loader2, PiggyBank, TrendingDown, Undo2 } from 'lucide-react';
+import { CheckCircle, Eye, Loader2, PiggyBank, Undo2 } from 'lucide-react';
 import {
   getKnownProviderManagementUrl,
   updateSubscription,

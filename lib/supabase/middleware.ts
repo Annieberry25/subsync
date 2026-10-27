@@ -53,10 +53,6 @@ function isPublicRoute(pathname: string): boolean {
  * /help is here for the same reason: the landing page's footer links it, and a
  * public page that sends its own visitors to the login screen is a dead end.
  *
- * /plans is deliberately NOT listed. It is a checkout funnel rather than an
- * explainer, and making it public is a product decision rather than a
- * mechanical one.
- *
  * Compared exactly, so a route like `/about-us` does not inherit `/about`.
  */
 const PUBLIC_PAGES = [

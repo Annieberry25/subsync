@@ -10,33 +10,30 @@ import {
 } from '@/lib/constants/plan-limits';
 
 describe('plan limit aliasing (FREE_SUBSCRIPTION_LIMIT parity)', () => {
-  it('keeps the free active-subscription cap at 3', () => {
-    expect(PLAN_LIMITS.free.maxSubscriptions).toBe(3);
+  it('keeps subscriptions unlimited on free', () => {
+    expect(PLAN_LIMITS.free.maxSubscriptions).toBe(Infinity);
   });
 
-  it('caps free tier at its own limit value', () => {
+  it('does not cap the free tier at any subscription count', () => {
     expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 2 })).toBe(false);
-    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3 })).toBe(true);
-    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 40 })).toBe(true);
+    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3 })).toBe(false);
+    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 40 })).toBe(false);
   });
 
-  it('caps Plus at its own 50 limit, Project/premium unlimited', () => {
-    expect(hasReachedSubscriptionCap({ tier: 'plus', activeCount: 49 })).toBe(false);
-    expect(hasReachedSubscriptionCap({ tier: 'plus', activeCount: 50 })).toBe(true);
-    expect(hasReachedSubscriptionCap({ tier: 'plus', activeCount: 10_000 })).toBe(true);
+  it('never caps Plus, Project/premium stays unlimited too', () => {
+    expect(hasReachedSubscriptionCap({ tier: 'plus', activeCount: 50 })).toBe(false);
+    expect(hasReachedSubscriptionCap({ tier: 'plus', activeCount: 10_000 })).toBe(false);
     expect(hasReachedSubscriptionCap({ tier: 'pro', activeCount: 10_000 })).toBe(false);
     expect(hasReachedSubscriptionCap({ tier: 'premium', activeCount: 10_000 })).toBe(false);
   });
 
-  it('treats unknown or empty tiers as free', () => {
-    expect(hasReachedSubscriptionCap({ tier: '', activeCount: 3 })).toBe(true);
+  it('treats unknown or empty tiers as free (unlimited)', () => {
+    expect(hasReachedSubscriptionCap({ tier: '', activeCount: 3 })).toBe(false);
     expect(hasReachedSubscriptionCap({ tier: 'banana', activeCount: 0 })).toBe(false);
   });
 
-  it('exports the free cap through getPlanLimits too', () => {
-    expect(getPlanLimits('free').maxSubscriptions).toBe(
-      hasReachedSubscriptionCap({ tier: 'free', activeCount: 3 }) ? 3 : 3
-    );
+  it('exports the free limit through getPlanLimits too', () => {
+    expect(getPlanLimits('free').maxSubscriptions).toBe(FREE_SUBSCRIPTION_LIMIT);
     expect(getPlanLimits('plus').hasAdvancedInsights).toBe(true);
   });
 });
@@ -68,8 +65,8 @@ describe('hasPlanFeature', () => {
     expect(getPlanLimits('plus').maxEmailDiscoveryPerMonth).toBeGreaterThan(0);
   });
 
-  it('exposes the free cap as a named constant of three', () => {
-    expect(FREE_SUBSCRIPTION_LIMIT).toBe(3);
+  it('exposes the free limit as a named constant (unlimited today)', () => {
+    expect(FREE_SUBSCRIPTION_LIMIT).toBe(Infinity);
     expect(FREE_SUBSCRIPTION_LIMIT).toBe(PLAN_LIMITS.free.maxSubscriptions);
   });
 });
@@ -81,9 +78,12 @@ describe('hasReachedAccountLinkCap', () => {
     expect(hasReachedAccountLinkCap({ tier: 'free', linkCount: 5 })).toBe(true);
   });
 
-  it('never caps Plus or Pro, who can hold several accounts', () => {
-    expect(hasReachedAccountLinkCap({ tier: 'plus', linkCount: 1 })).toBe(false);
-    expect(hasReachedAccountLinkCap({ tier: 'plus', linkCount: 50 })).toBe(false);
+  it('holds Plus at one account until the multi-account release too', () => {
+    expect(hasReachedAccountLinkCap({ tier: 'plus', linkCount: 1 })).toBe(true);
+    expect(hasReachedAccountLinkCap({ tier: 'plus', linkCount: 50 })).toBe(true);
+  });
+
+  it('never caps Pro, who can hold several accounts', () => {
     expect(hasReachedAccountLinkCap({ tier: 'pro', linkCount: 1_000 })).toBe(false);
   });
 
@@ -106,13 +106,12 @@ describe('admin access', () => {
     expect(getEffectiveTier(undefined, false)).toBe('free');
   });
 
-  it('does not cap an admin subscription count even far past the free limit', () => {
+  it('does not cap an admin subscription count at all', () => {
     // The regression this guards: the operator account was capped at three
     // subscriptions while being the only account able to manage everyone's.
     expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3, isAdmin: true })).toBe(false);
     expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 40, isAdmin: true })).toBe(false);
-    // Without the flag the same count is still capped.
-    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3 })).toBe(true);
+    expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3 })).toBe(false);
   });
 
   it('does not cap an admin account links per subscription', () => {

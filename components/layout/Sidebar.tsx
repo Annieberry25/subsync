@@ -10,18 +10,17 @@ import { BrandMark, BrandWordmark } from '@/components/ui/brand-logo';
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
 import { useToast } from '@/lib/hooks/use-toast';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
-import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
+import { useAuth } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
 import {
   getVisibleNavItems,
   isNavItemActive,
   type NavItem,
 } from '@/lib/nav';
-import { 
+import {
   ChevronDown,
   ChevronRight,
   LogOut,
-  Crown,
   User as UserIcon,
   HelpCircle,
   PanelLeftClose,
@@ -39,7 +38,6 @@ export default function Sidebar({ isCollapsed = false, onToggleCollapse }: Sideb
   const pathname = usePathname();
   const router = useRouter();
 const { fullName: contextFullName, email: contextEmail, isAdmin, avatarColor } = useAuth();
-  const { isPlus } = usePlan();
   const { unreadCount } = useInbox();
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
@@ -282,22 +280,6 @@ const { fullName: contextFullName, email: contextEmail, isAdmin, avatarColor } =
               >
                 <HelpCircle className="w-4 h-4 text-[#94A3B8]" aria-hidden="true" />
                 <span>Help</span>
-              </Link>
-
-              <Link
-                href={
-                  isPlus
-                    ? '/settings?section=plan'
-                    : `/plans?from=${encodeURIComponent(pathname)}`
-                }
-                onClick={() => setShowProfileMenu(false)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 min-h-[44px] text-xs font-medium text-[#F5F7F6] hover:bg-[#1A1D1D] rounded-lg transition-colors cursor-pointer"
-              >
-                <Crown
-                  className={`w-4 h-4 ${isPlus ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`}
-                  aria-hidden="true"
-                />
-                <span>{isPlus ? 'Plus' : 'Upgrade Plan'}</span>
               </Link>
 
               <div className="border-t border-[#1A1D1D]/70 my-1 pt-1">

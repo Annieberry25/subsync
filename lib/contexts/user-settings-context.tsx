@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client';
 import { saveRememberedAccount } from '@/lib/auth/remembered-accounts';
 import { getAuthProvider } from '@/lib/auth/auth-provider';
 import { ensureCacheOwnership } from '@/lib/auth/user-storage';
-import { getEffectiveTier } from '@/lib/constants/plan-limits';
 import { fetchExchangeRates, DEFAULT_EXCHANGE_RATES } from '@/lib/services/currency-service';
 import { recoverPlusPurchase } from '@/lib/services/plan-service';
 import { logger } from '@/lib/logger';
@@ -171,9 +170,10 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   const [categoryMetadata, setCategoryMetadata] = useState<Record<string, CategoryMeta>>({});
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>(DEFAULT_EXCHANGE_RATES);
   const [notificationPreferences, setNotificationPreferencesState] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
-  const [planTier, setPlanTierState] = useState<'free' | 'plus'>('free');
+  /* The stored tier is mirrored but deliberately not read here: the effective
+     tier comes from the future flag. Restoring Plus re-reads it. */
+  const [, setPlanTierState] = useState<'free' | 'plus'>('free');
   const [planExpiresAt, setPlanExpiresAtState] = useState<string | null>(null);
-  const [planExpired, setPlanExpiredState] = useState(false);
   const [assistantName, setAssistantNameState] = useState<string>('SubHalt Assistant');
   const [isGmailConnected, setIsGmailConnectedState] = useState<boolean>(false);
   const [gmailEmail, setGmailEmailState] = useState<string | null>(null);
@@ -807,49 +807,20 @@ export function UserSettingsProvider({ children }: { children: React.ReactNode }
   );
 
   /**
-   * Deciding whether the paid period has run out needs "now", and a timestamp
-   * cannot be read during render — so the comparison lives here instead, and
-   * re-runs on a timer: a tab left open across the end of the period has to
-   * fall back to Free without a reload, because that flip is also what
-   * re-opens the upgrade path.
-   */
-  useEffect(() => {
-    if (!planExpiresAt) {
-      // Nothing to expire, and a tier that changed under us must not keep the
-      // previous verdict.
-      queueMicrotask(() => setPlanExpiredState(false));
-      return;
-    }
-    let active = true;
-    const evaluate = () => {
-      if (!active) return;
-      setPlanExpiredState(new Date(planExpiresAt).getTime() <= Date.now());
-    };
-    queueMicrotask(evaluate);
-    const timer = setInterval(evaluate, 60_000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, [planExpiresAt]);
-
-  /**
    * `planTier` is exposed as the *effective* tier.
    *
-   * This is the single highest-leverage place for admin access: every UI gate in
-   * the app reads `isPlus` or `planTier` from this context rather than calling
-   * getPlanLimits itself, so resolving admin here covers the export page, the
-   * plans page, the settings panels, the sidebar, the dashboard's cap notice and
-   * the ad banner in one move. The stored tier is untouched, so removing admin
-   * access reverts it on the next load.
+   * Plus is future-flagged app-wide: until the Plus release, every account that
+   * is not an admin resolves to Free, no matter what the stored grant says —
+   * the plan is simply not on sale yet, so nobody should see a plan they cannot
+   * hold. The stored tier and its expiry are still mirrored below (and are
+   * untouched by this line), so the day Plus ships, replacing this line with
+   * `getEffectiveTier(<stored tier with its expiry resolved>, isAdmin)` is the
+   * whole release.
    *
-   * The paid period is resolved here too: a cancelled plan keeps its plus tier
-   * (and therefore its access) until plan_expires_at passes, and only then does
-   * the app fall back to Free — which is what re-opens the upgrade path. A plan
-   * with no recorded expiry never expires here.
-   */
-  const effectiveTier: 'free' | 'plus' =
-    getEffectiveTier(planExpired ? 'free' : planTier, isAdmin) === 'free' ? 'free' : 'plus';
+   * Admin stays premium either way — it is the operator account that tests
+   * every feature, and every UI gate in the app reads `planTier` or `isPlus`
+   * from this context rather than calling getPlanLimits itself. */
+  const effectiveTier: 'free' | 'plus' = isAdmin ? 'plus' : 'free';
 
   const planValue = useMemo<PlanContextValue>(
     () => ({

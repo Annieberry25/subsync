@@ -7,8 +7,9 @@
  * than re-typing them, so the <title>, meta description and H1 stay
  * byte-identical and the existing Google index entry is not lost.
  *
- * Do not reword these without expecting a re-index. The accents are em dashes
- * (U+2014) in both the title and the description, exactly as specified.
+ * Do not reword these without expecting a re-index. The title deliberately
+ * uses a plain hyphen (the em dash was dropped from the social card), while
+ * HOME_DESCRIPTION still carries one, exactly as specified.
  *
  * HOME_H1 is the one deliberate exception: it was reworded from
  * "Never get surprise-charged again" to drop the hyphen while the landing page
@@ -19,7 +20,7 @@
  */
 import { SUPPORT_ENQUIRY_MAILTO } from '@/lib/constants/contact';
 
-export const HOME_TITLE = 'SubHalt — Track, Manage & Cancel Subscriptions';
+export const HOME_TITLE = 'SubHalt - Track, Manage & Cancel Subscriptions';
 
 export const HOME_DESCRIPTION =
   'SubHalt shows every subscription you pay for in one place and reminds you before they renew. Cancel the ones you forgot about — stop leaking money every month.';

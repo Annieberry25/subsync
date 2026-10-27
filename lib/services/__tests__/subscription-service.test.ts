@@ -388,10 +388,10 @@ describe('restoreSubscription', () => {
 });
 
 /**
- * The write path is where the cap is enforced, so admin has to bypass it here and
- * not only in the UI. It was enforced here against plan_tier alone, so the
- * operator account was refused a fourth subscription while the interface said
- * nothing about limits — a lockout on the account that runs the app.
+ * The write path carries the cap machinery even though every tier tracks
+ * unlimited subscriptions today: if a limit returns, enforcement only has to
+ * change in plan-limits.ts. Admin passthrough keeps the regression guard that
+ * once stopped the operator account being locked out of its own product.
  */
 describe('createSubscription plan cap', () => {
   const draft = {
@@ -403,15 +403,19 @@ describe('createSubscription plan cap', () => {
     next_billing_date: '2026-11-01',
   };
 
-  it('refuses a free user past three active subscriptions', async () => {
+  it('does not cap a free user past three active subscriptions', async () => {
+    const created = makeSubRow({ id: 'sub_new', name: 'Disney Plus' });
     mocks.setResults([
       { data: { plan_tier: 'free', is_admin: false }, error: null },
       { count: 3, data: null, error: null },
+      { data: created, error: null },
     ]);
 
     const result = await createSubscription(draft);
 
-    expect(result.error?.message).toContain('Upgrade to Plus');
+    expect(result.error).toBeNull();
+    expect(result.data?.id).toBe('sub_new');
+    expect(result.synced).toBe(true);
   });
 
   it('allows an admin on the free tier past the cap', async () => {
@@ -427,17 +431,6 @@ describe('createSubscription plan cap', () => {
     expect(result.error).toBeNull();
     expect(result.data?.id).toBe('sub_new');
     expect(result.synced).toBe(true);
-  });
-
-  it('still caps a non-admin on the free tier with the same row count', async () => {
-    mocks.setResults([
-      { data: { plan_tier: 'free', is_admin: false }, error: null },
-      { count: 25, data: null, error: null },
-    ]);
-
-    const result = await createSubscription(draft);
-
-    expect(result.error?.message).toContain('Upgrade to Plus');
   });
 });
 

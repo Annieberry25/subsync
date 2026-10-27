@@ -3,9 +3,9 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ChevronRight, LogOut, User as UserIcon, HelpCircle, Crown } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, User as UserIcon, HelpCircle } from 'lucide-react';
 import { getVisibleNavItems, isNavItemActive, type NavItem } from '@/lib/nav';
-import { useAuth, usePlan } from '@/lib/contexts/user-settings-context';
+import { useAuth } from '@/lib/contexts/user-settings-context';
 import { signOutAndRedirect } from '@/lib/auth/sign-out';
 import { useToast } from '@/lib/hooks/use-toast';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
@@ -20,7 +20,6 @@ const DOCK_ROUTE_HREFS = new Set(['/', '/subscriptions', '/renewals', '/inbox'])
 export default function MorePage() {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
-  const { isPlus } = usePlan();
   const { toast } = useToast();
 
   const otherItems = useMemo(
@@ -157,29 +156,6 @@ export default function MorePage() {
         >
           <HelpCircle className="w-5 h-5 shrink-0 text-[#94A3B8]" aria-hidden="true" />
           <span className="flex-1 text-sm text-[#F5F7F6] font-medium">Help</span>
-          <ChevronRight className="w-4 h-4 shrink-0 text-[#5A6461]" aria-hidden="true" />
-        </Link>
-
-        <Link
-          href={
-            isPlus
-              ? '/settings?section=plan'
-              : `/plans?from=${encodeURIComponent(pathname)}`
-          }
-          className="flex items-center gap-3.5 min-h-[56px] px-4 transition-colors hover:bg-[#121414]"
-        >
-          {/*
-  Primary on Plus, because it marks a state the account is already in. Muted on
-  the upgrade prompt, where the row is offering something rather than reporting
-  a status.
-*/}
-<Crown
-          className={`w-5 h-5 shrink-0 ${isPlus ? 'text-[#14B8A6]' : 'text-[#94A3B8]'}`}
-          aria-hidden="true"
-        />
-          <span className="flex-1 text-sm text-[#F5F7F6] font-medium">
-            {isPlus ? 'Plus' : 'Upgrade Plan'}
-          </span>
           <ChevronRight className="w-4 h-4 shrink-0 text-[#5A6461]" aria-hidden="true" />
         </Link>
       </div>

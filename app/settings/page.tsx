@@ -382,7 +382,6 @@ function SettingsContent() {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   // Privacy & Data states
-  const [telemetryEnabled, setTelemetryEnabled] = useState(true);
   const [accentColor, setAccentColor] = useState('#14B8A6');
 
   const supabase = createClient();
@@ -853,7 +852,7 @@ function SettingsContent() {
         <SettingsGroup divided={false}>
           <SettingsRow
             title={isPlus ? 'SubHalt Plus' : 'SubHalt Free'}
-            description={isPlus ? undefined : 'Intelligence for everyday tasks'}
+            description={isPlus ? undefined : 'Unlimited subscriptions'}
           >
             {isPlus ? (
               <button
@@ -864,12 +863,7 @@ function SettingsContent() {
                 View
               </button>
             ) : (
-              <Link
-                href={`/plans?from=${encodeURIComponent('/settings?section=plan')}`}
-                className="text-xs font-semibold text-[#F5F7F6] hover:underline"
-              >
-                Upgrade
-              </Link>
+              <span className="text-xs font-medium text-[#94A3B8]">Current plan</span>
             )}
           </SettingsRow>
         </SettingsGroup>
@@ -1310,7 +1304,7 @@ function SettingsContent() {
       <section className="space-y-6">
         <div className="hidden lg:block">
           <h2 className="text-lg font-bold text-[#F5F7F6] tracking-tight">Privacy &amp; Data</h2>
-          <p className="text-xs text-[#94A3B8] mt-0.5">Data export, local cache, and telemetry</p>
+          <p className="text-xs text-[#94A3B8] mt-0.5">Data export and local cache</p>
         </div>
 
         <SettingsGroup>
@@ -1342,18 +1336,6 @@ function SettingsContent() {
             >
               Clear
             </button>
-          </SettingsRow>
-
-          <SettingsRow
-            icon={ShieldCheck}
-            title="Anonymous Product Telemetry"
-            description="Allow SubHalt to collect anonymous error reports"
-          >
-            <ToggleSwitch
-              checked={telemetryEnabled}
-              ariaLabel="Anonymous product telemetry"
-              onToggle={() => setTelemetryEnabled(!telemetryEnabled)}
-            />
           </SettingsRow>
         </SettingsGroup>
       </section>

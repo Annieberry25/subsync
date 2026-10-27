@@ -68,14 +68,15 @@ describe('PaymentResultSheet', () => {
     expect(props.onRecheck).toHaveBeenCalledTimes(1);
   });
 
-  it('sends an incomplete checkout back to plans', () => {
+  it('dismisses an incomplete checkout without routing to plans', () => {
     renderSheet({ state: 'failed', planExpiresAt: null });
 
+    // The checkout is gone while Plus is future-flagged, so a failed payment
+    // is only dismissed — there is no plans page to send anyone back to.
     expect(screen.getByRole('dialog')).toHaveTextContent('Payment not completed');
-    expect(screen.getByRole('link', { name: 'Back to plans' })).toHaveAttribute(
-      'href',
-      '/plans'
-    );
+    expect(screen.queryByRole('link', { name: 'Back to plans' })).not.toBeInTheDocument();
+    // The header and the footer both carry a Close control.
+    expect(screen.getAllByRole('button', { name: 'Close' }).length).toBeGreaterThan(0);
   });
 
   it('stays dismissible while verifying', () => {

@@ -50,12 +50,14 @@ vi.mock('@/lib/contexts/user-settings-context', async (orig) => {
       setDefaultPaymentMethod: vi.fn(),
       refreshSettings: vi.fn(),
     }),
+    // An admin previewing Plus: the account-link cap is held at one until the
+    // multi-account release, and the admin flag is what clears it.
     useAuth: () => ({
       email: 'user@example.com',
       fullName: 'Test User',
       lastNameChange: null,
       loading: false,
-      isAdmin: false,
+      isAdmin: true,
       updateProfile: vi.fn(),
       reauthenticateAndChangeEmail: vi.fn(),
     }),

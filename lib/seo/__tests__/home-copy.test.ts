@@ -17,7 +17,9 @@ import { SUPPORT_ENQUIRY_MAILTO } from '@/lib/constants/contact';
  */
 describe('homepage SEO copy', () => {
   it('pins the exact title tag', () => {
-    expect(HOME_TITLE).toBe('SubHalt — Track, Manage & Cancel Subscriptions');
+    // The em dash was dropped from the social card on purpose; a plain hyphen
+    // keeps the wording while losing the dash.
+    expect(HOME_TITLE).toBe('SubHalt - Track, Manage & Cancel Subscriptions');
   });
 
   it('pins the exact meta description', () => {

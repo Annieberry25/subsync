@@ -1,5 +1,6 @@
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { convertAmount, formatCurrencyAmount, DEFAULT_EXCHANGE_RATES } from '@/lib/services/currency-service';
+import { resolveRenewalDate } from '@/lib/utils/billing-dates';
 
 export function getNormalizedMonthlyPrice(
   sub: SubscriptionRow,
@@ -64,7 +65,9 @@ export function getUpcomingRenewalsCount(subscriptions: SubscriptionRow[], days 
 
   return subscriptions.filter((sub) => {
     if (sub.status === 'canceled') return false;
-    const nextBilling = new Date(sub.next_billing_date);
+    // The automatic date — a cycle after the start — matching what the detail
+    // sheet and the widgets themselves answer from, not the stored field.
+    const nextBilling = new Date(resolveRenewalDate(sub));
     return nextBilling >= now && nextBilling <= futureDate;
   }).length;
 }

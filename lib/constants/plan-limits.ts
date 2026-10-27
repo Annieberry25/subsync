@@ -3,7 +3,9 @@ export interface PlanLimits {
   maxBills: number;
   maxReceiptScansPerMonth: number;
   maxEmailDiscoveryPerMonth: number;
-  /** Account links per single subscription. Free is one, Plus is unlimited. */
+  /** Account links per single subscription. Every plan currently allows one;
+      the second account is the upcoming Plus feature (not released yet), and
+      only an admin account resolves past this cap. */
   maxAccountLinksPerSubscription: number;
   showAds: boolean;
   hasAdvancedInsights: boolean;
@@ -17,13 +19,18 @@ export interface PlanLimits {
 
 export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
   free: {
-    // Mirrors FREE_SUBSCRIPTION_LIMIT in lib/constants.ts (which derives from
-    // this row), so the enforced and advertised free-tier caps are one value.
-    maxSubscriptions: 3,
+    // Every user can track unlimited subscriptions at launch. The cap machinery
+    // (maxSubscriptions, hasReachedSubscriptionCap, FREE_SUBSCRIPTION_LIMIT)
+    // stays in place so a limit can be reintroduced for a tier without
+    // touching any enforcement point.
+    maxSubscriptions: Infinity,
     maxBills: 10,
     maxReceiptScansPerMonth: 3,
     maxEmailDiscoveryPerMonth: 0,
-    // One account per subscription on free; a second is an upgrade prompt.
+    // One account per subscription. A second account was meant to be the Plus
+    // upgrade prompt, but it has not shipped yet — so it stays future-flagged
+    // here until the Plus release, and only an admin account (which resolves
+    // to `pro`) can still add it.
     maxAccountLinksPerSubscription: 1,
     showAds: true,
     hasAdvancedInsights: false,
@@ -36,11 +43,14 @@ export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
     hasAssistantActions: false,
   },
   plus: {
-    maxSubscriptions: 50,
+    maxSubscriptions: Infinity,
     maxBills: 100,
     maxReceiptScansPerMonth: 50,
     maxEmailDiscoveryPerMonth: 100,
-    maxAccountLinksPerSubscription: Infinity,
+    // Multiple accounts per subscription are the flagship Plus feature, but
+    // the Plus release has not happened yet — every tier (except admin) is
+    // held at one account until it ships.
+    maxAccountLinksPerSubscription: 1,
     showAds: false,
     hasAdvancedInsights: true,
     hasGmailConnect: true,
@@ -61,7 +71,11 @@ export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
   },
 };
 
-/** Free caps users at three subscriptions; anything past that is a Plus upgrade. */
+/**
+ * Free tracks unlimited subscriptions, so this is no longer the three it used
+ * to be. The constant stays as the single source the write path and any UI
+ * gate read, so a future cap is a one-line change here.
+ */
 export const FREE_SUBSCRIPTION_LIMIT = PLAN_LIMITS.free.maxSubscriptions;
 
 /**
@@ -146,9 +160,11 @@ export function hasReachedSubscriptionCap(opts: {
 
 /**
  * True when a subscription already has as many account links as the tier allows.
- * Free allows one; a second attempt is an upgrade prompt rather than a silent
+ * Until the Plus release carries the multi-account feature, every tier allows
+ * one; a second attempt is the "coming soon" prompt rather than a silent
  * save-time rejection, so the user finds out while they are looking at the
- * control rather than after filling in the form.
+ * control rather than after filling in the form. Admins (resolved by
+ * `isAdmin`) bypass it.
  */
 export function hasReachedAccountLinkCap(opts: {
   tier: string;

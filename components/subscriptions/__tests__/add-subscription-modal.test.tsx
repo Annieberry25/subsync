@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AddSubscriptionModal from '@/components/subscriptions/add-subscription-modal';
@@ -12,8 +12,15 @@ vi.mock('@/lib/contexts/user-settings-context', () => ({
   useAuth: () => ({ isAdmin }),
 }));
 
+const toastMock = {
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+};
+
 vi.mock('@/lib/hooks/use-toast', () => ({
-  useToast: () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }),
+  useToast: () => ({ toast: toastMock }),
 }));
 
 // The add-flow modals reach the Supabase client, which validates env vars at
@@ -67,38 +74,51 @@ vi.mock('@/lib/hooks/use-receipt-scan', () => ({
   }),
 }));
 
-const renderModal = (over: Record<string, unknown> = {}) => {
+/** Loads the modal module fresh, so env-stubbed flags are read at eval time. */
+const loadModal = (): Promise<typeof AddSubscriptionModal> =>
+  import('@/components/subscriptions/add-subscription-modal').then((m) => m.default);
+
+const renderModal = async (over: Record<string, unknown> = {}) => {
   const onClose = vi.fn();
-  const onRequireUpgrade = vi.fn();
   const onSelectManual = vi.fn();
+  const Modal = await loadModal();
   render(
-    <AddSubscriptionModal
+    <Modal
       isOpen
       onClose={onClose}
       onSelectManual={onSelectManual}
-      onRequireUpgrade={onRequireUpgrade}
       {...over}
     />
   );
-  return { onClose, onRequireUpgrade, onSelectManual };
+  return { onClose, onSelectManual };
 };
 
 describe('AddSubscriptionModal Plus gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     planTier = 'free';
-    isAdmin = true;
+    isAdmin = false;
+    // The integrations are admin-only by default; opening the render paths to
+    // non-admins is what lets these tests exercise the plan gate alone. The
+    // module is re-evaluated so the stubbed env is what the flags read.
+    vi.stubEnv('NEXT_PUBLIC_GMAIL_CONNECT_ADMIN_ONLY', 'false');
+    vi.stubEnv('NEXT_PUBLIC_EMAIL_FORWARDING_ADMIN_ONLY', 'false');
+    vi.resetModules();
   });
 
-  it('marks Gmail Connect and Email Forwarding as Plus for a free user', () => {
-    renderModal();
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('marks Gmail Connect and Email Forwarding as Plus for a non-admin', async () => {
+    await renderModal();
 
     // Both Plus-only paths carry the badge.
     expect(screen.getAllByTestId('plus-badge')).toHaveLength(2);
   });
 
-  it('leaves the basic paths unbadged for a free user', () => {
-    renderModal();
+  it('leaves the basic paths unbadged for a non-admin', async () => {
+    await renderModal();
 
     // Add Manually and Import Receipt are free, so the two badges above belong
     // to Gmail and Forwarding only.
@@ -110,47 +130,53 @@ describe('AddSubscriptionModal Plus gating', () => {
     }
   });
 
-  it('sends a free user to upgrade instead of the Gmail OAuth flow', async () => {
+  it('refuses Gmail Connect with a coming-later explanation for a non-admin', async () => {
     const user = userEvent.setup();
-    const { onRequireUpgrade, onClose } = renderModal();
+    const { onClose } = await renderModal();
 
     await user.click(screen.getByRole('button', { name: /Connect Gmail/ }));
 
-    expect(onRequireUpgrade).toHaveBeenCalledTimes(1);
-    expect(onClose).toHaveBeenCalled();
+    // No checkout exists while Plus is future-flagged: the path is explained
+    // in place and the menu stays open.
+    expect(toastMock.info).toHaveBeenCalledTimes(1);
+    expect(toastMock.info.mock.calls[0][1]).toBe('Coming with Plus');
+    expect(onClose).not.toHaveBeenCalled();
     expect(screen.queryByText('Gmail modal')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Connect Gmail/ })).toBeInTheDocument();
   });
 
-  it('sends a free user to upgrade instead of the forwarding address', async () => {
+  it('refuses Email Forwarding with a coming-later explanation for a non-admin', async () => {
     const user = userEvent.setup();
-    const { onRequireUpgrade } = renderModal();
+    const { onClose } = await renderModal();
 
     await user.click(screen.getByRole('button', { name: /Email Forwarding/ }));
 
-    expect(onRequireUpgrade).toHaveBeenCalledTimes(1);
+    expect(toastMock.info).toHaveBeenCalledTimes(1);
+    expect(toastMock.info.mock.calls[0][1]).toBe('Coming with Plus');
+    expect(onClose).not.toHaveBeenCalled();
     expect(screen.queryByText('Forwarding modal')).not.toBeInTheDocument();
   });
 
-  it('still lets a free user add manually and import a receipt', async () => {
+  it('still lets a non-admin add manually and import a receipt', async () => {
     const user = userEvent.setup();
-    const { onSelectManual, onRequireUpgrade } = renderModal();
+    const { onSelectManual } = await renderModal();
 
     await user.click(screen.getByRole('button', { name: /Add Manually/ }));
 
     expect(onSelectManual).toHaveBeenCalled();
-    expect(onRequireUpgrade).not.toHaveBeenCalled();
+    expect(toastMock.info).not.toHaveBeenCalled();
   });
 
-  it('drops both badges and opens the flows for a Plus user', async () => {
+  it('drops both badges and opens the flows once the Plus release lands', async () => {
     planTier = 'plus';
     const user = userEvent.setup();
-    const { onRequireUpgrade } = renderModal();
+    await renderModal();
 
     expect(screen.queryAllByTestId('plus-badge')).toHaveLength(0);
 
     await user.click(screen.getByRole('button', { name: /Connect Gmail/ }));
 
-    expect(onRequireUpgrade).not.toHaveBeenCalled();
+    expect(toastMock.info).not.toHaveBeenCalled();
     expect(screen.getByText('Gmail modal')).toBeInTheDocument();
   });
 
@@ -158,7 +184,7 @@ it('saves a reviewed receipt instead of opening the manual form', async () => {
     const user = userEvent.setup();
     const onSelectManual = vi.fn();
     const onCreateFromReceipt = vi.fn();
-    renderModal({ onSelectManual, onCreateFromReceipt });
+    await renderModal({ onSelectManual, onCreateFromReceipt });
 
     await user.click(screen.getByRole('button', { name: /Import Receipt/ }));
     await user.type(screen.getByRole('textbox'), 'Netflix 15.99 monthly');
@@ -178,7 +204,7 @@ it('saves a reviewed receipt instead of opening the manual form', async () => {
   it('falls back to the manual form when no direct-create path is given', async () => {
     const user = userEvent.setup();
     const onSelectManual = vi.fn();
-    renderModal({ onSelectManual });
+    await renderModal({ onSelectManual });
 
     await user.click(screen.getByRole('button', { name: /Import Receipt/ }));
     await user.type(screen.getByRole('textbox'), 'Netflix 15.99 monthly');
@@ -197,12 +223,15 @@ it('saves a reviewed receipt instead of opening the manual form', async () => {
 describe('AddSubscriptionModal admin-only integrations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Re-evaluate the module with the repo's default flags after the gating
+    // suite above evaluated it with stubbed env.
+    vi.resetModules();
     planTier = 'plus';
     isAdmin = false;
   });
 
-  it('hides Gmail Connect and Email Forwarding from non-admins', () => {
-    renderModal();
+  it('hides Gmail Connect and Email Forwarding from non-admins', async () => {
+    await renderModal();
 
     expect(screen.queryByRole('button', { name: /Connect Gmail/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Email Forwarding/ })).toBeNull();
@@ -212,9 +241,9 @@ describe('AddSubscriptionModal admin-only integrations', () => {
     expect(screen.getByRole('button', { name: /Add Manually/ })).toBeInTheDocument();
   });
 
-  it('shows them to an admin', () => {
+  it('shows them to an admin', async () => {
     isAdmin = true;
-    renderModal();
+    await renderModal();
 
     expect(screen.getByRole('button', { name: /Connect Gmail/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Email Forwarding/ })).toBeInTheDocument();
@@ -230,12 +259,13 @@ describe('AddSubscriptionModal admin-only integrations', () => {
 describe('AddSubscriptionModal provider path flag', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
     planTier = 'free';
     isAdmin = true;
   });
 
-  it('hides Subscribe through Provider by default', () => {
-    renderModal();
+  it('hides Subscribe through Provider by default', async () => {
+    await renderModal();
 
     expect(screen.queryByRole('button', { name: /Subscribe through Provider/ })).toBeNull();
   });
@@ -253,7 +283,6 @@ describe('AddSubscriptionModal provider path flag', () => {
         isOpen
         onClose={vi.fn()}
         onSelectManual={vi.fn()}
-        onRequireUpgrade={vi.fn()}
       />
     );
 

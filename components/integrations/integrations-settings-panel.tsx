@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import {
   Mail,
   Forward,
@@ -126,15 +125,9 @@ export function IntegrationsSettingsPanel() {
           <div className="space-y-1">
             <h3 className="text-sm font-semibold text-[#F5F7F6]">Integrations are a Plus feature</h3>
             <p className="text-xs text-[#94A3B8]">
-              Unlock Gmail receipt discovery and email forwarding on the Plus plan.
+              Gmail receipt discovery and email forwarding arrive with the Plus release.
             </p>
           </div>
-          <Link
-            href="/plans?from=%2Fsettings%3Fsection%3Dintegrations"
-            className="inline-block px-5 py-2.5 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#091512] text-xs font-semibold transition-colors cursor-pointer"
-          >
-            Upgrade to Plus
-          </Link>
         </div>
       </section>
     );

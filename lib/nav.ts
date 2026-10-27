@@ -94,7 +94,6 @@ export function getVisibleNavItems(isAdmin: boolean): NavItem[] {
 export const FULL_PAGE_ROUTES = [
   '/login',
   '/signup',
-  '/plans',
   '/features',
   '/how-it-works',
   '/about',

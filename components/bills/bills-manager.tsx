@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   Receipt, 
@@ -318,20 +317,21 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
         deletingId={deletingId}
       />
 
-      {/* Free Plan Limit Reached Warning Modal */}
+      {/* Free Plan Limit Warning Modal — informational while Plus is not on
+          sale: the messaging points at the release instead of a checkout. */}
       <Sheet
         open={showLimitWarning}
         onClose={() => setShowLimitWarning(false)}
         size="sm"
         title="Bill Record Limit Reached"
-        description={`Free plan users can record up to ${limits.maxBills} bills & payments. Upgrade to SubHalt Plus for higher limits and receipt scanning.`}
+        description={`The free plan keeps up to ${limits.maxBills} bills & payments. Higher limits arrive with the Plus release.`}
         headerAction={
           <span className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
             <AlertCircle className="w-6 h-6" />
           </span>
         }
         footer={
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center">
             <button
               type="button"
               onClick={() => setShowLimitWarning(false)}
@@ -339,13 +339,6 @@ export default function BillsManager({ initialTab = 'pay' }: BillsManagerProps) 
             >
               Dismiss
             </button>
-            <Link
-              href="/plans"
-              onClick={() => setShowLimitWarning(false)}
-              className="px-5 py-2.5 min-h-[44px] rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#051310] text-xs font-bold transition-all shadow-md"
-            >
-              Upgrade Plan
-            </Link>
           </div>
         }
       />

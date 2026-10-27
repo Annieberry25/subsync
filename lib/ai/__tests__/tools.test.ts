@@ -189,17 +189,17 @@ describe('describeWriteTool', () => {
 });
 
 describe('executeWriteTool', () => {
-  it('blocks creating past the free cap without writing', async () => {
+  it('does not cap a free user past the old subscription limit, so the create still writes', async () => {
     const mock = createSupabaseMock();
-    mock.queue({ count: 3, error: null });
+    mock.queue({ count: 25, error: null });
+    mock.queue({ data: makeSubRow({ id: 'sub_new', name: 'Disney+' }), error: null });
     const result = await executeWriteTool(
       'create_subscription',
       { name: 'Disney+', price: 9.99, next_billing_date: '2026-11-20' },
       makeCtx(mock, { tier: 'free' })
     );
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toContain('3');
-    expect(mock.payloads.insert).toBeUndefined();
+    expect(result.ok).toBe(true);
+    expect(mock.payloads.insert?.[0]).toMatchObject({ name: 'Disney+' });
   });
 
   it('inserts a new subscription with server-side defaults', async () => {

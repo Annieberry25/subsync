@@ -6,6 +6,7 @@ import { Edit2, MoreVertical, Clock, Settings, Archive, Bell, ChevronRight, Tras
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
 import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription, cleanNotesUserText, hasMultipleAccounts } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
+import { resolveRenewalDate } from '@/lib/utils/billing-dates';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { useToast } from '@/lib/hooks/use-toast';
 
@@ -291,13 +292,18 @@ function SubscriptionTable({
                 return isNaN(parsed.getTime()) ? null : parsed;
               };
 
-              const rawNextDateObj = parseLocalDate(sub.next_billing_date);
+              /* In step with the detail sheet and the edit form's box: the
+                 automatic date — a cycle after the start the row was made on —
+                 not the stored field, which can still be carrying a day
+                 auto-renewal had advanced it to before the flag was switched
+                 off. */
+              const rawNextDateObj = parseLocalDate(resolveRenewalDate(sub));
               const nextDate = rawNextDateObj || today;
               const diffTime = nextDate.getTime() - today.getTime();
               const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
               const formattedDate = rawNextDateObj
                 ? rawNextDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                : sub.next_billing_date;
+                : resolveRenewalDate(sub);
 
               const isHighlighted = sub.id === highlightedSubId;
 

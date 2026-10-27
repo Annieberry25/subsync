@@ -4,7 +4,6 @@ import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FREE_SUBSCRIPTION_LIMIT } from '@/lib/constants';
 import {
   fetchSubscriptions,
   getCachedSubscriptions,
@@ -31,7 +30,8 @@ import { describeLeadMinutes } from '@/lib/reminders/plan';
 import { MetricCardSkeleton } from '@/components/ui/skeleton';
 import { StatGrid } from '@/components/ui/stat-grid';
 import { useToast } from '@/lib/hooks/use-toast';
-import { useCurrency, usePlan } from '@/lib/contexts/user-settings-context';
+import { useCurrency } from '@/lib/contexts/user-settings-context';
+import { resolveRenewalDate } from '@/lib/utils/billing-dates';
 
 import { PersonalizedHeader } from './personalized-header';
 import { DashboardOverviewCard } from './dashboard-overview-card';
@@ -40,7 +40,6 @@ import { SmartInsightCard } from './smart-insight-card';
 import SubscriptionModal from '@/components/subscriptions/subscription-modal';
 import PaymentReminderModal from '@/components/subscriptions/payment-reminder-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
-import UpgradeModal from '@/components/subscriptions/upgrade-modal';
 
 
 import { CancellationIntelligenceModal } from '@/components/ai/cancellation-intelligence-modal';
@@ -96,7 +95,6 @@ export default function DashboardV2() {
   const { toast } = useToast();
   const router = useRouter();
   const { defaultCurrency, exchangeRates } = useCurrency();
-  const { isPlus } = usePlan();
 
   /* The localStorage cache must not seed this state. On the server
      getCachedSubscriptions() returns null (no window), but on the client it
@@ -111,7 +109,6 @@ export default function DashboardV2() {
 
   // Modal & Dialog states
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<SubscriptionRow | null>(null);
 
   const [cancellationSub, setCancellationSub] = useState<SubscriptionRow | null>(null);
@@ -241,11 +238,6 @@ const handleSave = async (
       return id;
     }
 
-    if (!isPlus && activeSubscriptions.length >= FREE_SUBSCRIPTION_LIMIT) {
-      setIsUpgradeModalOpen(true);
-      return null;
-    }
-
     const { data: created, error: err, synced } = await createSubscription(data);
     if (err) throw err;
     if (synced) {
@@ -352,7 +344,9 @@ const handleSave = async (
     now.setHours(0, 0, 0, 0);
     return activeSubscriptions.filter((sub) => {
       if (sub.status === 'canceled') return false;
-      const nextBilling = new Date(sub.next_billing_date);
+      // The automatic date — a cycle after the start — matching what the
+      // detail sheet and the lists answer from, not the stored field.
+      const nextBilling = new Date(resolveRenewalDate(sub));
       return nextBilling < now;
     }).length;
   }, [activeSubscriptions]);
@@ -526,11 +520,6 @@ const handleSave = async (
             ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadMinutes
             : undefined
         }
-      />
-
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
       />
 
       <CancellationIntelligenceModal

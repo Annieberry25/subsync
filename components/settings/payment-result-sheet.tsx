@@ -109,13 +109,6 @@ export function PaymentResultSheet({
       </div>
     ) : (
       <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <Link
-          href="/plans"
-          onClick={onClose}
-          className="w-full sm:w-auto px-4 py-3 min-h-[44px] rounded-xl bg-[#14B8A6] hover:opacity-90 text-[#091512] text-xs font-semibold transition-opacity text-center flex items-center justify-center"
-        >
-          Back to plans
-        </Link>
         <button
           type="button"
           onClick={onClose}

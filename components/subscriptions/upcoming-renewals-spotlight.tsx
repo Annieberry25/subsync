@@ -4,6 +4,7 @@ import { memo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
+import { resolveRenewalDate } from '@/lib/utils/billing-dates';
 import { RenewalsTable } from '@/components/subscriptions/renewals-table';
 
 interface UpcomingRenewalsSpotlightProps {
@@ -18,7 +19,10 @@ export const UpcomingRenewalsSpotlight = memo(function UpcomingRenewalsSpotlight
   const upcomingList = subscriptions
     .filter((sub) => sub.status === 'active' || sub.status === 'trial')
     .map((sub) => {
-      const nextDate = new Date(sub.next_billing_date);
+      /* The automatic date — a cycle after the start — matching what the detail
+         sheet and the edit form answer from, so a row whose stored day was
+         moved by auto-renewal does not show up on the wrong day here. */
+      const nextDate = new Date(resolveRenewalDate(sub));
       nextDate.setHours(0, 0, 0, 0);
       const diffTime = nextDate.getTime() - today.getTime();
       const diffDays = Math.round(diffTime / (1000 * 3600 * 24));

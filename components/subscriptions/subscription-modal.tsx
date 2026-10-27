@@ -18,7 +18,7 @@ import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
 
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
-import { usePlan } from '@/lib/contexts/user-settings-context';
+import { usePlan, useAuth } from '@/lib/contexts/user-settings-context';
 import { hasReachedAccountLinkCap } from '@/lib/constants/plan-limits';
 import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
@@ -33,8 +33,6 @@ interface SubscriptionModalProps {
   initialData?: SubscriptionRow | null;
   /** File carried over from the receipt import step, uploaded after save. */
   pendingReceiptFile?: File | null;
-  /** Opens the upgrade sheet when a Plus-only feature is attempted. */
-  onRequireUpgrade?: () => void;
   /**
    * The subscriptions this user already tracks.
    *
@@ -166,12 +164,15 @@ export default function SubscriptionModal({
   onSave,
   initialData,
   pendingReceiptFile,
-  onRequireUpgrade,
   existingSubscriptions = [],
   focusAccountId = null,
 }: SubscriptionModalProps) {
   const { toast } = useToast();
   const { planTier } = usePlan();
+  /* The account-link enforcement runs against the tier, but only isAdmin may
+     hold a second account while the multi-account feature stays unreleased —
+     so the admin flag rides along to every cap check below. */
+  const { isAdmin } = useAuth();
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -514,12 +515,15 @@ export default function SubscriptionModal({
       return;
     }
 
-    /* Free allows a single account per subscription. The check happens on the
-       click rather than at save so the user is told while looking at the
-       control, and so an existing single row on a free account is not silently
-       overwritten. */
-    if (hasReachedAccountLinkCap({ tier: planTier, linkCount: accountLinks.length })) {
-      onRequireUpgrade?.();
+    /* One account per subscription: the second account is the Plus feature
+       that has not been released yet, so the check happens on the click rather
+       than at save, and the user is told while looking at the control. Admins,
+       who preview every feature, are not stopped. */
+    if (hasReachedAccountLinkCap({ tier: planTier, linkCount: accountLinks.length, isAdmin })) {
+      toast.info(
+        'Multiple accounts per subscription arrive with the Plus release. For now, each subscription tracks one account.',
+        'Coming with Plus'
+      );
       return;
     }
 
@@ -680,11 +684,12 @@ export default function SubscriptionModal({
   };
 
   /* False once the tier's account-link cap is met, which drives both the Plus
-     badge and the inline upgrade hint. Derived rather than stored so removing a
-     row immediately re-enables the button. */
+     badge and the inline coming-soon hint. Derived rather than stored so
+     removing a row immediately re-enables the button. */
   const canAddAnotherAccount = !hasReachedAccountLinkCap({
     tier: planTier,
     linkCount: accountLinks.length,
+    isAdmin,
   });
 
   /**
@@ -856,9 +861,10 @@ export default function SubscriptionModal({
     const saveTarget = initialData?.id ? initialData : duplicateOf;
 
     /*
-     * Another account is a Plus feature. A plan that is already at its limit
-     * is told so here, at the moment of the save, instead of being allowed to
-     * save a form whose only point was the extra account.
+     * Another account is the Plus feature that has not been released yet. A
+     * plan that is already at its one-account cap is told so here, at the
+     * moment of the save, instead of being allowed to save a form whose only
+     * point was the extra account.
      */
     if (
       saveTarget &&
@@ -866,9 +872,13 @@ export default function SubscriptionModal({
       hasReachedAccountLinkCap({
         tier: planTier,
         linkCount: parseAccountLinks(saveTarget).length,
+        isAdmin,
       })
     ) {
-      onRequireUpgrade?.();
+      toast.info(
+        'Multiple accounts per subscription arrive with the Plus release. For now, each subscription tracks one account.',
+        'Coming with Plus'
+      );
       return;
     }
 
@@ -1009,8 +1019,8 @@ setLoading(true);
         saveTarget?.id
       );
 
-      // null means the caller handled the submit itself (e.g. a plan-limit
-      // gate opened the upgrade modal) — do not toast success or close.
+      // null means the caller handled the submit itself (e.g. the save was
+      // refused by a gate above) — do not toast success or close.
       if (!savedId) return;
 
       if (pendingReceiptFile && savedId) {
@@ -1479,7 +1489,7 @@ setLoading(true);
                       ? 'Show the account link box'
                       : canAddAnotherAccount
                         ? 'Add another account link'
-                        : 'Multiple accounts per subscription are a Plus feature'
+                        : 'Multiple accounts per subscription are coming to Plus'
                   }
                   className="text-xs font-semibold text-[#14B8A6] hover:underline cursor-pointer flex items-center gap-1"
                 >
@@ -1495,8 +1505,8 @@ setLoading(true);
                   happens rather than advertised up front. */}
               {!canAddAnotherAccount && (
                 <p className="text-[11px] text-[#94A3B8] leading-relaxed">
-                  Your plan includes one account per subscription. Upgrade to Plus to add
-                  multiple accounts: family, work, or a second profile.
+                  One account per subscription for now. Multiple accounts — family, work, or a
+                  second profile — are coming to SubHalt Plus soon.
                 </p>
               )}
 

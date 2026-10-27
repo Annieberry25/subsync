@@ -558,7 +558,7 @@ const tools: RegisteredTool[] = [
       if (hasReachedSubscriptionCap({ tier: ctx.tier, activeCount, isAdmin: ctx.isAdmin })) {
         return {
           ok: false,
-          message: `Your plan allows up to ${limits.maxSubscriptions} active subscriptions, and you have ${activeCount}. Remove one or upgrade to Plus.`,
+          message: `Your plan allows up to ${limits.maxSubscriptions} active subscriptions, and you have ${activeCount}. Remove one and try again.`,
         };
       }
       const { data, error } = await ctx.supabase
@@ -780,7 +780,7 @@ const tools: RegisteredTool[] = [
       if (limits.maxBills !== Infinity && billCount >= limits.maxBills) {
         return {
           ok: false,
-          message: `Your plan allows up to ${limits.maxBills} tracked bill payments, and you have ${billCount}. Remove some or upgrade to Plus.`,
+          message: `Your plan allows up to ${limits.maxBills} tracked bill payments, and you have ${billCount}. Remove some and try again.`,
         };
       }
       const { data, error } = await ctx.supabase

@@ -8,7 +8,11 @@ vi.mock('@/lib/hooks/use-toast', () => ({
   useToast: () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }),
 }));
 vi.mock('@/lib/contexts/user-settings-context', () => ({
+  // An admin previewing Plus: the tier carries the account-link cap, but only
+  // the admin flag is what clears it while the multi-account feature waits for
+  // the Plus release.
   usePlan: () => ({ planTier: 'plus', isPlus: true }),
+  useAuth: () => ({ isAdmin: true }),
 }));
 vi.mock('@/lib/supabase/client', () => ({ createClient: vi.fn() }));
 

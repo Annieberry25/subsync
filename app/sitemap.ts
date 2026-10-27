@@ -21,9 +21,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
      * Console reports as redirect errors and spends crawl budget on pages that
      * cannot be indexed no matter how often they are fetched.
      *
-     * Worth revisiting separately: /plans is an in-app checkout screen, so
-     * nothing publicly indexable states what the plans cost. That is a content
-     * decision, not a sitemap one.
+     * Worth revisiting separately: nothing publicly indexable states what the
+     * Plus plan will cost — the checkout screen was removed while Plus is
+     * future-flagged. That is a content decision, not a sitemap one.
      */
   ];
 

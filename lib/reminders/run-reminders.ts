@@ -409,7 +409,9 @@ export async function runRenewalReminders({
       if (result.sent > 0) {
         report.pushSent++;
         report.items.push({ ...base, action: 'sent' });
-        await logActivity(supabase, item, 'reminder_pushed', 'Renewal reminder pushed');
+        /* "Sent", not internal jargon — both channels land in the feed the user
+           reads, so push reminders log the same wording the email path logs. */
+        await logActivity(supabase, item, 'reminder_sent', 'Renewal reminder sent');
       } else {
         // Nothing was delivered — no device subscribed, no VAPID key, or the
         // push service rejected it. Release the claim so a later run can try
@@ -514,7 +516,7 @@ async function logActivity(
     currency: string;
     renewalDate: string;
   },
-  type: 'reminder_sent' | 'reminder_pushed',
+  type: 'reminder_sent',
   title: string
 ): Promise<void> {
   const { error } = await supabase.from('activity_log').insert({

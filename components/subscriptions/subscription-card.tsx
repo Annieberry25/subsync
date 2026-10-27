@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Calendar, CreditCard, ExternalLink, Edit2, MoreVertical, Clock, Settings, Archive, Bell, Link2, Trash2, Loader2 } from 'lucide-react';
 import { type SubscriptionRow, getProviderWebsite, getProviderManagementUrl, getKnownProviderManagementUrl, parseAccountLinks, archiveSubscription, hasMultipleAccounts } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
+import { resolveRenewalDate } from '@/lib/utils/billing-dates';
 import { toAbsoluteUrl } from '@/lib/utils/url-utils';
 import { useToast } from '@/lib/hooks/use-toast';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -77,14 +78,18 @@ function SubscriptionCard({
     return isNaN(parsed.getTime()) ? null : parsed;
   };
 
-  const rawNextDateObj = parseLocalDate(subscription.next_billing_date);
+  /* In step with the detail sheet and the edit form's box: the automatic date
+     — a cycle after the start the row was made on — not the stored field,
+     which can still be carrying a day auto-renewal had advanced it to before
+     the flag was switched off. */
+  const rawNextDateObj = parseLocalDate(resolveRenewalDate(subscription));
   const nextDate = rawNextDateObj || today;
   const diffTime = nextDate.getTime() - today.getTime();
   const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
 
   const formattedDate = rawNextDateObj
     ? rawNextDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    : subscription.next_billing_date;
+    : resolveRenewalDate(subscription);
 
   const hasReminder = Boolean((reminderInfo && !reminderInfo.dismissed) || (diffDays <= 7 && subscription.status === 'active'));
 

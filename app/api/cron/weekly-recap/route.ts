@@ -131,7 +131,10 @@ export async function GET(request: Request) {
           {
             user_id: userId,
             type: 'weekly_recap_pushed',
-            title: `Weekly recap pushed — ${weekStart.slice(0, 10)}`,
+            /* The visible title says "sent", like every other feed entry. The
+               type keeps its migration-020 idempotency key, so the dedup claim
+               and the weekStart check are untouched. */
+            title: `Weekly recap sent — ${weekStart.slice(0, 10)}`,
             description: `Weekly recap sent for ${count} active subscriptions.`,
             timestamp: new Date().toISOString(),
             amount: 0,
@@ -176,7 +179,7 @@ export async function GET(request: Request) {
           await supabase.from('activity_log').insert({
             user_id: userId,
             type: 'weekly_recap_pushed',
-            title: 'Weekly recap pushed',
+            title: 'Weekly recap sent',
             description: `Weekly recap sent for ${count} active subscriptions.`,
             timestamp: new Date().toISOString(),
             amount: 0,

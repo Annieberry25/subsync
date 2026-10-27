@@ -3,7 +3,6 @@ import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, AlertCircle, LayoutGrid, List, Trash2 } from 'lucide-react';
-import { hasReachedSubscriptionCap } from '@/lib/constants/plan-limits';
 import {
   fetchSubscriptions,
   createSubscription,
@@ -40,8 +39,6 @@ import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
-import { usePlan } from '@/lib/contexts/user-settings-context';
-import UpgradeModal from './upgrade-modal';
 import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal';
 
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -49,7 +46,6 @@ import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
 
 export default function SubscriptionManager() {
   const { toast } = useToast();
-  const { planTier } = usePlan();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -110,7 +106,6 @@ export default function SubscriptionManager() {
   const [isAddPathModalOpen, setIsAddPathModalOpen] = useState(false);
   const [addPathInitial, setAddPathInitial] = useState<'gmail' | 'forwarding' | 'link' | 'receipt' | null>(null);
   const [pendingReceiptFile, setPendingReceiptFile] = useState<File | null>(null);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   // Notes Modal state
   const [notesSub, setNotesSub] = useState<SubscriptionRow | null>(null);
@@ -444,11 +439,6 @@ export default function SubscriptionManager() {
       return id;
     }
 
-    if (hasReachedSubscriptionCap({ tier: planTier, activeCount: activeSubscriptions.length })) {
-      setIsUpgradeModalOpen(true);
-      return null;
-    }
-
     /*
      * The same service, added twice.
      *
@@ -559,7 +549,7 @@ export default function SubscriptionManager() {
         account_links: data.account_links || [],
       });
 
-      // null means the plan cap opened the upgrade sheet instead of saving.
+      // null means the create failed server-side — there is no row to attach.
       if (!savedId) return;
 
       if (file) {
@@ -992,7 +982,6 @@ export default function SubscriptionManager() {
           setIsAddPathModalOpen(false);
         }}
         initialPath={addPathInitial}
-        onRequireUpgrade={() => setIsUpgradeModalOpen(true)}
         existingSubscriptions={activeSubscriptions}
         onSelectExistingDetails={(sub) => {
           setSelectedDetailSub(sub);
@@ -1125,11 +1114,6 @@ export default function SubscriptionManager() {
         existingSubscriptions={activeSubscriptions}
         focusAccountId={focusAccountId}
         pendingReceiptFile={pendingReceiptFile}
-        onRequireUpgrade={() => {
-          // Close the form so the upgrade sheet is not stacked behind it.
-          setIsModalOpen(false);
-          setIsUpgradeModalOpen(true);
-        }}
       />
 
       {/* Dedicated Notes Editor Modal */}
@@ -1182,12 +1166,6 @@ export default function SubscriptionManager() {
             ? reminderPrefBySub.get(reminderSubscription.id)?.pushLeadMinutes
             : undefined
         }
-      />
-
-      {/* Premium Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
       />
 
       {/* Auto-Discovery & Import Modals */}

@@ -1,3 +1,25 @@
+/*
+ * The renewal date a list surface displays, matching what the detail sheet and
+ * the edit form's box answer from: the automatic date — a cycle after the start
+ * the row was made on — instead of whatever day the stored record has been
+ * carrying. A row whose stored day holds a past auto-renewal advance (or any
+ * other drift) would otherwise keep showing that drifted day on the lists that
+ * read the field raw, while the sheet and the form showed the correct one.
+ * A row never given a start date has nothing automatic to answer from and keeps
+ * its stored day.
+ */
+export function resolveRenewalDate(sub: {
+  start_date?: string | null;
+  billing_cycle?: string | null;
+  next_billing_date?: string | null;
+}): string {
+  const automaticIso =
+    sub.start_date && sub.billing_cycle
+      ? addCycleToDate(sub.start_date, sub.billing_cycle)
+      : '';
+  return automaticIso || sub.next_billing_date || '';
+}
+
 export function addCycleToDate(isoDate: string, cycle: string): string {
   const [year, month, day] = isoDate.split('-').map(Number);
   if (!year || !month || !day) return '';

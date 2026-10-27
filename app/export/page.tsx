@@ -12,7 +12,6 @@ import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { AnalyticsChartSkeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/lib/hooks/use-toast';
 import { usePlan } from '@/lib/contexts/user-settings-context';
-import UpgradeModal from '@/components/subscriptions/upgrade-modal';
 import { PlusBadge } from '@/components/ui/plus-badge';
 import { 
   Download, 
@@ -38,7 +37,7 @@ const chartColorPalette = [
 export default function ExportPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { isPlus, isPremium: _isPremium } = usePlan();
+  const { isPlus } = usePlan();
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +45,6 @@ export default function ExportPage() {
 
   const [importing, setImporting] = useState(false);
   const [showConfirmRestore, setShowConfirmRestore] = useState(false);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [pendingImports, setPendingImports] = useState<Omit<SubscriptionInsert, 'user_id'>[]>([]);
   const [importedFileName, setImportedFileName] = useState<string | null>(null);
@@ -128,7 +126,10 @@ export default function ExportPage() {
 
   const handleExportCSV = () => {
     if (!isPlus) {
-      setIsUpgradeModalOpen(true);
+      toast.info(
+        'Exporting your portfolio to CSV arrives with the Plus release.',
+        'Coming with Plus'
+      );
       return;
     }
     exportToCSV(subscriptions);
@@ -137,7 +138,10 @@ export default function ExportPage() {
 
   const handleExportJSON = () => {
     if (!isPlus) {
-      setIsUpgradeModalOpen(true);
+      toast.info(
+        'Exporting your portfolio to JSON arrives with the Plus release.',
+        'Coming with Plus'
+      );
       return;
     }
     exportToJSON(subscriptions);
@@ -448,14 +452,6 @@ export default function ExportPage() {
         description={`Are you sure you want to restore ${pendingImports.length} subscriptions from "${importedFileName}"? This will add these records to your SubHalt account.`}
         confirmText="Restore Backup"
         variant="info"
-      />
-
-      {/* Plus Upgrade Modal for Export */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        title="Exporting subscription data is a Plus feature."
-        description="Upgrade to Plus to export your subscriptions to CSV or JSON format."
       />
     </div>
   );

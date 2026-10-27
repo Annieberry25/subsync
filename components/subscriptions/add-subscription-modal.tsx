@@ -8,10 +8,11 @@ import { GmailConnectModal } from '@/components/integrations/gmail-connect-modal
 import { EmailForwardingModal } from '@/components/integrations/email-forwarding-modal';
 import LinkSubscriptionModal from './link-subscription-modal';
 import ReceiptImportModal, { type ExtractedReceiptData } from './receipt-import-modal';
-import { usePlan } from '@/lib/contexts/user-settings-context';
+import { usePlan, useAuth } from '@/lib/contexts/user-settings-context';
 import { hasPlanFeature } from '@/lib/constants/plan-limits';
 import { PROVIDER_SUBSCRIBE_ENABLED } from '@/lib/config/feature-flags';
 import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
+import { useToast } from '@/lib/hooks/use-toast';
 import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
 
 type AddPath = 'gmail' | 'forwarding' | 'link' | 'receipt';
@@ -35,7 +36,6 @@ interface AddSubscriptionModalProps {
     receiptFile: File | null
   ) => void;
   existingSubscriptions?: SubscriptionRow[];
-  onRequireUpgrade?: () => void;
   /** Opens straight into one of the sub-flows instead of the option menu. */
   initialPath?: AddPath | null;
 }
@@ -53,13 +53,26 @@ export default function AddSubscriptionModal({
   onCreateFromReceipt,
   onSelectExistingDetails,
   existingSubscriptions,
-  onRequireUpgrade,
   initialPath = null,
 }: AddSubscriptionModalProps) {
   const { planTier } = usePlan();
+  const { isAdmin } = useAuth();
+  const { toast } = useToast();
   /* Admin-only until each integration is released — see FEATURE_FLAGS. */
   const gmailAvailable = useFeatureFlag('gmailConnect');
   const forwardingAvailable = useFeatureFlag('emailForwarding');
+
+  /* Plus-only toggles ask for a checkout that is not on sale yet: the gate
+     explains the release instead of routing anywhere. isAdmin previews the
+     features, so it reads past the gate. */
+  const gateFeature = (feature: 'gmail' | 'emailForwarding', label: string): boolean => {
+    if (hasPlanFeature(planTier, feature, isAdmin)) return true;
+    toast.info(
+      `${label} arrives with the Plus release. Add the subscription manually or import its receipt for now.`,
+      'Coming with Plus'
+    );
+    return false;
+  };
   const [activeSubModal, setActiveSubModal] = useState<'none' | AddPath>('none');
   const [receiptProviderName, setReceiptProviderName] = useState<string | undefined>(undefined);
   const [appliedInitialPath, setAppliedInitialPath] = useState<AddPath | null>(null);
@@ -147,18 +160,14 @@ export default function AddSubscriptionModal({
             {/* Options menu. Each flagged path may not be rendered, so this is
                 two to five entries. The Sheet body owns the scroll. */}
             <div className="pt-1 divide-y divide-[#1A1D1D]/50">
-              {/* Option 1: Connect Gmail (Plus). A free user sees the "Plus"
-                  marker and is sent to upgrade instead of the OAuth flow.
-                  Hidden until Gmail Connect is released to everyone. */}
+              {/* Option 1: Connect Gmail (Plus). A non-admin sees the "Plus"
+                  marker and the coming-later explanation instead of the OAuth
+                  flow. Hidden until Gmail Connect is released to everyone. */}
               {gmailAvailable && (
               <button
                 type="button"
                 onClick={() => {
-                  if (!hasPlanFeature(planTier, 'gmail')) {
-                    onClose();
-                    onRequireUpgrade?.();
-                    return;
-                  }
+                  if (!gateFeature('gmail', 'Gmail Connect')) return;
                   setActiveSubModal('gmail');
                 }}
                 className="w-full p-3.5 sm:p-4 rounded-xl hover:bg-[#1A1D1D] transition-colors duration-200 text-left group cursor-pointer my-1"
@@ -168,7 +177,7 @@ export default function AddSubscriptionModal({
                     <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
                       Connect Gmail
                     </h3>
-                    {!hasPlanFeature(planTier, 'gmail') && <PlusBadge />}
+                    {!hasPlanFeature(planTier, 'gmail', isAdmin) && <PlusBadge />}
                   </div>
                   <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
                 </div>
@@ -184,11 +193,7 @@ export default function AddSubscriptionModal({
               <button
                 type="button"
                 onClick={() => {
-                  if (!hasPlanFeature(planTier, 'emailForwarding')) {
-                    onClose();
-                    onRequireUpgrade?.();
-                    return;
-                  }
+                  if (!gateFeature('emailForwarding', 'Email Forwarding')) return;
                   setActiveSubModal('forwarding');
                 }}
                 className="w-full p-3.5 sm:p-4 rounded-xl hover:bg-[#1A1D1D] transition-colors duration-200 text-left group cursor-pointer my-1"
@@ -198,7 +203,7 @@ export default function AddSubscriptionModal({
                     <h3 className="text-sm sm:text-base font-semibold text-[#F5F7F6] group-hover:text-[#F5F7F6] transition-colors">
                       Email Forwarding
                     </h3>
-                    {!hasPlanFeature(planTier, 'emailForwarding') && <PlusBadge />}
+                    {!hasPlanFeature(planTier, 'emailForwarding', isAdmin) && <PlusBadge />}
                   </div>
                   <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#F5F7F6] transition-colors" />
                 </div>
@@ -279,10 +284,6 @@ export default function AddSubscriptionModal({
           isOpen={activeSubModal === 'gmail'}
           onClose={handleExitAll}
           onBack={handleBackToMenu}
-          onRequireUpgrade={() => {
-            handleExitAll();
-            onRequireUpgrade?.();
-          }}
         />
       )}
 
@@ -291,10 +292,6 @@ export default function AddSubscriptionModal({
           isOpen={activeSubModal === 'forwarding'}
           onClose={handleExitAll}
           onBack={handleBackToMenu}
-          onRequireUpgrade={() => {
-            handleExitAll();
-            onRequireUpgrade?.();
-          }}
         />
       )}
 

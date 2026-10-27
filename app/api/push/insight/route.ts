@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       await supabase.from('activity_log').insert({
         user_id: user.id,
         type: 'smart_insight_pushed',
-        title: 'Insight notification pushed',
+        title: 'Insight notification sent',
         description: insight.preview,
         metadata: { insightId: insight.id },
         timestamp: new Date().toISOString(),

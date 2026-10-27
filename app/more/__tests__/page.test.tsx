@@ -179,28 +179,6 @@ describe('MorePage', () => {
 
     expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Help' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Upgrade Plan' })).toBeInTheDocument();
-  });
-
-  it('returns to the route the user came from when upgrading', () => {
-    mocks.pathname = '/settings';
-    render(<MorePage />);
-
-    expect(screen.getByRole('link', { name: 'Upgrade Plan' })).toHaveAttribute(
-      'href',
-      '/plans?from=%2Fsettings',
-    );
-  });
-
-  it('sends a plus customer to their plan instead of offering another upgrade', () => {
-    mocks.isPlus = true;
-    render(<MorePage />);
-
-    expect(screen.getByRole('link', { name: 'Plus' })).toHaveAttribute(
-      'href',
-      '/settings?section=plan',
-    );
-    expect(screen.queryByRole('link', { name: 'Upgrade Plan' })).not.toBeInTheDocument();
   });
 
   it('asks for confirmation before signing out', async () => {

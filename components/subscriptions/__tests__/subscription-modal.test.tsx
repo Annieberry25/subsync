@@ -7,6 +7,7 @@ import type { SubscriptionRow } from '@/lib/services/subscription-service';
 const mocks = vi.hoisted(() => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
   planTier: 'plus' as string,
+  isAdmin: true,
 }));
 
 vi.mock('@/lib/hooks/use-toast', () => ({
@@ -14,10 +15,12 @@ vi.mock('@/lib/hooks/use-toast', () => ({
 }));
 
 // The form reads the plan tier to decide whether a second account link is a
-// Plus feature. Default to plus so the existing assertions see a single account
-// row; the cap tests below override it.
+// Plus feature, and the admin flag to let the admin preview it. Default to a
+// plus admin (the account-link cap no longer applies to the tier alone) so the
+// existing assertions see a single account row; the cap tests below override it.
 vi.mock('@/lib/contexts/user-settings-context', () => ({
   usePlan: () => ({ planTier: mocks.planTier, isPlus: mocks.planTier === 'plus' }),
+  useAuth: () => ({ isAdmin: mocks.isAdmin }),
 }));
 
 vi.mock('@/lib/supabase/client', () => ({
@@ -69,14 +72,12 @@ async function renderOpen(
 ) {
   const onClose = vi.fn();
   const onSave = vi.fn(async () => savedId);
-  const onRequireUpgrade = vi.fn();
   const view = render(
     <SubscriptionModal
       isOpen={false}
       onClose={onClose}
       onSave={onSave}
       initialData={initialData}
-      onRequireUpgrade={onRequireUpgrade}
       existingSubscriptions={existingSubscriptions}
     />
   );
@@ -86,12 +87,11 @@ async function renderOpen(
       onClose={onClose}
       onSave={onSave}
       initialData={initialData}
-      onRequireUpgrade={onRequireUpgrade}
       existingSubscriptions={existingSubscriptions}
     />
   );
   await nextFrame();
-  return { onClose, onSave, onRequireUpgrade, container: view.container };
+  return { onClose, onSave, container: view.container };
 }
 
 /**
@@ -827,9 +827,11 @@ describe('SubscriptionModal subscription accounts', () => {
     );
   });
 
-  it('sends a free user to upgrade when adding a second account', async () => {
+  it('refuses the second account with a coming-later explanation for a free user', async () => {
+    mocks.isAdmin = false;
+    mocks.planTier = 'free';
     const user = userEvent.setup();
-    const { onRequireUpgrade } = await renderOpen();
+    await renderOpen();
 
     await user.type(
       screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
@@ -840,12 +842,15 @@ describe('SubscriptionModal subscription accounts', () => {
     await user.click(addButton);
     expect(screen.getByLabelText(/Account URL/)).toBeInTheDocument();
 
-    // The second attempt is refused and routed to the upgrade sheet.
+    // The second attempt is refused in place and explained, not routed to a
+    // checkout that does not exist.
     await user.click(addButton);
-    expect(onRequireUpgrade).toHaveBeenCalledTimes(1);
+    expect(mocks.toast.info).toHaveBeenCalledTimes(1);
+    expect(mocks.toast.info.mock.calls[0][1]).toBe('Coming with Plus');
   });
 
   it('does not badge the account section; it explains the limit on attempt', async () => {
+    mocks.isAdmin = false;
     const user = userEvent.setup();
     await renderOpen();
 
@@ -859,10 +864,11 @@ describe('SubscriptionModal subscription accounts', () => {
     expect(screen.getByText(/one account per subscription/i)).toBeInTheDocument();
   });
 
-  it('lets a Plus user add an account without an upgrade prompt', async () => {
+  it('lets an admin add accounts without an upgrade prompt during the Plus preview', async () => {
     mocks.planTier = 'plus';
+    mocks.isAdmin = true;
     const user = userEvent.setup();
-    const { onSave, onRequireUpgrade } = await renderOpen();
+    const { onSave } = await renderOpen();
 
     await user.type(
       screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'),
@@ -871,7 +877,7 @@ describe('SubscriptionModal subscription accounts', () => {
     const addButton = screen.getByRole('button', { name: /Add account link/ });
     await user.click(addButton);
 
-    expect(onRequireUpgrade).not.toHaveBeenCalled();
+    expect(mocks.toast.info).not.toHaveBeenCalled();
     expect(screen.queryByTestId('plus-badge')).not.toBeInTheDocument();
 
     await fillRequiredFields(user);
