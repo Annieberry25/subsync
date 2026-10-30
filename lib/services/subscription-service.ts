@@ -928,6 +928,82 @@ export async function deleteSubscription(id: string): Promise<{ error: Error | n
   return { error: null, synced: true };
 }
 
+export async function renewOverdueSubscription(id: string): Promise<SubscriptionWriteResult> {
+  const localRow = (getCachedSubscriptions() || []).find((s) => s.id === id && isLocalOnlySubscription(s));
+  if (localRow) {
+    const cycle = localRow.billing_cycle || 'monthly';
+    const base = localRow.start_date || localRow.next_billing_date || new Date().toISOString().split('T')[0];
+    const next = addCycleToDateLocal(base, cycle);
+    const updated: SubscriptionRow = {
+      ...localRow,
+      start_date: base,
+      next_billing_date: next || localRow.next_billing_date,
+      updated_at: new Date().toISOString(),
+      is_synced: false,
+    };
+    const list = (getCachedSubscriptions() || []).map((s) => (s.id === id ? updated : s));
+    writeCachedSubscriptions(list);
+    dispatchSubscriptionsUpdated();
+    return { data: updated, error: null, synced: false };
+  }
+
+  const supabase = createClient();
+  const { data: sub, error: fetchErr } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !sub) {
+    return { data: null, error: new Error(fetchErr?.message || 'Subscription not found.'), synced: false };
+  }
+
+  const cycle = sub.billing_cycle || 'monthly';
+  const base = sub.start_date || sub.next_billing_date || new Date().toISOString().split('T')[0];
+  const next = addCycleToDateLocal(base, cycle);
+
+  const result = await updateSubscription(id, {
+    start_date: base,
+    next_billing_date: next || sub.next_billing_date,
+  });
+  return result;
+}
+
+function addCycleToDateLocal(isoDate: string, cycle: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  if (!year || !month || !day) return '';
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const step = (cycle || '').trim().toLowerCase();
+  const isYearly = step === 'yearly' || step === 'annual' || step === 'year';
+  const isQuarterly = step === 'quarterly' || step === 'quarter';
+  const isWeekly = step === 'weekly' || step === 'week';
+  if (isYearly) {
+    const lastDay = new Date(Date.UTC(date.getUTCFullYear() + 1, date.getUTCMonth() + 1, 0)).getUTCDate();
+    date.setUTCDate(1);
+    date.setUTCFullYear(date.getUTCFullYear() + 1);
+    date.setUTCDate(Math.min(day, lastDay));
+    return date.toISOString().split('T')[0];
+  }
+  if (isQuarterly) {
+    const targetMonth = date.getUTCMonth() + 3;
+    const lastDay = new Date(Date.UTC(date.getUTCFullYear(), targetMonth + 1, 0)).getUTCDate();
+    date.setUTCDate(1);
+    date.setUTCMonth(targetMonth);
+    date.setUTCDate(Math.min(day, lastDay));
+    return date.toISOString().split('T')[0];
+  }
+  if (isWeekly) {
+    date.setUTCDate(date.getUTCDate() + 7);
+    return date.toISOString().split('T')[0];
+  }
+  const targetMonth = date.getUTCMonth() + 1;
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), targetMonth + 1, 0)).getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(targetMonth);
+  date.setUTCDate(Math.min(day, lastDay));
+  return date.toISOString().split('T')[0];
+}
+
 export async function archiveSubscription(id: string): Promise<SubscriptionWriteResult> {
   // Offline-created rows live only in the cache.
   const localRow = (getCachedSubscriptions() || []).find((s) => s.id === id && isLocalOnlySubscription(s));

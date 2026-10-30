@@ -13,7 +13,8 @@ export type InboxItemType =
   | 'failed_payment'
   | 'duplicate'
   | 'plan_update'
-  | 'recommendation';
+  | 'recommendation'
+  | 'auto_removed';
 
 export type ActionType = 'view' | 'review' | 'manage' | 'update_payment';
 

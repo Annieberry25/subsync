@@ -3,12 +3,13 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ChevronLeft, AlertCircle, Trash2 } from 'lucide-react';
+import { ChevronLeft, AlertCircle, Trash2, RefreshCw } from 'lucide-react';
 import {
   fetchSubscriptions,
   getCachedSubscriptions,
   filterActiveSubscriptions,
   softDeleteSubscription,
+  renewOverdueSubscription,
   type SubscriptionRow,
 } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
@@ -77,26 +78,20 @@ const SWIPE_REVEAL_PX = 96;
 const SWIPE_TRIGGER_PX = 56;
 
 /**
- * Swipe-left-to-delete wrapper.
- *
- * Used only on the overdue list, per the product decision: an overdue row is
- * something the user may want to clear away, whereas an upcoming renewal is not
- * theirs to dismiss, so the upcoming table keeps no gesture at all.
- *
- * Deletion is a two-step gesture on purpose. The swipe only reveals the action;
- * removing data takes a deliberate tap on it, so a stray horizontal scroll on a
- * phone cannot delete a subscription. A pointer/keyboard path is provided
- * alongside because a swipe gesture has no keyboard equivalent and the row is
- * reachable by assistive tech.
+ * Swipe-left actions wrapper for overdue rows.
  */
 function SwipeToDelete({
   children,
   onDelete,
-  label,
+  onRenew,
+  deleteLabel,
+  renewLabel,
 }: {
   children: React.ReactNode;
   onDelete: () => void;
-  label: string;
+  onRenew?: () => void;
+  deleteLabel: string;
+  renewLabel?: string;
 }) {
   const [offset, setOffset] = useState(0);
   const [open, setOpen] = useState(false);
@@ -108,6 +103,9 @@ function SwipeToDelete({
   // Set on touch, consumed by the click a tap synthesises. See handleRowClick.
   const touchSeen = useRef(false);
 
+  const revealWidth = onRenew ? SWIPE_REVEAL_PX * 2 : SWIPE_REVEAL_PX;
+  const trigger = onRenew ? SWIPE_TRIGGER_PX * 1.6 : SWIPE_TRIGGER_PX;
+
   const close = useCallback(() => {
     setOpen(false);
     setOffset(0);
@@ -116,10 +114,10 @@ function SwipeToDelete({
   const toggle = useCallback(() => {
     setOpen((wasOpen) => {
       const next = !wasOpen;
-      setOffset(next ? -SWIPE_REVEAL_PX : 0);
+      setOffset(next ? -revealWidth : 0);
       return next;
     });
-  }, []);
+  }, [revealWidth]);
 
   /**
    * Click-to-toggle is the pointer/desktop affordance; touch keeps the swipe.
@@ -150,8 +148,6 @@ function SwipeToDelete({
     const dx = e.touches[0].clientX - startX.current;
     const dy = e.touches[0].clientY - startY.current;
 
-    // Lock to an axis once the intent is clear, so a vertical scroll is never
-    // read as a swipe and a swipe never blocks scrolling.
     if (axisLocked.current === 'none') {
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
         axisLocked.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
@@ -162,9 +158,8 @@ function SwipeToDelete({
     if (axisLocked.current !== 'x') return;
 
     setDragging(true);
-    // Only leftwards, and only as far as the action needs.
-    const base = open ? -SWIPE_REVEAL_PX : 0;
-    const next = Math.min(0, Math.max(-SWIPE_REVEAL_PX, base + dx));
+    const base = open ? -revealWidth : 0;
+    const next = Math.min(0, Math.max(-revealWidth, base + dx));
     setOffset(next);
   };
 
@@ -175,9 +170,9 @@ function SwipeToDelete({
       return;
     }
 
-    const shouldOpen = offset <= -SWIPE_TRIGGER_PX;
+    const shouldOpen = offset <= -trigger;
     setOpen(shouldOpen);
-    setOffset(shouldOpen ? -SWIPE_REVEAL_PX : 0);
+    setOffset(shouldOpen ? -revealWidth : 0);
     setDragging(false);
 
     startX.current = null;
@@ -186,8 +181,22 @@ function SwipeToDelete({
 
   return (
     <div className="relative overflow-hidden">
-      {/* Destructive action, revealed underneath. */}
       <div className="absolute inset-y-0 right-0 flex items-stretch" aria-hidden={!open}>
+        {onRenew && (
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              onRenew();
+            }}
+            tabIndex={open ? 0 : -1}
+            aria-label={renewLabel || 'Renew subscription'}
+            className="min-w-[96px] min-h-[44px] px-4 flex items-center justify-center gap-1.5 bg-[#14B8A6] hover:bg-[#0F9F8E] text-[#091512] text-xs font-bold transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Renew</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -195,10 +204,10 @@ function SwipeToDelete({
             onDelete();
           }}
           tabIndex={open ? 0 : -1}
-          aria-label={label}
+          aria-label={deleteLabel}
           className="min-w-[96px] min-h-[44px] px-4 flex items-center justify-center gap-1.5 bg-[#D9363E] hover:bg-[#B91C1C] text-white text-xs font-bold transition-colors cursor-pointer"
         >
-          <Trash2 className="w-4 h-4" aria-hidden="true" />
+          <Trash2 className="w-4 h-4" />
           <span>Remove</span>
         </button>
       </div>
@@ -208,7 +217,7 @@ function SwipeToDelete({
         role="button"
         tabIndex={0}
         aria-expanded={open}
-        aria-label={open ? 'Hide remove action' : label}
+        aria-label={open ? 'Hide actions' : (deleteLabel || 'Show actions')}
         style={{ transform: `translateX(${offset}px)`, transition: dragging ? 'none' : 'transform 200ms ease-out' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -306,8 +315,6 @@ export default function RenewalsPageContent() {
         return;
       }
       setSubscriptions((current) => current.filter((row) => row.id !== sub.id));
-      // The toast reports one fact and offers the way back. Explanatory copy was
-      // cut because the chevron already goes where the subscription went.
       toast.success('Removed', undefined, {
         label: 'View',
         ariaLabel: 'View deleted subscriptions',
@@ -315,6 +322,24 @@ export default function RenewalsPageContent() {
       });
     },
     [toast, router]
+  );
+
+  const handleRenewOverdue = useCallback(
+    async (sub: SubscriptionRow) => {
+      try {
+        const { error } = await renewOverdueSubscription(sub.id);
+        if (error) {
+          toast.error(error.message, 'Failed to renew');
+          return;
+        }
+        toast.success(`${sub.name} renewed`, 'Overdue cleared');
+        const { data } = await fetchSubscriptions();
+        if (data) setSubscriptions(data);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to renew', 'Failed to renew');
+      }
+    },
+    [toast]
   );
 
   return (
@@ -375,8 +400,10 @@ export default function RenewalsPageContent() {
                 {overdueList.map(({ sub, diffDays }) => (
                   <SwipeToDelete
                     key={sub.id}
-                    label={`Remove ${sub.name} from overdue`}
+                    deleteLabel={`Remove ${sub.name} from overdue`}
+                    renewLabel={`Renew ${sub.name}`}
                     onDelete={() => handleDeleteOverdue(sub)}
+                    onRenew={() => handleRenewOverdue(sub)}
                   >
                     <OverdueRow sub={sub} diffDays={diffDays} />
                   </SwipeToDelete>

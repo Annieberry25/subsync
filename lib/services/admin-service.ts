@@ -1,6 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/database.types';
 import {
+  filterActiveSubscriptions,
+  isOverdueSubscription,
+  parseAccountLinks,
+  type SubscriptionRow,
+} from '@/lib/services/subscription-service';
+import {
   type AdminActivityItem,
   type AdminBillProviderRow,
   type AdminOverview,
@@ -89,12 +95,20 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     count(admin, 'inbox_items'),
     count(admin, 'bill_payments'),
     admin.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', since30),
-    admin.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    admin.from('subscriptions').select('id, notes, status, next_billing_date, account_links').not('status', 'eq', 'canceled'),
     admin.from('plan_subscriptions').select('amount').eq('status', 'paid'),
     admin.from('activity_log').select('*').order('timestamp', { ascending: false }).limit(12),
   ]);
 
   const estimatedMrrUsd = (paidRows.data ?? []).reduce((sum, r) => sum + (r.amount ?? 0), 0) / 100;
+
+  const allRows = (activeSubscriptions.data ?? []) as unknown as SubscriptionRow[];
+  const activeRows = filterActiveSubscriptions(allRows)
+    .filter((sub) => (sub.status === 'active' || sub.status === 'trial') && !isOverdueSubscription(sub));
+  const activeSubscriptionsCount = activeRows.reduce((total, sub) => {
+    const links = parseAccountLinks(sub);
+    return total + (links.length > 0 ? links.length : 1);
+  }, 0);
 
   const emailMap = await attachEmails(activity.data ?? []);
   const recentActivity: AdminActivityItem[] = (activity.data ?? []).map((row) => {
@@ -116,7 +130,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     totalUsers,
     activeUsers30d: activeUsers30d.count ?? 0,
     totalSubscriptions,
-    activeSubscriptions: activeSubscriptions.count ?? 0,
+    activeSubscriptions: activeSubscriptionsCount,
     totalPlanSubscriptions,
     paidPlans,
     pendingPlans,

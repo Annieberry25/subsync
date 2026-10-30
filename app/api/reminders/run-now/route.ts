@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       supabase: createAdminClient(),
       dryRun,
       userId: user.id,
+      autoRemove: false,
     });
 
     return NextResponse.json(report);

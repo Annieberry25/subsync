@@ -14,11 +14,14 @@ import {
   MAX_LEAD_MINUTES,
   OVERDUE_HORIZON_DAYS,
   RENEWAL_DAY_PM_LEAD,
+  COUNTDOWN_LEAD_MINUTES,
   type PlannedReminder,
   type PlannerPreference,
   type PlannerSubscription,
   type ReminderChannel,
 } from './plan';
+import { addCycleToDate } from '@/lib/utils/billing-dates';
+import { notesForAutoRemoval, serverHistoryState } from './overdue-cleanup';
 
 /**
  * The renewal-reminder engine.
@@ -41,7 +44,13 @@ const MAX_EMAILS_PER_RUN = 200;
 /** A runaway guard on how many rows a single run will even look at. */
 const MAX_SUBSCRIPTIONS_PER_RUN = 5000;
 
-export type ReminderAction = 'sent' | 'would_send' | 'skipped' | 'failed';
+export type ReminderAction =
+  | 'sent'
+  | 'would_send'
+  | 'skipped'
+  | 'failed'
+  | 'auto_removed'
+  | 'auto_remove_would_apply';
 
 export interface ReminderRunItem {
   subscriptionId: string;
@@ -67,6 +76,7 @@ export interface ReminderRunReport {
   emailsSent: number;
   skipped: number;
   failed: number;
+  autoRemoved: number;
   /** Full per-reminder trace, so a manual run can be inspected. */
   items: ReminderRunItem[];
 }
@@ -85,6 +95,8 @@ export interface RunReminderOptions {
    * touching anybody else's rows.
    */
   userId?: string;
+  /** Whether to auto-remove overdue subscriptions past the horizon. Cron passes true (default), run-now passes false. */
+  autoRemove?: boolean;
 }
 
 function todayIso(now: Date): string {
@@ -108,6 +120,7 @@ export async function runRenewalReminders({
   now = new Date(),
   dryRun = false,
   userId,
+  autoRemove = true,
 }: RunReminderOptions): Promise<ReminderRunReport> {
   const today = todayIso(now);
   const horizon = addDays(today, Math.ceil(MAX_LEAD_MINUTES / 1440));
@@ -122,21 +135,21 @@ export async function runRenewalReminders({
     emailsSent: 0,
     skipped: 0,
     failed: 0,
+    autoRemoved: 0,
     items: [],
   };
 
   // ---- Load candidate subscriptions inside the plan's windows ----
   // Forward: every lead stage the planner can schedule. Backward: the bounded
   // overdue window, whose daily push and one-time email are part of the plan.
-  // Rows past that floor are deliberately not fetched: a forgotten line item
-  // from years ago must not enter the run again and again.
+  // Also fetch a wider set for auto-removal (>30 days overdue) because we need
+  // to compute derived renewal dates to match the UI.
   const windowFloor = addDays(today, -OVERDUE_HORIZON_DAYS);
   let subsQuery = supabase
     .from('subscriptions')
-    .select('id, user_id, name, price, currency, next_billing_date, billing_cycle, status')
+    .select('id, user_id, name, price, currency, next_billing_date, start_date, billing_cycle, status, notes, auto_renew')
     .neq('status', 'canceled')
-    .gte('next_billing_date', windowFloor)
-    .lte('next_billing_date', horizon)
+    .or(`next_billing_date.gte.${windowFloor},next_billing_date.lte.${horizon}`)
     .limit(MAX_SUBSCRIPTIONS_PER_RUN);
 
   // Scoped run: only this account's subscriptions are ever candidates.
@@ -146,7 +159,7 @@ export async function runRenewalReminders({
 
   if (subsError) throw subsError;
 
-  const rows = (subs ?? []).filter((s) => s.id && s.user_id && s.next_billing_date);
+  const rows = (subs ?? []).filter((s) => s.id && s.user_id);
   report.considered = rows.length;
   if (rows.length === 0) {
     logger.info('[reminders] nothing in the window', { today, horizon });
