@@ -127,7 +127,7 @@ export function renderRenewalReminderEmail(
             ? 'It renews today — one last look before the charge goes out.'
             : days < 0
               ? 'This charge has passed its billing date. Mark it renewed in SubHalt, or cancel it at the provider if you no longer want it.'
-              : 'A reminder so the next charge does not catch you by surprise.'
+              : 'A tip-off before it renews.',
         ),
         emailDetailRow('Next charge', sub.nextBillingDate),
         emailDetailRow('Amount', cadence),

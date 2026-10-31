@@ -18,6 +18,7 @@ import { ServiceIcon } from '@/components/ui/service-icon';
 import { RenewalsTable, getPlanName, getCycleSuffix } from '@/components/subscriptions/renewals-table';
 import { useToast } from '@/lib/hooks/use-toast';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
+import { useInbox } from '@/lib/contexts/inbox-context';
 
 /**
  * Overdue is capped at 60 days.
@@ -238,6 +239,7 @@ function SwipeToDelete({
 
 export default function RenewalsPageContent() {
   const { toast } = useToast();
+  const { addInboxItem } = useInbox();
   const initialCache = getCachedSubscriptions();
   /**
    * True when this page was opened from the dashboard's overdue banner
@@ -332,6 +334,16 @@ export default function RenewalsPageContent() {
           toast.error(error.message, 'Failed to renew');
           return;
         }
+        addInboxItem({
+          type: 'renewal',
+          title: `${sub.name} renewed`,
+          description: `${sub.name} has been renewed and is back on your active subscriptions list.`,
+          actionType: 'view',
+          actionLabel: 'View subscription',
+          subscriptionName: sub.name,
+          subscriptionPrice: sub.price,
+          currency: sub.currency || 'USD',
+        });
         toast.success(`${sub.name} renewed`, 'Overdue cleared');
         const { data } = await fetchSubscriptions();
         if (data) setSubscriptions(data);
@@ -339,7 +351,7 @@ export default function RenewalsPageContent() {
         toast.error(err instanceof Error ? err.message : 'Failed to renew', 'Failed to renew');
       }
     },
-    [toast]
+    [toast, addInboxItem]
   );
 
   return (

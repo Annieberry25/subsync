@@ -18,7 +18,7 @@ const sub = (over: Partial<SubscriptionRow> = {}): SubscriptionRow =>
     billing_cycle: 'monthly',
     category: 'Streaming',
     status: 'active',
-    next_billing_date: '2026-10-14',
+    next_billing_date: '2026-12-01',
     notes: '',
     provider_url: 'https://netflix.com',
     account_links: [],

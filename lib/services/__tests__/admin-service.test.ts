@@ -34,6 +34,7 @@ vi.mock('@/lib/supabase/admin', () => ({
           filters.push({ column, value });
           return builder;
         },
+        not: () => builder,
         gte: () => builder,
         in: () => builder,
         order: () => builder,

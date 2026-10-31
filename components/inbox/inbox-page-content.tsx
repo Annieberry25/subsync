@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CheckCheck,
@@ -34,7 +34,6 @@ export default function InboxPageContent() {
     archivedItems,
     unreadCount,
     markAsRead,
-    markAllAsRead,
     deleteItem, 
     archiveItem, 
     unarchiveItem,
@@ -42,10 +41,6 @@ export default function InboxPageContent() {
     removeFromFavourites 
   } = useInbox();
 
-  useEffect(() => {
-    markAllAsRead();
-  }, [markAllAsRead]);
-  
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
 

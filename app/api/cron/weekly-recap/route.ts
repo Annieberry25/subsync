@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/logger';
 import { sendPushToUser } from '@/lib/push/send';
 import { isoWeekStart } from '@/lib/utils/iso-week';
+import { getSubscriptionHistoryState, isOverdueSubscription } from '@/lib/services/subscription-service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -85,19 +86,25 @@ export async function GET(request: Request) {
 
     // Active count per user in one query. Canceled rows are excluded because a
     // count that includes them tells the user they are paying for something they
-    // cancelled, which is worse than not sending.
+    // cancelled. Archived / deleted rows (history state in notes) and overdue
+    // rows are also excluded — only actively tracked subscriptions count.
     const { data: counts, error: countError } = await supabase
       .from('subscriptions')
-      .select('user_id')
+      .select('user_id, notes, status, next_billing_date')
       .in('user_id', userIds)
       .neq('status', 'canceled')
       .limit(MAX_USERS_PER_RUN * 10);
 
     if (countError) throw countError;
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const countByUser = new Map<string, number>();
     for (const row of counts ?? []) {
       if (!row.user_id) continue;
+      if (getSubscriptionHistoryState(row as unknown as import('@/lib/services/subscription-service').SubscriptionRow).state !== 'active') continue;
+      if (isOverdueSubscription({ status: row.status, next_billing_date: row.next_billing_date }, today)) continue;
       countByUser.set(row.user_id, (countByUser.get(row.user_id) ?? 0) + 1);
     }
 
