@@ -66,9 +66,11 @@ export async function GET(request: Request) {
     weekAgo.setDate(weekAgo.getDate() - 7);
 
     // Every profile, not every subscription: the recap is one message per user.
+    // Only admin accounts receive the weekly recap.
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('id, email')
+      .select('id, email, is_admin')
+      .eq('is_admin', true)
       .limit(MAX_USERS_PER_RUN);
 
     if (profileError) throw profileError;

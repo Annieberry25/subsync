@@ -172,7 +172,7 @@ export function emailParagraph(text: string): string {
 export function emailDetailRow(label: string, value: string): string {
   return `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-       style="margin:0 0 8px; background:${BRAND.surfaceElevated}; border:1px solid ${BRAND.border}; border-radius:12px;">
+       style="margin:0 0 8px; background:${BRAND.surfaceElevated}; border:1px solid ${BRAND.border};">
   <tr>
     <td style="padding:12px 14px; font-family:${BRAND.fontStack}; font-size:13px; color:${BRAND.body};">${escapeHtml(label)}</td>
     <td align="right" style="padding:12px 14px; font-family:${BRAND.fontStack}; font-size:13px; font-weight:600; color:${BRAND.heading};">${escapeHtml(value)}</td>
