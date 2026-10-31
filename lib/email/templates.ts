@@ -32,6 +32,7 @@ import {
   emailDetailRow,
   emailFinePrint,
 } from './layout';
+import { formatCurrency } from '@/lib/utils/metrics-utils';
 import type { SubscriptionEmailData } from './types';
 
 export interface RenderedEmail {
@@ -134,6 +135,66 @@ export function renderRenewalReminderEmail(
       ].join(''),
     }),
   };
+}
+
+/** Weekly recap email: summary first, sign-in button last (rendered by the shell). */
+export function renderWeeklyRecapEmail(input: {
+  count: number;
+  comingUp: Array<{ name: string; nextBillingDate: string; price: number; currency: string | null }>;
+  recentlyRenewed: Array<{ name: string; nextBillingDate: string }>;
+  newThisWeek: Array<{ name: string; createdAt: string }>;
+}): RenderedEmail {
+  const bodyHtml: string[] = [];
+
+  bodyHtml.push(
+    emailParagraph(
+      `You are tracking ${input.count} active subscription${input.count === 1 ? '' : 's'}.`,
+    )
+  );
+
+  if (input.comingUp.length > 0) {
+    bodyHtml.push(emailParagraph('Coming up'));
+    for (const s of input.comingUp) {
+      bodyHtml.push(
+        emailDetailRow(
+          s.name,
+          `Renews ${formatDate(s.nextBillingDate)} — ${formatCurrency(s.price, s.currency ?? undefined)}`
+        )
+      );
+    }
+  }
+
+  if (input.recentlyRenewed.length > 0) {
+    bodyHtml.push(emailParagraph('Recently renewed'));
+    for (const s of input.recentlyRenewed) {
+      bodyHtml.push(
+        emailDetailRow(s.name, `Renewed ${formatDate(s.nextBillingDate)}`)
+      );
+    }
+  }
+
+  if (input.newThisWeek.length > 0) {
+    bodyHtml.push(emailParagraph('New this week'));
+    for (const s of input.newThisWeek) {
+      bodyHtml.push(emailDetailRow(s.name, `Added ${formatDate(s.createdAt)}`));
+    }
+  }
+
+  return {
+    subject: 'Your weekly subscription recap',
+    html: renderEmailLayout({
+      preheader: `Your weekly summary of ${input.count} active subscription${input.count === 1 ? '' : 's'}.`,
+      heading: 'Your weekly recap',
+      bodyHtml: bodyHtml.join(''),
+    }),
+  };
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 /**

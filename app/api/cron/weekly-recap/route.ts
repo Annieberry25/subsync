@@ -4,8 +4,9 @@ import { env } from '@/lib/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/logger';
 import { sendPushToUser } from '@/lib/push/send';
+import { sendWeeklyRecapEmail } from '@/lib/email/send';
 import { isoWeekStart } from '@/lib/utils/iso-week';
-import { getSubscriptionHistoryState, isOverdueSubscription } from '@/lib/services/subscription-service';
+import { getSubscriptionHistoryState, isOverdueSubscription, type SubscriptionRow } from '@/lib/services/subscription-service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,28 +16,19 @@ export const dynamic = 'force-dynamic';
  *
  * ## Why this exists
  *
- * Two problems at once. It is the retention nudge the product needs — a weekly
- * "here is what you are paying for" is the message most likely to bring someone
- * back — and it costs nothing on the Resend allowance, which is the constraint
- * that pushed the other alerts off email. A per-subscription creation mail would
- * have been the same message N times over; this is once a week regardless of how
- * much the user added.
+ * One message per user summarising their subscriptions: what is coming up,
+ * what was renewed this week, and what was added. Sent as both a push and an
+ * email so it lands wherever the user is.
  *
  * ## Schedule
- * vercel.json declares `"0 10 * * 6"` — 10:00 UTC on Saturday. Saturday rather than
- * Sunday because a weekend-morning recap is useful before people start planning
- * purchases, and the daily reminder cron sits at 09:00 so the two do not collide.
+ * vercel.json declares `"0 10 * * 6"` — 10:00 UTC on Saturday.
  *
  * ## Idempotency
  * Claim-first and atomic. Before sending, the route inserts this week's
  * activity row via `upsert(..., ignoreDuplicates)`; the partial unique index
  * on (`user_id`, `title`) for `weekly_recap_pushed` rows (migration 020)
  * makes exactly one run win, so a retried or overlapping run cannot send the
- * recap twice and a new week re-arms the check on its own. A claim that does
- * not end in a send (no push permission, or push failure) is released so a
- * later run can retry it. If the index is missing (migration not applied),
- * the upsert errors and the route falls back to the old check-then-insert
- * behaviour rather than failing.
+ * recap twice and a new week re-arms the check on its own.
  */
 
 const MAX_USERS_PER_RUN = 500;
@@ -68,11 +60,15 @@ export async function GET(request: Request) {
   try {
     const supabase = createAdminClient();
     const weekStart = isoWeekStart(new Date());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
 
     // Every profile, not every subscription: the recap is one message per user.
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, email')
       .limit(MAX_USERS_PER_RUN);
 
     if (profileError) throw profileError;
@@ -83,29 +79,70 @@ export async function GET(request: Request) {
     }
 
     const userIds = profiles.map((p) => p.id);
+    const emailByUser = new Map<string, string>();
+    for (const p of profiles ?? []) {
+      if (p.id && p.email) emailByUser.set(p.id, p.email);
+    }
 
-    // Active count per user in one query. Canceled rows are excluded because a
-    // count that includes them tells the user they are paying for something they
-    // cancelled. Archived / deleted rows (history state in notes) and overdue
-    // rows are also excluded — only actively tracked subscriptions count.
-    const { data: counts, error: countError } = await supabase
+    // Active subscriptions per user: excludes canceled, archived/deleted
+    // (history state in notes) and overdue rows — only actively tracked ones.
+    const { data: subs, error: subsError } = await supabase
       .from('subscriptions')
-      .select('user_id, notes, status, next_billing_date')
+      .select('id, user_id, name, price, currency, notes, status, next_billing_date, start_date, created_at')
       .in('user_id', userIds)
       .neq('status', 'canceled')
       .limit(MAX_USERS_PER_RUN * 10);
 
-    if (countError) throw countError;
+    if (subsError) throw subsError;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Partition per user into coming up / recently renewed / new this week.
+    const byUser = new Map<string, {
+      count: number;
+      comingUp: { name: string; nextBillingDate: string; price: number; currency: string | null }[];
+      recentlyRenewed: { name: string; nextBillingDate: string }[];
+      newThisWeek: { name: string; createdAt: string }[];
+    }>();
 
-    const countByUser = new Map<string, number>();
-    for (const row of counts ?? []) {
+    for (const row of subs ?? []) {
       if (!row.user_id) continue;
-      if (getSubscriptionHistoryState(row as unknown as import('@/lib/services/subscription-service').SubscriptionRow).state !== 'active') continue;
+      if (getSubscriptionHistoryState(row as unknown as SubscriptionRow).state !== 'active') continue;
       if (isOverdueSubscription({ status: row.status, next_billing_date: row.next_billing_date }, today)) continue;
-      countByUser.set(row.user_id, (countByUser.get(row.user_id) ?? 0) + 1);
+
+      let entry = byUser.get(row.user_id);
+      if (!entry) {
+        entry = { count: 0, comingUp: [], recentlyRenewed: [], newThisWeek: [] };
+        byUser.set(row.user_id, entry);
+      }
+      entry.count++;
+
+      const nextDate = row.next_billing_date;
+      const diffTime = new Date(nextDate).getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+      if (diffDays >= 0 && diffDays <= 10) {
+        entry.comingUp.push({
+          name: row.name,
+          nextBillingDate: nextDate,
+          price: Number(row.price) || 0,
+          currency: row.currency ?? null,
+        });
+      }
+
+      const createdAt = row.created_at || nextDate;
+      const createdDiff = new Date(createdAt).getTime() - weekAgo.getTime();
+      if (createdDiff >= 0) {
+        entry.newThisWeek.push({
+          name: row.name,
+          createdAt: createdAt,
+        });
+      }
+    }
+
+    // Sort each bucket.
+    for (const entry of byUser.values()) {
+      entry.comingUp.sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime());
+      entry.recentlyRenewed.sort((a, b) => new Date(a.nextBillingDate).getTime() - new Date(b.nextBillingDate).getTime());
+      entry.newThisWeek.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     }
 
     const { data: alreadySent } = await supabase
@@ -116,33 +153,27 @@ export async function GET(request: Request) {
 
     const sentThisWeek = new Set((alreadySent ?? []).map((r) => r.user_id).filter(Boolean) as string[]);
 
-    for (const [userId, count] of countByUser) {
-      if (count === 0) continue;
+    for (const [userId, entry] of byUser) {
+      if (entry.count === 0) continue;
       if (sentThisWeek.has(userId)) {
         summary.skippedAlreadySent++;
         continue;
       }
 
       const body =
-        count === 1
-          ? 'You are tracking 1 subscription. Tap to see it.'
-          : `You are tracking ${count} subscriptions. Tap to review them.`;
+        entry.count === 1
+          ? 'You are tracking 1 subscription.'
+          : `You are tracking ${entry.count} subscriptions.`;
 
-      // Atomic claim before the send: the partial unique index on
-      // (user_id, title) makes a concurrent second claim lose, so only one
-      // run can proceed to send. A missing index (migration not applied)
-      // surfaces as claim.error and falls back to check-then-insert below.
+      // Atomic claim before the send.
       const claim = await supabase
         .from('activity_log')
         .upsert(
           {
             user_id: userId,
             type: 'weekly_recap_pushed',
-            /* The visible title says "sent", like every other feed entry. The
-               type keeps its migration-020 idempotency key, so the dedup claim
-               and the weekStart check are untouched. */
             title: `Weekly recap sent — ${weekStart.slice(0, 10)}`,
-            description: `Weekly recap sent for ${count} active subscriptions.`,
+            description: `Weekly recap sent for ${entry.count} active subscriptions.`,
             timestamp: new Date().toISOString(),
             amount: 0,
             currency: 'USD',
@@ -162,32 +193,38 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const result = await sendPushToUser(userId, {
+      // Push notification.
+      const pushResult = await sendPushToUser(userId, {
         title: 'Your week in subscriptions',
         body,
         url: '/subscriptions',
-        // One shared tag: a weekly recap is a single event, so a retry replaces
-        // the earlier notification instead of stacking a second copy.
         tag: 'weekly-recap',
       });
 
-      if (result.skipped) {
-        // No permission granted. Normal — most users will be in this bucket.
-        // Release the claim so a later run can retry it.
+      // Email (summary lands before the sign-in button that the shell appends).
+      const email = emailByUser.get(userId);
+      if (email) {
+        await sendWeeklyRecapEmail(email, {
+          count: entry.count,
+          comingUp: entry.comingUp,
+          recentlyRenewed: entry.recentlyRenewed,
+          newThisWeek: entry.newThisWeek,
+        });
+      }
+
+      if (pushResult.skipped) {
         if (claimId) await supabase.from('activity_log').delete().eq('id', claimId);
         continue;
       }
 
-      if (result.sent > 0) {
+      if (pushResult.sent > 0) {
         summary.sent++;
         if (!claimId) {
-          // Fallback path (no unique index): record the send the way this
-          // route always did.
           await supabase.from('activity_log').insert({
             user_id: userId,
             type: 'weekly_recap_pushed',
             title: 'Weekly recap sent',
-            description: `Weekly recap sent for ${count} active subscriptions.`,
+            description: `Weekly recap sent for ${entry.count} active subscriptions.`,
             timestamp: new Date().toISOString(),
             amount: 0,
             currency: 'USD',
