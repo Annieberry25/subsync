@@ -193,7 +193,7 @@ export async function GET(request: Request) {
         continue;
       }
 
-      // Push notification.
+      // Push notification (best effort — email still sends even if push is skipped).
       const pushResult = await sendPushToUser(userId, {
         title: 'Your week in subscriptions',
         body,
@@ -203,21 +203,27 @@ export async function GET(request: Request) {
 
       // Email (summary lands before the sign-in button that the shell appends).
       const email = emailByUser.get(userId);
+      let emailSent = false;
       if (email) {
-        await sendWeeklyRecapEmail(email, {
+        const emailResult = await sendWeeklyRecapEmail(email, {
           count: entry.count,
           comingUp: entry.comingUp,
           recentlyRenewed: entry.recentlyRenewed,
           newThisWeek: entry.newThisWeek,
         });
+        emailSent = emailResult.ok;
       }
 
       if (pushResult.skipped) {
-        if (claimId) await supabase.from('activity_log').delete().eq('id', claimId);
+        // No push configured for this user; keep the claim so the run is
+        // recorded as attempted, but count email as the delivery instead.
+        if (emailSent) {
+          summary.sent++;
+        }
         continue;
       }
 
-      if (pushResult.sent > 0) {
+      if (pushResult.sent > 0 || emailSent) {
         summary.sent++;
         if (!claimId) {
           await supabase.from('activity_log').insert({

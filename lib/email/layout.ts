@@ -103,7 +103,7 @@ export function renderEmailLayout({
         </tr>
 
         <tr>
-          <td style="background:${BRAND.surface}; border:1px solid ${BRAND.border}; border-radius:20px; padding:28px 24px; box-shadow:0 1px 0 ${BRAND.glow}, 0 12px 32px rgba(0,0,0,0.4);">
+            <td style="background:${BRAND.surface}; border:1px solid ${BRAND.border}; padding:28px 24px; box-shadow:0 1px 0 ${BRAND.glow}, 0 12px 32px rgba(0,0,0,0.4);">
 
             <h1 style="margin:0 0 16px; font-family:${BRAND.fontStack}; font-size:22px; line-height:1.3; font-weight:700; letter-spacing:-0.02em; color:${BRAND.heading};">
               ${escapeHtml(heading)}
