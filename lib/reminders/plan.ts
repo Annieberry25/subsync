@@ -44,7 +44,7 @@ export const DAY_MINUTES = 24 * 60;
  *
  * This is what it means for the schedule to match what the user was told.
  */
-export const COUNTDOWN_LEAD_DAYS: readonly number[] = [10, 5, 3, 2, 1];
+export const COUNTDOWN_LEAD_DAYS: readonly number[] = [10, 5, 2, 1];
 
 /** The countdown stages in the minutes this module keys and windows with. */
 export const COUNTDOWN_LEAD_MINUTES: readonly number[] = COUNTDOWN_LEAD_DAYS.map(
@@ -411,14 +411,14 @@ export function planReminders(input: PlanInput): Plan {
         });
       }
 
-      if (overdueDays <= OVERDUE_PUSH_DAYS) {
-        // The overdue day itself: a fresh key per day, readable by the
-        // ledger, due only while the calendar is on that day.
+      // Day 1 overdue: email only. Days 2-3: push only. Each day-exact — a
+      // missed day is not owed later.
+      if (overdueDays === 1) {
         decide(
           sub,
-          'push',
+          'email',
           overduePushLead(overdueDays),
-          { channel: 'push', leadMinutes: overduePushLead(overdueDays), isDue: (d) => d === -overdueDays },
+          { channel: 'email', leadMinutes: overduePushLead(overdueDays), isDue: (d) => d === -overdueDays, stage: 'overdue' },
           minutes,
           days,
           input.alreadyDelivered,
@@ -427,17 +427,12 @@ export function planReminders(input: PlanInput): Plan {
         );
       }
 
-      // One email per lapse: a stable key the ledger holds after the first
-      // send. Its window stays open for catch-up because if the first
-      // overdue day's run was missed, the lapse's single email is still
-      // owed. Past the removal horizon the engine handles the row instead —
-      // soft delete plus one last notice — so the planner plans nothing.
-      if (overdueDays <= OVERDUE_HORIZON_DAYS) {
+      if (overdueDays === 2 || overdueDays === 3) {
         decide(
           sub,
-          'email',
-          OVERDUE_EMAIL_LEAD,
-          { channel: 'email', leadMinutes: OVERDUE_EMAIL_LEAD },
+          'push',
+          overduePushLead(overdueDays),
+          { channel: 'push', leadMinutes: overduePushLead(overdueDays), isDue: (d) => d === -overdueDays, stage: 'overdue' },
           minutes,
           days,
           input.alreadyDelivered,
@@ -467,10 +462,8 @@ export function planReminders(input: PlanInput): Plan {
     const prechargeOpen = minutes > 0 && allowed;
 
     if (prechargeOpen) {
-      // The countdown: push on each labelled day. Nothing binds a countdown
-      // to a billing cycle — 10/5/3/2/1 is the same for a monthly plan and
-      // an annual one, which is what keeps the notifications telling a story
-      // the user can predict.
+      // The countdown: push on each labelled day. Email joins push at 5, 2,
+      // and 1 days before; 10 days is push only. Day 3 is skipped entirely.
       for (const lead of COUNTDOWN_LEAD_MINUTES) {
         const countDay = lead / DAY_MINUTES;
         candidates.push({
@@ -478,13 +471,14 @@ export function planReminders(input: PlanInput): Plan {
           leadMinutes: lead,
           isDue: (days) => days === countDay,
         });
+        if (countDay !== 10) {
+          candidates.push({
+            channel: 'email',
+            leadMinutes: lead,
+            isDue: (days) => days === countDay,
+          });
+        }
       }
-
-      // The single automatic email for this renewal, by cycle.
-      candidates.push({
-        channel: 'email',
-        leadMinutes: autoEmailLeadFor(sub.billingCycle),
-      });
 
       // The extra push on the day before: push only, actionable.
       candidates.push({ channel: 'push', leadMinutes: SECOND_CALL_LEAD_MINUTES });
@@ -500,6 +494,7 @@ export function planReminders(input: PlanInput): Plan {
      */
     if (days === 0) {
       candidates.push({ channel: 'push', leadMinutes: RENEWAL_DAY_AM_LEAD, stage: 'renewal-day' });
+      candidates.push({ channel: 'email', leadMinutes: RENEWAL_DAY_AM_LEAD, stage: 'renewal-day' });
       candidates.push({ channel: 'push', leadMinutes: RENEWAL_DAY_PM_LEAD, stage: 'renewal-day' });
     }
 
@@ -531,7 +526,7 @@ export function planReminders(input: PlanInput): Plan {
        * that only emits a push, swallowing it would silently drop a reminder
        * they set up.
        */
-      if (lead !== autoEmailLeadFor(sub.billingCycle)) {
+      if (!COUNTDOWN_LEAD_MINUTES.filter((l) => l !== 10 * DAY_MINUTES).includes(lead)) {
         candidates.push({ channel: 'email', leadMinutes: lead });
       }
     }

@@ -103,15 +103,16 @@ function todayIso(now: Date): string {
   return utcToday(now);
 }
 
-/** Human wording for how far off a renewal is, at hour/minute resolution. */
-function humanizeRenewal(minutes: number): string {
-  if (minutes <= 0) return 'renews today';
+/** Human wording for how far off a renewal is. `days` is the UTC calendar-day
+ *  count so push, email, and the in-app inbox always agree. `minutes` is only
+ *  used for sub-day precision (hours / minutes). */
+function humanizeRenewal(minutes: number, days: number): string {
+  if (days <= 0) return 'renews today';
   if (minutes < 60) return `renews in ${Math.max(1, Math.round(minutes))} min`;
   if (minutes < 1440) {
     const hours = Math.round(minutes / 60);
     return `renews in ${hours} hour${hours === 1 ? '' : 's'}`;
   }
-  const days = Math.round(minutes / 1440);
   return days === 1 ? 'renews tomorrow' : `renews in ${days} days`;
 }
 
@@ -404,12 +405,12 @@ export async function runRenewalReminders({
                 }
               : isSecondCall
                 ? {
-                    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal)}`,
+                    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
                     body: 'Cancel it now if you do not want to be charged again.',
                     url: deepLinkUrl,
                   }
                 : {
-                    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal)}`,
+                    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
                     body: 'A heads-up so the next charge is not a surprise.',
                     url: '/subscriptions',
                   };
@@ -599,7 +600,7 @@ async function addInboxReminder(
     type: 'renewal',
     title: overdue
       ? `${item.name} is overdue`
-      : `${item.name} ${humanizeRenewal(item.minutesUntilRenewal)}`,
+      : `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
     description: overdue
       ? `Your ${item.name} subscription was due on ${item.renewalDate}. Mark it renewed here, or cancel it.`
       : `Your ${item.name} subscription renews on ${item.renewalDate}.`,
