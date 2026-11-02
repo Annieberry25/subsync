@@ -158,7 +158,7 @@ export const OVERDUE_EMAIL_LEAD = overduePushLead(1);
 /** Which stage of the plan a reminder belongs to. */
 export type ReminderStage = 'precharge' | 'renewal-day' | 'overdue';
 
-/** 5 days before renewal: the default opt-in heads-up. */
+/** 5 days before renewal: the default opt-in Tip-Off. */
 export const DEFAULT_USER_LEAD_MINUTES = 5 * DAY_MINUTES;
 
 /** The widest custom offset the UI allows (30 days), and the query horizon. */
@@ -411,7 +411,7 @@ export function planReminders(input: PlanInput): Plan {
         });
       }
 
-      // Day 1 overdue: email only. Days 2-3: push only. Each day-exact — a
+      // Day 1 overdue: email and push. Days 2-3: push only. Each day-exact — a
       // missed day is not owed later.
       if (overdueDays === 1) {
         decide(
@@ -419,6 +419,17 @@ export function planReminders(input: PlanInput): Plan {
           'email',
           overduePushLead(overdueDays),
           { channel: 'email', leadMinutes: overduePushLead(overdueDays), isDue: (d) => d === -overdueDays, stage: 'overdue' },
+          minutes,
+          days,
+          input.alreadyDelivered,
+          plan,
+          'overdue'
+        );
+        decide(
+          sub,
+          'push',
+          overduePushLead(overdueDays),
+          { channel: 'push', leadMinutes: overduePushLead(overdueDays), isDue: (d) => d === -overdueDays, stage: 'overdue' },
           minutes,
           days,
           input.alreadyDelivered,

@@ -20,7 +20,7 @@ import {
   type PlannerSubscription,
   type ReminderChannel,
 } from './plan';
-import { addCycleToDate } from '@/lib/utils/billing-dates';
+import { addCycleToDate, resolveRenewalDate } from '@/lib/utils/billing-dates';
 import { notesForAutoRemoval, serverHistoryState } from './overdue-cleanup';
 
 /**
@@ -215,7 +215,7 @@ export async function runRenewalReminders({
     name: r.name ?? 'Your subscription',
     price: Number(r.price) || 0,
     currency: r.currency ?? 'USD',
-    renewalDate: r.next_billing_date,
+    renewalDate: resolveRenewalDate(r),
     billingCycle: r.billing_cycle ?? 'monthly',
     status: r.status,
   }));
@@ -411,7 +411,7 @@ export async function runRenewalReminders({
                   }
                 : {
                     title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
-                    body: 'A heads-up so the next charge is not a surprise.',
+                    body: 'A Tip-Off so the next charge is not a surprise.',
                     url: '/subscriptions',
                   };
 

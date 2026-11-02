@@ -19,16 +19,6 @@ import { useToast } from '@/lib/hooks/use-toast';
 import { SubscriptionCardSkeleton } from '@/components/ui/skeleton';
 
 /**
- * Overdue is capped at 60 days.
- *
- * Without a ceiling the list grew without bound: a subscription left unpaid for
- * a year sorts to the top by oldest-first and buries everything actionable. A
- * row past the cap is simply not surfaced here; the subscription is untouched
- * and still exists in the main list.
- */
-const OVERDUE_WINDOW_DAYS = 60;
-
-/**
  * One compact overdue row: service, plan, days overdue, amount. Flat and flush,
  * matching the upcoming table, rather than the bordered card it used to be.
  * Plan is dropped below `sm` so the whole row stays on a single line on a phone.
@@ -269,7 +259,7 @@ export default function RenewalsPageContent() {
     today.setHours(0, 0, 0, 0);
 
     const allMapped = filterActiveSubscriptions(subscriptions)
-      .filter((sub) => sub.status === 'active' || sub.status === 'trial')
+      .filter((sub) => sub.status !== 'canceled')
       .map((sub) => {
         /* The automatic date — a cycle after the start — matching what the
            detail sheet and the edit form answer from, so a row whose stored
@@ -283,7 +273,7 @@ export default function RenewalsPageContent() {
       });
 
     const overdue = allMapped
-      .filter(({ diffDays }) => diffDays < 0 && diffDays >= -OVERDUE_WINDOW_DAYS)
+      .filter(({ diffDays }) => diffDays < 0)
       .sort((a, b) => a.diffDays - b.diffDays);
 
     const upcoming = allMapped
