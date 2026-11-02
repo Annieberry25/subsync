@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CheckCheck,
@@ -34,12 +34,24 @@ export default function InboxPageContent() {
     archivedItems,
     unreadCount,
     markAsRead,
+    markAllAsRead,
     deleteItem, 
     archiveItem, 
     unarchiveItem,
     addToFavourites, 
     removeFromFavourites 
   } = useInbox();
+
+  /*
+   * Arriving at the Inbox is the read receipt: the bell counts what has not
+   * been looked at yet, and opening the list is looking. The provider keeps
+   * `markAllAsRead` identity-stable across the persist/re-read cycle, so this
+   * effect settles after one pass instead of looping (see the regression test
+   * in lib/contexts/__tests__/inbox-context.test.tsx).
+   */
+  useEffect(() => {
+    markAllAsRead();
+  }, [markAllAsRead]);
 
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);

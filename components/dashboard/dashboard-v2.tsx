@@ -91,6 +91,10 @@ function MetricCard({
   );
 }
 
+/* Matches the overdue list on Renewals: a row more than 60 days past due is
+   not surfaced there, so the banner must not count it either. */
+const OVERDUE_WINDOW_DAYS = 60;
+
 export default function DashboardV2() {
   const { toast } = useToast();
   const router = useRouter();
@@ -340,14 +344,19 @@ const handleSave = async (
     [activeSubscriptions, defaultCurrency, exchangeRates]
   );
   const overdueCount = useMemo(() => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return activeSubscriptions.filter((sub) => {
-      if (sub.status === 'canceled') return false;
+      // Same rule as the overdue list on Renewals: only live rows, and only
+      // while the lapse is within the 60-day window. The banner and the list
+      // must answer with the same number.
+      if (sub.status !== 'active' && sub.status !== 'trial') return false;
       // The automatic date — a cycle after the start — matching what the
       // detail sheet and the lists answer from, not the stored field.
-      const nextBilling = new Date(resolveRenewalDate(sub));
-      return nextBilling < now;
+      const nextDate = new Date(resolveRenewalDate(sub));
+      nextDate.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((nextDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+      return diffDays < 0 && diffDays >= -OVERDUE_WINDOW_DAYS;
     }).length;
   }, [activeSubscriptions]);
 
