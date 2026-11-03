@@ -9,6 +9,7 @@ import {
 } from '@/lib/constants/plan-limits';
 
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
+import { addCycleToDate, resolveRenewalDate } from '@/lib/utils/billing-dates';
 export type SubscriptionRow =
   Omit<Database['public']['Tables']['subscriptions']['Row'], 'auto_renew'> & {
   auto_renew?: boolean | null;
@@ -542,28 +543,35 @@ export function isLocalOnlySubscription(subscription: Pick<SubscriptionRow, 'use
 }
 
 /**
- * Overdue means the next billing date has already passed, compared at local
+ * Overdue means the renewal date has already passed, compared at local
  * midnight, on a row that is not canceled.
  *
- * Single definition on purpose: the subscriptions list, the dashboard's overdue
- * banner, the renewals page and Past Activities all answer "is this overdue?",
- * and they previously each carried their own copy. They drifted — the renewals
- * page restricted itself to `active`/`trial` while the dashboard accepted any
- * non-canceled status — so a paused row counted as overdue in one place and not
- * the other.
+ * The date is the computed renewal date — a cycle after the row's start — not
+ * the stored `next_billing_date`. The stored field can still hold a future day
+ * while the actual renewal has passed (a drifted field, or an auto-renewal
+ * advance), and the lists answer from the computed date everywhere else. The
+ * subscriptions list filters overdue rows out and Past Activities synthesises
+ * them back in; reading the raw field here let a row sit on both.
  *
- * Exported because Past Activities synthesises activity entries from overdue rows
- * and must agree with all of them.
+ * Callers that only hold `status` and `next_billing_date` still fall back to
+ * the stored day, so the weekly recap's narrow projection keeps working.
+ *
+ * Single definition on purpose: the subscriptions list, the dashboard's overdue
+ * banner, the renewals page and Past Activities all answer "is this overdue?".
+ * Exported because Past Activities synthesises activity entries from overdue
+ * rows and must agree with all of them.
  */
 export function isOverdueSubscription(
-  subscription: Pick<SubscriptionRow, 'status' | 'next_billing_date'>,
+  subscription: Pick<SubscriptionRow, 'status' | 'next_billing_date'> &
+    Partial<Pick<SubscriptionRow, 'start_date' | 'billing_cycle'>>,
   now: Date = new Date()
 ): boolean {
   if (subscription.status === 'canceled') return false;
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
-  const nextBilling = new Date(subscription.next_billing_date);
+  const nextBilling = new Date(resolveRenewalDate(subscription));
   if (Number.isNaN(nextBilling.getTime())) return false;
+  nextBilling.setHours(0, 0, 0, 0);
   return nextBilling.getTime() < today.getTime();
 }
 
@@ -690,14 +698,14 @@ export async function fetchSubscriptions(): Promise<{ data: SubscriptionRow[] | 
       // by id so renamed rows never duplicate.
       const current = getCachedSubscriptions() || [];
       const remoteIds = new Set(data.map((remote) => remote.id));
-      // Only rows this user owns may survive the merge. Cached rows are not
-      // user-scoped at the key level, so a row belonging to someone else would
-      // otherwise be carried forward forever (and, if still marked local-only,
-      // re-INSERTed under this user's id by syncPendingSubscriptions).
+      // Only offline-created rows may survive the merge. A cached row that
+      // carries a real account id and is absent from the server response was
+      // deleted there (a different device, or an admin) and must not be
+      // resurrected — otherwise a deletion can never propagate to a browser
+      // that still has the row cached. Anything that is still local-only is
+      // picked up by syncPendingSubscriptions and inserted under this user.
       const localOnly = current.filter(
-        (local) =>
-          !remoteIds.has(local.id) &&
-          (isLocalOnlySubscription(local) || local.user_id === user.id)
+        (local) => !remoteIds.has(local.id) && isLocalOnlySubscription(local)
       );
       const merged = [...localOnly, ...data];
       writeCachedSubscriptions(merged);

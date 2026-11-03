@@ -11,8 +11,11 @@
  *
  * `Notification.requestPermission()` called on page load resolves to `denied`
  * without ever showing a prompt on some browsers, and Chrome treats repeated
- * programmatic requests as a signal to block the origin permanently. So nothing
- * here runs on mount; `enablePushNotifications` is only ever called from a click.
+ * programmatic requests as a signal to block the origin permanently. So the
+ * prompt is only ever requested from a click; `enablePushNotifications` is only
+ * called from one. Restoring a device whose permission is already granted is a
+ * different operation: there is no prompt to earn, so `ensurePushSubscription`
+ * may run on mount.
  */
 
 const SERVICE_WORKER_PATH = '/sw.js';
@@ -111,24 +114,58 @@ export async function enablePushNotifications(): Promise<PushPermissionState> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return permission as PushPermissionState;
 
+  await subscribeAndStore();
+  return 'granted';
+}
+
+/**
+ * Restore this device's registration when permission is already granted.
+ *
+ * Only the permission prompt is gesture-gated: with the origin already trusted
+ * there is no dialog to show, so subscribing and storing the endpoint is safe on
+ * mount. That is what keeps the switch from reading OFF on a device that the
+ * browser is still willing to push to.
+ *
+ * Returns false for a default/denied permission, which stays with the settings
+ * toggle — prompting on load is the behaviour that gets an origin blocked.
+ */
+export async function ensurePushSubscription(): Promise<boolean> {
+  if (getPushPermissionState() !== 'granted') return false;
+  return subscribeAndStore();
+}
+
+/**
+ * Subscribes this browser and stores the endpoint server-side.
+ *
+ * Shared by the click path and the mount-time repair path. Every failure — a
+ * missing VAPID key, a worker that will not register, a rejected `subscribe()`,
+ * a rejected POST — returns false, because each is a normal outcome on some
+ * browser or device. Callers distinguish "permission granted" from "device
+ * registered" with `hasPushSubscription`.
+ */
+async function subscribeAndStore(): Promise<boolean> {
   const publicKey = await getVapidPublicKey();
-  if (!publicKey) return 'granted';
+  if (!publicKey) return false;
 
   const registration = await registerServiceWorker();
-  if (!registration) return 'granted';
+  if (!registration) return false;
 
   try {
     const existing = await registration.pushManager.getSubscription();
     // An existing subscription may predate the current VAPID key, which the
     // browser treats as valid but the push service will reject. Re-subscribing
-    // when the key differs avoids a silently dead subscription.
+    // when the key differs avoids a silently dead subscription. VAPID keys are
+    // base64url while `btoa` emits standard base64, so normalize both before
+    // comparing or every check reads as a rotation.
+    const normalizeKey = (value: string) =>
+      value.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
     const currentKey = existing?.options.applicationServerKey;
     const currentKeyB64 = currentKey
       ? window.btoa(String.fromCharCode(...new Uint8Array(currentKey)))
       : null;
 
     let subscription: PushSubscription;
-    if (existing && (!currentKeyB64 || currentKeyB64 === publicKey)) {
+    if (existing && (!currentKeyB64 || normalizeKey(currentKeyB64) === normalizeKey(publicKey))) {
       subscription = existing;
     } else {
       // `subscribe()` rejects with InvalidStateError while a subscription bound to
@@ -144,7 +181,7 @@ export async function enablePushNotifications(): Promise<PushPermissionState> {
 
     const json = subscription.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-      return 'granted';
+      return false;
     }
 
     const res = await fetch(SUBSCRIBE_ENDPOINT, {
@@ -156,15 +193,18 @@ export async function enablePushNotifications(): Promise<PushPermissionState> {
       }),
     });
 
-    if (res.ok) return 'granted';
+    if (res.ok) return true;
 
     // The server never recorded it. Leaving the browser subscribed would keep a
     // subscription alive that nothing will ever push to, and would make
     // `hasPushSubscription` report ON while the cron sees no endpoint.
+    const detail = await res.text().catch(() => '');
+    console.warn('[push] server rejected the subscription', res.status, detail);
     await subscription.unsubscribe().catch(() => undefined);
-    return 'granted';
-  } catch {
-    return 'granted';
+    return false;
+  } catch (err) {
+    console.warn('[push] could not subscribe this device', err);
+    return false;
   }
 }
 

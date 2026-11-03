@@ -185,7 +185,7 @@ export default function AuthenticationPage() {
             onClick={() => goBack(router)}
             aria-label="Go back"
             data-touch="compact"
-            className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer lg:hidden"
+            className="w-9 h-9 -ml-2 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>

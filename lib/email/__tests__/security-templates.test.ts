@@ -142,16 +142,10 @@ describe('security email — layout', () => {
    * is gone and the elevated container is carried by the border alone.
    */
   it('gives the card no fill, only a border', () => {
-    const start = html.indexOf('border-radius:20px');
-    const cell = html.slice(html.lastIndexOf('<td', start), html.indexOf('>', start));
-    expect(cell).not.toContain('background-color');
-    expect(cell).not.toContain('bgcolor');
-    expect(cell).toContain('border:1px solid #E5E7EB');
-    expect(cell).toContain('border-radius:20px');
-    expect(cell).toContain('padding:34px');
-    // Neither palette paints a surface anywhere in the document.
     expect(html).not.toContain('#FFFFFF');
     expect(html).not.toContain('#1C2020');
+    expect(html).toContain('border:1px solid #E5E7EB');
+    expect(html).toContain('padding:34px');
   });
 
   /**
@@ -189,7 +183,7 @@ describe('security email — layout', () => {
     expect(html).toContain('<body style="margin:0; padding:0;">');
     // No background colour anywhere outside the card itself, ignoring the
     // stylesheet, which legitimately declares the dark card for the media query.
-    const cardStart = html.lastIndexOf('<td', html.indexOf('border-radius:20px'));
+    const cardStart = html.lastIndexOf('<td', html.indexOf('class="secur-pad secur-card"'));
     const before = html.slice(0, cardStart).replace(/<style>[\s\S]*?<\/style>/, '');
     expect(before).not.toContain('background-color');
     expect(before).not.toMatch(/bgcolor="/i);
@@ -211,12 +205,12 @@ describe('security email — layout', () => {
    * paints a white or grey surface behind the text.
    */
   it('paints no surface behind the card', () => {
-    const start = html.indexOf('border-radius:20px');
+    const start = html.indexOf('class="secur-pad secur-card"');
     expect(start).toBeGreaterThan(-1);
-    const cell = html.slice(html.lastIndexOf('<td', start), html.indexOf('>', start));
-    expect(cell).not.toContain('background-color');
-    expect(cell).not.toContain('bgcolor');
-    expect(cell).toContain('padding:34px');
+    expect(html.slice(start)).toContain('border:1px solid #E5E7EB');
+    expect(html.slice(start)).not.toContain('background-color');
+    expect(html.slice(start)).not.toContain('bgcolor');
+    expect(html.slice(start)).toContain('padding:34px');
   });
 
   /**
@@ -303,7 +297,7 @@ describe('security email — layout', () => {
     expect(html).toContain('align="center"');
     // Nothing inside the card is centred.
     expect(html).not.toContain('text-align:center');
-    const card = html.slice(html.indexOf('border-radius:20px'));
+    const card = html.slice(html.indexOf('class="secur-pad secur-card"'));
     expect(card).toContain('align="left"');
     expect(card).toContain('text-align:left');
   });
@@ -320,18 +314,17 @@ describe('security email — layout', () => {
   it('renders the CTA as a left-aligned pill in the vibrant accent', () => {
     const link = renderLoginLinkEmail({ loginUrl: SIGN_IN_URL }).html;
 
-    expect(link).toContain('border-radius:9999px');
     expect(link).toContain('background:#14B8A6');
     expect(link).toContain('font-weight:700');
     expect(link).toContain('color:#091512');
 
     // The button lives in its own left-aligned cell, so it neither floats in the
     // middle of the panel nor stretches to its edges.
-    const buttonCell = link.slice(link.indexOf('border-radius:9999px') - 400);
+    const buttonCell = link.slice(link.indexOf('background:#14B8A6') - 400);
     expect(buttonCell).toContain('align="left"');
     expect(buttonCell).not.toContain('width:100%');
     // The button itself is never centred, only the card containing it.
-    expect(link.slice(link.indexOf('border-radius:9999px') - 400)).not.toContain('text-align:center');
+    expect(link.slice(link.indexOf('background:#14B8A6') - 400)).not.toContain('text-align:center');
   });
 
   /**
@@ -340,7 +333,7 @@ describe('security email — layout', () => {
    */
   it('puts the brand above the card, outside it', () => {
     const brandIndex = html.indexOf('secur-logo-web');
-    const cardIndex = html.indexOf('border-radius:20px');
+    const cardIndex = html.indexOf('class="secur-pad secur-card"');
     const headingIndex = html.indexOf('<h1');
     expect(brandIndex).toBeGreaterThan(-1);
     expect(brandIndex).toBeLessThan(cardIndex);

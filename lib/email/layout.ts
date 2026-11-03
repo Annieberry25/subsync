@@ -411,7 +411,7 @@ export function renderSecurityEmailLayout({
              elevated container. Text sits on the reader's own page colour. -->
         <tr>
           <td class="secur-pad secur-card" align="left"
-              style="border:1px solid ${SECURITY.light.border}; border-radius:20px; padding:34px;">
+              style="border:1px solid ${SECURITY.light.border}; padding:34px;">
 
             <h1 class="secur-h1 secur-primary" style="margin:0 0 18px; font-family:${BRAND.fontStack}; font-size:26px; line-height:1.25; font-weight:700; letter-spacing:-0.02em; text-align:left; color:${SECURITY.light.primary};">
               ${escapeHtml(heading)}
@@ -469,10 +469,10 @@ export function emailCodeBlock(
      100% row forces the note onto the next line. -->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" align="left" style="margin:24px 0;">
   <tr>
-    <td align="left" style="padding:0;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin:0;">
-        <tr>
-          <td align="left" style="border-radius:9999px; background:${SECURITY.accent}; mso-padding-alt:15px 32px;">
+            <td align="left" style="padding:0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin:0;">
+                <tr>
+                  <td align="left" style="background:${SECURITY.accent}; mso-padding-alt:15px 32px;">
             <!--[if mso]>
             <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" arcsize="50%"
                          style="height:50px;v-text-anchor:middle;width:${vmlWidth}px;" fillcolor="${SECURITY.accent}">
@@ -481,11 +481,11 @@ export function emailCodeBlock(
             </v:roundrect>
             <![endif]-->
             <!--[if !mso]><!-- -->
-            <a href="${options.href}"
-               style="display:inline-block; padding:15px 32px; line-height:20px;
-                      font-family:${BRAND.fontStack}; font-size:15px; font-weight:700;
-                      color:${SECURITY.accentText}; text-decoration:none; border-radius:9999px;
-                      background:${SECURITY.accent};">
+              <a href="${options.href}"
+                 style="display:inline-block; padding:15px 32px; line-height:20px;
+                        font-family:${BRAND.fontStack}; font-size:15px; font-weight:700;
+                        color:${SECURITY.accentText}; text-decoration:none;
+                        background:${SECURITY.accent};">
               ${escapeHtml(label)}
             </a>
             <!--<![endif]-->

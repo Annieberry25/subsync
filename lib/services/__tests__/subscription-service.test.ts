@@ -155,9 +155,12 @@ describe('updateSubscription', () => {
 describe('fetchSubscriptions', () => {
   it('merges DB rows with cached local subscriptions', async () => {
     const dbRow = makeSubRow({ id: 'sub_db' });
-    const localRow = makeSubRow({ id: 'sub_local', name: 'Local Only' });
+    const localRow = makeSubRow({ id: 'sub_local', name: 'Local Only', user_id: 'user_mock' });
     window.localStorage.setItem('subhalt_subscriptions', JSON.stringify([localRow]));
-    mocks.setResult({ data: [dbRow], error: null });
+    mocks.setResults([
+      { data: null, error: { message: 'offline' } },
+      { data: [dbRow], error: null },
+    ]);
 
     const result = await fetchSubscriptions();
 
@@ -192,6 +195,22 @@ describe('fetchSubscriptions', () => {
       'subhalt_subscriptions',
       JSON.stringify([makeSubRow({ id: 'sub_other', user_id: 'someone_else' })])
     );
+
+    const result = await fetchSubscriptions();
+
+    expect(result.data).toEqual([]);
+    expect(window.localStorage.getItem('subhalt_subscriptions')).toBe('[]');
+  });
+
+  /**
+   * A row deleted on the server (another device, or an admin) used to be handed
+   * back from the cache on every fetch, so the deletion never reached a browser
+   * that still had it stored.
+   */
+  it('drops a cached row the server no longer returns', async () => {
+    const deletedRow = makeSubRow({ id: 'sub_deleted', name: 'Deleted' });
+    window.localStorage.setItem('subhalt_subscriptions', JSON.stringify([deletedRow]));
+    mocks.setResult({ data: [], error: null });
 
     const result = await fetchSubscriptions();
 
@@ -263,6 +282,23 @@ describe('isOverdueSubscription', () => {
     expect(
       isOverdueSubscription({ status: 'active', next_billing_date: '2026-10-04' }, now)
     ).toBe(false);
+  });
+
+  it('reads the computed renewal date, not a drifted stored day', () => {
+    // The stored field was pushed into the future, but a cycle after the start
+    // has already passed. Every other surface calls this overdue; the list must
+    // not keep showing it as upcoming just because the raw field disagrees.
+    expect(
+      isOverdueSubscription(
+        {
+          status: 'active',
+          start_date: '2026-09-03',
+          billing_cycle: 'monthly',
+          next_billing_date: '2026-10-09',
+        },
+        now
+      )
+    ).toBe(true);
   });
 
   it('ignores canceled rows', () => {
