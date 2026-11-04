@@ -181,12 +181,6 @@ export async function ingestReceiptDraft(
     return { status: 'invalid', error: error?.message ?? 'Failed to create subscription.' };
   }
 
-  // Account the discovery only once the row landed: failed/duplicate ingests
-  // must not consume the user's allowance.
-  if (source === EMAIL_FORWARDING_SOURCE) {
-    await recordEmailDiscovery(userId, 'email_forwarding');
-  }
-
   const detectedFrom =
     source === 'Gmail Monitoring' ? 'your Gmail inbox' : 'your email forwarding';
 
