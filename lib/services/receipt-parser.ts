@@ -664,6 +664,7 @@ const SUBSCRIPTION_BRANDS: Array<{ name: string; aliases: string[] }> = [
   { name: 'Audible', aliases: ['audible'] },
   { name: 'Canva', aliases: ['canva'] },
   { name: 'Linear', aliases: ['linear.app'] },
+  { name: 'LinkedIn Premium', aliases: ['linkedin', 'linkedin premium'] },
 ];
 
 const BILL_CATEGORY_KEYWORDS: Array<{ category: (typeof STANDARD_BILL_CATEGORIES)[number]; keys: string[] }> = [

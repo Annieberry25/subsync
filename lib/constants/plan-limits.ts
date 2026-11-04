@@ -25,8 +25,8 @@ export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
     // touching any enforcement point.
     maxSubscriptions: Infinity,
     maxBills: 10,
-    maxReceiptScansPerMonth: 3,
-    maxEmailDiscoveryPerMonth: 0,
+    maxReceiptScansPerMonth: Infinity,
+    maxEmailDiscoveryPerMonth: Infinity,
     // One account per subscription. A second account was meant to be the Plus
     // upgrade prompt, but it has not shipped yet — so it stays future-flagged
     // here until the Plus release, and only an admin account (which resolves
@@ -37,7 +37,7 @@ export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
     // Both are Plus-only. Free stays on the basic paths: add manually, import a
     // receipt, subscribe through a provider.
     hasGmailConnect: false,
-    hasEmailForwarding: false,
+    hasEmailForwarding: true,
     // Free can ask the assistant anything and get reads/analysis; only Plus can
     // have it propose changes (each still confirmed by the user before writing).
     hasAssistantActions: false,

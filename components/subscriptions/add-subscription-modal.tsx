@@ -126,9 +126,6 @@ export default function AddSubscriptionModal({
   const handleReceiptConfirm = (extracted: ExtractedReceiptData, file: File | null) => {
     handleExitAll();
 
-    let notes = '';
-    if (extracted.plan) notes += `Plan: ${extracted.plan}\n`;
-
     const prefill: Partial<Omit<SubscriptionInsert, 'user_id'>> = {
       name: extracted.name,
       price: parsePriceSafely(extracted.price),
@@ -136,8 +133,9 @@ export default function AddSubscriptionModal({
       billing_cycle: extracted.billingCycle || 'monthly',
       category: extracted.category || 'Streaming',
       next_billing_date: extracted.nextBillingDate || undefined,
+      start_date: extracted.startDate || undefined,
       provider_url: extracted.providerUrl,
-      notes: notes.trim() || undefined,
+      notes: undefined,
     };
 
     if (onCreateFromReceipt) {

@@ -8,15 +8,16 @@ import ReceiptSourcePicker from '@/components/receipts/receipt-source-picker';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
+import ProviderLogo from '@/components/bills/provider-logo';
 
 export interface ExtractedReceiptData {
   name: string;
-  plan?: string;
   price: string;
   currency: string;
   billingCycle: 'monthly' | 'yearly' | 'weekly' | 'quarterly';
   category: 'Streaming' | 'Software' | 'Utilities' | 'Fitness' | 'Finance' | 'Education' | 'Gaming' | 'Other';
   nextBillingDate: string;
+  startDate?: string;
   trialEndDate?: string;
   providerUrl?: string;
 }
@@ -72,12 +73,12 @@ function toReviewData(
 ): ExtractedReceiptData {
   return {
     name: extraction.providerName.value ?? initialProviderName ?? '',
-    plan: extraction.plan.value ?? undefined,
     price: extraction.amount.value != null ? String(extraction.amount.value) : '',
     currency: extraction.currency.value ?? 'USD',
     billingCycle: toBillingCycle(extraction.billingCycle.value),
     category: toCategory(extraction.category.value),
     nextBillingDate: extraction.nextBillingDate.value ?? '',
+    startDate: extraction.paymentDate.value ?? undefined,
     providerUrl: extraction.providerUrl.value ?? undefined,
   };
 }
@@ -289,13 +290,16 @@ export default function ReceiptImportModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div className="space-y-1.5">
                     <span className="text-[#94A3B8] block text-[11px]">Provider Name</span>
-                    <input
-                      type="text"
-                      value={reviewData.name}
-                      onChange={(e) => setReviewData({ ...reviewData, name: e.target.value })}
-                      placeholder="e.g. Netflix"
-                      className="w-full h-11 px-4 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-sm placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
-                    />
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <ProviderLogo name={reviewData.name} size="md" />
+                      <input
+                        type="text"
+                        value={reviewData.name}
+                        onChange={(e) => setReviewData({ ...reviewData, name: e.target.value })}
+                        placeholder="e.g. Netflix"
+                        className="flex-1 min-w-0 h-11 px-4 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-sm placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
@@ -361,6 +365,21 @@ export default function ReceiptImportModal({
                   </div>
 
                   <div className="space-y-1.5">
+                    <span className="text-[#94A3B8] block text-[11px]">Start Date</span>
+                    <input
+                      type="date"
+                      value={reviewData.startDate || ''}
+                      onChange={(e) => setReviewData({ ...reviewData, startDate: e.target.value })}
+                      className="w-full h-11 px-4 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs focus:outline-none focus:border-[#14B8A6] transition-colors"
+                    />
+                    {!reviewData.startDate && (
+                      <span className="block text-[10px] text-[#F59E0B]/80">
+                        Not found on the receipt. Enter it yourself.
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
                     <span className="text-[#94A3B8] block text-[11px]">Category</span>
                     <select
                       value={reviewData.category}
@@ -376,17 +395,6 @@ export default function ReceiptImportModal({
                         </option>
                       ))}
                     </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <span className="text-[#94A3B8] block text-[11px]">Plan / Tier</span>
-                    <input
-                      type="text"
-                      value={reviewData.plan || ''}
-                      onChange={(e) => setReviewData({ ...reviewData, plan: e.target.value })}
-                      placeholder="e.g. Premium, Family, Basic"
-                      className="w-full h-11 px-4 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
-                    />
                   </div>
                 </div>
               </div>
