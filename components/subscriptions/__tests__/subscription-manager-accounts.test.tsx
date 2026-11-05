@@ -152,7 +152,7 @@ const rowWithTwoAccounts = {
   account_links: [
     {
       id: 'link-1',
-      label: 'Personal',
+      label: 'Individual',
       url: 'https://spotify.com/personal',
       email: '',
       price: 1600,
@@ -199,7 +199,7 @@ describe('editing an account through the real path', () => {
 
     // Click the subscription: the chooser opens because it has two accounts.
     await user.click(await screen.findByText('Spotify'));
-    await user.click(await screen.findByRole('button', { name: /Personal/ }));
+    await user.click(await screen.findByRole('button', { name: /Individual/ }));
 
     // The detail sheet, then the form.
     await user.click(await screen.findByRole('button', { name: 'Edit Subscription' }));
@@ -226,7 +226,7 @@ describe('editing an account through the real path', () => {
     // The account that was chosen has what was typed into it, and the other
     // one is untouched.
     expect(links[0]).toMatchObject({
-      label: 'Personal',
+      label: 'Individual',
       price: 2500,
       next_billing_date: '2026-12-01',
     });

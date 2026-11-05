@@ -136,6 +136,13 @@ export default function AddSubscriptionModal({
       start_date: extracted.startDate || undefined,
       provider_url: extracted.providerUrl,
       notes: undefined,
+      account_links: [
+        {
+          id: `receipt-account-${Date.now()}`,
+          label: extracted.accountType || 'Other',
+          url: '',
+        },
+      ],
     };
 
     if (onCreateFromReceipt) {

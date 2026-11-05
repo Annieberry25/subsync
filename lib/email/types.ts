@@ -9,6 +9,8 @@ export interface SubscriptionEmailData {
   nextBillingDate: string;
   /** Days until the next charge. Negative when already past due. */
   daysUntilRenewal?: number;
+  /** Whether the subscription renews automatically on that date. */
+  autoRenew?: boolean;
 }
 
 /** Resend only accepts these; anything else is a template bug rather than data. */

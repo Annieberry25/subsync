@@ -1,23 +1,23 @@
 /*
- * The renewal date a list surface displays, matching what the detail sheet and
- * the edit form's box answer from: the automatic date — a cycle after the start
- * the row was made on — instead of whatever day the stored record has been
- * carrying. A row whose stored day holds a past auto-renewal advance (or any
- * other drift) would otherwise keep showing that drifted day on the lists that
- * read the field raw, while the sheet and the form showed the correct one.
- * A row never given a start date has nothing automatic to answer from and keeps
- * its stored day.
+ * The renewal date every surface answers from: the day the user actually set,
+ * stored in `next_billing_date`. A cycle after the start date is only the
+ * fallback for a row that has no stored day — recomputing it on every read
+ * ignored the renewal the user picked and made rows look overdue the moment
+ * their start date was older than one cycle.
  */
 export function resolveRenewalDate(sub: {
   start_date?: string | null;
   billing_cycle?: string | null;
   next_billing_date?: string | null;
 }): string {
+  const stored = sub.next_billing_date?.trim() || '';
+  if (stored && !Number.isNaN(new Date(stored).getTime())) return stored;
+
   const automaticIso =
     sub.start_date && sub.billing_cycle
       ? addCycleToDate(sub.start_date, sub.billing_cycle)
       : '';
-  return automaticIso || sub.next_billing_date || '';
+  return automaticIso || stored;
 }
 
 export function addCycleToDate(isoDate: string, cycle: string): string {

@@ -28,7 +28,7 @@ const twoAccounts: SubscriptionRow = {
   account_links: [
     {
       id: 'link-1',
-      label: 'Personal',
+      label: 'Individual',
       url: 'https://spotify.com/personal',
       email: '',
       price: 1600,
@@ -72,7 +72,7 @@ describe('the chooser between accounts', () => {
 
     // Both accounts, each with its own amount. The row is the account, its
     // type and what it costs — nothing else.
-    expect(screen.getByText('Personal')).toBeInTheDocument();
+    expect(screen.getByText('Individual')).toBeInTheDocument();
     expect(screen.getByText('Work')).toBeInTheDocument();
     expect(screen.getByText(/1,600/)).toBeInTheDocument();
     expect(screen.getByText(/2,400/)).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe('the detail sheet of one account', () => {
       />
     );
 
-    expect(screen.getByTestId('account-type-value')).toHaveTextContent('Personal');
+    expect(screen.getByTestId('account-type-value')).toHaveTextContent('Individual');
     expect(screen.getAllByText(/1,600/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('November 16, 2026').length).toBeGreaterThan(0);
   });
@@ -127,7 +127,7 @@ describe('the detail sheet of one account', () => {
   it('shows nothing for an account that was never given details of its own', () => {
     const withoutOwnValues: SubscriptionRow = {
       ...twoAccounts,
-      account_links: [{ id: 'link-1', label: 'Personal', url: '', email: '' }],
+      account_links: [{ id: 'link-1', label: 'Individual', url: '', email: '' }],
     };
 
     render(
@@ -144,7 +144,7 @@ describe('the detail sheet of one account', () => {
     // The type is the account's own; the amount and the date are not worked
     // out from the subscription, because a figure nobody entered is a figure
     // nobody can check.
-    expect(screen.getByTestId('account-type-value')).toHaveTextContent('Personal');
+    expect(screen.getByTestId('account-type-value')).toHaveTextContent('Individual');
     expect(screen.queryByText(/1,600/)).not.toBeInTheDocument();
     expect(screen.queryByText('November 16, 2026')).not.toBeInTheDocument();
   });
@@ -235,7 +235,7 @@ describe('the auto-renewal icon on the detail sheet', () => {
       start_date: '2026-10-23',
       next_billing_date: '2026-11-23',
       auto_renew: true,
-      account_links: [{ id: 'link-1', label: 'Personal', url: '', email: '' }],
+      account_links: [{ id: 'link-1', label: 'Individual', url: '', email: '' }],
     };
 
     render(

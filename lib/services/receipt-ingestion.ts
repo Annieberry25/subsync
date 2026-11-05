@@ -8,6 +8,7 @@ import { getPlanLimits, hasReachedSubscriptionCap } from '@/lib/constants/plan-l
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/lib/types/database.types';
 import { getKnownProviderWebsite } from '@/lib/services/subscription-service';
+import { addCycleToDate } from '@/lib/utils/billing-dates';
 import {
   buildReceiptDraft,
   mapBillingCycleToBillFrequency,
@@ -42,8 +43,8 @@ function buildSubscriptionRow(
   draft: ReceiptDraft,
   source: string
 ): Database['public']['Tables']['subscriptions']['Insert'] {
-  const nextBilling = new Date();
-  nextBilling.setMonth(nextBilling.getMonth() + 1);
+  const startDate = (draft.date || new Date().toISOString()).slice(0, 10);
+  const nextBilling = addCycleToDate(startDate, draft.billingCycle) || startDate;
 
   return {
     user_id: userId,
@@ -53,8 +54,8 @@ function buildSubscriptionRow(
     billing_cycle: draft.billingCycle,
     category: draft.category,
     status: 'active',
-    start_date: draft.date || new Date().toISOString(),
-    next_billing_date: nextBilling.toISOString(),
+    start_date: startDate,
+    next_billing_date: nextBilling,
     provider_url: getKnownProviderWebsite(draft.name),
       notes: `[${source}] ${draft.from}: ${draft.subject}`,
     is_synced: true,

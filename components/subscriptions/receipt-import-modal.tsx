@@ -8,6 +8,11 @@ import ReceiptSourcePicker from '@/components/receipts/receipt-source-picker';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
 import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
+import {
+  RECEIPT_ACCOUNT_TYPES,
+  type ReceiptAccountType,
+} from '@/lib/constants/account-types';
+import { addCycleToDate } from '@/lib/utils/billing-dates';
 import ProviderLogo from '@/components/bills/provider-logo';
 
 export interface ExtractedReceiptData {
@@ -16,6 +21,7 @@ export interface ExtractedReceiptData {
   currency: string;
   billingCycle: 'monthly' | 'yearly' | 'weekly' | 'quarterly';
   category: 'Streaming' | 'Software' | 'Utilities' | 'Fitness' | 'Finance' | 'Education' | 'Gaming' | 'Other';
+  accountType: ReceiptAccountType;
   nextBillingDate: string;
   startDate?: string;
   trialEndDate?: string;
@@ -62,10 +68,32 @@ function toBillingCycle(value: string | undefined): ExtractedReceiptData['billin
   return 'monthly';
 }
 
+function toDateOnly(value: string | null | undefined): string {
+  return value ? value.slice(0, 10) : '';
+}
+
+/**
+ * The renewal date to review: the one stated on the receipt, or — when the
+ * receipt states a cycle and the payment date but no end date — the first
+ * renewal that cycle implies. An unknown/one-off cycle has no next date.
+ */
+function nextBillingDateFor(extraction: ReceiptExtraction): string {
+  const stated = toDateOnly(extraction.nextBillingDate.value);
+  if (stated) return stated;
+
+  const cycle = extraction.billingCycle.value;
+  if (cycle !== 'monthly' && cycle !== 'yearly' && cycle !== 'weekly' && cycle !== 'quarterly') {
+    return '';
+  }
+
+  const paid = toDateOnly(extraction.paymentDate?.value);
+  return paid ? addCycleToDate(paid, cycle) : '';
+}
+
 /**
  * Maps the shared extraction onto the subscription form. Anything the parser
- * could not read is left blank rather than guessed — a wrong renewal date is
- * worse than an empty field the user fills in.
+ * could not read is left blank rather than guessed — except the account type,
+ * which falls back to Other, and a renewal date implied by a stated cycle.
  */
 function toReviewData(
   extraction: ReceiptExtraction,
@@ -77,8 +105,9 @@ function toReviewData(
     currency: extraction.currency.value ?? 'USD',
     billingCycle: toBillingCycle(extraction.billingCycle.value),
     category: toCategory(extraction.category.value),
-    nextBillingDate: extraction.nextBillingDate.value ?? '',
-    startDate: extraction.paymentDate.value ?? undefined,
+    accountType: extraction.accountType?.value ?? 'Other',
+    nextBillingDate: nextBillingDateFor(extraction),
+    startDate: toDateOnly(extraction.paymentDate?.value) || undefined,
     providerUrl: extraction.providerUrl.value ?? undefined,
   };
 }
@@ -133,7 +162,7 @@ export default function ReceiptImportModal({
       e.amount.confidence === 'none' ||
       e.providerName.confidence === 'low' ||
       e.providerName.confidence === 'none' ||
-      !e.nextBillingDate.value
+      !reviewData?.nextBillingDate
     );
   })();
 
@@ -392,6 +421,27 @@ export default function ReceiptImportModal({
                       {CATEGORY_ORDER.map((c) => (
                         <option key={c} value={c} className="bg-[#0B0D0D]">
                           {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[#94A3B8] block text-[11px]">Account Type</span>
+                    <select
+                      value={reviewData.accountType}
+                      onChange={(e) =>
+                        setReviewData({
+                          ...reviewData,
+                          accountType: e.target.value as ReceiptAccountType,
+                        })
+                      }
+                      aria-label="Account type"
+                      className="w-full h-11 !pl-4 !pr-12 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs focus:outline-none focus:border-[#14B8A6] transition-colors"
+                    >
+                      {RECEIPT_ACCOUNT_TYPES.map((type) => (
+                        <option key={type} value={type} className="bg-[#0B0D0D]">
+                          {type}
                         </option>
                       ))}
                     </select>

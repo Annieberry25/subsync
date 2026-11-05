@@ -9,7 +9,8 @@ import {
 } from '@/lib/constants/plan-limits';
 
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
-import { addCycleToDate, resolveRenewalDate } from '@/lib/utils/billing-dates';
+import { resolveRenewalDate } from '@/lib/utils/billing-dates';
+import { normalizeAccountTypeLabel } from '@/lib/constants/account-types';
 export type SubscriptionRow =
   Omit<Database['public']['Tables']['subscriptions']['Row'], 'auto_renew'> & {
   auto_renew?: boolean | null;
@@ -338,7 +339,7 @@ export function parseAccountLinks(subscription: SubscriptionRow | null | undefin
       .filter((link) => link && (link.label || link.url || link.email))
       .map((link, idx) => ({
         id: link.id || `link-${idx}-${Date.now()}`,
-        label: link.label || 'Personal',
+        label: normalizeAccountTypeLabel(link.label) || 'Individual',
         url: link.url || '',
         email: link.email || '',
         /* The account's own values, when it has them. */
@@ -546,15 +547,12 @@ export function isLocalOnlySubscription(subscription: Pick<SubscriptionRow, 'use
  * Overdue means the renewal date has already passed, compared at local
  * midnight, on a row that is not canceled.
  *
- * The date is the computed renewal date — a cycle after the row's start — not
- * the stored `next_billing_date`. The stored field can still hold a future day
- * while the actual renewal has passed (a drifted field, or an auto-renewal
- * advance), and the lists answer from the computed date everywhere else. The
- * subscriptions list filters overdue rows out and Past Activities synthesises
- * them back in; reading the raw field here let a row sit on both.
+ * The date is the renewal the user set, stored in `next_billing_date`. A cycle
+ * after the row's start is only the fallback when the stored field is missing,
+ * because an old start date says nothing about when the next charge is due.
  *
- * Callers that only hold `status` and `next_billing_date` still fall back to
- * the stored day, so the weekly recap's narrow projection keeps working.
+ * Callers that only hold `status` and `next_billing_date` keep working, so the
+ * weekly recap's narrow projection is enough.
  *
  * Single definition on purpose: the subscriptions list, the dashboard's overdue
  * banner, the renewals page and Past Activities all answer "is this overdue?".

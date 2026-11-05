@@ -100,24 +100,33 @@ export function renderRenewalReminderEmail(
 
   /* The repayment day and the overdue lapse speak in their own words: the day
      itself says renews today, and a date already passed says how long ago it
-     went by rather than posing as a future reminder. */
+     went by rather than posing as a future reminder. An auto-renewing
+     subscription says so on the day before and on the day itself. */
   const heading =
     days <= 0
       ? days === 0
-        ? `${sub.name} renews today`
+        ? sub.autoRenew
+          ? `${sub.name} auto-renews today`
+          : `${sub.name} renews today`
         : `${sub.name} is overdue by ${-days} ${-days === 1 ? 'day' : 'days'}`
       : days === 1
-        ? `${sub.name} renews tomorrow`
+        ? sub.autoRenew
+          ? `${sub.name} auto-renews tomorrow`
+          : `${sub.name} renews tomorrow`
         : `${sub.name} renews in ${days} days`;
 
   return {
     subject:
       days <= 0
         ? days === 0
-          ? `${sub.name} renews today`
+          ? sub.autoRenew
+            ? `${sub.name} auto-renews today`
+            : `${sub.name} renews today`
           : `${sub.name} is overdue`
         : days === 1
-          ? `${sub.name} renews tomorrow`
+          ? sub.autoRenew
+            ? `${sub.name} auto-renews tomorrow`
+            : `${sub.name} renews tomorrow`
           : `${sub.name} renews in ${days} days`,
     html: renderEmailLayout({
       preheader: `${cadence}. ${sub.nextBillingDate}.`,
@@ -125,10 +134,14 @@ export function renderRenewalReminderEmail(
       bodyHtml: [
         emailParagraph(
           days === 0
-            ? 'It renews today — one last look before the charge goes out.'
+            ? sub.autoRenew
+              ? 'It renews automatically today — one last look before the charge goes out.'
+              : 'It renews today — one last look before the charge goes out.'
             : days < 0
               ? 'This charge has passed its billing date. Mark it renewed in SubHalt, or cancel it at the provider if you no longer want it.'
-              : 'A tip-off before it renews.',
+              : days === 1 && sub.autoRenew
+                ? 'It renews automatically tomorrow. Cancel now if you do not want the charge.'
+                : 'A tip-off before it renews.',
         ),
         emailDetailRow('Next charge', sub.nextBillingDate),
         emailDetailRow('Amount', cadence),

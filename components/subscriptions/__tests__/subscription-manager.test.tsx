@@ -330,7 +330,7 @@ describe('SubscriptionManager duplicate guard', () => {
     await user.type(screen.getByPlaceholderText('e.g. Netflix, Spotify, GitHub Pro'), 'Netflix');
     // The form carries an account, so the type of that account is a choice,
     // and so are the two dates.
-    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Individual');
     fireEvent.change(screen.getByLabelText('Start Date'), {
       target: { value: '2026-01-01' },
     });
@@ -362,7 +362,7 @@ describe('SubscriptionManager duplicate guard', () => {
     await user.selectOptions(screen.getByLabelText('Cycle'), 'monthly');
     await user.selectOptions(screen.getByLabelText('Category'), 'Streaming');
     await user.selectOptions(screen.getByLabelText('Status'), 'active');
-    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Individual');
     fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '2026-01-01' } });
 
     const submit = screen

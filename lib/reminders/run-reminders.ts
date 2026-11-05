@@ -14,14 +14,13 @@ import {
   MAX_LEAD_MINUTES,
   OVERDUE_HORIZON_DAYS,
   RENEWAL_DAY_PM_LEAD,
-  COUNTDOWN_LEAD_MINUTES,
   type PlannedReminder,
   type PlannerPreference,
   type PlannerSubscription,
   type ReminderChannel,
 } from './plan';
-import { addCycleToDate, resolveRenewalDate } from '@/lib/utils/billing-dates';
-import { notesForAutoRemoval, serverHistoryState } from './overdue-cleanup';
+import { resolveRenewalDate } from '@/lib/utils/billing-dates';
+import { serverHistoryState } from './overdue-cleanup';
 
 /**
  * The renewal-reminder engine.
@@ -121,7 +120,7 @@ export async function runRenewalReminders({
   now = new Date(),
   dryRun = false,
   userId,
-  autoRemove = true,
+  autoRemove: _autoRemove = true,
 }: RunReminderOptions): Promise<ReminderRunReport> {
   const today = todayIso(now);
   const horizon = addDays(today, Math.ceil(MAX_LEAD_MINUTES / 1440));
@@ -143,14 +142,15 @@ export async function runRenewalReminders({
   // ---- Load candidate subscriptions inside the plan's windows ----
   // Forward: every lead stage the planner can schedule. Backward: the bounded
   // overdue window, whose daily push and one-time email are part of the plan.
-  // Also fetch a wider set for auto-removal (>30 days overdue) because we need
-  // to compute derived renewal dates to match the UI.
+  // Both bounds belong to the window, so they are separate predicates; an OR
+  // between them matched nearly every row in the table.
   const windowFloor = addDays(today, -OVERDUE_HORIZON_DAYS);
   let subsQuery = supabase
     .from('subscriptions')
     .select('id, user_id, name, price, currency, next_billing_date, start_date, billing_cycle, status, notes, auto_renew')
     .neq('status', 'canceled')
-    .or(`next_billing_date.gte.${windowFloor},next_billing_date.lte.${horizon}`)
+    .gte('next_billing_date', windowFloor)
+    .lte('next_billing_date', horizon)
     .limit(MAX_SUBSCRIPTIONS_PER_RUN);
 
   // Scoped run: only this account's subscriptions are ever candidates.
@@ -160,7 +160,12 @@ export async function runRenewalReminders({
 
   if (subsError) throw subsError;
 
-  const rows = (subs ?? []).filter((s) => s.id && s.user_id);
+  // A removed row still has its dates, but nothing in the app lists it. The
+  // reminder engine must answer from the same live set or it keeps waking a
+  // subscription the user already archived or deleted.
+  const rows = (subs ?? []).filter(
+    (s) => s.id && s.user_id && serverHistoryState(s.notes) === 'active'
+  );
   report.considered = rows.length;
   if (rows.length === 0) {
     logger.info('[reminders] nothing in the window', { today, horizon });
@@ -222,6 +227,9 @@ export async function runRenewalReminders({
 
   const statusBySubscription = new Map<string, string | null>(
     plannerSubs.map((s) => [s.id, s.status ?? null])
+  );
+  const autoRenewBySubscription = new Map<string, boolean>(
+    rows.map((r) => [r.id, r.auto_renew === true])
   );
 
   const plan = planReminders({ subscriptions: plannerSubs, preferences, alreadyDelivered, now });
@@ -384,36 +392,57 @@ export async function runRenewalReminders({
        * already uses to open a single subscription.
        */
       const deepLinkUrl = `/subscriptions?highlight=${encodeURIComponent(item.subscriptionId)}&detail=true`;
+      const autoRenew = autoRenewBySubscription.get(item.subscriptionId) === true;
+      const autoRenewsToday = autoRenew && item.stage === 'renewal-day';
+      const autoRenewsTomorrow = autoRenew && item.stage !== 'renewal-day' && item.daysUntilRenewal === 1;
       const payload =
-        item.stage === 'renewal-day' && item.leadMinutes === RENEWAL_DAY_PM_LEAD
+        autoRenewsToday && item.leadMinutes === RENEWAL_DAY_PM_LEAD
           ? {
-              title: `${item.name} renews today`,
-              body: 'Last call today — cancel now if the plan is no longer worth it.',
+              title: `${item.name} auto-renews today`,
+              body: 'Last call — your subscription renews automatically today. Cancel now if it is no longer worth it.',
               url: deepLinkUrl,
             }
-          : item.stage === 'renewal-day'
+          : autoRenewsToday
             ? {
-                title: `${item.name} renews today`,
-                body: 'The charge is today, so it is worth one last look.',
-                url: '/subscriptions',
+                title: `${item.name} auto-renews today`,
+                body: 'Your subscription renews automatically today.',
+                url: deepLinkUrl,
               }
-            : item.stage === 'overdue'
+            : autoRenewsTomorrow
               ? {
-                  title: `${item.name} is overdue`,
-                  body: `It was due on ${item.renewalDate}. Mark it renewed or cancel it.`,
+                  title: `${item.name} auto-renews tomorrow`,
+                  body: 'Your subscription renews automatically tomorrow. Cancel it now if you do not want the charge.',
                   url: deepLinkUrl,
                 }
-              : isSecondCall
+            : item.stage === 'renewal-day' && item.leadMinutes === RENEWAL_DAY_PM_LEAD
+              ? {
+                  title: `${item.name} renews today`,
+                  body: 'Last call today — cancel now if the plan is no longer worth it.',
+                  url: deepLinkUrl,
+                }
+              : item.stage === 'renewal-day'
                 ? {
-                    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
-                    body: 'Cancel it now if you do not want to be charged again.',
-                    url: deepLinkUrl,
-                  }
-                : {
-                    title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
-                    body: 'A Tip-Off so the next charge is not a surprise.',
+                    title: `${item.name} renews today`,
+                    body: 'The charge is today, so it is worth one last look.',
                     url: '/subscriptions',
-                  };
+                  }
+                : item.stage === 'overdue'
+                  ? {
+                      title: `${item.name} is overdue`,
+                      body: `It was due on ${item.renewalDate}. Mark it renewed or cancel it.`,
+                      url: deepLinkUrl,
+                    }
+                  : isSecondCall
+                    ? {
+                        title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
+                        body: 'Cancel it now if you do not want to be charged again.',
+                        url: deepLinkUrl,
+                      }
+                    : {
+                        title: `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
+                        body: 'A Tip-Off so the next charge is not a surprise.',
+                        url: '/subscriptions',
+                      };
 
       const result = await sendPushToUser(item.userId, {
         ...payload,
@@ -463,6 +492,7 @@ export async function runRenewalReminders({
       billingCycle: item.billingCycle,
       nextBillingDate: item.renewalDate,
       daysUntilRenewal: item.daysUntilRenewal,
+      autoRenew: autoRenewBySubscription.get(item.subscriptionId) === true,
     };
 
     const result = await sendRenewalReminderEmail(to, emailData);
@@ -488,7 +518,11 @@ export async function runRenewalReminders({
   // subscribed and no email on file. A dry run still changes nothing.
   if (!dryRun) {
     for (const item of notified.values()) {
-      await addInboxReminder(supabase, item);
+      await addInboxReminder(
+        supabase,
+        item,
+        autoRenewBySubscription.get(item.subscriptionId) === true
+      );
     }
   }
 
@@ -573,7 +607,8 @@ async function addInboxReminder(
     minutesUntilRenewal: number;
     leadMinutes: number;
     daysUntilRenewal: number;
-  }
+  },
+  autoRenew: boolean
 ): Promise<void> {
 // One notice per (subscription, renewal, lead stage). A later run can send the
   // same stage on a channel that was unavailable the first time, so the check is
@@ -595,15 +630,27 @@ async function addInboxReminder(
      alike, so an inbox scan tells day-of and overdue stages apart at a
      glance. */
   const overdue = item.daysUntilRenewal < 0;
+  const autoRenewsToday = autoRenew && !overdue && item.daysUntilRenewal === 0;
+  const autoRenewsTomorrow = autoRenew && !overdue && item.daysUntilRenewal === 1;
+  const title = overdue
+    ? `${item.name} is overdue`
+    : autoRenewsToday
+      ? `${item.name} auto-renews today`
+      : autoRenewsTomorrow
+        ? `${item.name} auto-renews tomorrow`
+        : `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`;
+  const description = overdue
+    ? `Your ${item.name} subscription was due on ${item.renewalDate}. Mark it renewed here, or cancel it.`
+    : autoRenewsToday
+      ? `Your ${item.name} subscription renews automatically today.`
+      : autoRenewsTomorrow
+        ? `Your ${item.name} subscription renews automatically tomorrow.`
+        : `Your ${item.name} subscription renews on ${item.renewalDate}.`;
   const { error } = await supabase.from('inbox_items').insert({
     user_id: item.userId,
     type: 'renewal',
-    title: overdue
-      ? `${item.name} is overdue`
-      : `${item.name} ${humanizeRenewal(item.minutesUntilRenewal, item.daysUntilRenewal)}`,
-    description: overdue
-      ? `Your ${item.name} subscription was due on ${item.renewalDate}. Mark it renewed here, or cancel it.`
-      : `Your ${item.name} subscription renews on ${item.renewalDate}.`,
+    title,
+    description,
     date: new Date().toISOString(),
     is_read: false,
     action_type: 'view',

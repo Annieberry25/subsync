@@ -66,7 +66,7 @@ export default function AccountChooserModal({
                 <span className="text-sm font-semibold text-[#F5F7F6] group-hover:text-[#14B8A6] transition-colors">
                   Account {idx + 1}
                   <span className="ml-2 font-normal text-[#94A3B8]">
-                    {account.label || 'Personal'}
+                    {account.label || 'Individual'}
                   </span>
                 </span>
                 <span className="text-sm font-bold text-[#F5F7F6]">

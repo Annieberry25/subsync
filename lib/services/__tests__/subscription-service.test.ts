@@ -284,10 +284,10 @@ describe('isOverdueSubscription', () => {
     ).toBe(false);
   });
 
-  it('reads the computed renewal date, not a drifted stored day', () => {
-    // The stored field was pushed into the future, but a cycle after the start
-    // has already passed. Every other surface calls this overdue; the list must
-    // not keep showing it as upcoming just because the raw field disagrees.
+  it('reads the renewal the user set, not a cycle after an old start date', () => {
+    // The start date is more than a cycle old, but the stored renewal date is
+    // still ahead. Recomputing from the start would call this overdue and wake
+    // a reminder for a charge that is not due.
     expect(
       isOverdueSubscription(
         {
@@ -295,6 +295,20 @@ describe('isOverdueSubscription', () => {
           start_date: '2026-09-03',
           billing_cycle: 'monthly',
           next_billing_date: '2026-10-09',
+        },
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('falls back to a cycle after the start when no renewal is stored', () => {
+    expect(
+      isOverdueSubscription(
+        {
+          status: 'active',
+          start_date: '2026-09-03',
+          billing_cycle: 'monthly',
+          next_billing_date: null,
         },
         now
       )

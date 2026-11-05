@@ -54,6 +54,7 @@ const scanResult = {
     billingCycle: { value: 'monthly', confidence: 'high' },
     category: { value: 'Streaming', confidence: 'high' },
     nextBillingDate: { value: '2026-01-01', confidence: 'high' },
+    accountType: { value: 'Individual', confidence: 'medium' },
     providerUrl: { value: null, confidence: 'none' },
     plan: { value: 'Premium', confidence: 'high' },
   },
@@ -197,7 +198,10 @@ it('saves a reviewed receipt instead of opening the manual form', async () => {
     // onSelectManual opens the pre-filled manual form, which reads as though
     // nothing was added yet.
     expect(onCreateFromReceipt).toHaveBeenCalledTimes(1);
-    expect(onCreateFromReceipt.mock.calls[0][0]).toMatchObject({ name: 'Netflix' });
+    expect(onCreateFromReceipt.mock.calls[0][0]).toMatchObject({
+      name: 'Netflix',
+      account_links: [expect.objectContaining({ label: 'Individual' })],
+    });
     expect(onSelectManual).not.toHaveBeenCalled();
   });
 

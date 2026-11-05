@@ -106,7 +106,7 @@ async function chooseRequired(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText('Cycle'), 'monthly');
   await user.selectOptions(screen.getByLabelText('Category'), 'Streaming');
   await user.selectOptions(screen.getByLabelText('Status'), 'active');
-  await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+  await user.selectOptions(screen.getByLabelText('Account Type'), 'Individual');
   fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '2026-01-01' } });
 }
 
@@ -126,7 +126,7 @@ async function fillRequiredFields(
   renewal = '2026-12-24'
 ) {
   await user.type(screen.getByPlaceholderText('15.99'), price);
-  await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+  await user.selectOptions(screen.getByLabelText('Account Type'), 'Individual');
   await chooseRequired(user);
   fireEvent.change(screen.getByLabelText('Next Billing Date'), {
     target: { value: renewal },
@@ -293,7 +293,7 @@ describe('SubscriptionModal', () => {
           payment_method: null,
           provider_url: 'https://www.netflix.com',
           account_links: [expect.objectContaining({
-            label: 'Personal',
+            label: 'Individual',
             url: '',
             price: 15.99,
             currency: 'USD',
@@ -350,7 +350,7 @@ describe('SubscriptionModal', () => {
     const { onSave } = await renderOpen(existing);
 
     // The account type is now mandatory.
-    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Individual');
 
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 
@@ -498,7 +498,7 @@ describe('SubscriptionModal', () => {
     const { onSave } = await renderOpen(initialData);
 
     // The account type is now mandatory.
-    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Individual');
 
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 
@@ -523,7 +523,7 @@ describe('SubscriptionModal', () => {
     expect(screen.getByDisplayValue('15.99')).toBeInTheDocument();
 
     // The account type is now mandatory.
-    await user.selectOptions(screen.getByLabelText('Account Type'), 'Personal');
+    await user.selectOptions(screen.getByLabelText('Account Type'), 'Individual');
 
     await user.click(screen.getByRole('button', { name: 'Update Subscription' }));
 
@@ -697,10 +697,10 @@ describe('SubscriptionModal already-tracked service', () => {
     const withAccount = {
       ...tracked,
       account_links: [
-        { id: 'link-1', label: 'Personal', url: 'https://spotify.com/personal', email: '' },
+        { id: 'link-1', label: 'Individual', url: 'https://spotify.com/personal', email: '' },
       ],
       notes:
-        'Plan: Individual\n[AccountLinks: [{"id":"link-1","label":"Personal","url":"https://spotify.com/personal","email":""}]]',
+        'Plan: Individual\n[AccountLinks: [{"id":"link-1","label":"Individual","url":"https://spotify.com/personal","email":""}]]',
     };
 
     const { onSave } = await renderOpen(null, 'sub_new', [withAccount]);
@@ -885,7 +885,7 @@ describe('SubscriptionModal subscription accounts', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const links = onSave.mock.calls[0][0].account_links as { label: string }[];
     expect(links).toHaveLength(1);
-    expect(links[0].label).toBe('Personal');
+    expect(links[0].label).toBe('Individual');
   });
 
   it('keeps the marker that accounts are optional beside the add control', async () => {

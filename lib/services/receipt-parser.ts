@@ -24,6 +24,7 @@
  * `lib/services/__tests__/receipt-parser.test.ts`.
  */
 import { PROVIDER_REGISTRY } from '@/lib/constants/provider-registry';
+import type { ReceiptAccountType } from '@/lib/constants/account-types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { mapBillCategoryToSubscriptionCategory } from '@/lib/services/receipt-discovery';
 
@@ -67,6 +68,7 @@ export interface ReceiptExtraction {
   nextBillingDate: ReceiptField<string | null>;
   billingCycle: ReceiptField<BillingCycle>;
   category: ReceiptField<string | null>;
+  accountType: ReceiptField<ReceiptAccountType>;
   providerReference: ReceiptField<string | null>;
   plan: ReceiptField<string | null>;
   region: ReceiptField<string | null>;
@@ -1160,6 +1162,67 @@ function detectPlan(text: string): ReceiptField<string | null> {
   return { value: null, confidence: 'none', evidence: '' };
 }
 
+const ACCOUNT_TYPE_KEYWORDS: Array<{ type: ReceiptAccountType; keys: string[] }> = [
+  {
+    type: 'Family',
+    keys: [
+      'family plan',
+      'family subscription',
+      'family account',
+      'family membership',
+      'household plan',
+      'family',
+    ],
+  },
+  {
+    type: 'Work',
+    keys: [
+      'business plan',
+      'business subscription',
+      'business account',
+      'business membership',
+      'enterprise plan',
+      'enterprise account',
+      'team plan',
+      'teams plan',
+      'work plan',
+      'work account',
+      'company plan',
+      'company account',
+      'for business',
+      'for work',
+    ],
+  },
+  {
+    type: 'Individual',
+    keys: [
+      'individual plan',
+      'individual subscription',
+      'individual account',
+      'individual membership',
+      'personal plan',
+      'personal subscription',
+      'personal account',
+      'single user',
+      'one user',
+      'student plan',
+      'individual',
+      'personal',
+    ],
+  },
+];
+
+function detectAccountType(text: string): ReceiptField<ReceiptAccountType> {
+  for (const entry of ACCOUNT_TYPE_KEYWORDS) {
+    for (const key of entry.keys) {
+      if (hasPhrase(text, key)) {
+        return { value: entry.type, confidence: 'medium', evidence: `keyword "${key}"` };
+      }
+    }
+  }
+  return { value: 'Other', confidence: 'none', evidence: '' };
+}
+
 function detectCategory(
   text: string,
   kind: ReceiptKind,
@@ -1304,6 +1367,7 @@ export function parseReceiptDocument(
       nextBillingDate: { ...EMPTY_FIELD },
       billingCycle: { value: 'unknown', confidence: 'none', evidence: '' },
       category: { ...EMPTY_FIELD },
+      accountType: { value: 'Other', confidence: 'none', evidence: '' },
       providerReference: { ...EMPTY_FIELD },
       plan: { ...EMPTY_FIELD },
       region: { ...EMPTY_FIELD },
@@ -1358,6 +1422,7 @@ export function parseReceiptDocument(
     nextBillingDate,
     billingCycle,
     category,
+    accountType: detectAccountType(text),
     providerReference: detectProviderReference(text),
     plan: detectPlan(text),
     region: detectRegion(text, kind),

@@ -351,6 +351,128 @@ describe('runRenewalReminders — user scoping', () => {
  * the day, the day's single email, one more push twelve hours later — and a
  * paused row is not warned about its own charge.
  */
+describe('runRenewalReminders — live subscriptions only', () => {
+  it('ignores rows the user archived or deleted', async () => {
+    const state = baseState();
+    state.subs = [
+      {
+        ...state.subs[0],
+        id: 'archived',
+        name: 'Archived Netflix',
+        notes: '[HistoryState: {"state":"archived"}]',
+      },
+      {
+        ...state.subs[0],
+        id: 'deleted',
+        name: 'Deleted Netflix',
+        notes: '[HistoryState: {"state":"deleted"}]',
+      },
+    ];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: RUN_AT,
+    });
+
+    expect(report.considered).toBe(0);
+    expect(report.items).toHaveLength(0);
+    expect(inserted.deliveries).toHaveLength(0);
+    expect(inserted.inbox).toHaveLength(0);
+  });
+
+  it('reminds on the stored renewal date, not a cycle after an old start', async () => {
+    const state = baseState();
+    state.subs = [
+      {
+        ...state.subs[0],
+        start_date: '2026-01-01',
+        billing_cycle: 'monthly',
+        next_billing_date: '2026-10-12',
+      },
+    ];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    const report = await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: new Date('2026-10-12T09:00:00Z'),
+    });
+
+    expect((mocks.sendPush.mock.calls[0]?.[1] as { title?: string }).title).toBe(
+      'Netflix renews today'
+    );
+    expect(report.items.some((i) => i.reason === 'renewal_passed')).toBe(false);
+  });
+});
+
+describe('runRenewalReminders — auto-renewal messages', () => {
+  it('tells an auto-renewing subscription a day before renewal', async () => {
+    const state = baseState();
+    state.subs = [
+      { ...state.subs[0], next_billing_date: '2026-10-13', auto_renew: true },
+    ];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: RUN_AT,
+    });
+
+    const titles = mocks.sendPush.mock.calls.map(
+      (call) => (call[1] as { title?: string }).title
+    );
+    expect(titles).toContain('Netflix auto-renews tomorrow');
+    expect(inserted.inbox.some((item) => item.title === 'Netflix auto-renews tomorrow')).toBe(
+      true
+    );
+  });
+
+  it('tells an auto-renewing subscription on the renewal day', async () => {
+    const state = baseState();
+    state.subs = [
+      { ...state.subs[0], next_billing_date: '2026-10-12', auto_renew: true },
+    ];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: RUN_AT,
+    });
+
+    const titles = mocks.sendPush.mock.calls.map(
+      (call) => (call[1] as { title?: string }).title
+    );
+    expect(titles).toContain('Netflix auto-renews today');
+    expect(inserted.inbox.some((item) => item.title === 'Netflix auto-renews today')).toBe(
+      true
+    );
+  });
+
+  it('keeps the ordinary wording when auto-renewal is off', async () => {
+    const state = baseState();
+    state.subs = [
+      { ...state.subs[0], next_billing_date: '2026-10-13', auto_renew: false },
+    ];
+    mocks.sendPush.mockResolvedValue({ sent: 1, failed: 0, removed: 0, skipped: false });
+    mocks.sendEmail.mockResolvedValue({ ok: true });
+
+    await runRenewalReminders({
+      supabase: makeSupabase(state) as never,
+      now: RUN_AT,
+    });
+
+    const titles = mocks.sendPush.mock.calls.map(
+      (call) => (call[1] as { title?: string }).title
+    );
+    expect(titles).toContain('Netflix renews in 15 hours');
+    expect(titles).not.toContain('Netflix auto-renews tomorrow');
+  });
+});
+
 describe('runRenewalReminders — the repayment day', () => {
   it('sends one push and the email at the morning run, one more push twelve hours later', async () => {
     const state = baseState();

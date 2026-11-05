@@ -146,6 +146,19 @@ describe('renewal reminder wording', () => {
     const { html } = renderRenewalReminderEmail({ ...sub, daysUntilRenewal: -3 });
     expect(html).toContain('Mark it renewed in SubHalt, or cancel it at the provider');
   });
+
+  it.each([
+    [1, 'auto-renews tomorrow'],
+    [0, 'auto-renews today'],
+  ])('names auto-renewal %i days out', (days, expected) => {
+    const { subject, html } = renderRenewalReminderEmail({
+      ...sub,
+      daysUntilRenewal: days,
+      autoRenew: true,
+    });
+    expect(subject).toContain(expected);
+    expect(html).toContain(expected);
+  });
 });
 
 describe('cadence formatting', () => {

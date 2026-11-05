@@ -117,22 +117,15 @@ export default function SubscriptionDetailModal({
   const shownCategory = selectedLink?.category || subscription.category || '';
   const shownStartDate = selectedLink?.start_date || '';
 
-  /* The repayment date the sheet shows, in step with the edit form's box:
-     the automatic date — one cycle after the start the row was made on, in
-     the cycle it is billed in — instead of whatever day the stored record
-     has been carrying. A subscription made on 23/10/2026 shows November 23
-     as its repayment date and December 23 as the date auto-renewal carries
-     it to, whether or not the stored day has been moved since. A row never
-     given a start date has nothing automatic to answer from and keeps its
-     stored day. */
+  /* The repayment date the sheet shows, in step with the edit form's box: the
+     renewal the user set. A cycle after the start is only the fallback for a
+     row that never stored one, so the sheet and the reminders agree. */
   const repaymentStart = selectedLink?.start_date || subscription.start_date || '';
   const repaymentNext =
     repaymentStart && shownCycle ? addCycleToDate(repaymentStart, shownCycle) : null;
-  const shownNextDate =
-    repaymentNext ||
-    selectedLink?.next_billing_date ||
-    subscription.next_billing_date ||
-    '';
+  const shownNextDate = selectedLink
+    ? selectedLink.next_billing_date || repaymentNext || ''
+    : subscription.next_billing_date || repaymentNext || '';
 
   const formattedPrice =
     shownPrice === undefined ? '' : formatCurrency(shownPrice, shownCurrency || 'USD');
@@ -390,7 +383,7 @@ export default function SubscriptionDetailModal({
                 <span className="text-xs text-[#9CA3AF] shrink-0">Account Type:</span>
                 {selectedLink ? (
                   <span data-testid="account-type-value" className="text-sm font-medium text-[#F5F7F6] text-right">
-                    {selectedLink.label || 'Personal'}
+                    {selectedLink.label || 'Individual'}
                   </span>
                 ) : (
                   <span data-testid="account-type-value" className="text-sm text-[#6B7280] italic text-right">

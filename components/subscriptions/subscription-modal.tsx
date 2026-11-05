@@ -24,6 +24,7 @@ import { normalizeSubscriptionName } from '@/lib/services/receipt-discovery';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { storeReceiptFile } from '@/lib/services/receipt-storage';
 import { addCycleToDate } from '@/lib/utils/billing-dates';
+import { ACCOUNT_TYPES } from '@/lib/constants/account-types';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -57,8 +58,6 @@ interface SubscriptionModalProps {
 const categories = ['Streaming', 'Software', 'Utilities', 'Fitness', 'Finance', 'Education', 'Gaming', 'Other'] as const;
 const billingCycles = ['monthly', 'yearly', 'quarterly', 'weekly'] as const;
 const statuses = ['active', 'paused', 'canceled', 'trial'] as const;
-
-const ACCOUNT_TYPES = ['Personal', 'Family', 'Work', 'Main Account', 'Other'] as const;
 
 /**
  * The fields a subscription cannot exist without.
@@ -279,22 +278,15 @@ export default function SubscriptionModal({
       setCategory(initialData.category as typeof categories[number]);
       setStatus(initialData.status as typeof statuses[number]);
       setStartDate(initialData.start_date || '');
-      /* The renewal date the box holds is the automatic one: a cycle after
-         the start date, unless a yearly (or other) cycle was chosen. Reading
-         the stored value here would answer with whatever the row has been
-         through in the past — a subscription made on 15/10/2026 must open
-         with 15/11/2026 in its monthly box, never with a day the date has
-         since been shifted to. The start date and the cycle are what the
-         renewal is decided by, so the box answers from them; a row whose
-         store and rule disagreed is set right the moment it is opened and
-         saved again. A row with no start date of its own keeps its stored
-         day, because there is nothing automatic to work it out from. */
+      /* The stored renewal date is the one the user set, so the box opens on
+         it. A cycle after the start date is the fallback for a row that never
+         stored one; recomputing a stored day would silently move the renewal
+         the reminders are meant to follow. */
       const rowStartDate = initialData.start_date || '';
       const rowCycle = initialData.billing_cycle || '';
       setNextBillingDate(
-        rowStartDate && rowCycle
-          ? addCycleToDate(rowStartDate, rowCycle) || initialData.next_billing_date || ''
-          : initialData.next_billing_date || ''
+        initialData.next_billing_date ||
+          (rowStartDate && rowCycle ? addCycleToDate(rowStartDate, rowCycle) : '')
       );
       setAutoRenew(initialData.auto_renew === true);
       
@@ -326,15 +318,13 @@ export default function SubscriptionModal({
         setCategory((openingAccount.category as typeof categories[number]) || '');
         setStatus((openingAccount.status as typeof statuses[number]) || '');
         setStartDate(openingAccount.start_date || '');
-        /* Same rule for the account in view: the automatic renewal date,
-           a cycle after the start, not the day the account's record has
-           been carrying around. */
+        /* Same rule for the account in view: its stored renewal date wins,
+           and a cycle after its start only supplies one that is missing. */
         const accountStartDate = openingAccount.start_date || initialData.start_date || '';
         const accountCycle = openingAccount.billing_cycle || initialData.billing_cycle || '';
         setNextBillingDate(
-          accountStartDate && accountCycle
-            ? addCycleToDate(accountStartDate, accountCycle) || openingAccount.next_billing_date || ''
-            : openingAccount.next_billing_date || ''
+          openingAccount.next_billing_date ||
+            (accountStartDate && accountCycle ? addCycleToDate(accountStartDate, accountCycle) : '')
         );
       }
       setNotes('');
@@ -648,7 +638,7 @@ export default function SubscriptionModal({
       ...accountLinks,
       {
         id,
-        label: accountType || 'Personal',
+        label: accountType || 'Individual',
         url: value,
         price: price ? Number(price) : undefined,
         currency: currency || undefined,
@@ -915,7 +905,7 @@ setLoading(true);
     ) {
       accountsWithFormValues.push({
         id: `link-${Date.now()}`,
-        label: accountType.trim() || 'Personal',
+        label: accountType.trim() || 'Individual',
         url: '',
         price: parsedPrice ? Number(parsedPrice) : undefined,
         currency: currency || undefined,

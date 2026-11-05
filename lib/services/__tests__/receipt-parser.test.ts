@@ -206,6 +206,36 @@ describe('parseReceiptDocument — provider and category', () => {
   });
 });
 
+describe('parseReceiptDocument — account type', () => {
+  it('reads a family plan from the receipt', () => {
+    const r = parseReceiptDocument('Netflix Family plan\nTotal $15.99', {
+      kind: 'subscription',
+    });
+    expect(r.accountType.value).toBe('Family');
+    expect(r.accountType.confidence).toBe('medium');
+  });
+
+  it('reads an individual plan from the receipt', () => {
+    const r = parseReceiptDocument('Spotify Premium Individual\nTotal $11.99', {
+      kind: 'subscription',
+    });
+    expect(r.accountType.value).toBe('Individual');
+  });
+
+  it('reads a work plan from the receipt', () => {
+    const r = parseReceiptDocument('Acme Business plan\nTotal $49.00', {
+      kind: 'subscription',
+    });
+    expect(r.accountType.value).toBe('Work');
+  });
+
+  it('falls back to Other when the receipt states no account type', () => {
+    const r = parseReceiptDocument('Netflix\nTotal $15.49', { kind: 'subscription' });
+    expect(r.accountType.value).toBe('Other');
+    expect(r.accountType.confidence).toBe('none');
+  });
+});
+
 describe('parseReceiptDocument — references, plan, cycle, url, region', () => {
   it('does not read "Preferred" as a reference number', () => {
     const r = parseReceiptDocument('Your Preferred plan has been renewed. Total $15.00', {

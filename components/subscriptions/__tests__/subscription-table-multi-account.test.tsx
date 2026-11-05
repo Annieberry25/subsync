@@ -36,7 +36,7 @@ const base: SubscriptionRow = {
 const twoAccounts: SubscriptionRow = {
   ...base,
   account_links: [
-    { id: 'link-1', label: 'Personal', url: '', email: '' },
+    { id: 'link-1', label: 'Individual', url: '', email: '' },
     { id: 'link-2', label: 'Family', url: '', email: '' },
   ],
 };

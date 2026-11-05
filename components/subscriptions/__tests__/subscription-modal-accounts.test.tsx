@@ -34,7 +34,7 @@ const rowWithTwoAccounts: SubscriptionRow = {
   account_links: [
     {
       id: 'link-1',
-      label: 'Personal',
+      label: 'Individual',
       url: 'https://spotify.com/personal',
       email: '',
       price: 1600,
@@ -111,7 +111,7 @@ describe('a subscription with two accounts', () => {
   it('opens on the first account when no account was chosen', async () => {
     await renderOpen(rowWithTwoAccounts);
 
-    expect(screen.getByLabelText('Account Type')).toHaveValue('Personal');
+    expect(screen.getByLabelText('Account Type')).toHaveValue('Individual');
     expect(screen.getByPlaceholderText('15.99')).toHaveValue(1600);
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'Add account link' }));
@@ -145,7 +145,7 @@ describe('a subscription with two accounts', () => {
       price: 3000,
       next_billing_date: '2026-12-01',
     });
-    expect(links[0]).toMatchObject({ label: 'Personal', price: 1600 });
+    expect(links[0]).toMatchObject({ label: 'Individual', price: 1600 });
   });
 
   it('adds the accounts up for the subscription', async () => {
