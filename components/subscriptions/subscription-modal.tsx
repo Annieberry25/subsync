@@ -337,9 +337,9 @@ export default function SubscriptionModal({
       setCategory('');
       setStatus('');
       setStartDate('');
-      const nextMonth = new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      setNextBillingDate(nextMonth.toISOString().split('T')[0]);
+      /* A new subscription opens with no renewal date: it is filled in once the
+         user enters a start date or picks a quick cycle. */
+      setNextBillingDate('');
       setAutoRenew(false);
       setProviderUrl('');
       setIsUserEditedUrl(false);
