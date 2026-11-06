@@ -1,12 +1,15 @@
 import type { User } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/types/database.types';
+import { hasVerifiedMfaFactor } from '@/lib/auth/mfa';
 
 export type PlanTier = 'free' | 'plus' | 'premium';
 
 /**
  * Fetch the current signed-in user from a server-side client.
- * Returns null when no valid session exists (caller decides the 401 response).
+ * Returns null when no valid session exists, or when the account has a
+ * verified MFA factor but the current session is still at `aal1` (caller
+ * decides the 401 response).
  */
 export async function getAuthUser(
   supabase: SupabaseClient<Database>
@@ -16,6 +19,18 @@ export async function getAuthUser(
     error,
   } = await supabase.auth.getUser();
   if (error || !user) return null;
+
+  if (hasVerifiedMfaFactor(user)) {
+    const mfa = supabase.auth?.mfa;
+    if (!mfa || typeof mfa.getAuthenticatorAssuranceLevel !== 'function') {
+      return null;
+    }
+    const { data: aal, error: aalError } = await mfa.getAuthenticatorAssuranceLevel();
+    if (aalError || aal?.currentLevel !== 'aal2') {
+      return null;
+    }
+  }
+
   return user;
 }
 

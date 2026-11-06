@@ -39,9 +39,9 @@ describe('plan limit aliasing (FREE_SUBSCRIPTION_LIMIT parity)', () => {
 });
 
 describe('hasPlanFeature', () => {
-  it('gates Gmail Connect and Email Forwarding to Plus', () => {
-    expect(hasPlanFeature('free', 'gmail')).toBe(false);
-    expect(hasPlanFeature('free', 'emailForwarding')).toBe(false);
+  it('enables Gmail Connect and Email Forwarding across all tiers', () => {
+    expect(hasPlanFeature('free', 'gmail')).toBe(true);
+    expect(hasPlanFeature('free', 'emailForwarding')).toBe(true);
 
     expect(hasPlanFeature('plus', 'gmail')).toBe(true);
     expect(hasPlanFeature('plus', 'emailForwarding')).toBe(true);
@@ -50,18 +50,20 @@ describe('hasPlanFeature', () => {
     expect(hasPlanFeature('premium', 'emailForwarding')).toBe(true);
   });
 
-  it('keeps advanced insights Plus-only', () => {
+  it('keeps advanced insights and assistant actions Plus-only', () => {
     expect(hasPlanFeature('free', 'advancedInsights')).toBe(false);
     expect(hasPlanFeature('plus', 'advancedInsights')).toBe(true);
+    expect(hasPlanFeature('free', 'assistantActions')).toBe(false);
+    expect(hasPlanFeature('plus', 'assistantActions')).toBe(true);
   });
 
-  it('treats an unknown tier as free so nothing unlocks by accident', () => {
-    expect(hasPlanFeature('', 'gmail')).toBe(false);
-    expect(hasPlanFeature('banana', 'emailForwarding')).toBe(false);
+  it('treats an unknown tier as free so Plus-only features do not unlock by accident', () => {
+    expect(hasPlanFeature('', 'advancedInsights')).toBe(false);
+    expect(hasPlanFeature('banana', 'assistantActions')).toBe(false);
   });
 
-  it('gives free no email discovery allowance', () => {
-    expect(getPlanLimits('free').maxEmailDiscoveryPerMonth).toBe(0);
+  it('keeps email discovery unlimited on free', () => {
+    expect(getPlanLimits('free').maxEmailDiscoveryPerMonth).toBe(Infinity);
     expect(getPlanLimits('plus').maxEmailDiscoveryPerMonth).toBeGreaterThan(0);
   });
 
@@ -107,8 +109,6 @@ describe('admin access', () => {
   });
 
   it('does not cap an admin subscription count at all', () => {
-    // The regression this guards: the operator account was capped at three
-    // subscriptions while being the only account able to manage everyone's.
     expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3, isAdmin: true })).toBe(false);
     expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 40, isAdmin: true })).toBe(false);
     expect(hasReachedSubscriptionCap({ tier: 'free', activeCount: 3 })).toBe(false);
@@ -124,8 +124,9 @@ describe('admin access', () => {
     expect(hasPlanFeature('free', 'gmail', true)).toBe(true);
     expect(hasPlanFeature('free', 'emailForwarding', true)).toBe(true);
     expect(hasPlanFeature('free', 'advancedInsights', true)).toBe(true);
-    // Same feature on the same stored tier without the flag stays locked.
-    expect(hasPlanFeature('free', 'gmail')).toBe(false);
+    expect(hasPlanFeature('free', 'assistantActions', true)).toBe(true);
+    // Plus-only feature on the same stored tier without the admin flag stays locked.
+    expect(hasPlanFeature('free', 'advancedInsights')).toBe(false);
   });
 
   it('drops ads for an admin, since ads are a paid-tier perk', () => {

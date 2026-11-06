@@ -14,6 +14,7 @@ import { PROVIDER_SUBSCRIBE_ENABLED } from '@/lib/config/feature-flags';
 import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
 import { useToast } from '@/lib/hooks/use-toast';
 import type { SubscriptionRow, SubscriptionInsert } from '@/lib/services/subscription-service';
+import { addCycleToDate } from '@/lib/utils/billing-dates';
 
 type AddPath = 'gmail' | 'forwarding' | 'link' | 'receipt';
 
@@ -126,14 +127,21 @@ export default function AddSubscriptionModal({
   const handleReceiptConfirm = (extracted: ExtractedReceiptData, file: File | null) => {
     handleExitAll();
 
+    const billingCycle = extracted.billingCycle || 'monthly';
+    const startDate = extracted.startDate || undefined;
+    const nextBillingDate =
+      extracted.nextBillingDate ||
+      (startDate ? addCycleToDate(startDate, billingCycle) : undefined) ||
+      undefined;
+
     const prefill: Partial<Omit<SubscriptionInsert, 'user_id'>> = {
       name: extracted.name,
       price: parsePriceSafely(extracted.price),
       currency: extracted.currency || 'USD',
-      billing_cycle: extracted.billingCycle || 'monthly',
-      category: extracted.category || 'Streaming',
-      next_billing_date: extracted.nextBillingDate || undefined,
-      start_date: extracted.startDate || undefined,
+      billing_cycle: billingCycle,
+      category: extracted.category || 'Other',
+      next_billing_date: nextBillingDate,
+      start_date: startDate,
       provider_url: extracted.providerUrl,
       notes: undefined,
       account_links: [

@@ -7,7 +7,10 @@ import Sheet from '@/components/ui/sheet';
 import ReceiptSourcePicker from '@/components/receipts/receipt-source-picker';
 import { SUPPORTED_CURRENCIES } from '@/lib/services/currency-service';
 import { TEXT_SOURCE_LABEL, useReceiptScan } from '@/lib/hooks/use-receipt-scan';
-import type { ReceiptExtraction } from '@/lib/services/receipt-parser';
+import {
+  inferSubscriptionCategory,
+  type ReceiptExtraction,
+} from '@/lib/services/receipt-parser';
 import {
   RECEIPT_ACCOUNT_TYPES,
   type ReceiptAccountType,
@@ -73,38 +76,44 @@ function toDateOnly(value: string | null | undefined): string {
 }
 
 /**
- * The renewal date to review: the one stated on the receipt, or — when the
- * receipt states a cycle and the payment date but no end date — the first
- * renewal that cycle implies. An unknown/one-off cycle has no next date.
+ * The renewal date to review: when a start/payment date is present on the
+ * receipt, the next billing date is computed from that date and the detected
+ * billing cycle (e.g. +1 month for monthly, +1 year for yearly). Falls back to
+ * an explicit renewal date stated on the receipt when no start date is found.
  */
 function nextBillingDateFor(extraction: ReceiptExtraction): string {
-  const stated = toDateOnly(extraction.nextBillingDate.value);
-  if (stated) return stated;
-
-  const cycle = extraction.billingCycle.value;
-  if (cycle !== 'monthly' && cycle !== 'yearly' && cycle !== 'weekly' && cycle !== 'quarterly') {
-    return '';
+  const paid = toDateOnly(extraction.paymentDate?.value);
+  const cycle = toBillingCycle(extraction.billingCycle.value);
+  if (paid && extraction.billingCycle.value !== 'one_time') {
+    const derived = addCycleToDate(paid, cycle);
+    if (derived) return derived;
   }
 
-  const paid = toDateOnly(extraction.paymentDate?.value);
-  return paid ? addCycleToDate(paid, cycle) : '';
+  return toDateOnly(extraction.nextBillingDate.value);
 }
 
 /**
  * Maps the shared extraction onto the subscription form. Anything the parser
- * could not read is left blank rather than guessed — except the account type,
- * which falls back to Other, and a renewal date implied by a stated cycle.
+ * could not read is left blank rather than guessed — except the category and
+ * account type, which fall back to Other, and a renewal date implied by a
+ * stated start date and cycle.
  */
 function toReviewData(
   extraction: ReceiptExtraction,
   initialProviderName?: string
 ): ExtractedReceiptData {
+  const name = extraction.providerName.value ?? initialProviderName ?? '';
+  const detectedCategory =
+    extraction.category.confidence === 'high' ? toCategory(extraction.category.value) : 'Other';
+  const category =
+    detectedCategory !== 'Other' ? detectedCategory : inferSubscriptionCategory(name);
+
   return {
-    name: extraction.providerName.value ?? initialProviderName ?? '',
+    name,
     price: extraction.amount.value != null ? String(extraction.amount.value) : '',
     currency: extraction.currency.value ?? 'USD',
     billingCycle: toBillingCycle(extraction.billingCycle.value),
-    category: toCategory(extraction.category.value),
+    category,
     accountType: extraction.accountType?.value ?? 'Other',
     nextBillingDate: nextBillingDateFor(extraction),
     startDate: toDateOnly(extraction.paymentDate?.value) || undefined,
@@ -148,23 +157,21 @@ export default function ReceiptImportModal({
   const isAnalyzeDisabled = scan.isScanning || (!receiptText.trim() && !file);
 
   /**
-   * True when the parser left something blank or guessed it.
+   * True when the parser left a review field blank.
    *
-   * Only used to decide whether to warn. The notice deliberately does not name
-   * the fields: the form already shows which ones are empty, and listing them
-   * as "price, renewal date" read as a parser error rather than a blank form.
+   * Only used to decide whether to warn. Checking the actual review fields
+   * rather than raw confidence scores avoids showing a "fields are blank"
+   * warning when every field is already populated.
    */
-  const hasUnreadableFields = (() => {
-    if (!scan.result) return false;
-    const e = scan.result.extraction;
-    return (
-      e.amount.confidence === 'low' ||
-      e.amount.confidence === 'none' ||
-      e.providerName.confidence === 'low' ||
-      e.providerName.confidence === 'none' ||
-      !reviewData?.nextBillingDate
-    );
-  })();
+  const hasUnreadableFields = Boolean(
+    reviewData &&
+      (!reviewData.name.trim() ||
+        !reviewData.price.trim() ||
+        !reviewData.nextBillingDate ||
+        !reviewData.startDate ||
+        reviewData.category === 'Other' ||
+        reviewData.accountType === 'Other')
+  );
 
   return (
     <Sheet
@@ -324,7 +331,14 @@ export default function ReceiptImportModal({
                       <input
                         type="text"
                         value={reviewData.name}
-                        onChange={(e) => setReviewData({ ...reviewData, name: e.target.value })}
+                        onChange={(e) => {
+                          const nextName = e.target.value;
+                          setReviewData({
+                            ...reviewData,
+                            name: nextName,
+                            category: inferSubscriptionCategory(nextName),
+                          });
+                        }}
                         placeholder="e.g. Netflix"
                         className="flex-1 min-w-0 h-11 px-4 rounded-xl bg-[#0D0F0F] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-sm placeholder:text-[11px] placeholder-[#94A3B8] focus:outline-none focus:border-[#14B8A6] transition-colors"
                       />
@@ -361,12 +375,17 @@ export default function ReceiptImportModal({
                     <span className="text-[#94A3B8] block text-[11px]">Billing Cycle</span>
                     <select
                       value={reviewData.billingCycle}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const billingCycle = e.target.value as ExtractedReceiptData['billingCycle'];
+                        const nextBillingDate = reviewData.startDate
+                          ? addCycleToDate(reviewData.startDate, billingCycle) || reviewData.nextBillingDate
+                          : reviewData.nextBillingDate;
                         setReviewData({
                           ...reviewData,
-                          billingCycle: e.target.value as ExtractedReceiptData['billingCycle'],
-                        })
-                      }
+                          billingCycle,
+                          nextBillingDate,
+                        });
+                      }}
                       aria-label="Billing cycle"
                       className="w-full h-11 !pl-4 !pr-12 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs capitalize focus:outline-none focus:border-[#14B8A6] transition-colors"
                     >
@@ -398,7 +417,17 @@ export default function ReceiptImportModal({
                     <input
                       type="date"
                       value={reviewData.startDate || ''}
-                      onChange={(e) => setReviewData({ ...reviewData, startDate: e.target.value })}
+                      onChange={(e) => {
+                        const startDate = e.target.value;
+                        const nextBillingDate = startDate
+                          ? addCycleToDate(startDate, reviewData.billingCycle) || reviewData.nextBillingDate
+                          : reviewData.nextBillingDate;
+                        setReviewData({
+                          ...reviewData,
+                          startDate,
+                          nextBillingDate,
+                        });
+                      }}
                       className="w-full h-11 px-4 rounded-xl bg-[#0D0F0D] border border-[#1A1D1D] text-[#F5F7F6] font-semibold text-xs focus:outline-none focus:border-[#14B8A6] transition-colors"
                     />
                     {!reviewData.startDate && (

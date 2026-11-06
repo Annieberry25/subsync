@@ -481,7 +481,7 @@ export function emailCodeBlock(
             </v:roundrect>
             <![endif]-->
             <!--[if !mso]><!-- -->
-              <a href="${options.href}"
+              <a href="${escapeHtml(options.href)}"
                  style="display:inline-block; padding:15px 32px; line-height:20px;
                         font-family:${BRAND.fontStack}; font-size:15px; font-weight:700;
                         color:${SECURITY.accentText}; text-decoration:none;

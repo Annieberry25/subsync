@@ -36,7 +36,7 @@ export const PLAN_LIMITS: Record<'free' | 'plus' | 'pro', PlanLimits> = {
     hasAdvancedInsights: false,
     // Both are Plus-only. Free stays on the basic paths: add manually, import a
     // receipt, subscribe through a provider.
-    hasGmailConnect: false,
+    hasGmailConnect: true,
     hasEmailForwarding: true,
     // Free can ask the assistant anything and get reads/analysis; only Plus can
     // have it propose changes (each still confirmed by the user before writing).

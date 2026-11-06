@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth/access';
 import { isFeatureEnabledForUser } from '@/lib/auth/feature-access';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { getUserForwardingAddress } from '@/lib/services/receipt-ingestion';
 import { processInboundReceiptWithSelfTest } from '@/lib/services/inbound-email';
 
@@ -29,6 +30,17 @@ export async function POST() {
       return NextResponse.json(
         { error: 'Email Forwarding is not available yet.' },
         { status: 403 }
+      );
+    }
+
+    const allowed = await checkRateLimit(`user:emails-test:${user.id}`, {
+      windowSeconds: 600,
+      maxRequests: 3,
+    });
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many self-test requests. Please wait a few minutes.' },
+        { status: 429 }
       );
     }
 

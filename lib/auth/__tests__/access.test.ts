@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { resolveServerPlanTier } from '@/lib/auth/access';
+import { getAuthUser, resolveServerPlanTier } from '@/lib/auth/access';
 
 type MaybeError = { error: { message: string } | null };
 
@@ -20,6 +20,53 @@ function mockSupabase(profile: unknown, withError = false) {
     })),
   } as never;
 }
+
+describe('getAuthUser', () => {
+  it('returns the user when no MFA factor is enrolled', async () => {
+    const user = { id: 'u1', factors: [] };
+    const client = {
+      auth: {
+        getUser: vi.fn(async () => ({ data: { user }, error: null })),
+      },
+    } as never;
+
+    await expect(getAuthUser(client)).resolves.toEqual(user);
+  });
+
+  it('rejects an aal1 session when the user has a verified MFA factor', async () => {
+    const user = { id: 'u1', factors: [{ id: 'f1', status: 'verified' }] };
+    const client = {
+      auth: {
+        getUser: vi.fn(async () => ({ data: { user }, error: null })),
+        mfa: {
+          getAuthenticatorAssuranceLevel: vi.fn(async () => ({
+            data: { currentLevel: 'aal1', nextLevel: 'aal2' },
+            error: null,
+          })),
+        },
+      },
+    } as never;
+
+    await expect(getAuthUser(client)).resolves.toBeNull();
+  });
+
+  it('allows an aal2 session when the user has a verified MFA factor', async () => {
+    const user = { id: 'u1', factors: [{ id: 'f1', status: 'verified' }] };
+    const client = {
+      auth: {
+        getUser: vi.fn(async () => ({ data: { user }, error: null })),
+        mfa: {
+          getAuthenticatorAssuranceLevel: vi.fn(async () => ({
+            data: { currentLevel: 'aal2', nextLevel: 'aal2' },
+            error: null,
+          })),
+        },
+      },
+    } as never;
+
+    await expect(getAuthUser(client)).resolves.toEqual(user);
+  });
+});
 
 describe('resolveServerPlanTier', () => {
   it("resolves 'free' when the profile row is missing", async () => {

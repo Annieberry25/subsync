@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth/access';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runRenewalReminders } from '@/lib/reminders/run-reminders';
@@ -33,6 +34,17 @@ export async function POST(request: Request) {
     const user = await getAuthUser(supabase);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const allowed = await checkRateLimit(`user:reminders-run-now:${user.id}`, {
+      windowSeconds: 600,
+      maxRequests: 5,
+    });
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many reminder runs in a short period. Please wait a few minutes.' },
+        { status: 429 }
+      );
     }
 
     const dryRun = new URL(request.url).searchParams.get('dryRun') === '1';

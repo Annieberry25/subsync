@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
@@ -11,6 +12,12 @@ import {
   gmailStateMatches,
   storeGmailConnection,
 } from '@/lib/services/gmail-service';
+
+function safeStateEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
 
 /**
  * Google redirects here after the user approves/denies the consent screen.
@@ -39,7 +46,7 @@ export async function GET(request: NextRequest) {
   const expectedState = cookieStore.get(GMAIL_STATE_COOKIE)?.value;
   cookieStore.delete(GMAIL_STATE_COOKIE);
 
-  if (!expectedState || expectedState !== state) {
+  if (!expectedState || !safeStateEqual(expectedState, state)) {
     return NextResponse.redirect(`${home}?gmailError=1`);
   }
 

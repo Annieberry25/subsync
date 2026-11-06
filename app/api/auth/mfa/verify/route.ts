@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 /**
  * Completes the second-factor challenge for the session already on the request.
@@ -13,6 +14,18 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const allowed = await checkRateLimit(`mfa-verify:ip:${ip}`, {
+      windowSeconds: 300,
+      maxRequests: 5,
+    });
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please wait a few minutes and try again.' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const factorId = typeof body.factorId === 'string' ? body.factorId : '';
     const code = typeof body.code === 'string' ? body.code.trim() : '';

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth/access';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { sendPushToUser, isPushConfigured } from '@/lib/push/send';
 import { sendTestNotificationEmail } from '@/lib/email/send';
 
@@ -24,6 +25,17 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized user session.' }, { status: 401 });
     }
 
+    const allowed = await checkRateLimit(`user:notifications-test:${user.id}`, {
+      windowSeconds: 600,
+      maxRequests: 3,
+    });
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many test notifications requested. Please wait a few minutes.' },
+        { status: 429 }
+      );
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('email, full_name')
@@ -37,7 +49,9 @@ export async function POST() {
       tag: 'subhalt-test',
     });
 
-    const to = profile?.email ?? user.email ?? null;
+    // Always prefer the verified Supabase Auth email over the profile row so
+    // an unverified profile update can never redirect test mail to a third party.
+    const to = user.email ?? profile?.email ?? null;
     const email = to
       ? await sendTestNotificationEmail(to, profile?.full_name ?? null)
       : { ok: false, error: 'No email address on file.' };

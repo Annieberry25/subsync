@@ -1,29 +1,34 @@
+import crypto from 'crypto';
+
 /**
- * Stateless, email-delivered verification for high-risk account actions.
+ * Stateless, time-windowed 6-digit confirmation code for account deletion.
  *
- * Deleting an account requires this code for every user, password or
- * OAuth-only alike, so ownership is always proven by access to the account
- * email. The app emails a 6-digit code that is the HMAC of `userId` + a
- * 30-second time window, signed with a server secret. No state is stored; the
- * code is valid for the window it was issued in plus one step on each side to
- * absorb clock skew and delivery lag.
+ * Used by accounts that signed up via OAuth (Google) and have no password to
+ * re-enter at the deletion prompt. Instead of storing a one-off token in the
+ * database, the code is derived from `(userId, timeWindow)` with HMAC-SHA256
+ * using a server-only secret — the same construction as TOTP — and emailed to
+ * the user's own address.
  *
- * The signing key comes from ACCOUNT_DELETE_SIGNING_KEY, falling back to the
- * existing SUPABASE_WEBHOOK_SECRET / CRON_SECRET values so deployments that
- * already rotate secrets can go live without a new variable.
+ * A 10-minute window with ±1 window tolerance gives the user 10–20 minutes to
+ * read the email and paste the code without needing any schema change.
  */
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+/** Largest multiple of 1,000,000 below 2^32, eliminating modulo bias. */
+const UNBIASED_CEILING = 4_294_000_000;
 
-const STEP_MS = 30 * 1000;
-/** How far either side of the current window a code is still accepted. */
-const SKEW_STEPS = 1;
-
+/**
+ * Resolves the signing secret. Prefers a dedicated `ACCOUNT_DELETE_SIGNING_KEY`
+ * and falls back to `GMAIL_TOKEN_ENCRYPTION_KEY` or `CRON_SECRET`.
+ * Deliberately excludes `SUPABASE_WEBHOOK_SECRET` so webhook secrets cannot be
+ * used to forge user verification codes.
+ */
 export function getAccountDeleteSigningKey(): string {
-  const explicit = process.env.ACCOUNT_DELETE_SIGNING_KEY?.trim();
-  if (explicit) return explicit;
   return (
-    process.env.SUPABASE_WEBHOOK_SECRET?.trim() || process.env.CRON_SECRET?.trim() || ''
+    process.env.ACCOUNT_DELETE_SIGNING_KEY?.trim() ||
+    process.env.GMAIL_TOKEN_ENCRYPTION_KEY?.trim() ||
+    process.env.CRON_SECRET?.trim() ||
+    ''
   );
 }
 
@@ -31,29 +36,59 @@ export function isAccountDeleteCodeConfigured(): boolean {
   return getAccountDeleteSigningKey().length > 0;
 }
 
-function codeForStep(userId: string, step: number): string {
-  const key = getAccountDeleteSigningKey();
-  const digest = createHmac('sha256', key).update(`${userId}:${step}`).digest();
-  const value = digest.readUInt32BE(0) % 1_000_000;
-  return String(value).padStart(6, '0');
+function codeForBucket(userId: string, bucket: number, key: string): string {
+  const derivedKey = crypto
+    .createHmac('sha256', 'subhalt:account-delete:v1')
+    .update(key)
+    .digest();
+  const digest = crypto
+    .createHmac('sha256', derivedKey)
+    .update(`account-delete:${userId}:${bucket}`)
+    .digest();
+
+  for (let offset = 0; offset <= digest.length - 4; offset += 4) {
+    const val = digest.readUInt32BE(offset);
+    if (val < UNBIASED_CEILING) {
+      return String(val % 1_000_000).padStart(6, '0');
+    }
+  }
+
+  const fallback = (digest.readUInt32BE(0) & 0x7fffffff) % 1_000_000;
+  return String(fallback).padStart(6, '0');
 }
 
 export function generateAccountDeleteCode(userId: string, now = Date.now()): string {
-  return codeForStep(userId, Math.floor(now / STEP_MS));
+  const key = getAccountDeleteSigningKey();
+  if (!key) {
+    throw new Error('Account delete signing key is not configured.');
+  }
+  const bucket = Math.floor(now / WINDOW_MS);
+  return codeForBucket(userId, bucket, key);
 }
 
 export function verifyAccountDeleteCode(
   userId: string,
-  code: string,
+  submitted: string,
   now = Date.now()
 ): boolean {
-  if (!/^\d{6}$/.test(code)) return false;
-  const currentStep = Math.floor(now / STEP_MS);
-  for (let offset = -SKEW_STEPS; offset <= SKEW_STEPS; offset += 1) {
-    const expected = codeForStep(userId, currentStep + offset);
-    const a = Buffer.from(expected, 'utf8');
-    const b = Buffer.from(code, 'utf8');
-    if (a.length === b.length && timingSafeEqual(a, b)) return true;
+  const key = getAccountDeleteSigningKey();
+  if (!key) return false;
+
+  const clean = submitted.trim();
+  if (!/^\d{6}$/.test(clean)) return false;
+
+  const currentBucket = Math.floor(now / WINDOW_MS);
+  const cleanBuf = Buffer.from(clean);
+
+  // Check current and previous bucket so a code issued near a boundary stays
+  // valid for at least one full window. Constant-time comparison across all
+  // candidate buckets avoids leaking partial digit matches via timing.
+  let matched = false;
+  for (const offset of [0, -1]) {
+    const expected = Buffer.from(codeForBucket(userId, currentBucket + offset, key));
+    if (expected.length === cleanBuf.length && crypto.timingSafeEqual(expected, cleanBuf)) {
+      matched = true;
+    }
   }
-  return false;
+  return matched;
 }

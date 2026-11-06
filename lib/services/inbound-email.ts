@@ -38,7 +38,7 @@ export function verifyMailgunSignature(payload: FormPayload): boolean {
   const { timestamp, token, signature } = payload;
   if (!timestamp || !token || !signature) return false;
   const t = parseInt(timestamp, 10);
-  if (!Number.isFinite(t) || Date.now() - t * 1000 > SIGNATURE_TTL_MS) return false;
+  if (!Number.isFinite(t) || Math.abs(Date.now() - t * 1000) > SIGNATURE_TTL_MS) return false;
   const expected = createHmac('sha256', env.MAILGUN_SIGNING_KEY ?? '')
     .update(`${timestamp}${token}`)
     .digest('hex');
@@ -52,7 +52,7 @@ export function verifyWebhookAuth(payload: FormPayload, headers: Headers): { aut
   }
   if (env.INBOUND_WEBHOOK_SECRET) {
     const supplied =
-      payload['secret'] ||
+      headers.get('x-inbound-secret') ||
       headers.get('x-webhook-secret') ||
       headers.get('authorization')?.replace(/^Bearer\s+/i, '');
     if (supplied && constantTimeEqual(supplied, env.INBOUND_WEBHOOK_SECRET)) {

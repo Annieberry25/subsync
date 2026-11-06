@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/lib/hooks/use-toast';
 import { useFeatureFlag } from '@/lib/hooks/use-feature-flag';
-import { useUserSettings } from '@/lib/contexts/user-settings-context';
+import { useUserSettings, useAuth } from '@/lib/contexts/user-settings-context';
+import { hasPlanFeature } from '@/lib/constants/plan-limits';
 import { useInbox } from '@/lib/contexts/inbox-context';
 
 interface GmailStatus {
@@ -46,7 +47,9 @@ function formatWhen(iso: string): string {
  * reads as "not configured on this deployment" rather than an env reference.
  */
 export function IntegrationsSettingsPanel() {
-  const { isPlus } = useUserSettings();
+  const { planTier } = useUserSettings();
+  const { isAdmin } = useAuth();
+  const isPlus = hasPlanFeature(planTier, 'gmail', isAdmin) || hasPlanFeature(planTier, 'emailForwarding', isAdmin);
   const { toast } = useToast();
   const { addInboxItem } = useInbox();
 

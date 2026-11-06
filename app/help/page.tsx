@@ -185,8 +185,8 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
     subheading: 'Plan tier breakdown',
     bullets: [
-      'Free Plan ($0/month): Unlimited active subscriptions. Free includes the basic paths: manual entry, receipt import, subscribing through a provider, renewal dates, provider links, basic reminders, and basic Smart Insights.',
-      'Plus Plan ($3.99/month): Everything in Free, plus Gmail Connect, Email Forwarding, advanced reminder controls & alerts, advanced Smart Insights & metrics, portfolio data export (CSV/JSON), and — with the Plus release — multiple accounts per subscription (coming soon).',
+      'Free Plan ($0/month): Unlimited active subscriptions. Free includes Connect Gmail, Email Forwarding, manual entry, receipt import, renewal dates, provider links, reminders, and basic Smart Insights.',
+      'Plus Plan ($3.99/month): Everything in Free, plus advanced reminder controls & alerts, advanced Smart Insights & metrics, portfolio data export (CSV/JSON), and — with the Plus release — multiple accounts per subscription (coming soon).',
       'Plus features are marked with a "Plus" badge wherever they appear, so you can see what will unlock when the Plus plan launches.',
     ],
   },

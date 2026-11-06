@@ -50,7 +50,7 @@ describe('checkRateLimit', () => {
     ).resolves.toBe(true);
   });
 
-  it('caches the decision inside its window', async () => {
+  it('caches a denied decision inside its window', async () => {
     rpcMock.mockResolvedValue({ data: { allowed: false, retry_after_seconds: 30 }, error: null });
     const { checkRateLimit } = await loadRateLimit();
 
@@ -58,6 +58,22 @@ describe('checkRateLimit', () => {
     await checkRateLimit('test:cached', { windowSeconds: 60, maxRequests: 1 });
 
     expect(rpcMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache allowed decisions so subsequent hits increment the store counter', async () => {
+    rpcMock
+      .mockResolvedValueOnce({ data: { allowed: true, retry_after_seconds: 60 }, error: null })
+      .mockResolvedValueOnce({ data: { allowed: false, retry_after_seconds: 59 }, error: null });
+    const { checkRateLimit } = await loadRateLimit();
+
+    await expect(
+      checkRateLimit('test:increment', { windowSeconds: 60, maxRequests: 1 })
+    ).resolves.toBe(true);
+    await expect(
+      checkRateLimit('test:increment', { windowSeconds: 60, maxRequests: 1 })
+    ).resolves.toBe(false);
+
+    expect(rpcMock).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -31,6 +31,7 @@ import {
   emailParagraph,
   emailDetailRow,
   emailFinePrint,
+  escapeHtml,
 } from './layout';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import type { SubscriptionEmailData } from './types';
@@ -273,7 +274,7 @@ export function renderTestNotificationEmail(firstName?: string | null): Rendered
       bodyHtml: [
         emailParagraph(
           firstName
-            ? `${firstName}, if you are reading this, your renewal reminder emails are working.`
+            ? `${escapeHtml(firstName.trim())}, if you are reading this, your renewal reminder emails are working.`
             : 'If you are reading this, your renewal reminder emails are working.'
         ),
         emailFinePrint('You triggered this from Settings. No action is needed.'),

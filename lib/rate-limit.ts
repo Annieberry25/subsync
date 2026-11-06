@@ -2,9 +2,11 @@
  * Postgres-backed sliding-window rate limiter.
  *
  * Each new counter is read/written via the `check_rate_limit` SECURITY DEFINER
- * RPC (persistent across cold starts and instances). A tiny in-memory cache
- * short-circuits repeat requests within the same window so callers only touch
- * the database once per bucket per instance.
+ * RPC (persistent across cold starts and instances). Once a bucket is exhausted
+ * (`allowed === false`), the blocked decision is cached in memory until the
+ * current window expires so repeat flood requests are rejected without touching
+ * the database. Allowed decisions are never cached so every permitted request
+ * increments the persistent counter.
  *
  * Used by the Edge middleware for the global per-IP window, and directly by
  * sensitive route handlers that need a tighter or per-user bucket (account
@@ -37,7 +39,8 @@ const decisionCache = new Map<string, CachedDecision>();
 
 const supabase = createClient<Database>(
   env.NEXT_PUBLIC_SUPABASE_URL,
-  env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
 function pruneCache(now: number): void {
@@ -72,16 +75,24 @@ export async function checkRateLimit(
   }
 
   try {
-    const { data } = await supabase.rpc('check_rate_limit', {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
       p_bucket_key: bucketKey,
       p_window_seconds: options.windowSeconds,
       p_max_requests: options.maxRequests,
     });
 
+    if (error) {
+      pruneCache(now);
+      decisionCache.set(bucketKey, { allowed: true, expiresAt: now + 5_000 });
+      return true;
+    }
+
     const allowed = data?.allowed !== false;
-    const retryAfter = data?.retry_after_seconds ?? options.windowSeconds;
-    pruneCache(now);
-    decisionCache.set(bucketKey, { allowed, expiresAt: now + retryAfter * 1000 });
+    const retryAfter = Math.max(1, Number(data?.retry_after_seconds ?? options.windowSeconds));
+    if (!allowed) {
+      pruneCache(now);
+      decisionCache.set(bucketKey, { allowed: false, expiresAt: now + retryAfter * 1000 });
+    }
     return allowed;
   } catch {
     pruneCache(now);

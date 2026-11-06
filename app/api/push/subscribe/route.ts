@@ -18,17 +18,45 @@ interface SubscribeBody {
   keys?: { p256dh?: unknown; auth?: unknown };
 }
 
+const ALLOWED_PUSH_HOST_SUFFIXES = [
+  '.googleapis.com',
+  '.google.com',
+  '.push.services.mozilla.com',
+  '.mozilla.com',
+  '.notify.windows.com',
+  '.push.apple.com',
+] as const;
+
+function isAllowedPushHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (
+    !host ||
+    host === 'localhost' ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host.startsWith('[') ||
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
+  ) {
+    return false;
+  }
+  return ALLOWED_PUSH_HOST_SUFFIXES.some(
+    (suffix) => host === suffix.slice(1) || host.endsWith(suffix)
+  );
+}
+
 /**
- * Push endpoints are HTTPS URLs from a browser-controlled origin. Validated
- * because this value is stored and later handed back to the push service: a
- * non-HTTPS or non-host endpoint would be an outbound-request target we do not
- * control.
+ * Push endpoints are HTTPS URLs from a browser push service origin. Validated
+ * against known Web Push provider domains so a malicious caller cannot register
+ * an internal IP or arbitrary third-party webhook as an SSRF target.
  */
 function isValidEndpoint(value: unknown): value is string {
   if (typeof value !== 'string' || value.length === 0 || value.length > 2048) return false;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:';
+    if (url.protocol !== 'https:') return false;
+    if (url.username || url.password) return false;
+    if (url.port && url.port !== '443') return false;
+    return isAllowedPushHostname(url.hostname);
   } catch {
     return false;
   }

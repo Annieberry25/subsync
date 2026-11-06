@@ -18,14 +18,20 @@ describe('account delete code', () => {
     expect(isAccountDeleteCodeConfigured()).toBe(true);
   });
 
-  it('falls back to the webhook/cron secrets', () => {
+  it('never falls back to SUPABASE_WEBHOOK_SECRET, using CRON_SECRET instead', () => {
     vi.stubEnv('ACCOUNT_DELETE_SIGNING_KEY', '');
+    vi.stubEnv('GMAIL_TOKEN_ENCRYPTION_KEY', '');
     vi.stubEnv('SUPABASE_WEBHOOK_SECRET', 'k-webhook');
-    expect(getAccountDeleteSigningKey()).toBe('k-webhook');
+    vi.stubEnv('CRON_SECRET', '');
+    expect(getAccountDeleteSigningKey()).toBe('');
+
+    vi.stubEnv('CRON_SECRET', 'k-cron');
+    expect(getAccountDeleteSigningKey()).toBe('k-cron');
   });
 
-  it('is unconfigured when no secret exists', () => {
+  it('is unconfigured when no allowed secret exists', () => {
     vi.stubEnv('ACCOUNT_DELETE_SIGNING_KEY', '');
+    vi.stubEnv('GMAIL_TOKEN_ENCRYPTION_KEY', '');
     vi.stubEnv('SUPABASE_WEBHOOK_SECRET', '');
     vi.stubEnv('CRON_SECRET', '');
     expect(isAccountDeleteCodeConfigured()).toBe(false);

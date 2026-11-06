@@ -27,6 +27,7 @@ import { PROVIDER_REGISTRY } from '@/lib/constants/provider-registry';
 import type { ReceiptAccountType } from '@/lib/constants/account-types';
 import { STANDARD_BILL_CATEGORIES } from '@/lib/types/bills.types';
 import { mapBillCategoryToSubscriptionCategory } from '@/lib/services/receipt-discovery';
+import { addCycleToDate } from '@/lib/utils/billing-dates';
 
 export type ReceiptKind = 'subscription' | 'bill';
 
@@ -498,6 +499,17 @@ const NEXT_BILLING_LABELS = [
 ];
 
 const PAYMENT_LABELS = [
+  'subscription start date',
+  'subscription start',
+  'start date',
+  'date of start',
+  'started on',
+  'starts on',
+  'effective date',
+  'subscription date',
+  'billing date',
+  'bill date',
+  'receipt date',
   'payment date',
   'date of payment',
   'date paid',
@@ -527,6 +539,7 @@ const INVOICE_LABELS = [
   'statement date',
   'period from',
   'from',
+  'date',
 ];
 
 interface DateCandidate {
@@ -541,22 +554,28 @@ interface DateCandidate {
 
 function classifyDateLabel(before: string): { role: DateRole; evidence: string } {
   const scope = before.slice(-48);
-  const find = (labels: string[]): string | null => {
-    let best: { phrase: string; index: number } | null = null;
-    for (const phrase of labels) {
-      const idx = indexOfPhrase(scope, phrase);
-      if (idx === -1) continue;
-      if (!best || phrase.length > best.phrase.length) best = { phrase, index: idx };
+  const groups: Array<{ role: DateRole; labels: string[] }> = [
+    { role: 'next_billing', labels: NEXT_BILLING_LABELS },
+    { role: 'payment', labels: PAYMENT_LABELS },
+    { role: 'invoice', labels: INVOICE_LABELS },
+  ];
+  let best: { role: DateRole; phrase: string; end: number; length: number } | null = null;
+  for (const group of groups) {
+    for (const phrase of group.labels) {
+      const matches = allPhraseMatches(scope, phrase);
+      if (matches.length === 0) continue;
+      const idx = matches[matches.length - 1];
+      const end = idx + phrase.length;
+      if (
+        !best ||
+        end > best.end ||
+        (end === best.end && phrase.length > best.length)
+      ) {
+        best = { role: group.role, phrase, end, length: phrase.length };
+      }
     }
-    return best ? best.phrase : null;
-  };
-  const next = find(NEXT_BILLING_LABELS);
-  if (next) return { role: 'next_billing', evidence: `label "${next}"` };
-  const paid = find(PAYMENT_LABELS);
-  if (paid) return { role: 'payment', evidence: `label "${paid}"` };
-  const invoice = find(INVOICE_LABELS);
-  if (invoice) return { role: 'invoice', evidence: `label "${invoice}"` };
-  return { role: 'none', evidence: '' };
+  }
+  return best ? { role: best.role, evidence: `label "${best.phrase}"` } : { role: 'none', evidence: '' };
 }
 
 function collectDateCandidates(text: string): DateCandidate[] {
@@ -568,12 +587,18 @@ function collectDateCandidates(text: string): DateCandidate[] {
     const key = `${start}:${end}`;
     if (seen.has(key)) return;
     seen.add(key);
-    const before = text.slice(Math.max(0, start - 48), start);
-    const { role, evidence } = classifyDateLabel(before);
     const lineStart = text.lastIndexOf('\n', start) + 1;
     const lineEndIndex = text.indexOf('\n', end);
     const lineEnd = lineEndIndex === -1 ? text.length : lineEndIndex;
     const lineText = text.slice(lineStart, lineEnd);
+    const sameLineBefore = text.slice(lineStart, start);
+    const sameLineClassification = classifyDateLabel(sameLineBefore);
+    const { role, evidence } =
+      sameLineClassification.role !== 'none'
+        ? sameLineClassification
+        : sameLineBefore.trim() === ''
+          ? classifyDateLabel(text.slice(Math.max(0, start - 48), start))
+          : { role: 'none' as DateRole, evidence: '' };
     found.push({
       iso,
       start,
@@ -644,29 +669,137 @@ function collectDateCandidates(text: string): DateCandidate[] {
 /* Provider, category, cycle, reference, plan, region, url                    */
 /* -------------------------------------------------------------------------- */
 
-const SUBSCRIPTION_BRANDS: Array<{ name: string; aliases: string[] }> = [
-  { name: 'Netflix', aliases: ['netflix'] },
-  { name: 'Spotify', aliases: ['spotify'] },
-  { name: 'Disney+', aliases: ['disney+', 'disney plus'] },
-  { name: 'Amazon Prime', aliases: ['amazon prime', 'prime video'] },
-  { name: 'YouTube Premium', aliases: ['youtube premium', 'youtube music'] },
-  { name: 'Apple', aliases: ['apple.com', 'apple one', 'applecare', 'itunes', 'icloud+'] },
-  { name: 'Google One', aliases: ['google one', 'google storage', 'google cloud storage'] },
-  { name: 'ChatGPT Plus', aliases: ['chatgpt', 'openai'] },
-  { name: 'Adobe Creative Cloud', aliases: ['adobe creative cloud', 'creative cloud'] },
-  { name: 'GitHub Pro', aliases: ['github pro', 'github copilot'] },
-  { name: 'PlayStation Plus', aliases: ['playstation plus', 'playstation store'] },
-  { name: 'Xbox Game Pass', aliases: ['xbox game pass', 'game pass'] },
-  { name: 'Midjourney', aliases: ['midjourney'] },
-  { name: 'Notion', aliases: ['notion'] },
-  { name: 'Figma', aliases: ['figma'] },
-  { name: 'Slack', aliases: ['slack'] },
-  { name: 'Zoom', aliases: ['zoom'] },
-  { name: 'Dropbox', aliases: ['dropbox'] },
-  { name: 'Audible', aliases: ['audible'] },
-  { name: 'Canva', aliases: ['canva'] },
-  { name: 'Linear', aliases: ['linear.app'] },
-  { name: 'LinkedIn Premium', aliases: ['linkedin', 'linkedin premium'] },
+const SUBSCRIPTION_BRANDS: Array<{ name: string; aliases: string[]; category: SubscriptionCategory }> = [
+  // Streaming
+  { name: 'Netflix', aliases: ['netflix'], category: 'Streaming' },
+  { name: 'Spotify', aliases: ['spotify'], category: 'Streaming' },
+  { name: 'Disney+', aliases: ['disney+', 'disney plus'], category: 'Streaming' },
+  { name: 'Amazon Prime', aliases: ['amazon prime', 'prime video'], category: 'Streaming' },
+  { name: 'YouTube Premium', aliases: ['youtube premium', 'youtube music', 'youtube tv'], category: 'Streaming' },
+  { name: 'Apple Music', aliases: ['apple music'], category: 'Streaming' },
+  { name: 'Apple TV+', aliases: ['apple tv+', 'apple tv plus', 'apple tv'], category: 'Streaming' },
+  { name: 'Hulu', aliases: ['hulu'], category: 'Streaming' },
+  { name: 'Max', aliases: ['hbo max', 'hbo'], category: 'Streaming' },
+  { name: 'Paramount+', aliases: ['paramount+', 'paramount plus'], category: 'Streaming' },
+  { name: 'Peacock', aliases: ['peacock tv', 'peacock premium'], category: 'Streaming' },
+  { name: 'Crunchyroll', aliases: ['crunchyroll'], category: 'Streaming' },
+  { name: 'Showmax', aliases: ['showmax'], category: 'Streaming' },
+  { name: 'Tidal', aliases: ['tidal'], category: 'Streaming' },
+  { name: 'Deezer', aliases: ['deezer'], category: 'Streaming' },
+  { name: 'SoundCloud', aliases: ['soundcloud'], category: 'Streaming' },
+  { name: 'Twitch', aliases: ['twitch'], category: 'Streaming' },
+  { name: 'Audible', aliases: ['audible'], category: 'Streaming' },
+  { name: 'DAZN', aliases: ['dazn'], category: 'Streaming' },
+  { name: 'Mubi', aliases: ['mubi'], category: 'Streaming' },
+  { name: 'Plex', aliases: ['plex pass', 'plex'], category: 'Streaming' },
+
+  // Software, Cloud Storage & AI
+  { name: 'Google One', aliases: ['google one', 'google storage', 'google cloud storage', 'google drive'], category: 'Software' },
+  { name: 'iCloud+', aliases: ['icloud+', 'icloud', 'icloud storage'], category: 'Software' },
+  { name: 'NordVPN', aliases: ['nordvpn'], category: 'Software' },
+  { name: 'ExpressVPN', aliases: ['expressvpn'], category: 'Software' },
+  { name: 'Surfshark', aliases: ['surfshark'], category: 'Software' },
+  { name: 'Proton', aliases: ['protonvpn', 'proton mail', 'proton unlimited', 'proton pass', 'proton drive'], category: 'Software' },
+  { name: 'ChatGPT Plus', aliases: ['chatgpt', 'openai'], category: 'Software' },
+  { name: 'Claude Pro', aliases: ['claude pro', 'claude.ai', 'anthropic'], category: 'Software' },
+  { name: 'Cursor', aliases: ['cursor pro', 'cursor.sh', 'cursor.com'], category: 'Software' },
+  { name: 'Perplexity', aliases: ['perplexity', 'perplexity pro'], category: 'Software' },
+  { name: 'Midjourney', aliases: ['midjourney'], category: 'Software' },
+  { name: 'Adobe Creative Cloud', aliases: ['adobe creative cloud', 'creative cloud', 'adobe'], category: 'Software' },
+  { name: 'GitHub Pro', aliases: ['github pro', 'github copilot', 'github'], category: 'Software' },
+  { name: 'Microsoft 365', aliases: ['microsoft 365', 'office 365', 'm365'], category: 'Software' },
+  { name: 'Google Workspace', aliases: ['google workspace', 'gsuite'], category: 'Software' },
+  { name: 'Notion', aliases: ['notion'], category: 'Software' },
+  { name: 'Figma', aliases: ['figma'], category: 'Software' },
+  { name: 'Slack', aliases: ['slack'], category: 'Software' },
+  { name: 'Zoom', aliases: ['zoom'], category: 'Software' },
+  { name: 'Dropbox', aliases: ['dropbox'], category: 'Software' },
+  { name: 'Canva', aliases: ['canva'], category: 'Software' },
+  { name: 'Linear', aliases: ['linear.app', 'linear'], category: 'Software' },
+  { name: 'LinkedIn Premium', aliases: ['linkedin', 'linkedin premium'], category: 'Software' },
+  { name: 'Shopify', aliases: ['shopify'], category: 'Software' },
+  { name: 'Vercel', aliases: ['vercel'], category: 'Software' },
+  { name: 'Supabase', aliases: ['supabase'], category: 'Software' },
+  { name: 'Netlify', aliases: ['netlify'], category: 'Software' },
+  { name: 'Cloudflare', aliases: ['cloudflare'], category: 'Software' },
+  { name: 'DigitalOcean', aliases: ['digitalocean'], category: 'Software' },
+  { name: 'Heroku', aliases: ['heroku'], category: 'Software' },
+  { name: 'Grammarly', aliases: ['grammarly'], category: 'Software' },
+  { name: 'Loom', aliases: ['loom'], category: 'Software' },
+  { name: 'Miro', aliases: ['miro'], category: 'Software' },
+  { name: 'Trello', aliases: ['trello'], category: 'Software' },
+  { name: 'Asana', aliases: ['asana'], category: 'Software' },
+  { name: 'Atlassian', aliases: ['atlassian', 'jira', 'confluence'], category: 'Software' },
+  { name: 'JetBrains', aliases: ['jetbrains', 'intellij'], category: 'Software' },
+  { name: 'Webflow', aliases: ['webflow'], category: 'Software' },
+  { name: 'Framer', aliases: ['framer'], category: 'Software' },
+  { name: 'Squarespace', aliases: ['squarespace'], category: 'Software' },
+  { name: 'Wix', aliases: ['wix'], category: 'Software' },
+  { name: 'WordPress', aliases: ['wordpress', 'wordpress.com'], category: 'Software' },
+  { name: 'Mailchimp', aliases: ['mailchimp'], category: 'Software' },
+  { name: 'HubSpot', aliases: ['hubspot'], category: 'Software' },
+  { name: 'Zapier', aliases: ['zapier'], category: 'Software' },
+  { name: 'Airtable', aliases: ['airtable'], category: 'Software' },
+  { name: '1Password', aliases: ['1password'], category: 'Software' },
+  { name: 'Bitwarden', aliases: ['bitwarden'], category: 'Software' },
+  { name: 'X Premium', aliases: ['x premium', 'twitter blue'], category: 'Software' },
+  { name: 'Discord Nitro', aliases: ['discord nitro'], category: 'Software' },
+  { name: 'Telegram Premium', aliases: ['telegram premium'], category: 'Software' },
+  { name: 'CapCut', aliases: ['capcut'], category: 'Software' },
+
+  // Gaming
+  { name: 'PlayStation Plus', aliases: ['playstation plus', 'playstation store', 'ps plus'], category: 'Gaming' },
+  { name: 'Xbox Game Pass', aliases: ['xbox game pass', 'game pass', 'xbox live'], category: 'Gaming' },
+  { name: 'Nintendo Switch Online', aliases: ['nintendo switch online', 'nintendo eshop', 'nintendo'], category: 'Gaming' },
+  { name: 'Apple Arcade', aliases: ['apple arcade'], category: 'Gaming' },
+  { name: 'Steam', aliases: ['steam', 'steampowered'], category: 'Gaming' },
+  { name: 'EA Play', aliases: ['ea play'], category: 'Gaming' },
+  { name: 'Ubisoft+', aliases: ['ubisoft+', 'ubisoft plus'], category: 'Gaming' },
+  { name: 'GeForce Now', aliases: ['geforce now'], category: 'Gaming' },
+  { name: 'Roblox', aliases: ['roblox'], category: 'Gaming' },
+
+  // Fitness & Wellness
+  { name: 'Strava', aliases: ['strava'], category: 'Fitness' },
+  { name: 'Peloton', aliases: ['peloton'], category: 'Fitness' },
+  { name: 'Whoop', aliases: ['whoop'], category: 'Fitness' },
+  { name: 'Oura', aliases: ['oura', 'oura ring'], category: 'Fitness' },
+  { name: 'MyFitnessPal', aliases: ['myfitnesspal'], category: 'Fitness' },
+  { name: 'Fitbit Premium', aliases: ['fitbit premium', 'fitbit'], category: 'Fitness' },
+  { name: 'Apple Fitness+', aliases: ['apple fitness+', 'apple fitness plus'], category: 'Fitness' },
+  { name: 'Calm', aliases: ['calm.com', 'calm app'], category: 'Fitness' },
+  { name: 'Headspace', aliases: ['headspace'], category: 'Fitness' },
+  { name: 'Planet Fitness', aliases: ['planet fitness'], category: 'Fitness' },
+  { name: 'Equinox', aliases: ['equinox'], category: 'Fitness' },
+  { name: 'ClassPass', aliases: ['classpass'], category: 'Fitness' },
+  { name: 'Zwift', aliases: ['zwift'], category: 'Fitness' },
+
+  // Education & Learning
+  { name: 'Duolingo', aliases: ['duolingo'], category: 'Education' },
+  { name: 'Coursera', aliases: ['coursera'], category: 'Education' },
+  { name: 'Udemy', aliases: ['udemy'], category: 'Education' },
+  { name: 'MasterClass', aliases: ['masterclass'], category: 'Education' },
+  { name: 'Skillshare', aliases: ['skillshare'], category: 'Education' },
+  { name: 'Codecademy', aliases: ['codecademy'], category: 'Education' },
+  { name: 'DataCamp', aliases: ['datacamp'], category: 'Education' },
+  { name: 'Pluralsight', aliases: ['pluralsight'], category: 'Education' },
+  { name: 'Brilliant', aliases: ['brilliant.org'], category: 'Education' },
+  { name: 'LeetCode', aliases: ['leetcode'], category: 'Education' },
+  { name: 'Frontend Masters', aliases: ['frontend masters'], category: 'Education' },
+  { name: 'edX', aliases: ['edx.org'], category: 'Education' },
+  { name: 'Babbel', aliases: ['babbel'], category: 'Education' },
+  { name: 'Blinkist', aliases: ['blinkist'], category: 'Education' },
+  { name: 'Quizlet', aliases: ['quizlet'], category: 'Education' },
+  { name: 'Chegg', aliases: ['chegg'], category: 'Education' },
+
+  // Finance
+  { name: 'QuickBooks', aliases: ['quickbooks', 'intuit quickbooks'], category: 'Finance' },
+  { name: 'Xero', aliases: ['xero'], category: 'Finance' },
+  { name: 'FreshBooks', aliases: ['freshbooks'], category: 'Finance' },
+  { name: 'YNAB', aliases: ['ynab', 'you need a budget'], category: 'Finance' },
+  { name: 'Monarch Money', aliases: ['monarch money'], category: 'Finance' },
+  { name: 'TradingView', aliases: ['tradingview'], category: 'Finance' },
+  { name: 'Robinhood Gold', aliases: ['robinhood gold', 'robinhood'], category: 'Finance' },
+  { name: 'Revolut', aliases: ['revolut'], category: 'Finance' },
 ];
 
 const BILL_CATEGORY_KEYWORDS: Array<{ category: (typeof STANDARD_BILL_CATEGORIES)[number]; keys: string[] }> = [
@@ -709,34 +842,6 @@ const BILL_CATEGORY_KEYWORDS: Array<{ category: (typeof STANDARD_BILL_CATEGORIES
   {
     category: 'Utilities',
     keys: ['water', 'waste', 'refuse', 'sanitation', 'security services', 'electricity bill'],
-  },
-];
-
-const SUBSCRIPTION_CATEGORY_KEYWORDS: Array<{ category: SubscriptionCategory; keys: string[] }> = [
-  { category: 'Gaming', keys: ['gaming', 'playstation', 'xbox', 'nintendo', 'steam games', 'game pass', 'game library'] },
-  {
-    category: 'Streaming',
-    keys: ['streaming', 'netflix', 'spotify', 'youtube premium', 'disney+', 'disney plus', 'prime video', 'hulu', 'apple tv', 'audible'],
-  },
-  {
-    category: 'Software',
-    keys: ['software', 'saas', 'adobe', 'github', 'chatgpt', 'openai', 'figma', 'notion', 'slack', 'zoom', 'cloud storage', 'aws', 'amazon web services', 'canva', 'linear', 'dropbox'],
-  },
-  {
-    category: 'Fitness',
-    keys: ['gym', 'fitness', 'workout', 'crossfit', 'health club', 'membership'],
-  },
-  {
-    category: 'Finance',
-    keys: ['banking', 'insurance', 'investment', 'loan', 'credit card', 'finance'],
-  },
-  {
-    category: 'Education',
-    keys: ['tuition', 'education', 'course', 'university', 'udemy', 'coursera', 'duolingo', 'masterclass', 'school'],
-  },
-  {
-    category: 'Utilities',
-    keys: ['utility', 'storage', 'cloud hosting', 'domain', 'sim card', 'telecom'],
   },
 ];
 
@@ -883,31 +988,36 @@ function detectProviderName(
   kind: ReceiptKind,
   fileName?: string
 ): ReceiptField<string | null> {
-  // 1. Registry aliases (utilities, telcos, telco/streaming brands).
-  let best: { name: string; length: number } | null = null;
+  // 1. Registry aliases and subscription brands (longest phrase wins).
+  let bestRegistry: { name: string; length: number } | null = null;
   for (const entry of PROVIDER_REGISTRY) {
     for (const alias of [entry.name, ...entry.aliases]) {
       for (const candidate of aliasVariants(alias)) {
         if (!hasPhrase(text, candidate)) continue;
-        if (!best || candidate.length > best.length) {
-          best = { name: entry.name, length: candidate.length };
+        if (!bestRegistry || candidate.length > bestRegistry.length) {
+          bestRegistry = { name: entry.name, length: candidate.length };
         }
       }
     }
-  }
-  if (best) {
-    return { value: best.name, confidence: 'high', evidence: 'provider registry match' };
   }
 
-  // 2. Subscription brand table.
   if (kind === 'subscription') {
+    let bestBrand: { name: string; alias: string; length: number } | null = null;
     for (const brand of SUBSCRIPTION_BRANDS) {
-      for (const alias of brand.aliases) {
-        if (hasPhrase(text, alias)) {
-          return { value: brand.name, confidence: 'high', evidence: `brand "${alias}"` };
+      for (const alias of [brand.name, ...brand.aliases]) {
+        if (!hasPhrase(text, alias)) continue;
+        if (!bestBrand || alias.length > bestBrand.length) {
+          bestBrand = { name: brand.name, alias, length: alias.length };
         }
       }
     }
+    if (bestBrand && (!bestRegistry || bestBrand.length >= bestRegistry.length)) {
+      return { value: bestBrand.name, confidence: 'high', evidence: `brand "${bestBrand.alias}"` };
+    }
+  }
+
+  if (bestRegistry) {
+    return { value: bestRegistry.name, confidence: 'high', evidence: 'provider registry match' };
   }
 
   const lines = text.split('\n');
@@ -1096,7 +1206,7 @@ function detectDates(
   let resolvedPayment = paymentDate;
   if (resolvedPayment.value === null && resolvedNext.value === null) {
     const unlabelled = candidates.filter((c) => c.role === 'none');
-    const chosen = unlabelled[0] ?? candidates.find((c) => c.role === 'invoice') ?? candidates[0];
+    const chosen = candidates.find((c) => c.role === 'invoice') ?? unlabelled[0] ?? candidates[0];
     if (chosen) {
       const isInvoice = chosen.role === 'invoice';
       resolvedPayment = {
@@ -1111,15 +1221,20 @@ function detectDates(
       );
     }
   } else if (resolvedPayment.value === null) {
-    const invoiceDate = candidates.find((c) => c.role === 'invoice');
-    if (invoiceDate) {
+    const fallbackDate =
+      candidates.find((c) => c.role === 'invoice') ??
+      candidates.find((c) => c.role === 'none' && c.iso !== resolvedNext.value);
+    if (fallbackDate) {
+      const isInvoice = fallbackDate.role === 'invoice';
       resolvedPayment = {
-        value: invoiceDate.iso,
+        value: fallbackDate.iso,
         confidence: 'low',
-        evidence: invoiceDate.evidence,
+        evidence: isInvoice ? fallbackDate.evidence : 'earliest date found',
       };
       warnings.push(
-        `No payment date was labelled; the invoice date ${invoiceDate.iso} was used. Please confirm it.`
+        isInvoice
+          ? `No payment date was labelled; the invoice date ${fallbackDate.iso} was used. Please confirm it.`
+          : `No payment date was labelled on the receipt; ${fallbackDate.iso} was the first date found. Please confirm it.`
       );
     }
   }
@@ -1170,8 +1285,8 @@ const ACCOUNT_TYPE_KEYWORDS: Array<{ type: ReceiptAccountType; keys: string[] }>
       'family subscription',
       'family account',
       'family membership',
+      'premium family',
       'household plan',
-      'family',
     ],
   },
   {
@@ -1189,8 +1304,6 @@ const ACCOUNT_TYPE_KEYWORDS: Array<{ type: ReceiptAccountType; keys: string[] }>
       'work account',
       'company plan',
       'company account',
-      'for business',
-      'for work',
     ],
   },
   {
@@ -1200,14 +1313,11 @@ const ACCOUNT_TYPE_KEYWORDS: Array<{ type: ReceiptAccountType; keys: string[] }>
       'individual subscription',
       'individual account',
       'individual membership',
+      'premium individual',
       'personal plan',
       'personal subscription',
       'personal account',
-      'single user',
-      'one user',
       'student plan',
-      'individual',
-      'personal',
     ],
   },
 ];
@@ -1244,17 +1354,37 @@ function detectCategory(
         }
       }
     }
-  }
 
-  const table = kind === 'bill' ? BILL_CATEGORY_KEYWORDS : SUBSCRIPTION_CATEGORY_KEYWORDS;
-  for (const entry of table) {
-    for (const key of entry.keys) {
-      if (hasPhrase(text, key)) {
-        return { value: entry.category, confidence: 'medium', evidence: `keyword "${key}"` };
+    if (kind === 'subscription') {
+      const brandEntry = SUBSCRIPTION_BRANDS.find((b) => b.name === provider.value);
+      if (brandEntry) {
+        return { value: brandEntry.category, confidence: 'high', evidence: 'subscription brand' };
       }
     }
   }
+
+  if (kind === 'bill') {
+    for (const entry of BILL_CATEGORY_KEYWORDS) {
+      for (const key of entry.keys) {
+        if (hasPhrase(text, key)) {
+          return { value: entry.category, confidence: 'medium', evidence: `keyword "${key}"` };
+        }
+      }
+    }
+  }
+
   return { value: null, confidence: 'none', evidence: '' };
+}
+
+export function inferSubscriptionCategory(textOrName: string | null | undefined): SubscriptionCategory {
+  const raw = (textOrName ?? '').trim();
+  if (!raw) return 'Other';
+  const provider = detectProviderName(raw, 'subscription');
+  if (provider.confidence !== 'high') return 'Other';
+  const detected = detectCategory(raw, 'subscription', provider);
+  return detected.confidence === 'high' && detected.value
+    ? (detected.value as SubscriptionCategory)
+    : 'Other';
 }
 
 function detectRegion(text: string, kind: ReceiptKind): ReceiptField<string | null> {
@@ -1275,11 +1405,88 @@ function detectBillingCycle(text: string): ReceiptField<BillingCycle> {
   const ordered: Array<{ cycle: BillingCycle; keys: string[] }> = [
     {
       cycle: 'yearly',
-      keys: ['annually', 'annual', 'yearly', 'per year', 'per annum', '/yr', 'a year', '12-month', '12 month', 'year plan', 'yearly subscription'],
+      keys: [
+        'annually',
+        'annual',
+        'yearly',
+        'per year',
+        'per annum',
+        '/yr',
+        '/ yr',
+        '/year',
+        '/ year',
+        'a year',
+        'every year',
+        'each year',
+        '12-month',
+        '12 month',
+        '12 months',
+        '1-year',
+        '1 year',
+        'year plan',
+        'yearly plan',
+        'annual plan',
+        'yearly subscription',
+        'annual subscription',
+        'billed yearly',
+        'billed annually',
+      ],
     },
-    { cycle: 'quarterly', keys: ['quarterly', 'per quarter', '/qtr', '3-month', '3 month', 'quarter'] },
-    { cycle: 'weekly', keys: ['weekly', 'per week', '/wk', 'a week'] },
-    { cycle: 'monthly', keys: ['monthly', 'per month', '/mo', '/month', 'a month', 'month-to-month'] },
+    {
+      cycle: 'quarterly',
+      keys: [
+        'quarterly',
+        'per quarter',
+        '/qtr',
+        '/ qtr',
+        '/quarter',
+        '/ quarter',
+        '3-month',
+        '3 month',
+        '3 months',
+        'every 3 months',
+        'quarter',
+      ],
+    },
+    {
+      cycle: 'weekly',
+      keys: [
+        'weekly',
+        'per week',
+        '/wk',
+        '/ wk',
+        '/week',
+        '/ week',
+        'a week',
+        'every week',
+        'each week',
+        '1-week',
+        '1 week',
+      ],
+    },
+    {
+      cycle: 'monthly',
+      keys: [
+        'monthly',
+        'per month',
+        '/mo',
+        '/ mo',
+        '/month',
+        '/ month',
+        '/mth',
+        '/ mth',
+        'a month',
+        'every month',
+        'each month',
+        '1-month',
+        '1 month',
+        'month-to-month',
+        'monthly plan',
+        'month plan',
+        'monthly subscription',
+        'billed monthly',
+      ],
+    },
   ];
   for (const entry of ordered) {
     for (const key of entry.keys) {
@@ -1403,10 +1610,28 @@ export function parseReceiptDocument(
     warnings.push('No currency could be read from this receipt.');
   }
 
-  // For subscriptions the renewal date is the critical field; if the receipt
-  // only had a payment date, surface that as a candidate rather than inventing
-  // a date one month out.
-  const nextBillingDate = dates.nextBillingDate;
+  // For subscriptions the renewal date is the critical field; when the receipt
+  // states a payment/start date and a recurring cycle (monthly, yearly, etc.),
+  // compute the next billing date from that date and cycle.
+  let nextBillingDate = dates.nextBillingDate;
+  if (
+    kind === 'subscription' &&
+    nextBillingDate.value === null &&
+    dates.paymentDate.value &&
+    (billingCycle.value === 'monthly' ||
+      billingCycle.value === 'yearly' ||
+      billingCycle.value === 'quarterly' ||
+      billingCycle.value === 'weekly')
+  ) {
+    const derived = addCycleToDate(dates.paymentDate.value, billingCycle.value);
+    if (derived) {
+      nextBillingDate = {
+        value: derived,
+        confidence: dates.paymentDate.confidence === 'low' ? 'low' : 'medium',
+        evidence: `${billingCycle.value} cycle from ${dates.paymentDate.value}`,
+      };
+    }
+  }
   if (kind === 'subscription' && nextBillingDate.value === null) {
     warnings.push(
       'No renewal date was found on this receipt. Add the next billing date so reminders work.'

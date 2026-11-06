@@ -3,13 +3,30 @@ import { requireAdmin } from '@/lib/auth/admin-guard';
 import { deleteAdminBillProvider, updateAdminBillProvider } from '@/lib/services/admin-service';
 import { z } from 'zod';
 
+const safeHttpUrlSchema = z
+  .string()
+  .refine(
+    (val) => {
+      if (!val.trim()) return true;
+      try {
+        const parsed = new URL(val.trim());
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch {
+        return false;
+      }
+    },
+    { message: 'URL must use http:// or https://' }
+  )
+  .nullable()
+  .optional();
+
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
   category: z.string().min(1).optional(),
   country: z.string().min(1).optional(),
   region: z.string().nullable().optional(),
-  official_website: z.string().nullable().optional(),
-  official_payment_url: z.string().nullable().optional(),
+  official_website: safeHttpUrlSchema,
+  official_payment_url: safeHttpUrlSchema,
   verification_status: z.enum(['verified', 'user_submitted', 'unverified']).optional(),
   supported_regions: z.array(z.string()).nullable().optional(),
 });
@@ -32,7 +49,7 @@ export async function PATCH(
     return NextResponse.json(row);
   } catch (err) {
     console.error('[admin/providers/:id] unexpected error:', err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'An unexpected error occurred.' }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }
 
@@ -50,6 +67,6 @@ export async function DELETE(
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[admin/providers/:id] unexpected error:', err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'An unexpected error occurred.' }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 }

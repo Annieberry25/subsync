@@ -149,6 +149,44 @@ describe('parseReceiptDocument — dates', () => {
     expect(r.nextBillingDate.value).toBeNull();
     expect(r.warnings.join(' ')).toMatch(/no renewal date/i);
   });
+
+  it('computes the next billing date from Start date for a monthly receipt (12/11/2026 -> 12/12/2026)', () => {
+    const r = parseReceiptDocument(
+      'Netflix\nMonthly plan\nTotal $15.49\nStart date: 12/11/2026',
+      { kind: 'subscription' }
+    );
+    expect(r.paymentDate.value).toBe('2026-11-12');
+    expect(r.billingCycle.value).toBe('monthly');
+    expect(r.nextBillingDate.value).toBe('2026-12-12');
+  });
+
+  it('computes the next billing date from Start date for a yearly receipt (12/11/2026 -> 12/11/2027)', () => {
+    const r = parseReceiptDocument(
+      'Netflix\nYearly plan\nTotal $150.00\nStart date: 12/11/2026',
+      { kind: 'subscription' }
+    );
+    expect(r.paymentDate.value).toBe('2026-11-12');
+    expect(r.billingCycle.value).toBe('yearly');
+    expect(r.nextBillingDate.value).toBe('2027-11-12');
+  });
+
+  it('computes 6 December from a 6 November start date written in words', () => {
+    const r = parseReceiptDocument(
+      'Netflix\nMonthly plan\nTotal $15.49\nStart date: 6 November 2026',
+      { kind: 'subscription' }
+    );
+    expect(r.paymentDate.value).toBe('2026-11-06');
+    expect(r.nextBillingDate.value).toBe('2026-12-06');
+  });
+
+  it('does not let "renews monthly" on an earlier line turn Start date into the next billing date', () => {
+    const r = parseReceiptDocument(
+      'Spotify\nYour plan renews monthly\nStart date: 12/11/2026\nTotal $11.99',
+      { kind: 'subscription' }
+    );
+    expect(r.paymentDate.value).toBe('2026-11-12');
+    expect(r.nextBillingDate.value).toBe('2026-12-12');
+  });
 });
 
 describe('parseReceiptDocument — provider and category', () => {
@@ -181,6 +219,26 @@ describe('parseReceiptDocument — provider and category', () => {
     });
     expect(r.providerName.value).toBe('Netflix');
     expect(r.category.value).toBe('Streaming');
+  });
+
+  it('detects categories across subscription brands and keywords during receipt scan', () => {
+    const cases: Array<[string, string, string]> = [
+      ['LinkedIn Premium\nTotal $29.99', 'LinkedIn Premium', 'Software'],
+      ['Shopify\nMonthly plan\nTotal $39.00', 'Shopify', 'Software'],
+      ['PlayStation Plus\nTotal $17.99', 'PlayStation Plus', 'Gaming'],
+      ['Duolingo\nTotal $12.99', 'Duolingo', 'Education'],
+      ['Strava\nTotal $11.99', 'Strava', 'Fitness'],
+      ['QuickBooks\nTotal $30.00', 'QuickBooks', 'Finance'],
+      ['Starlink\nTotal $120.00', 'Starlink', 'Utilities'],
+      ['Google One\nTotal $1.99', 'Google One', 'Software'],
+      ['iCloud+\nTotal $2.99', 'iCloud+', 'Software'],
+    ];
+
+    for (const [text, expectedProvider, expectedCategory] of cases) {
+      const r = parseReceiptDocument(text, { kind: 'subscription' });
+      expect(r.providerName.value, text).toBe(expectedProvider);
+      expect(r.category.value, text).toBe(expectedCategory);
+    }
   });
 
   it('does not use a city as the merchant name', () => {
@@ -229,10 +287,19 @@ describe('parseReceiptDocument — account type', () => {
     expect(r.accountType.value).toBe('Work');
   });
 
-  it('falls back to Other when the receipt states no account type', () => {
-    const r = parseReceiptDocument('Netflix\nTotal $15.49', { kind: 'subscription' });
+  it('falls back to Other when the receipt states no account type or only incidental words like personal/credit card', () => {
+    const r = parseReceiptDocument('Netflix\nFor personal use\nPaid by credit card\nTotal $15.49', {
+      kind: 'subscription',
+    });
     expect(r.accountType.value).toBe('Other');
     expect(r.accountType.confidence).toBe('none');
+
+    const unknown = parseReceiptDocument(
+      'Acme Services\nMonthly membership\nPaid by credit card\nTotal $25.00',
+      { kind: 'subscription' }
+    );
+    expect(unknown.category.value).toBeNull();
+    expect(unknown.accountType.value).toBe('Other');
   });
 });
 

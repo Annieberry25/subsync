@@ -4,11 +4,9 @@ import type { ReceiptDraft } from '@/lib/services/receipt-discovery';
 
 /**
  * The email-forwarding webhook is the only unbounded ingress in the system:
- * `maxEmailDiscoveryPerMonth` (0 for Free, 100 for Plus) was declared but never
- * enforced, so a forwarded-receipt flood was free. These tests pin the webhook
- * path against the monthly quota, the per-hour burst cap, and the Gmail-monitor
- * carve-out (which is bounded by its daily cron and must not consume the
- * account).
+ * these tests pin the webhook path against the monthly quota, the per-hour
+ * burst cap, and the Gmail-monitor carve-out (which is bounded by its daily
+ * cron and must not consume the account).
  */
 const mocks = vi.hoisted(() => ({
   countEmailDiscoverySinceHours: vi.fn(async () => 0),
@@ -127,7 +125,7 @@ function makeAdmin(cfg: AdminConfig) {
   return builder;
 }
 
-/** A successfully-ingestable setup: free skipped for the quota path, sub + inbox items present. */
+/** A successfully-ingestable setup: sub + inbox items present. */
 function plusAdmin() {
   return makeAdmin({
     profile: { plan_tier: 'plus', plan_expires_at: '2099-01-01T00:00:00.000Z', is_admin: false },
@@ -148,16 +146,19 @@ beforeEach(() => {
 });
 
 describe('ingestReceiptDraft · email-forwarding quota', () => {
-  it('blocks a Free user immediately: 0 forwarded receipts allowed per month', async () => {
+  it('allows a Free user when maxEmailDiscoveryPerMonth is unlimited and records the discovery', async () => {
     const admin = makeAdmin({
       profile: { plan_tier: null, plan_expires_at: null, is_admin: false },
+      activeNames: [],
+      activeCount: 0,
+      sub: { id: 'sub-1', name: 'Netflix', price: 15.49, currency: 'USD', provider_url: null },
+      item: { id: 'item-1' },
     });
 
     const result = await ingestReceiptDraft(admin, 'user-1', DRAFT, 'Email Forwarding');
 
-    expect(result.status).toBe('limit_reached');
-    expect(result.error).toContain('0');
-    expect(mocks.recordEmailDiscovery).not.toHaveBeenCalled();
+    expect(result.status).toBe('created');
+    expect(mocks.recordEmailDiscovery).toHaveBeenCalledWith('user-1', 'email_forwarding');
   });
 
   it('lets a Plus user under the 100/month quota proceed and record the discovery', async () => {

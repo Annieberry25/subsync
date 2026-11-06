@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ChevronLeft, Link2, Link2Off, Info, KeyRound } from 'lucide-react';
+import { Mail, ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Check, ChevronLeft, Link2, Link2Off, KeyRound } from 'lucide-react';
 import Sheet from '@/components/ui/sheet';
 import { usePlan, useSettings } from '@/lib/contexts/user-settings-context';
 import { useInbox } from '@/lib/contexts/inbox-context';
@@ -229,15 +229,14 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
       onClose={onClose}
       size="md"
       title="Connect Gmail"
-      description="Automatic Email Receipt Discovery"
-      headerAction={
+      headerLeading={
         onBack ? (
           <button
             type="button"
             onClick={onBack}
             aria-label="Back to Add Subscription menu"
             data-touch="compact"
-            className="w-9 h-9 shrink-0 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-[#94A3B8] hover:text-[#F5F7F6] transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -255,16 +254,11 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
           {/* Step 1a: Authorization info / connected state */}
           {step === 'auth' && !isGmailConnected && !grantExpired && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-[#F5F7F6]">
-                  Connect Gmail
-                </h4>
-                <p className="text-xs text-[#94A3B8] leading-relaxed">
-                  “Let SubHalt find subscription receipts and billing emails automatically.”
-                </p>
-              </div>
+              <p className="text-xs text-[#94A3B8] leading-relaxed">
+                “Let SubHalt find subscription receipts and billing emails automatically.”
+              </p>
 
-              <div className="p-4 rounded-xl bg-[#121414] border border-[#1A1D1D] space-y-3">
+              <div className="space-y-3">
                 <div className="flex items-start gap-2.5 text-xs text-[#94A3B8]">
                   <ShieldCheck className="w-4 h-4 text-[#14B8A6] shrink-0 mt-0.5" />
                   <span>
@@ -277,25 +271,9 @@ export function GmailConnectModal({ isOpen, onClose, onBack, onSuccess, onRequir
                     You will be redirected to Google to approve access, then returned here to review what we found.
                   </span>
                 </div>
-                <div className="flex items-start gap-2.5 text-xs text-[#94A3B8]">
-                  <Info className="w-4 h-4 text-[#14B8A6] shrink-0 mt-0.5" />
-                  <span>
-                    If Google shows “Google hasn&apos;t verified this app”, choose{' '}
-                    <span className="text-[#F5F7F6] font-medium">Advanced → Go to SubHalt (unsafe)</span> to continue.
-                  </span>
-                </div>
               </div>
 
               <div className="pt-2 flex justify-end gap-2">
-                {onBack && (
-                  <button
-                    type="button"
-                    onClick={onBack}
-                    className="px-4 py-2.5 rounded-xl bg-[#1A1D1D] hover:bg-[#262929] text-[#94A3B8] hover:text-[#F5F7F6] text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    ← Back
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={onClose}

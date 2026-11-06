@@ -7,7 +7,7 @@
  */
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { gmail_v1 } from 'googleapis';
 import { env } from '@/lib/env';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -111,7 +111,11 @@ export function gmailStateMatches(state: string, userId: string): boolean {
   if (separator <= 0) return false;
   const nonce = state.slice(0, separator);
   const boundUserId = state.slice(separator + 1);
-  return boundUserId === userId && /^[a-f0-9]{32}$/.test(nonce);
+  const boundBuf = Buffer.from(boundUserId);
+  const userBuf = Buffer.from(userId);
+  const userMatches =
+    boundBuf.length === userBuf.length && timingSafeEqual(boundBuf, userBuf);
+  return userMatches && /^[a-f0-9]{32}$/.test(nonce);
 }
 
 export interface GmailStatus {
@@ -218,6 +222,9 @@ export async function storeGmailConnection(
   if (isGmailTokenEncryptionConfigured()) {
     credentialsValue = encryptGmailCredentials(stored);
   } else {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('GMAIL_TOKEN_ENCRYPTION_KEY must be configured in production before storing Gmail credentials.');
+    }
     warnMissingEncryptionKey();
   }
 

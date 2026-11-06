@@ -70,8 +70,9 @@ export async function GET(request: Request) {
     const report = await runRenewalReminders({ supabase, dryRun });
     return NextResponse.json(report);
   } catch (err) {
+    console.error('[cron/send-reminders] unexpected error:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'An unexpected error occurred.' },
+      { error: 'An unexpected error occurred.' },
       { status: 500 }
     );
   }

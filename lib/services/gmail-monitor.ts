@@ -4,6 +4,7 @@
  * Intended to run from a cron endpoint (or Vercel Cron / instrumentation).
  */
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isFeatureEnabledForUser } from '@/lib/auth/feature-access';
 import { sendPushToUser } from '@/lib/push/send';
 import { scanGmailForSubscriptions } from '@/lib/services/gmail-service';
 import {
@@ -55,6 +56,10 @@ export async function monitorGmailSubscriptionsForAllUsers(opts?: {
   for (const connection of connections) {
     const userId = connection.user_id;
     try {
+      if (!(await isFeatureEnabledForUser(admin, userId, 'gmailConnect'))) {
+        continue;
+      }
+
       const { discovered } = await scanGmailForSubscriptions(userId, opts?.maxResults ?? 40);
       summary.scanned += 1;
 

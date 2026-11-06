@@ -19,10 +19,10 @@ interface LinkSubscriptionModalProps {
 }
 
 const POPULAR_PROVIDERS = [
-  { name: 'Google One', category: 'Utilities' as const, defaultPrice: 2.99, currency: 'USD', cycle: 'monthly' as const },
+  { name: 'Google One', category: 'Software' as const, defaultPrice: 2.99, currency: 'USD', cycle: 'monthly' as const },
   { name: 'Spotify', category: 'Streaming' as const, defaultPrice: 11.99, currency: 'USD', cycle: 'monthly' as const },
   { name: 'Netflix', category: 'Streaming' as const, defaultPrice: 15.49, currency: 'USD', cycle: 'monthly' as const },
-  { name: 'Apple', category: 'Utilities' as const, defaultPrice: 10.99, currency: 'USD', cycle: 'monthly' as const },
+  { name: 'Apple', category: 'Software' as const, defaultPrice: 10.99, currency: 'USD', cycle: 'monthly' as const },
   { name: 'Adobe Creative Cloud', category: 'Software' as const, defaultPrice: 54.99, currency: 'USD', cycle: 'monthly' as const },
   { name: 'ChatGPT Plus', category: 'Software' as const, defaultPrice: 20.00, currency: 'USD', cycle: 'monthly' as const },
   { name: 'GitHub Pro', category: 'Software' as const, defaultPrice: 4.00, currency: 'USD', cycle: 'monthly' as const },

@@ -10,8 +10,8 @@
 --   3. Creates trigger welcome_on_auth_user_created so the function runs on every
 --      new signup.
 --
--- The x-webhook-secret header MUST exactly match the SUPABASE_WEBHOOK_SECRET
--- environment variable set in Vercel.
+-- Replace YOUR_WEBHOOK_SECRET_HERE below with the SUPABASE_WEBHOOK_SECRET
+-- environment variable set in Vercel before running in the SQL Editor.
 
 create extension if not exists pg_net with schema extensions;
 
@@ -25,7 +25,7 @@ begin
     url := 'https://subhalt.xyz/api/webhooks/supabase',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'x-webhook-secret', '08d0308ef51cefa08d3d13dd3df2f8e8af6e3b225b108a0d6a36a702bcdcf1fd'
+      'x-webhook-secret', 'YOUR_WEBHOOK_SECRET_HERE'
     ),
     body := jsonb_build_object(
       'type', format('INSERT:%I.%I', TG_TABLE_SCHEMA, TG_TABLE_NAME),

@@ -57,6 +57,9 @@ export const FEATURE_FLAGS: Record<FeatureKey, FeatureDefinition> = {
     adminOnly:
       (process.env.NEXT_PUBLIC_BILL_PAYMENT_ADMIN_ONLY ?? 'true').toLowerCase() === 'true',
   },
+  /* Gmail Connect is admin-only until Google verifies the OAuth app for the
+     gmail.readonly scope. Set NEXT_PUBLIC_GMAIL_CONNECT_ADMIN_ONLY=false once
+     verification is approved. */
   gmailConnect: {
     enabled: (process.env.NEXT_PUBLIC_GMAIL_CONNECT_ENABLED ?? 'true').toLowerCase() === 'true',
     adminOnly:

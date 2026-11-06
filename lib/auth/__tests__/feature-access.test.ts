@@ -16,18 +16,36 @@ function clientWithAdmin(isAdmin: boolean) {
 }
 
 describe('isFeatureEnabledForUser', () => {
-  it('allows an admin while the feature is admin-only', async () => {
+  it('allows an admin while a feature is admin-only', async () => {
     const supabase = clientWithAdmin(true);
 
-    await expect(isFeatureEnabledForUser(supabase, 'admin-id', 'gmailConnect')).resolves.toBe(true);
+    await expect(
+      isFeatureEnabledForUser(supabase, 'admin-id', 'billsPayments')
+    ).resolves.toBe(true);
   });
 
-  it('refuses a non-admin while the feature is admin-only', async () => {
+  it('refuses a non-admin while a feature is admin-only', async () => {
     const supabase = clientWithAdmin(false);
 
-    await expect(isFeatureEnabledForUser(supabase, 'user-id', 'gmailConnect')).resolves.toBe(
-      false
-    );
+    await expect(
+      isFeatureEnabledForUser(supabase, 'user-id', 'billsPayments')
+    ).resolves.toBe(false);
+  });
+
+  it('refuses a non-admin while Gmail Connect awaits Google verification', async () => {
+    const supabase = clientWithAdmin(false);
+
+    await expect(
+      isFeatureEnabledForUser(supabase, 'user-id', 'gmailConnect')
+    ).resolves.toBe(false);
+  });
+
+  it('allows the admin testing account to use Gmail Connect', async () => {
+    const supabase = clientWithAdmin(true);
+
+    await expect(
+      isFeatureEnabledForUser(supabase, 'admin-id', 'gmailConnect')
+    ).resolves.toBe(true);
   });
 
   it('refuses a missing user without reading the profiles row', async () => {

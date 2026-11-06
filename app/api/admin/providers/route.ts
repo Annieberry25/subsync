@@ -3,6 +3,16 @@ import { requireAdmin } from '@/lib/auth/admin-guard';
 import { createAdminBillProvider, listAdminBillProviders } from '@/lib/services/admin-service';
 import type { AdminProviderInput } from '@/lib/types/admin.types';
 
+function isSafeHttpUrl(value: string | null | undefined): boolean {
+  if (!value || !value.trim()) return true;
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export async function GET() {
   try {
     const admin = await requireAdmin();
@@ -26,6 +36,12 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as Partial<AdminProviderInput>;
     if (!body.name?.trim() || !body.category?.trim() || !body.country?.trim()) {
       return NextResponse.json({ error: 'name, category, and country are required.' }, { status: 400 });
+    }
+    if (!isSafeHttpUrl(body.official_website) || !isSafeHttpUrl(body.official_payment_url)) {
+      return NextResponse.json(
+        { error: 'Provider URLs must use http:// or https://.' },
+        { status: 400 }
+      );
     }
     const row = await createAdminBillProvider({
       name: body.name,
