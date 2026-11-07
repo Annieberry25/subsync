@@ -219,12 +219,12 @@ export default function SubscriptionModal({
   const [notes, setNotes] = useState('');
 
   /*
-   * The note the row already had, kept out of the box.
+   * The note of the row another account is being added to.
    *
-   * The notes box is for the user to write in, so it opens empty in every
-   * form. The text that was already there is still saved when the box is left
-   * empty, so editing a price never quietly deletes a note — and what the
-   * user did write replaces it.
+   * Editing a subscription opens its note in the box, so what the box holds is
+   * what is saved (clearing it clears the note). Adding another account to a
+   * tracked row keeps that row's note out of the box, and it is still saved
+   * when the box is left empty.
    */
   const [existingNotesText, setExistingNotesText] = useState('');
 
@@ -327,8 +327,8 @@ export default function SubscriptionModal({
             (accountStartDate && accountCycle ? addCycleToDate(accountStartDate, accountCycle) : '')
         );
       }
-      setNotes('');
-      setExistingNotesText(cleanNotesUserText(initialData.notes));
+      setNotes(cleanNotesUserText(initialData.notes));
+      setExistingNotesText('');
     } else {
       setName('');
       setPrice('');

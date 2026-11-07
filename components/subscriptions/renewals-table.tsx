@@ -1,7 +1,7 @@
 'use client';
 
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { cleanNotesUserText, hasMultipleAccounts } from '@/lib/services/subscription-service';
+import { hasMultipleAccounts } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { ServiceIcon } from '@/components/ui/service-icon';
 
@@ -16,8 +16,7 @@ import { ServiceIcon } from '@/components/ui/service-icon';
  * dashboard widget keeps the service name anchored.
  */
 export function getPlanName(sub: SubscriptionRow): string {
-  const cleanNotes = cleanNotesUserText(sub?.notes).trim();
-  if (cleanNotes) return cleanNotes;
+  /* The user's note is not a plan name, so it is never shown here. */
   const nameLower = sub.name.toLowerCase();
   if (nameLower.includes('netflix')) return 'Basic Plan';
   if (nameLower.includes('spotify')) return 'Premium Plan';

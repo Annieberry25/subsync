@@ -96,7 +96,9 @@ describe('SubscriptionTable', () => {
     const body = screen.getAllByRole('rowgroup')[1];
     const row = within(body).getByRole('row');
     expect(within(row).getByText('Spotify')).toBeInTheDocument();
-    expect(within(row).getByText('Duo plan')).toBeInTheDocument();
+    // The note is not the plan: it lives on the detail sheet, not in the list.
+    expect(within(row).queryByText('Duo plan')).not.toBeInTheDocument();
+    expect(within(row).getByText('Monthly Subscription')).toBeInTheDocument();
     expect(within(row).getByText('Music')).toBeInTheDocument();
     expect(within(row).getByText(/\$11\.99/)).toBeInTheDocument();
   });

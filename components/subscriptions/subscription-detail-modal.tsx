@@ -325,8 +325,8 @@ export default function SubscriptionDetailModal({
             </div>
           </div>
 
-          {/* Section 2: Category, Website, Billing renewal, Start Date, Notes,
-              Account Type, Auto renewal and Attached Receipts in one
+          {/* Section 2: Category, Website, Billing renewal, Start Date,
+              Account Type, Auto renewal, Notes and Attached Receipts in one
               container. Every row is a hairline line: the label on the left,
               the value on the right. */}
           <div className="p-4 sm:p-5 rounded-2xl bg-[#131617] border border-[#222728] col-span-1 md:col-span-2">
@@ -372,13 +372,6 @@ export default function SubscriptionDetailModal({
                 </div>
               )}
 
-              {cleanNotes && (
-                <div className="py-3">
-                  <span className="text-xs text-[#9CA3AF] block">Notes</span>
-                  <p className="text-sm text-[#F5F7F6] leading-relaxed whitespace-pre-wrap mt-1">{cleanNotes}</p>
-                </div>
-              )}
-
               <div className="py-3 flex items-center justify-between gap-4">
                 <span className="text-xs text-[#9CA3AF] shrink-0">Account Type:</span>
                 {selectedLink ? (
@@ -413,6 +406,14 @@ export default function SubscriptionDetailModal({
                     </span>
                   </div>
                 </>
+              )}
+
+              {/* Notes, directly above the attached receipts. */}
+              {cleanNotes && (
+                <div className="py-3">
+                  <span className="text-xs text-[#9CA3AF] block">Notes</span>
+                  <p className="text-sm text-[#F5F7F6] leading-relaxed whitespace-pre-wrap mt-1">{cleanNotes}</p>
+                </div>
               )}
             </div>
 

@@ -1,7 +1,7 @@
 'use client';
 import { safeSetItem, safeGetItem } from '@/lib/safe-local-storage';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, AlertCircle, LayoutGrid, List, Trash2 } from 'lucide-react';
 import {
   fetchSubscriptions,
@@ -123,6 +123,13 @@ export default function SubscriptionManager() {
 
   const [deletingSubscription, setDeletingSubscription] = useState<SubscriptionRow | null>(null);
   const [deleteReturnToDetailSub, setDeleteReturnToDetailSub] = useState<SubscriptionRow | null>(null);
+  /*
+   * Set once the delete has gone through. ConfirmDialog calls onClose right
+   * after onConfirm, and that onClose still sees the old
+   * `deleteReturnToDetailSub`, so without this flag the detail sheet of the
+   * row that was just deleted opened again.
+   */
+  const deleteCompletedRef = useRef(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [reminderSubscription, setReminderSubscription] = useState<SubscriptionRow | null>(null);
@@ -591,6 +598,7 @@ export default function SubscriptionManager() {
         `"${deletingSubscription.name}" has already been moved to Deleted.`,
         'Already Deleted'
       );
+      deleteCompletedRef.current = true;
       setDeletingSubscription(null);
       setDeleteReturnToDetailSub(null);
       return;
@@ -609,6 +617,9 @@ export default function SubscriptionManager() {
         ariaLabel: 'View deleted subscriptions',
         onClick: () => router.push('/history/deleted'),
       });
+      deleteCompletedRef.current = true;
+      setIsDetailOpen(false);
+      setSelectedDetailSub(null);
       setDeletingSubscription(null);
       setDeleteReturnToDetailSub(null);
       await loadData();
@@ -1128,11 +1139,14 @@ export default function SubscriptionManager() {
       <ConfirmDialog
         isOpen={!!deletingSubscription}
         onClose={() => {
-          if (deleteReturnToDetailSub) {
+          /* Cancelling returns to the detail sheet it came from; a completed
+             delete does not, because that subscription is gone. */
+          if (deleteReturnToDetailSub && !deleteCompletedRef.current) {
             setSelectedDetailSub(deleteReturnToDetailSub);
             setIsDetailOpen(true);
-            setDeleteReturnToDetailSub(null);
           }
+          deleteCompletedRef.current = false;
+          setDeleteReturnToDetailSub(null);
           setDeletingSubscription(null);
         }}
         onConfirm={handleConfirmDelete}

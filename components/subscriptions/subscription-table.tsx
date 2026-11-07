@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useSyncExternalStore, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Edit2, MoreVertical, Clock, Settings, Archive, Bell, ChevronRight, Trash2 } from 'lucide-react';
 import type { SubscriptionRow } from '@/lib/services/subscription-service';
-import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription, cleanNotesUserText, hasMultipleAccounts } from '@/lib/services/subscription-service';
+import { getProviderManagementUrl, getKnownProviderManagementUrl, archiveSubscription, hasMultipleAccounts } from '@/lib/services/subscription-service';
 import { formatCurrency } from '@/lib/utils/metrics-utils';
 import { resolveRenewalDate } from '@/lib/utils/billing-dates';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -23,11 +23,9 @@ interface SubscriptionTableProps {
   onDismissReminder?: (subscription: SubscriptionRow) => void;
 }
 
+/* The plan is described by the billing cycle. The user's note is not a plan
+   name: it belongs to the detail sheet, not to the list. */
 function getPlanName(sub: SubscriptionRow): string {
-  const cleanNotes = cleanNotesUserText(sub?.notes);
-  if (cleanNotes) {
-    return cleanNotes;
-  }
   const cycleName = sub.billing_cycle ? sub.billing_cycle.charAt(0).toUpperCase() + sub.billing_cycle.slice(1) : 'Monthly';
   return `${cycleName} Subscription`;
 }
@@ -67,11 +65,29 @@ function SubscriptionTable({
     if (btn) {
       const rect = btn.getBoundingClientRect();
       const safeRight = Math.max(16, Math.min(window.innerWidth - 208, window.innerWidth - rect.right));
-      const top = rect.bottom + 6;
+      /* Page coordinates, not viewport ones: the menu is anchored in the
+         document so it moves with the page when the page scrolls. */
+      const top = rect.bottom + window.scrollY + 6;
       setMenuPos({ top, right: safeRight });
       setActiveMenuSubId(sub.id);
     }
   };
+
+  /*
+   * The menu still opens downward. When its bottom runs past the bottom of the
+   * screen, the page scrolls just far enough to bring every item into view.
+   */
+  useEffect(() => {
+    if (!activeMenuSubId) return;
+    const menu = menuRef.current;
+    if (!menu) return;
+
+    const margin = 16;
+    const overflow = menu.getBoundingClientRect().bottom - (window.innerHeight - margin);
+    if (overflow > 0) {
+      window.scrollBy({ top: overflow, behavior: 'smooth' });
+    }
+  }, [activeMenuSubId]);
 
   useEffect(() => {
     if (!activeMenuSubId) return;
@@ -79,6 +95,16 @@ function SubscriptionTable({
     const handleScroll = (event: Event) => {
       const target = event.target as Element | null;
       if (menuRef.current && target && menuRef.current.contains(target as Node)) {
+        return;
+      }
+      /* The page scrolling does not close the menu: it is anchored in the
+         document and moves with its button, and the page is scrolled on
+         purpose to reveal the whole menu. */
+      if (
+        (target as unknown) === document ||
+        target === document.documentElement ||
+        target === document.body
+      ) {
         return;
       }
       setActiveMenuSubId(null);
@@ -113,7 +139,7 @@ function SubscriptionTable({
         <div
           ref={menuRef}
           style={{
-            position: 'fixed',
+            position: 'absolute',
             right: `${menuPos.right}px`,
             top: `${menuPos.top}px`,
           }}
